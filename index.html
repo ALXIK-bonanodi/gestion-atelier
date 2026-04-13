@@ -2157,7 +2157,7 @@ function openVenteModal() {
   // Seulement bijoux ayant des productions enregistrées (statut produit)
   const bijsAvecStock = BIJS.filter(b=>!b.no_sell&&stockDispo2(b.id)>0);
   if(!bijsAvecStock.length) {
-    toast('Aucune production disponible à la vente — enregistrez d'abord une production','err');
+    toast('Aucune production disponible à la vente — enregistrez une production d\u0027abord','err');
     return;
   }
   document.getElementById('v-bij').innerHTML = bijsAvecStock.map(b=>{
