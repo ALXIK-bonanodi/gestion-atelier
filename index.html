@@ -316,6 +316,7 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
         Effacer les identifiants mémorisés
       </button>
     </div>
+    <div id="debug-log" style="margin-top:12px;font-size:10px;color:#555;background:#f5f5f5;border-radius:6px;padding:8px;display:none;white-space:pre-line;word-break:break-all;max-height:200px;overflow-y:auto"></div>
   </div>
 </div>
 
@@ -854,29 +855,45 @@ let SB = null;
 const SBURL_KEY = 'atl_sb_url';
 const SBKEY_KEY = 'atl_sb_key';
 
+function dbg(msg) {
+  const el = document.getElementById('debug-log');
+  if(!el) return;
+  el.style.display = 'block';
+  el.textContent += new Date().toLocaleTimeString() + ' — ' + msg + '\n';
+  el.scrollTop = el.scrollHeight;
+}
+
 async function connect() {
   const url = document.getElementById('cfg-url').value.trim();
   const key = document.getElementById('cfg-key').value.trim();
   const btn = document.getElementById('btn-connect');
   const errEl = document.getElementById('setup-error');
+  const dbgEl = document.getElementById('debug-log');
+  if(dbgEl) { dbgEl.textContent=''; dbgEl.style.display='block'; }
 
   if (!url || !key) { showSetupError('URL et clé anon obligatoires'); return; }
 
   const cleanUrl = url.replace(/\/$/, '');
+  dbg('URL: ' + cleanUrl.substring(0,50));
+  dbg('Clé: ' + key.substring(0,20) + '...');
   btn.textContent = '⏳ Connexion...'; btn.disabled = true;
   errEl.style.display = 'none';
 
-  // Timeout 10 secondes
   const timer = setTimeout(() => {
     btn.textContent = 'Se connecter →'; btn.disabled = false;
-    showSetupError('Délai dépassé — vérifiez votre URL Supabase et votre connexion internet.');
-  }, 10000);
+    dbg('TIMEOUT 15s');
+    showSetupError('⏱ Délai dépassé. Vérifiez URL et connexion internet.');
+  }, 15000);
 
   try {
+    dbg('Création client...');
     SB = supabase.createClient(cleanUrl, key);
+    dbg('Test requête config...');
     const { data, error } = await SB.from('config').select('key').limit(1);
     clearTimeout(timer);
-    if (error) throw error;
+    dbg('Réponse: error=' + (error ? error.message : 'null'));
+    if (error && !error.message.includes('does not exist') && !error.message.includes('relation')) throw error;
+    dbg('Connexion réussie ✓');
     if (document.getElementById('cfg-remember').checked) {
       localStorage.setItem(SBURL_KEY, cleanUrl);
       localStorage.setItem(SBKEY_KEY, key);
@@ -888,29 +905,14 @@ async function connect() {
   } catch(e) {
     clearTimeout(timer);
     btn.textContent = 'Se connecter →'; btn.disabled = false;
-    let msg = e.message || String(e);
-    if (!msg || msg === 'undefined') msg = 'Erreur inconnue — vérifiez URL et clé anon.';
+    const raw = e.message || String(e);
+    dbg('ERREUR: ' + raw);
+    let msg = raw;
+    if (!msg || msg === 'undefined') msg = 'Erreur inconnue.';
     if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('fetch')) {
-      msg = '❌ Impossible de joindre Supabase.
-
-Vérifiez :
-1. URL exacte (https://xxx.supabase.co)
-2. Clé anon public (pas service_role)
-3. Votre URL GitHub dans Supabase → Settings → API → Allowed origins';
+      msg = '❌ Impossible de joindre Supabase.\nVérifiez URL (https://xxx.supabase.co) et connexion.';
     } else if (msg.includes('Invalid API key') || msg.includes('JWT') || msg.includes('apikey')) {
-      msg = '❌ Clé invalide — utilisez la clé "anon public", pas "service_role".';
-    } else if (msg.includes('relation') || msg.includes('does not exist')) {
-      msg = '✓ Connexion OK mais table config manquante — exécutez le SQL de création des tables.';
-      clearTimeout(timer);
-      // Connection works even if config table missing
-      if (document.getElementById('cfg-remember').checked) {
-        localStorage.setItem(SBURL_KEY, cleanUrl);
-        localStorage.setItem(SBKEY_KEY, key);
-      }
-      document.getElementById('setup-screen').style.display = 'none';
-      await loadAll();
-      setSyncOk();
-      return;
+      msg = '❌ Clé invalide — utilisez la clé anon public.';
     }
     showSetupError(msg);
   }
