@@ -1,0 +1,2375 @@
+<!DOCTYPE html>
+<!-- v2026-04-09 22:34 -->
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>✦ Atelier</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* Polices système — pas de dépendance externe */
+:root{
+  --serif: Georgia, 'Times New Roman', serif;
+  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --gold:#C8A951;--gold2:#E8D59A;--goldP:#FAF4E6;
+  --purple:#6B4E8E;--purpleL:#9B7EC0;--purpleP:#EDE8FA;
+  --dark:#1A1228;--ink:#2C2140;--muted:#7A6E8A;
+  --border:#E2D9EE;--bg:#F0EDF8;--white:#FFFFFF;
+  --green:#2E7D4F;--greenP:#EAF5EE;
+  --red:#C0392B;--redP:#FDEAEA;
+  --orange:#C05820;--orangeP:#FEF0E6;
+  --gray:#6B6B7A;--grayP:#F0EEF5;
+  --r:12px;--rs:8px;--rx:4px;
+  --sh:0 1px 8px rgba(26,18,40,.1);--shM:0 4px 20px rgba(26,18,40,.15);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{height:100%;background:var(--bg)}
+body{
+  font-family:var(--sans);
+  background:var(--bg);
+  color:var(--ink);
+  font-size:15px;
+  display:flex;flex-direction:column;
+  height:100%;
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* SETUP SCREEN */
+#setup-screen{position:fixed;inset:0;background:var(--dark);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px}
+.setup-card{background:#fff;border-radius:var(--r);padding:24px;max-width:480px;width:100%;box-shadow:var(--shM)}
+.setup-title{font-family:var(--serif);font-size:22px;color:var(--purple);margin-bottom:8px;font-style:italic}
+.setup-sub{font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.6}
+
+/* TOAST */
+.toast{position:fixed;bottom:calc(24px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:var(--dark);color:#fff;padding:11px 20px;border-radius:24px;font-size:13px;font-weight:500;z-index:500;opacity:0;transition:.3s;pointer-events:none;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.3)}
+.toast.show{opacity:1}
+.toast.err{background:var(--red)}
+.toast.ok{background:var(--green)}
+
+/* SYNC DOT */
+.sync-dot{width:8px;height:8px;border-radius:50%;background:#555;display:inline-block;margin-left:6px}
+.sync-dot.syncing{background:var(--gold);animation:pulse 1s infinite}
+.sync-dot.ok{background:#4CAF50}
+.sync-dot.err{background:var(--red)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* HEADER */
+.hdr{
+  background:var(--dark);
+  min-height:52px;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 16px;
+  padding-top:env(safe-area-inset-top);
+  flex-shrink:0;
+}
+.logo{
+  font-family:var(--serif);
+  font-size:19px;
+  color:var(--gold);
+  font-style:italic;
+  display:flex;align-items:center;gap:6px;
+  letter-spacing:.3px;
+}
+.logo-sub{color:rgba(255,255,255,.35);font-size:12px;font-style:normal;font-family:var(--sans)}
+
+/* TABS */
+.tabs{
+  background:var(--dark);
+  display:flex;
+  overflow-x:auto;
+  flex-shrink:0;
+  border-bottom:2px solid rgba(200,169,81,.25);
+  scrollbar-width:none;
+}
+.tabs::-webkit-scrollbar{display:none}
+.tab{
+  padding:11px 14px;
+  font-size:11px;font-weight:700;
+  letter-spacing:.5px;text-transform:uppercase;
+  color:rgba(255,255,255,.4);
+  cursor:pointer;
+  border-bottom:2px solid transparent;
+  margin-bottom:-2px;
+  white-space:nowrap;
+  transition:.15s;
+  -webkit-user-select:none;user-select:none;
+}
+.tab.on{color:var(--gold);border-bottom-color:var(--gold)}
+
+/* MAIN SCROLL AREA */
+main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0;background:var(--bg)}
+.page{display:none;padding:12px;max-width:960px;margin:0 auto;padding-bottom:calc(80px + env(safe-area-inset-bottom))}
+.page.on{display:block}
+
+/* CARDS */
+.card{background:var(--white);border-radius:var(--r);box-shadow:var(--sh);margin-bottom:12px;overflow:hidden}
+.card-hd{background:var(--dark);padding:11px 14px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.card-hd h2{font-family:var(--serif);font-size:15px;color:var(--gold);font-weight:400;font-style:italic}
+.card-bd{padding:12px 14px}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.stat{background:var(--white);border-radius:var(--r);padding:12px 8px;box-shadow:var(--sh);text-align:center}
+.stat .v{font-family:var(--serif);font-size:17px;line-height:1.1;font-weight:700}
+.stat .l{font-size:9px;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.4px}
+.stat.red .v{color:var(--red)}.stat.grn .v{color:var(--green)}.stat.pur .v{color:var(--purple)}
+
+/* CAT BAR */
+.cat-bar{padding:10px 12px 8px;background:var(--goldP);border-bottom:1px solid #E8D9B0}
+.cat-section{display:flex;align-items:flex-start;flex-wrap:wrap;gap:4px;margin-bottom:6px}
+.cat-section:last-child{margin-bottom:0}
+.cat-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);width:100%;margin-bottom:2px}
+.chip{display:inline-block;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;color:#fff;transition:.1s;-webkit-user-select:none;letter-spacing:.1px}
+.chip:active{transform:scale(.93);opacity:.85}
+
+/* BANNERS */
+.main-ban{padding:8px 14px;font-family:var(--serif);font-size:13px;color:#fff;margin:10px -14px 0;display:flex;align-items:center;gap:5px;font-style:italic}
+.sub-ban{padding:5px 14px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:rgba(255,255,255,.9);margin:5px -14px 0}
+
+/* TABLE */
+.tbl-wrap{overflow-x:auto;margin:0 -14px}
+table{width:100%;border-collapse:collapse;min-width:360px}
+th{padding:7px 10px;text-align:left;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);background:#F5F3FC;border-bottom:2px solid var(--border);white-space:nowrap}
+td{padding:9px 10px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--purpleP)}
+td.ref{font-weight:700;color:var(--purple);font-size:11px}
+td.dim{color:var(--muted);font-size:11px}
+td.hi{font-weight:700;color:var(--green)}
+td.lo{color:var(--red);font-weight:700}
+
+/* INPUTS */
+input,select,textarea{
+  font-family:var(--sans);font-size:15px;
+  padding:11px 12px;
+  border:1.5px solid var(--border);border-radius:var(--rs);
+  background:#fff;color:var(--ink);width:100%;
+  transition:.15s;-webkit-appearance:none;appearance:none;
+}
+input:focus,select:focus{outline:none;border-color:var(--purple);box-shadow:0 0 0 3px rgba(107,78,142,.12)}
+select{
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238878A8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 11px center;padding-right:30px;
+}
+input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--purple);flex-shrink:0}
+
+.fg{margin-bottom:11px}
+.fg>label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-bottom:4px}
+.r2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.r3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+
+/* BUTTONS */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:5px;
+  padding:10px 18px;border-radius:20px;
+  font-family:var(--sans);font-size:13px;font-weight:700;
+  cursor:pointer;border:2px solid transparent;
+  transition:filter .12s,transform .1s;white-space:nowrap;
+  -webkit-user-select:none;
+}
+.btn:active{transform:scale(.94);filter:brightness(.85)}
+/* Primaire — violet plein, texte blanc */
+.btn-p{background:var(--purple);color:#fff;border-color:var(--purple)}
+/* Gold — or plein, texte FONCÉ lisible */
+.btn-g{background:var(--gold);color:var(--dark);border-color:var(--gold)}
+/* Ghost — fond lilas, texte violet foncé */
+.btn-ghost{background:var(--purpleP);color:var(--purple);border-color:var(--border)}
+/* Suppression — fond lilas profond, texte violet */
+.btn-red{background:#DDD0F0;color:#4A2070;border-color:#C4AADD}
+.btn-sm{padding:7px 14px;font-size:12px}
+.btn-xs{padding:5px 12px;font-size:11px;border-radius:14px}
+/* Toggle is-mat */
+.toggle-row{display:flex;align-items:flex-start;gap:12px;padding:13px 16px;border-radius:20px;cursor:pointer;transition:background .15s,color .15s,border-color .15s;border:2px solid var(--purple);margin:0;width:100%}
+.toggle-row.off{background:var(--purple);color:#fff}
+.toggle-row.off .is-mat-sub{display:none}
+.toggle-row.on{background:#fff;color:var(--purple);border-color:var(--purple)}
+.toggle-row.on .is-mat-sub{display:block;color:var(--muted);font-size:11px;margin-top:3px}
+.toggle-row input[type=checkbox]{width:20px;height:20px;accent-color:var(--purple);cursor:pointer;flex-shrink:0;pointer-events:none;margin-top:2px}
+.abar{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+
+/* MODAL */
+.overlay{display:none;position:fixed;inset:0;background:rgba(26,18,40,.65);z-index:300;align-items:flex-end;justify-content:center}
+.overlay.on{display:flex}
+.modal{
+  background:#fff;border-radius:var(--r) var(--r) 0 0;
+  padding:20px 18px;padding-bottom:calc(24px + env(safe-area-inset-bottom));
+  width:100%;max-width:600px;max-height:90vh;
+  overflow-y:auto;-webkit-overflow-scrolling:touch;
+  animation:up .2s ease;
+}
+@keyframes up{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+.drag{width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 14px}
+.modal-title{font-family:var(--serif);font-size:18px;color:var(--purple);margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border);font-style:italic}
+.mfoot{display:flex;gap:8px;margin-top:16px;justify-content:flex-end}
+
+/* BADGES */
+.badge{display:inline-block;padding:2px 7px;border-radius:10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.2px}
+.bp{background:var(--purpleP);color:var(--purple)}
+.bg{background:#FEF8E6;color:#7A5210}
+.bgn{background:var(--greenP);color:var(--green)}
+.br{background:var(--redP);color:var(--red)}
+.bm{background:var(--grayP);color:var(--gray)}
+.bo{background:var(--orangeP);color:var(--orange)}
+
+/* BIJOU CARD */
+.bij-card{border:1.5px solid var(--border);border-radius:var(--r);margin-bottom:10px;overflow:hidden}
+.bij-hd{background:var(--dark);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;cursor:pointer;-webkit-user-select:none}
+.bij-title{font-family:var(--serif);color:var(--gold);font-size:14px;font-style:italic}
+.bij-foot{background:#F8F6FF;padding:9px 14px;display:flex;justify-content:flex-end;align-items:flex-end;gap:0;border-top:1px solid var(--border)}
+.bij-foot-cell{display:flex;flex-direction:column;align-items:center;min-width:90px;padding:6px 12px}
+.bij-foot-cell .cell-label{font-size:9px;text-transform:uppercase;letter-spacing:.3px;margin-bottom:4px;white-space:nowrap}
+.bij-foot-cell .cell-val{font-size:19px;font-weight:700;font-family:Georgia,serif;line-height:1}
+
+/* MTABS */
+.mtabs{display:flex;border-bottom:2px solid var(--border);margin-bottom:14px}
+.mtab{padding:9px 13px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:.12s;-webkit-user-select:none}
+.mtab.on{color:var(--purple);border-bottom-color:var(--purple)}
+
+/* MAT ROW */
+.mrow{display:grid;grid-template-columns:1fr 1.4fr 70px 30px;gap:5px;align-items:end;margin-bottom:6px}
+.mrow .fg{margin:0}
+
+/* STOCK BAR */
+.sbar{height:4px;background:var(--border);border-radius:2px;margin-top:4px}
+.sfill{height:100%;border-radius:2px}
+
+/* INFO/WARN BOXES */
+.info-box{background:var(--purpleP);border-left:3px solid var(--purple);border-radius:0 var(--rs) var(--rs) 0;padding:9px 12px;font-size:12px;color:var(--purple);margin-bottom:10px}
+.warn-box{background:var(--orangeP);border-left:3px solid var(--orange);border-radius:0 var(--rs) var(--rs) 0;padding:9px 12px;font-size:12px;color:var(--orange);margin-bottom:10px}
+
+/* DRAFT */
+.draft-pill{background:var(--orangeP);color:var(--orange);font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;text-transform:uppercase}
+
+/* RENT CARD */
+.rent-card{border:1.5px solid var(--border);border-radius:var(--r);margin-bottom:10px;overflow:hidden;cursor:pointer;transition:.15s}
+.rent-card:hover{box-shadow:var(--shM)}
+.rent-hd{background:var(--dark);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px}
+.rent-body{padding:12px 14px}
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px}
+.metric{text-align:center;padding:8px 4px;border-radius:var(--rs);background:var(--bg)}
+.metric .mv{font-weight:700;font-size:15px}
+.metric .ml{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-top:1px}
+
+/* EMPTY */
+.empty{text-align:center;padding:40px 20px;color:var(--muted)}
+.empty-icon{font-size:40px;margin-bottom:10px}
+.loading{text-align:center;padding:30px;color:var(--muted);font-size:13px}
+
+/* RESPONSIVE — tablette & desktop */
+@media(min-width:600px){
+  .page{padding:16px}
+  .tab{font-size:12px;padding:12px 16px}
+  .hdr{min-height:56px}
+  .logo{font-size:21px}
+  td,input,select{font-size:14px}
+}
+@media(min-width:900px){
+  .stats{gap:12px}
+  .stat .v{font-size:20px}
+  .card-bd{padding:16px}
+  .r2{gap:12px}
+  .r3{gap:12px}
+}
+@media(max-width:380px){
+  .stats{gap:5px}.stat .v{font-size:14px}
+  .r2,.r3{grid-template-columns:1fr}
+  .mrow{grid-template-columns:1fr 1.2fr 60px 28px}
+  .tab{padding:10px 10px;font-size:10px}
+}
+</style>
+</head>
+<body>
+
+<!-- ════════════════ SETUP SCREEN ════════════════ -->
+<div id="setup-screen">
+  <div class="setup-card">
+    <div class="setup-title">✦ Configuration</div>
+    <div class="setup-sub">
+      Entrez vos identifiants Supabase.<br>
+      Supabase → <b>Settings → API</b> → URL du projet + clé <b>anon public</b>.
+    </div>
+    <div class="fg"><label>URL du projet Supabase</label>
+      <input id="cfg-url" placeholder="https://XXXXXX.supabase.co" type="url"
+             autocomplete="url" onkeydown="if(event.key==='Enter')document.getElementById('cfg-key').focus()">
+    </div>
+    <div class="fg"><label>Clé anon publique</label>
+      <input id="cfg-key" placeholder="eyJhbGci…" type="text"
+             autocomplete="off" onkeydown="if(event.key==='Enter')connect()">
+    </div>
+    <input type="checkbox" id="cfg-remember" checked style="display:none">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer" onclick="toggleRemember()">
+      <span id="remember-icon" style="font-size:16px">✓</span>
+      <span id="remember-label" style="font-size:13px;font-weight:600;color:var(--purple)">Mémoriser sur cet appareil</span>
+    </div>
+    <button class="btn btn-p" style="width:100%;padding:13px" onclick="connect()" id="btn-connect">
+      Se connecter →
+    </button>
+    <div id="setup-error" style="color:var(--red);font-size:12px;margin-top:10px;display:none;padding:8px;background:var(--redP);border-radius:var(--rs)"></div>
+    <div style="text-align:center;margin-top:12px">
+      <button onclick="resetCredentials()" style="background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;text-decoration:underline">
+        Effacer les identifiants mémorisés
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ APP ════════════════ -->
+<div class="hdr">
+  <div class="logo">✦ Atelier <span class="logo-sub">bijoux</span>
+    <span class="sync-dot" id="sync-dot" title="Statut sync"></span>
+  </div>
+  <div style="font-size:10px;color:rgba(255,255,255,.25);letter-spacing:.4px;font-weight:600">ATELIER</div>
+</div>
+
+<div class="tabs">
+  <div class="tab on" data-p="mat" onclick="goTab(this)">📦 Matériaux</div>
+  <div class="tab" data-p="bij" onclick="goTab(this)">💎 Bijoux</div>
+  <div class="tab" data-p="stock" onclick="goTab(this)">📊 Stock</div>
+  <div class="tab" data-p="dep" onclick="goTab(this)">💸 Dépenses</div>
+  <div class="tab" data-p="rent" onclick="goTab(this)">📈 Rentabilité</div>
+  <div class="tab" data-p="cfg" onclick="goTab(this)">⚙ Paramètres</div>
+</div>
+
+<main id="main-area">
+
+<div id="p-mat" class="page on">
+  <div class="card">
+    <div id="cat-bar" class="cat-bar"></div>
+    <div class="card-bd">
+      <div class="abar">
+        <button class="btn btn-p" onclick="openMatModal()">＋ Nouveau matériau</button>
+        <button class="btn btn-ghost" onclick="openAddCat()">＋ Catégorie</button>
+        <select id="flt-sc" onchange="renderMat()" style="width:auto;flex:1;max-width:180px;font-size:12px;padding:8px 26px 8px 10px"></select>
+      </div>
+      <div style="margin-bottom:10px">
+        <input id="mat-search" type="search" placeholder="🔍 Rechercher une référence, désignation, variante…" oninput="renderMat()" style="font-size:13px;padding:10px 14px;border-radius:20px">
+      </div>
+      <div id="mat-body"><div class="loading">Chargement…</div></div>
+    </div>
+  </div>
+</div>
+
+<div id="p-bij" class="page">
+  <div class="card">
+    <div class="card-hd"><h2>💎 Bijoux & compositions</h2></div>
+    <div class="card-bd">
+      <div class="abar">
+        <button class="btn btn-p" onclick="openBijModal()">＋ Nouveau bijou</button>
+        <select id="flt-coll" onchange="renderBij()" style="width:auto;flex:1;max-width:140px;font-size:12px;padding:8px 26px 8px 10px"></select>
+        <select id="flt-status" onchange="renderBij()" style="width:auto;font-size:12px;padding:8px 26px 8px 10px">
+          <option value="">Tous</option><option value="ok">Complets</option><option value="draft">Brouillons</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap">
+        <input id="bij-search" type="search" placeholder="🔍 Rechercher…" oninput="renderBij()" style="font-size:13px;padding:10px 14px;border-radius:20px;flex:1;min-width:160px">
+        <button class="btn btn-ghost btn-sm" onclick="showBijDiag()">🔍 Doublons</button>
+      </div>
+      <div id="bij-diag-banner" style="display:none;margin-bottom:8px"></div>
+      <div id="bij-body"><div class="loading">Chargement…</div></div>
+    </div>
+  </div>
+</div>
+
+<div id="p-stock" class="page">
+  <div class="card">
+    <div class="card-hd"><h2>📊 Stock matériaux</h2></div>
+    <div class="card-bd">
+      <div class="info-box">Stock = stock saisi − consommation des productions enregistrées</div>
+      <div id="stock-body"><div class="loading">Chargement…</div></div>
+    </div>
+  </div>
+</div>
+
+<div id="p-dep" class="page">
+  <div id="dep-stats" class="stats"></div>
+  <div class="card">
+    <div class="card-hd"><h2>💸 Historique des achats</h2></div>
+    <div class="card-bd">
+      <div class="info-box">Utilisez ↑ sur un matériau pour enregistrer un réapprovisionnement. Le prix unitaire moyen se recalcule automatiquement.</div>
+      <div id="dep-body"><div class="loading">Chargement…</div></div>
+    </div>
+  </div>
+</div>
+
+<div id="p-rent" class="page">
+  <div id="rent-stats" class="stats"></div>
+  <div class="card">
+    <div class="card-hd"><h2>🏭 Productions</h2></div>
+    <div class="card-bd">
+      <div class="abar">
+        <button class="btn btn-p" onclick="openProdModal()">＋ Enregistrer une production</button>
+      </div>
+      <div id="prod-list-body"><div class="loading">Chargement…</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-hd"><h2>💰 Ventes</h2></div>
+    <div class="card-bd">
+      <div class="abar">
+        <button class="btn btn-p" onclick="openVenteModal()">＋ Enregistrer une vente</button>
+      </div>
+      <div id="rent-body"><div class="loading">Chargement…</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PARAMÈTRES ═══ -->
+<div id="p-cfg" class="page">
+
+  <!-- Header personnalisé -->
+  <div class="card">
+    <div class="card-hd"><h2>🎨 Apparence du header</h2></div>
+    <div class="card-bd">
+      <div class="info-box">Ces réglages sont sauvegardés dans Supabase et s'appliquent sur tous vos appareils.</div>
+      <div class="r2">
+        <div class="fg"><label>Nom affiché dans le header</label>
+          <input id="cfg-hdr-name" placeholder="ex: Mon Atelier, Tulipes & Stars…"></div>
+        <div class="fg"><label>Sous-titre</label>
+          <input id="cfg-hdr-sub" placeholder="ex: bijoux, créations…"></div>
+      </div>
+      <div class="r2">
+        <div class="fg"><label>Couleur principale (header)</label>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="color" id="cfg-color-dark" value="#1A1228" style="width:48px;height:40px;padding:2px;border-radius:var(--rs);cursor:pointer;flex-shrink:0">
+            <input id="cfg-color-dark-hex" placeholder="#1A1228" style="flex:1" oninput="syncColor('dark')">
+          </div>
+        </div>
+        <div class="fg"><label>Couleur accent (or)</label>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="color" id="cfg-color-gold" value="#C8A951" style="width:48px;height:40px;padding:2px;border-radius:var(--rs);cursor:pointer;flex-shrink:0">
+            <input id="cfg-color-gold-hex" placeholder="#C8A951" style="flex:1" oninput="syncColor('gold')">
+          </div>
+        </div>
+      </div>
+      <div id="cfg-hdr-preview" style="border-radius:var(--rs);overflow:hidden;margin-bottom:12px">
+        <div id="prev-hdr" style="padding:14px 16px;display:flex;align-items:center;gap:6px">
+          <span id="prev-logo" style="font-family:Georgia,serif;font-size:19px;font-style:italic"></span>
+          <span id="prev-sub" style="font-size:12px;opacity:.4"></span>
+        </div>
+      </div>
+      <button class="btn btn-p" onclick="saveHdrConfig()">💾 Enregistrer l'apparence</button>
+    </div>
+  </div>
+
+  <!-- Connexion Supabase -->
+  <div class="card">
+    <div class="card-hd"><h2>🔌 Connexion Supabase</h2></div>
+    <div class="card-bd">
+      <div class="r2" style="margin-bottom:10px">
+        <div class="fg" style="margin:0"><label>URL Supabase</label><input id="s-url" type="url"></div>
+        <div class="fg" style="margin:0"><label>Clé anon publique</label><input id="s-key" type="text"></div>
+      </div>
+      <button class="btn btn-p btn-sm" onclick="saveSettings()">Reconnecter</button>
+    </div>
+  </div>
+
+  <!-- Catégories -->
+  <div class="card">
+    <div class="card-hd"><h2>🗂 Catégories matériaux</h2></div>
+    <div class="card-bd">
+
+      <div style="margin-bottom:16px">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Catégories principales</div>
+        <div id="cfg-mc-list"></div>
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <input id="new-mc-name" placeholder="Nouvelle catégorie principale" style="flex:1">
+          <button class="btn btn-p btn-sm" onclick="addMainCat()">＋ Ajouter</button>
+        </div>
+      </div>
+
+      <div style="margin-bottom:16px">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Ajouter une sous-catégorie</div>
+        <div class="r2" style="margin-bottom:6px">
+          <select id="addcat-mc"></select>
+          <input id="addcat-name" placeholder="Nom de la sous-catégorie">
+        </div>
+        <button class="btn btn-p btn-sm" onclick="saveNewCat()">＋ Ajouter la sous-catégorie</button>
+      </div>
+
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Sous-catégories existantes</div>
+        <div id="cfg-sc-list"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Fournisseurs -->
+  <div class="card">
+    <div class="card-hd"><h2>🏭 Fournisseurs</h2></div>
+    <div class="card-bd">
+      <div style="display:flex;gap:6px;margin-bottom:12px">
+        <input id="new-four-name" placeholder="Nouveau fournisseur" style="flex:1">
+        <button class="btn btn-p btn-sm" onclick="addFournisseurManual()">＋ Ajouter</button>
+      </div>
+      <div id="cfg-four-list"></div>
+    </div>
+  </div>
+
+  <!-- Diagnostic + renommage inline -->
+  <div class="card">
+    <div class="card-hd"><h2>🔍 Diagnostic références bijoux</h2></div>
+    <div class="card-bd">
+      <div class="info-box" style="margin-bottom:10px">
+        ✏️ <b>Cliquez directement sur une référence</b> pour la modifier, puis appuyez sur Entrée.
+        Les doublons sont indiqués en rouge.
+      </div>
+      <button class="btn btn-p btn-sm" onclick="runDiag()">Actualiser</button>
+      <div id="rename-result" style="margin-top:6px;font-size:12px"></div>
+      <div id="diag-result" style="margin-top:10px"></div>
+    </div>
+  </div>
+
+  <!-- Export -->
+  <div class="card">
+    <div class="card-hd"><h2>📤 Export données</h2></div>
+    <div class="card-bd">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Téléchargez toutes vos données en JSON (sauvegarde) ou importez-les depuis l'outil Import/Export.</p>
+      <button class="btn btn-ghost" onclick="exportJSON()">⬇ Télécharger JSON</button>
+    </div>
+  </div>
+
+</div>
+
+</main>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- ════════════════ MODALS ════════════════ -->
+
+<!-- MATÉRIAU -->
+<div id="m-mat" class="overlay" onclick="bgClose(event,this)">
+ <div class="modal">
+  <div class="drag"></div>
+  <div class="modal-title" id="mat-modal-title">Nouveau matériau</div>
+  <input type="hidden" id="mat-edit-id">
+  <div class="r2">
+   <div class="fg"><label>Catégorie principale</label>
+    <select id="mat-mc" onchange="syncSC();genRef()">
+     <!-- populated dynamically -->
+    </select>
+   </div>
+   <div class="fg"><label>Sous-catégorie</label>
+    <select id="mat-sc" onchange="genRef()"></select>
+   </div>
+  </div>
+  <div class="fg">
+   <label>Désignation principale *
+    <span style="font-weight:400;color:var(--muted)">(ex: "Anneaux acier inox." — commun à plusieurs variantes)</span>
+   </label>
+   <input id="mat-des" placeholder="ex: Perles de rocailles" oninput="genRef()">
+  </div>
+  <div class="r2">
+   <div class="fg"><label>Variante *
+    <span style="font-weight:400;color:var(--muted)">(distingue les références)</span>
+   </label>
+   <input id="mat-var" placeholder="ex: Rouge 1 / 10mmx1,2 A"></div>
+   <div class="fg"><label>Référence <span style="font-weight:400;color:var(--muted)">(auto — modifiable)</span></label>
+    <input id="mat-ref" placeholder="#PR001" oninput="checkMatRef(this.value)"
+           style="font-weight:700;color:var(--purple);background:var(--purpleP)">
+    <div style="display:flex;gap:4px;margin-top:5px;flex-wrap:wrap">
+      <span style="font-size:10px;color:var(--muted);align-self:center">Ajouter suffixe :</span>
+      <button type="button" class="btn btn-ghost btn-xs" onclick="appendSuffix('b')">+ b</button>
+      <button type="button" class="btn btn-ghost btn-xs" onclick="appendSuffix('c')">+ c</button>
+      <button type="button" class="btn btn-ghost btn-xs" onclick="appendSuffix('d')">+ d</button>
+    </div>
+    <div id="mat-ref-dup" style="font-size:10px;color:var(--red);margin-top:3px;display:none">⚠ Cette référence existe déjà</div>
+   </div>
+  </div>
+  <div class="fg"><label>Fournisseur</label>
+   <input id="mat-fournisseur" list="dl-fournisseurs" placeholder="Choisir ou taper un nouveau" onblur="addFournisseur(this.value)" autocomplete="off">
+   <datalist id="dl-fournisseurs"></datalist>
+   <div style="font-size:10px;color:var(--muted);margin-top:3px">Tapez pour filtrer ou créer un nouveau fournisseur</div>
+  </div>
+  <div class="r3">
+   <div class="fg"><label>Stock actuel</label>
+    <input id="mat-qty" type="number" placeholder="450" oninput="calcPU()"></div>
+   <div class="fg"><label>Prix d'achat (€)</label>
+    <input id="mat-prix" type="number" step="0.01" placeholder="9.50" oninput="calcPU()"></div>
+   <div class="fg"><label>Prix unitaire</label>
+    <div id="mat-pu" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--rs);color:var(--green);font-weight:700;background:var(--greenP)">—</div>
+   </div>
+  </div>
+  <div class="mfoot">
+   <button class="btn btn-ghost" onclick="closeModal('m-mat')">Annuler</button>
+   <button class="btn btn-p" onclick="saveMat()">Enregistrer</button>
+  </div>
+ </div>
+</div>
+
+<!-- RÉAPPRO -->
+<div id="m-reappro" class="overlay" onclick="bgClose(event,this)">
+ <div class="modal">
+  <div class="drag"></div>
+  <div class="modal-title">Réapprovisionnement</div>
+  <div id="ra-info"></div>
+  <div class="r2">
+   <div class="fg"><label>Quantité ajoutée *</label><input id="ra-qty" type="number" oninput="previewRA()"></div>
+   <div class="fg"><label>Prix de cet achat (€) *</label><input id="ra-prix" type="number" step="0.01" oninput="previewRA()"></div>
+  </div>
+  <div class="r2">
+   <div class="fg"><label>Date</label><input id="ra-date" type="date"></div>
+   <div class="fg"><label>Fournisseur</label><input id="ra-fournisseur" list="dl-fournisseurs" onblur="addFournisseur(this.value)"></div>
+  </div>
+  <div class="fg"><label>Note</label><input id="ra-note"></div>
+  <div id="ra-preview"></div>
+  <div class="mfoot">
+   <button class="btn btn-ghost" onclick="closeModal('m-reappro')">Annuler</button>
+   <button class="btn btn-p" onclick="saveRA()">Valider</button>
+  </div>
+ </div>
+</div>
+
+<!-- GÉRER CATÉGORIES & FOURNISSEURS -->
+<div id="m-addcat" class="overlay" onclick="bgClose(event,this)">
+ <div class="modal">
+  <div class="drag"></div>
+  <div class="modal-title">⚙ Catégories & Fournisseurs</div>
+
+  <div class="mtabs" id="cfg-tabs">
+   <div class="mtab on" onclick="switchCfgTab(this,'cfg-cats')">Catégories</div>
+   <div class="mtab" onclick="switchCfgTab(this,'cfg-fours')">Fournisseurs</div>
+  </div>
+
+  <!-- TAB CATÉGORIES -->
+  <div id="cfg-cats">
+   <div style="margin-bottom:12px">
+    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Catégories principales</div>
+    <div id="cfg-mc-list"></div>
+    <div style="display:flex;gap:6px;margin-top:8px">
+     <input id="new-mc-name" placeholder="Nouvelle catégorie principale" style="flex:1">
+     <button class="btn btn-p btn-sm" onclick="addMainCat()">＋</button>
+    </div>
+   </div>
+   <div style="margin-bottom:12px">
+    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Nouvelle sous-catégorie</div>
+    <div style="display:flex;gap:6px;margin-bottom:6px">
+     <select id="addcat-mc" style="flex:1"></select>
+    </div>
+    <div style="display:flex;gap:6px">
+     <input id="addcat-name" placeholder="Nom de la sous-catégorie" style="flex:1">
+     <button class="btn btn-p btn-sm" onclick="saveNewCat()">＋</button>
+    </div>
+   </div>
+   <div>
+    <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Sous-catégories existantes</div>
+    <div id="cfg-sc-list"></div>
+   </div>
+  </div>
+
+  <!-- TAB FOURNISSEURS -->
+  <div id="cfg-fours" style="display:none">
+   <div style="display:flex;gap:6px;margin-bottom:12px">
+    <input id="new-four-name" placeholder="Nouveau fournisseur" style="flex:1">
+    <button class="btn btn-p btn-sm" onclick="addFournisseurManual()">＋ Ajouter</button>
+   </div>
+   <div id="cfg-four-list"></div>
+  </div>
+
+  <div class="mfoot">
+   <button class="btn btn-ghost" onclick="closeModal('m-addcat')">Fermer</button>
+  </div>
+ </div>
+</div>
+
+<!-- BIJOU -->
+<div id="m-bij" class="overlay" onclick="bgClose(event,this)">
+ <div class="modal">
+  <div class="drag"></div>
+  <div class="modal-title" id="bij-modal-title">Nouveau bijou</div>
+  <input type="hidden" id="bij-edit-id">
+
+  <!-- SECTION: Infos -->
+  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px">Informations</div>
+  <div class="r2">
+   <div class="fg"><label>Collection *</label>
+    <input id="bij-coll" placeholder="Poisson" list="dl-collections" autocomplete="off">
+    <datalist id="dl-collections"></datalist>
+   </div>
+   <div class="fg"><label>Référence</label>
+    <input id="bij-ref" style="color:var(--purple);font-weight:700;background:var(--purpleP)" oninput="checkBijRef(this.value,document.getElementById('bij-edit-id').value)" placeholder="BIJ-001">
+    <div id="bij-ref-warn" style="font-size:10px;color:var(--red);margin-top:3px;display:none;background:var(--redP);padding:4px 8px;border-radius:var(--rx)">⚠ Cette référence existe déjà</div>
+    <div style="display:flex;gap:4px;margin-top:5px;flex-wrap:wrap">
+     <button class="btn btn-xs btn-ghost" onclick="appendBijRef('b')" type="button">+b</button>
+     <button class="btn btn-xs btn-ghost" onclick="appendBijRef('c')" type="button">+c</button>
+     <button class="btn btn-xs btn-ghost" onclick="appendBijRef('d')" type="button">+d</button>
+     <span style="font-size:10px;color:var(--muted);align-self:center">suffixe</span>
+    </div>
+   </div>
+  </div>
+  <div class="r2">
+   <div class="fg"><label>Désignation *</label><input id="bij-nom" placeholder="Petit poisson"></div>
+   <div class="fg"><label>Variante</label><input id="bij-var" placeholder="3 couleurs"></div>
+  </div>
+  <div class="fg"><label>Prix de vente</label>
+   <div style="display:flex;align-items:center;gap:6px">
+    <input id="bij-pv" type="number" step="0.01" placeholder="0.00" style="flex:1">
+    <span style="font-size:16px;font-weight:700;color:var(--purple)">€</span>
+   </div></div>
+
+  <!-- SEPARATOR -->
+  <div style="border-top:1px solid var(--border);margin:14px 0 12px"></div>
+
+  <!-- SECTION: Composition -->
+  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px">Composition</div>
+  <div class="info-box" style="margin-bottom:10px">Sous-catégorie → Référence. Les bijoux marqués "composant" apparaissent dans 💎 Bijou (composition).</div>
+  <div id="bij-mats-list"></div>
+  <button class="btn btn-ghost btn-sm" onclick="addMatRow()" style="margin-top:6px">＋ Ajouter un matériau</button>
+
+  <!-- SEPARATOR -->
+  <div style="border-top:1px solid var(--border);margin:14px 0 12px"></div>
+
+  <!-- SECTION: Option composant -->
+  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px">Options</div>
+  <div class="toggle-row off" id="is-mat-toggle" onclick="toggleIsMat()">
+   <input type="checkbox" id="bij-is-mat">
+   <div>
+    <div id="is-mat-label" style="font-size:13px;font-weight:600">Utiliser comme composant d'un autre bijou</div>
+    <div class="is-mat-sub" id="is-mat-sub">Ce bijou sera sélectionnable dans 💎 Bijou (composition)</div>
+   </div>
+  </div>
+  <div style="height:8px"></div>
+  <div class="toggle-row off" id="no-sell-toggle" onclick="toggleNoSell()" style="margin-top:0">
+   <input type="checkbox" id="bij-no-sell">
+   <div>
+    <div style="font-size:13px;font-weight:600">Ne peut pas être vendu seul</div>
+    <div style="font-size:11px;margin-top:3px;opacity:.7">Les matériaux sont déduits du stock mais aucun prix de vente ni prix minimum ne s'affichent sur la fiche.</div>
+   </div>
+  </div>
+
+  <div class="mfoot">
+   <button class="btn btn-ghost" onclick="closeModal('m-bij')">Annuler</button>
+   <button class="btn btn-p" onclick="saveBij()">Enregistrer</button>
+  </div>
+ </div>
+</div>
+
+<!-- VENTE -->
+<div id="m-vente" class="overlay" onclick="bgClose(event,this)">
+ <div class="modal">
+  <div class="drag"></div>
+  <div class="modal-title">Enregistrer une vente</div>
+  <div class="fg"><label>Bijou produit</label>
+   <select id="v-bij" onchange="venteAutoPrice()">
+    <!-- populated from productions -->
+   </select>
+   <div style="font-size:10px;color:var(--muted);margin-top:3px">Seuls les bijoux ayant une production enregistrée sont listés</div>
+  </div>
+  <div class="r2">
+   <div class="fg"><label>Quantité vendue</label><input id="v-qty" type="number" value="1" oninput="venteStockCheck()"></div>
+   <div class="fg"><label>Prix de vente (€/u)</label>
+    <input id="v-prix" type="number" step="0.01">
+    <div id="v-prix-hint" style="font-size:10px;color:var(--muted);margin-top:3px"></div>
+   </div>
+  </div>
+  <div id="v-stock-warn" style="display:none" class="warn-box"></div>
+  <div class="r2">
+   <div class="fg"><label>Date</label><input id="v-date" type="date"></div>
+   <div class="fg"><label>Canal</label>
+    <select id="v-canal"><option>Vente directe</option><option>Shopify</option><option>Marché / événement</option><option>Commande</option><option>Instagram</option><option>Autre</option></select>
+   </div>
+  </div>
+  <div class="fg"><label>Note</label><input id="v-note"></div>
+  <div class="mfoot">
+   <button class="btn btn-ghost" onclick="closeModal('m-vente')">Annuler</button>
+   <button class="btn btn-p" onclick="saveVente()">Enregistrer</button>
+  </div>
+ </div>
+</div>
+
+<!-- PRODUCTION -->
+<div id="m-prod" class="overlay" onclick="bgClose(event,this)">
+ <div class="modal">
+  <div class="drag"></div>
+  <div class="modal-title">Enregistrer une production</div>
+  <div class="fg"><label>Bijou à produire</label>
+   <select id="p-bij" onchange="renderProdPrev()">
+    <!-- populated dynamically — tous bijoux vendables -->
+   </select>
+  </div>
+  <div class="r2">
+   <div class="fg"><label>Quantité</label>
+    <input id="p-qty" type="number" value="1" oninput="renderProdPrev()">
+   </div>
+   <div class="fg"><label>Statut</label>
+    <select id="p-statut">
+     <option value="produit">✅ Déjà produit</option>
+     <option value="en_cours">🔧 En cours / à produire</option>
+    </select>
+   </div>
+  </div>
+  <div id="prod-prev"></div>
+  <div class="fg" style="margin-top:8px"><label>Date</label><input id="p-date" type="date"></div>
+  <div class="mfoot">
+   <button class="btn btn-ghost" onclick="closeModal('m-prod')">Annuler</button>
+   <button class="btn btn-p" onclick="saveProd()">Valider</button>
+  </div>
+ </div>
+</div>
+
+<!-- RENTABILITÉ EDIT -->
+<div id="m-rent-edit" class="overlay" onclick="bgClose(event,this)">
+ <div class="modal">
+  <div class="drag"></div>
+  <div class="modal-title" id="re-title">Modifier</div>
+  <input type="hidden" id="re-bij-id">
+  <div id="re-pmin-box" style="padding:10px;background:var(--greenP);border-radius:var(--rs);margin-bottom:12px;font-size:12px;color:var(--green);font-weight:600"></div>
+  <div class="r2">
+   <div class="fg"><label>Prix de vente (€)</label><input id="re-pv" type="number" step="0.01"></div>
+   <div class="fg"><label>Qté produite (à ajouter)</label><input id="re-prod-add" type="number" placeholder="0" min="0"></div>
+  </div>
+  <div class="mfoot">
+   <button class="btn btn-ghost" onclick="closeModal('m-rent-edit')">Annuler</button>
+   <button class="btn btn-p" onclick="saveRentEdit()">Enregistrer</button>
+  </div>
+ </div>
+</div>
+
+<!-- SETTINGS -->
+<div id="m-settings" class="overlay" onclick="bgClose(event,this)">
+ <div class="modal">
+  <div class="drag"></div>
+  <div class="modal-title">Paramètres</div>
+  <div class="fg"><label>URL Supabase</label><input id="s-url" type="url"></div>
+  <div class="fg"><label>Clé anon publique</label><input id="s-key"></div>
+  <div class="mfoot">
+   <button class="btn btn-ghost" onclick="closeModal('m-settings')">Annuler</button>
+   <button class="btn btn-p" onclick="saveSettings()">Reconnecter</button>
+  </div>
+ </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// SUPABASE CLIENT
+// ═══════════════════════════════════════════════════════
+let SB = null;
+const SBURL_KEY = 'atl_sb_url';
+const SBKEY_KEY = 'atl_sb_key';
+
+async function connect() {
+  const url = document.getElementById('cfg-url').value.trim();
+  const key = document.getElementById('cfg-key').value.trim();
+  const btn = document.getElementById('btn-connect');
+  if (!url || !key) { showSetupError('URL et clé obligatoires'); return; }
+  // Clean URL (remove trailing slash)
+  const cleanUrl = url.replace(/\/$/, '');
+  btn.textContent = '⏳ Connexion...'; btn.disabled = true;
+  try {
+    SB = supabase.createClient(cleanUrl, key);
+    const { error } = await SB.from('config').select('key').limit(1);
+    if (error) throw error;
+    if (document.getElementById('cfg-remember').checked) {
+      localStorage.setItem(SBURL_KEY, cleanUrl);
+      localStorage.setItem(SBKEY_KEY, key);
+    }
+    document.getElementById('setup-error').style.display = 'none';
+    document.getElementById('setup-screen').style.display = 'none';
+    await loadAll();
+    setSyncOk();
+  } catch(e) {
+    btn.textContent = 'Se connecter →'; btn.disabled = false;
+    let msg = e.message || String(e);
+    if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
+      msg = 'Impossible de joindre Supabase. Verifiez l URL du projet.';
+    } else if (msg.includes('Invalid API key') || msg.includes('JWT')) {
+      msg = 'Cle invalide. Verifiez la cle anon public (pas service_role).';
+    }
+    showSetupError(msg);
+  }
+}
+
+function showSetupError(msg) {
+  const el = document.getElementById('setup-error');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+function toggleRemember() {
+  const cb = document.getElementById('cfg-remember');
+  cb.checked = !cb.checked;
+  const on = cb.checked;
+  document.getElementById('remember-icon').textContent = on ? '✓' : '○';
+  document.getElementById('remember-label').style.color = on ? 'var(--purple)' : 'var(--muted)';
+  const btn = document.getElementById('btn-connect');
+  btn.style.background = on ? '#3D1F6E' : 'var(--purple)';
+}
+
+function resetCredentials() {
+  localStorage.removeItem(SBURL_KEY);
+  localStorage.removeItem(SBKEY_KEY);
+  document.getElementById('cfg-url').value = '';
+  document.getElementById('cfg-key').value = '';
+  document.getElementById('setup-error').style.display = 'none';
+  document.getElementById('btn-connect').textContent = 'Se connecter →';
+  document.getElementById('btn-connect').disabled = false;
+  document.getElementById('setup-screen').style.display = 'flex';
+  toast('Identifiants effacés','ok');
+}
+
+function setSyncing() { const d=document.getElementById('sync-dot'); d.className='sync-dot syncing'; }
+function setSyncOk()  { const d=document.getElementById('sync-dot'); d.className='sync-dot ok'; }
+function setSyncErr() { const d=document.getElementById('sync-dot'); d.className='sync-dot err'; }
+
+async function sbGet(table, opts={}) {
+  setSyncing();
+  try {
+    let q = SB.from(table).select(opts.select||'*');
+    if (opts.eq) Object.entries(opts.eq).forEach(([k,v])=>q=q.eq(k,v));
+    if (opts.order) q = q.order(opts.order, {ascending: opts.asc !== false});
+    const { data, error } = await q;
+    if (error) throw error;
+    setSyncOk(); return data||[];
+  } catch(e) { setSyncErr(); toast('Erreur lecture: '+e.message,'err'); return []; }
+}
+
+async function sbInsert(table, obj) {
+  setSyncing();
+  try {
+    const { error } = await SB.from(table).insert(obj);
+    if (error) throw error;
+    setSyncOk(); return true;
+  } catch(e) { setSyncErr(); toast('Erreur sauvegarde: '+e.message,'err'); return false; }
+}
+
+async function sbUpdate(table, id, obj) {
+  setSyncing();
+  try {
+    const { error } = await SB.from(table).update(obj).eq('id', id);
+    if (error) throw error;
+    setSyncOk(); return true;
+  } catch(e) { setSyncErr(); toast('Erreur mise à jour: '+e.message,'err'); return false; }
+}
+
+async function sbDelete(table, id) {
+  setSyncing();
+  try {
+    const { error } = await SB.from(table).delete().eq('id', id);
+    if (error) throw error;
+    setSyncOk(); return true;
+  } catch(e) { setSyncErr(); toast('Erreur suppression: '+e.message,'err'); return false; }
+}
+
+async function sbUpsertConfig(key, value) {
+  setSyncing();
+  try {
+    const { error } = await SB.from('config').upsert({key, value});
+    if (error) throw error;
+    setSyncOk();
+  } catch(e) { setSyncErr(); }
+}
+
+// ═══════════════════════════════════════════════════════
+// IN-MEMORY STATE (populated from Supabase)
+// ═══════════════════════════════════════════════════════
+let MATS=[], BIJS=[], VENTES=[], PRODS=[], REAPPROS=[];
+let MAIN_CATS={}, FOURNISSEURS=[], SC_CLR={}, MAIN_CLR={};
+
+const DEFAULT_MAIN_CLR = {"Perles":"#7A4F9A","Acier inoxydable":"#2E6A8A","Emballage":"#5A6A3A","Autre":"#5A5A6A"};
+const DEFAULT_SC_CLR = {
+  "Perles de rocailles":"#8B5A8B","Perles heishi":"#5A8A8B","Perles étoile":"#9A7A20",
+  "Perles fruit/food":"#9A5020","Perles verre":"#3A6A8A","Perles lettre":"#4A6A3A",
+  "Perles de culture":"#7A3A18","Perles métal":"#5A5A5A","Perles agate":"#6A3A1A",
+  "Anneau":"#2A5A6A","Fermoir":"#4A2A8A","Fil & Chaîne":"#2A5A4A","Tiges & Boucles":"#5A3A2A",
+  "Emballage":"#4A5A2A","Autre":"#4A4A5A","Bijou (composition)":"#6B4E8E"
+};
+const SC_PREFIX = {
+  "Perles de rocailles":"PR","Perles heishi":"PH","Perles étoile":"PE",
+  "Perles fruit/food":"PF","Perles verre":"PV","Perles lettre":"PL",
+  "Perles de culture":"PC","Perles métal":"PM","Perles agate":"PA",
+  "Anneau":"AI","Fermoir":"FM","Fil & Chaîne":"FC","Tiges & Boucles":"TB",
+  "Emballage":"EB","Autre":"AU"
+};
+
+async function loadAll() {
+  const [mats, bijs, ventes, prods, reappros, cfg] = await Promise.all([
+    sbGet('materiaux', {order:'ref'}),
+    sbGet('bijoux', {order:'collection'}),
+    sbGet('ventes', {order:'date'}),
+    sbGet('productions', {order:'date'}),
+    sbGet('reappros', {order:'date'}),
+    sbGet('config'),
+  ]);
+  MATS=mats; BIJS=bijs; VENTES=ventes; PRODS=prods; REAPPROS=reappros;
+  const mainCatsCfg = cfg.find(c=>c.key==='main_cats');
+  const fourCfg     = cfg.find(c=>c.key==='fournisseurs');
+  const hdrCfg      = cfg.find(c=>c.key==='header');
+  MAIN_CATS    = mainCatsCfg?.value || {"Perles":["Perles de rocailles","Perles heishi","Perles étoile","Perles fruit/food","Perles verre","Perles lettre","Perles de culture","Perles métal","Perles agate"],"Acier inoxydable":["Anneau","Fermoir","Fil & Chaîne","Tiges & Boucles"],"Emballage":["Emballage"],"Autre":["Autre"]};
+  FOURNISSEURS = fourCfg?.value || [];
+  if(hdrCfg?.value) { HDR_CFG={...HDR_CFG,...hdrCfg.value}; applyHdrConfig(); }
+  MAIN_CLR = {...DEFAULT_MAIN_CLR};
+  SC_CLR = {...DEFAULT_SC_CLR};
+  // Add colors for custom categories
+  Object.keys(MAIN_CATS).forEach(mc => {
+    if (!MAIN_CLR[mc]) MAIN_CLR[mc] = '#5A5A6A';
+    (MAIN_CATS[mc]||[]).forEach(sc => { if(!SC_CLR[sc]) SC_CLR[sc]='#5A5A5A'; });
+  });
+  updateMatMCSelect();
+  updateFournisseursDatalist();
+  renderMat();
+}
+
+// ═══════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════
+const today = () => new Date().toISOString().slice(0,10);
+const uid = () => Math.random().toString(36).slice(2)+Date.now().toString(36);
+const eur = (v,d=2) => (v==null||isNaN(+v)) ? '--' : (+v).toFixed(d).replace('.',',')+'€';
+const n = v => (v==null||v===''||isNaN(+v)) ? '--' : (+v).toLocaleString('fr-FR');
+const getMat = ref => MATS.find(m=>m.ref===ref);
+const getBij = id => BIJS.find(b=>b.id===id);
+
+function toast(msg, type='', dur=2800) {
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className='toast '+(type==='err'?'err':type==='ok'?'ok':'');
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'), dur);
+}
+
+function stockCumul(mat) {
+  return (+(mat.qty||0)) + REAPPROS.filter(r=>r.mat_id===mat.id).reduce((s,r)=>s+(+r.qty||0),0);
+}
+function puMoyen(mat) {
+  const qB=+(mat.qty||0), pB=+(mat.prix||0);
+  const ra=REAPPROS.filter(r=>r.mat_id===mat.id);
+  const qE=ra.reduce((s,r)=>s+(+r.qty||0),0), pE=ra.reduce((s,r)=>s+(+r.prix||0),0);
+  const qT=qB+qE, pT=pB+pE;
+  return (qT&&pT)?pT/qT:null;
+}
+function stockConsome(ref) {
+  return PRODS.reduce((s,p)=>{
+    const b=getBij(p.bij_id); if(!b) return s;
+    const m=(b.mats||[]).find(m=>m.ref===ref);
+    return s+(m?(+m.qty||0)*(+p.qty||0):0);
+  },0);
+}
+function stockDispo(mat) { return stockCumul(mat)-stockConsome(mat.ref); }
+
+function coutBijou(bij, depth=0) {
+  if(depth>4) return 0;
+  return (bij.mats||[]).reduce((s,m)=>{
+    // Matériau simple
+    const mat=getMat(m.ref);
+    if(mat){
+      const pu=puMoyen(mat);
+      return s+(pu&&m.qty?pu*(+m.qty):0);
+    }
+    // Bijou utilisé comme composant : chercher par ref parmi les is_mat
+    const bm=BIJS.find(b=>b.is_mat&&(b.ref===m.ref||b.id===m.ref));
+    if(bm){
+      const cBm=coutBijou(bm,depth+1);
+      return s+cBm*(+m.qty||1);
+    }
+    return s;
+  },0);
+}
+// prixMin = coût matériel réel + 60% + 5EUR (pas basé sur prixMin des composants)
+function prixMin(bij){
+  const c=coutBijou(bij);
+  return c>0?Math.round((c+c*0.6+5)*100)/100:null;
+}
+function isDraft(bij){return bij.draft||((bij.mats||[]).some(m=>!m.qty));}
+function venteTot(bijId){return VENTES.filter(v=>v.bij_id===bijId).reduce((a,v)=>({qty:a.qty+(+v.qty||0),ca:a.ca+(+v.qty||0)*(+v.prix||0)}),{qty:0,ca:0});}
+function prodTot(bijId){return PRODS.filter(p=>p.bij_id===bijId).reduce((s,p)=>s+(+p.qty||0),0);}
+
+function autoRef(sc, editId=null) {
+  const pfx = SC_PREFIX[sc] || sc.replace(/[^A-Z]/gi,'').slice(0,2).toUpperCase();
+  const refsForPfx = MATS.filter(m=>m.id!==editId&&m.ref.startsWith('#'+pfx)).map(m=>parseInt(m.ref.replace(/\D/g,''))||0);
+  const next = (refsForPfx.length?Math.max(...refsForPfx)+1:1).toString().padStart(3,'0');
+  const ref = `#${pfx}${next}`;
+  // Show warning if somehow already exists
+  const dupWarn = document.getElementById('mat-ref-dup');
+  if(dupWarn) dupWarn.style.display = MATS.some(m=>m.ref===ref&&m.id!==editId) ? 'block' : 'none';
+  return ref;
+}
+
+function updateFournisseursDatalist() {
+  const dl=document.getElementById('dl-fournisseurs');
+  const all=[...new Set([...FOURNISSEURS,...MATS.map(m=>m.fournisseur).filter(Boolean)])];
+  dl.innerHTML=all.map(f=>`<option value="${f}">`).join('');
+}
+
+async function addFournisseur(val) {
+  val=val?.trim(); if(!val||FOURNISSEURS.includes(val)) return;
+  FOURNISSEURS.push(val);
+  await sbUpsertConfig('fournisseurs', FOURNISSEURS);
+  updateFournisseursDatalist();
+}
+
+function updateMatMCSelect() {
+  const mcs=Object.keys(MAIN_CATS);
+  const addcatMC=document.getElementById('addcat-mc');
+  if(addcatMC) addcatMC.innerHTML=mcs.map(mc=>`<option>${mc}</option>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════
+const RENDERS = {mat:renderMat,bij:renderBij,stock:renderStock,dep:renderDep,rent:renderRent,cfg:renderCfg};
+
+function goTab(el) {
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+  el.classList.add('on');
+  const pid='p-'+el.dataset.p;
+  const pg=document.getElementById(pid);
+  if(pg){pg.classList.add('on');}
+  document.getElementById('main-area').scrollTop=0;
+  if(RENDERS[el.dataset.p]) RENDERS[el.dataset.p]();
+}
+
+function openModal(id) { document.getElementById(id).classList.add('on'); }
+function closeModal(id) { document.getElementById(id).classList.remove('on'); }
+function bgClose(e,el) { if(e.target===el) el.classList.remove('on'); }
+
+function switchTab(el, showId) {
+  el.closest('.modal').querySelectorAll('.mtab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+  ['tab-info','tab-compo','tab-options'].forEach(id=>{
+    const d=document.getElementById(id);
+    if(d) d.style.display=id===showId?'block':'none';
+  });
+}
+
+function showSettings() {
+  document.getElementById('s-url').value=localStorage.getItem(SBURL_KEY)||'';
+  document.getElementById('s-key').value=localStorage.getItem(SBKEY_KEY)||'';
+  openModal('m-settings');
+}
+async function saveSettings() {
+  const url=document.getElementById('s-url').value.trim();
+  const key=document.getElementById('s-key').value.trim();
+  localStorage.setItem(SBURL_KEY,url); localStorage.setItem(SBKEY_KEY,key);
+  closeModal('m-settings');
+  SB=supabase.createClient(url,key);
+  await loadAll();
+}
+
+function exportJSON() {
+  const data={materiaux:MATS,bijoux:BIJS,ventes:VENTES,productions:PRODS,reappros:REAPPROS,main_cats:MAIN_CATS,fournisseurs:FOURNISSEURS,exported:today()};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`atelier-${today()}.json`; a.click();
+  toast('Export téléchargé ✓','ok');
+}
+
+// ═══════════════════════════════════════════════════════
+// MATÉRIAUX
+// ═══════════════════════════════════════════════════════
+function syncSC() {
+  const mc=document.getElementById('mat-mc').value;
+  document.getElementById('mat-sc').innerHTML=(MAIN_CATS[mc]||[]).map(s=>`<option>${s}</option>`).join('');
+  genRef();
+}
+function genRef() {
+  const editId=document.getElementById('mat-edit-id').value;
+  if(editId) return; // ne pas écraser lors d'une modification
+  const sc=document.getElementById('mat-sc').value;
+  const ref=autoRef(sc);
+  const inp=document.getElementById('mat-ref');
+  if(inp) inp.value=ref||'';
+}
+
+function checkMatRef(val) {
+  const editId=document.getElementById('mat-edit-id').value;
+  const exists = MATS.some(m=>m.ref===val && m.id!==editId);
+  const warn = document.getElementById('mat-ref-dup');
+  if(warn) warn.style.display = exists ? 'block' : 'none';
+}
+
+function appendSuffix(letter) {
+  const inp=document.getElementById('mat-ref');
+  if(!inp) return;
+  // Remove existing single-char suffix if already there, then add new one
+  const base=inp.value.replace(/[a-z]$/i,'');
+  const newRef=base+letter;
+  inp.value=newRef;
+  checkMatRef(newRef);
+}
+function calcPU() {
+  const q=+document.getElementById('mat-qty').value, p=+document.getElementById('mat-prix').value;
+  document.getElementById('mat-pu').textContent=(q&&p)?eur(p/q,4)+' / u':'--';
+}
+
+function openMatModal(editId=null) {
+  // Toujours repeupler mat-mc depuis MAIN_CATS en premier
+  const mcSel = document.getElementById('mat-mc');
+  mcSel.innerHTML = Object.keys(MAIN_CATS).map(mc=>`<option>${mc}</option>`).join('');
+
+  document.getElementById('mat-edit-id').value=editId||'';
+  if(editId) {
+    const m=MATS.find(m=>m.id===editId); if(!m) return;
+    document.getElementById('mat-modal-title').textContent='Modifier matériau';
+    // Vérifier que la mc du matériau existe dans la liste, sinon l'ajouter
+    if(m.mc && !Array.from(mcSel.options).find(o=>o.value===m.mc)) {
+      mcSel.innerHTML += `<option>${m.mc}</option>`;
+    }
+    mcSel.value=m.mc;
+    syncSC(); // peuple mat-sc avec les sous-cats de cette mc
+    // Vérifier que la sc existe, sinon l'ajouter
+    const scSel=document.getElementById('mat-sc');
+    if(m.sc && !Array.from(scSel.options).find(o=>o.value===m.sc)) {
+      scSel.innerHTML += `<option>${m.sc}</option>`;
+    }
+    scSel.value=m.sc;
+    document.getElementById('mat-des').value=m.designation||m.des||'';
+    document.getElementById('mat-var').value=m.variante||'';
+    document.getElementById('mat-ref').value=m.ref;
+    checkMatRef(m.ref);
+    document.getElementById('mat-fournisseur').value=m.fournisseur||'';
+    document.getElementById('mat-qty').value=m.qty||'';
+    document.getElementById('mat-prix').value=m.prix||'';
+    calcPU();
+  } else {
+    document.getElementById('mat-modal-title').textContent='Nouveau matériau';
+    ['mat-edit-id','mat-des','mat-var','mat-fournisseur','mat-qty','mat-prix'].forEach(i=>document.getElementById(i).value='');
+    const refInp=document.getElementById('mat-ref');
+    if(refInp) refInp.value='';
+    document.getElementById('mat-ref-dup').style.display='none';
+    document.getElementById('mat-pu').textContent='--';
+    syncSC(); genRef();
+  }
+  updateFournisseursDatalist();
+  openModal('m-mat');
+}
+
+async function saveMat() {
+  const editId=document.getElementById('mat-edit-id').value;
+  const designation=document.getElementById('mat-des').value.trim();
+  const varV=document.getElementById('mat-var').value.trim();
+  if(!designation) return toast('Désignation obligatoire','err');
+  const ref=document.getElementById('mat-ref').value||autoRef(document.getElementById('mat-sc').value);
+  if(!editId && MATS.find(m=>m.ref===ref)) return toast('Référence déjà existante : '+ref,'err');
+  const obj={
+    id:editId||uid(), mc:document.getElementById('mat-mc').value,
+    sc:document.getElementById('mat-sc').value, ref, designation, variante:varV,
+    fournisseur:document.getElementById('mat-fournisseur').value.trim(),
+    qty:+document.getElementById('mat-qty').value||null,
+    prix:+document.getElementById('mat-prix').value||null,
+  };
+  let ok;
+  if(editId){ok=await sbUpdate('materiaux',editId,obj);if(ok){const i=MATS.findIndex(m=>m.id===editId);MATS[i]=obj;}}
+  else{ok=await sbInsert('materiaux',obj);if(ok)MATS.push(obj);}
+  if(ok){closeModal('m-mat');renderMat();toast(editId?'Matériau modifié ✓':'Matériau ajouté ✓','ok');}
+}
+
+async function delMat(id) {
+  if(!confirm('Supprimer ce matériau ?')) return;
+  const ok=await sbDelete('materiaux',id);
+  if(ok){MATS=MATS.filter(m=>m.id!==id);renderMat();toast('Supprimé','ok');}
+}
+
+let RA_MAT_ID=null;
+function openReappro(id) {
+  RA_MAT_ID=id;
+  const m=MATS.find(m=>m.id===id); if(!m) return;
+  const sc=stockCumul(m), pu=puMoyen(m);
+  document.getElementById('ra-info').innerHTML=`
+    <div style="background:var(--purpleP);border-radius:var(--rs);padding:10px 12px;margin-bottom:10px">
+      <div style="font-weight:700;color:var(--purple)">${m.ref} -- ${m.designation||m.des||''} ${m.variante||''}</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:3px">Stock: <b>${n(sc)}</b> · PU moyen: <b>${pu?eur(pu,4):'--'}</b></div>
+    </div>`;
+  document.getElementById('ra-date').value=today();
+  ['ra-qty','ra-prix','ra-note','ra-fournisseur'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('ra-preview').innerHTML='';
+  openModal('m-reappro');
+}
+function previewRA() {
+  const m=MATS.find(m=>m.id===RA_MAT_ID); if(!m) return;
+  const addQ=+document.getElementById('ra-qty').value||0, addP=+document.getElementById('ra-prix').value||0;
+  if(!addQ||!addP){document.getElementById('ra-preview').innerHTML='';return;}
+  const ra=REAPPROS.filter(r=>r.mat_id===m.id);
+  const qN=(+(m.qty||0))+ra.reduce((s,r)=>s+(+r.qty||0),0)+addQ;
+  const pN=(+(m.prix||0))+ra.reduce((s,r)=>s+(+r.prix||0),0)+addP;
+  document.getElementById('ra-preview').innerHTML=`
+    <div style="background:var(--greenP);border-radius:var(--rs);padding:8px 12px;font-size:12px;color:var(--green)">
+      Après → Stock: <b>${n(qN)}</b> · PU moyen: <b>${qN?eur(pN/qN,4):'--'}</b>
+    </div>`;
+}
+async function saveRA() {
+  const qty=+document.getElementById('ra-qty').value, prix=+document.getElementById('ra-prix').value;
+  if(!qty||!prix) return toast('Quantité et prix obligatoires','err');
+  const obj={id:uid(),mat_id:RA_MAT_ID,qty,prix,date:document.getElementById('ra-date').value,fournisseur:document.getElementById('ra-fournisseur').value,note:document.getElementById('ra-note').value};
+  const ok=await sbInsert('reappros',obj);
+  if(ok){REAPPROS.push(obj);closeModal('m-reappro');renderMat();toast('Réappro enregistré ✓','ok');}
+}
+async function delRA(id) {
+  const ok=await sbDelete('reappros',id);
+  if(ok){REAPPROS=REAPPROS.filter(r=>r.id!==id);renderDep();toast('Supprimé','ok');}
+}
+
+function switchCfgTab(el, showId) {
+  el.closest('#cfg-tabs').querySelectorAll('.mtab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+  ['cfg-cats','cfg-fours'].forEach(id=>{
+    const d=document.getElementById(id); if(d) d.style.display=id===showId?'block':'none';
+  });
+  if(showId==='cfg-fours') renderFourList();
+  else renderCatList();
+}
+
+function openAddCat() {
+  // Peupler selects
+  document.getElementById('addcat-mc').innerHTML=Object.keys(MAIN_CATS).map(mc=>`<option>${mc}</option>`).join('');
+  ['addcat-name','new-mc-name','new-four-name'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  // Reset onglet Catégories
+  document.querySelectorAll('#cfg-tabs .mtab').forEach((t,i)=>t.classList.toggle('on',i===0));
+  const cc=document.getElementById('cfg-cats'), cf=document.getElementById('cfg-fours');
+  if(cc) cc.style.display='block';
+  if(cf) cf.style.display='none';
+  renderCatList();
+  openModal('m-addcat');
+}
+
+function renderCatList() {
+  // Main cats list
+  const mcEl=document.getElementById('cfg-mc-list');
+  mcEl.innerHTML=Object.keys(MAIN_CATS).map(mc=>`
+    <div style="display:flex;align-items:center;gap:6px;padding:5px 8px;background:var(--bg);border-radius:var(--rx);margin-bottom:4px">
+      <span style="flex:1;font-size:13px;font-weight:600">${mc}</span>
+      <span style="font-size:10px;color:var(--muted)">${MAIN_CATS[mc].length} sous-cat.</span>
+      <button class="btn btn-xs btn-red" onclick="delMainCat('${mc}')" title="Supprimer">✕</button>
+    </div>`).join('');
+
+  // Update mc select
+  document.getElementById('addcat-mc').innerHTML=Object.keys(MAIN_CATS).map(mc=>`<option>${mc}</option>`).join('');
+
+  // Sub cats list grouped -- 2 colonnes + renommer
+  const scEl=document.getElementById('cfg-sc-list');
+  let html='';
+  Object.entries(MAIN_CATS).forEach(([mc,scs])=>{
+    if(!scs.length) return;
+    html+=`<div style="margin-bottom:12px">
+      <div style="font-size:10px;font-weight:700;color:var(--purple);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">${mc}
+        <button class="btn btn-xs btn-ghost" style="margin-left:6px" onclick="renameMainCat('${mc}')">✎</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">`;
+    html+=scs.map(sc=>`
+        <div style="display:flex;align-items:center;gap:4px;padding:5px 8px;background:var(--bg);border-radius:var(--rx)">
+          <span style="flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${sc}">${sc}</span>
+          <span style="font-size:9px;color:var(--muted);flex-shrink:0">${MATS.filter(m=>m.sc===sc).length}</span>
+          <button class="btn btn-xs btn-ghost" style="padding:3px 6px" onclick="renameSubCat('${mc}','${sc}')" title="Renommer">✎</button>
+          <button class="btn btn-xs btn-red" style="padding:3px 6px" onclick="delSubCat('${mc}','${sc}')" title="Supprimer">✕</button>
+        </div>`).join('');
+    html+=`</div></div>`;
+  });
+  scEl.innerHTML=html||'<div style="font-size:12px;color:var(--muted)">Aucune sous-catégorie</div>';
+}
+
+async function addMainCat() {
+  const name=document.getElementById('new-mc-name').value.trim();
+  if(!name) return toast('Nom obligatoire','err');
+  if(MAIN_CATS[name]) return toast('Catégorie déjà existante','err');
+  MAIN_CATS[name]=[];
+  await sbUpsertConfig('main_cats',MAIN_CATS);
+  document.getElementById('new-mc-name').value='';
+  renderCatList(); renderMat(); toast('Catégorie ajoutée ✓','ok');
+}
+
+async function delMainCat(mc) {
+  const used=MATS.filter(m=>m.mc===mc).length;
+  if(used>0 && !confirm(`${used} matériau(x) utilisent cette catégorie. Supprimer quand même ?`)) return;
+  delete MAIN_CATS[mc];
+  await sbUpsertConfig('main_cats',MAIN_CATS);
+  renderCatList(); renderMat(); toast('Catégorie supprimée','ok');
+}
+
+async function saveNewCat() {
+  const mc=document.getElementById('addcat-mc').value;
+  const name=document.getElementById('addcat-name').value.trim();
+  if(!name) return toast('Nom obligatoire','err');
+  if(!MAIN_CATS[mc]) MAIN_CATS[mc]=[];
+  if(MAIN_CATS[mc].includes(name)) return toast('Sous-catégorie déjà existante','err');
+  MAIN_CATS[mc].push(name);
+  await sbUpsertConfig('main_cats',MAIN_CATS);
+  document.getElementById('addcat-name').value='';
+  renderCatList(); renderMat(); toast('Sous-catégorie ajoutée ✓','ok');
+}
+
+async function delSubCat(mc, sc) {
+  const used=MATS.filter(m=>m.sc===sc).length;
+  if(used>0 && !confirm(`${used} matériau(x) utilisent cette sous-catégorie. Supprimer quand même ?`)) return;
+  MAIN_CATS[mc]=MAIN_CATS[mc].filter(s=>s!==sc);
+  await sbUpsertConfig('main_cats',MAIN_CATS);
+  renderCatList(); renderMat(); toast('Sous-catégorie supprimée','ok');
+}
+
+async function renameMainCat(oldName) {
+  const newName=prompt('Nouveau nom pour "'+oldName+'" :', oldName);
+  if(!newName||newName===oldName) return;
+  if(MAIN_CATS[newName]) return toast('Ce nom existe déjà','err');
+  // Rename key in MAIN_CATS
+  const scs=MAIN_CATS[oldName];
+  delete MAIN_CATS[oldName];
+  MAIN_CATS[newName]=scs;
+  await sbUpsertConfig('main_cats',MAIN_CATS);
+  // Update all mats using this mc
+  const toUpdate=MATS.filter(m=>m.mc===oldName);
+  for(const m of toUpdate){
+    m.mc=newName;
+    await sbUpdate('materiaux',m.id,{mc:newName});
+  }
+  renderCatList(); renderMat(); toast('Renommé : '+oldName+' -> '+newName,'ok');
+}
+
+async function renameSubCat(mc, oldSc) {
+  const newSc=prompt('Nouveau nom pour "'+oldSc+'" :', oldSc);
+  if(!newSc||newSc===oldSc) return;
+  if((MAIN_CATS[mc]||[]).includes(newSc)) return toast('Ce nom existe déjà','err');
+  MAIN_CATS[mc]=MAIN_CATS[mc].map(s=>s===oldSc?newSc:s);
+  await sbUpsertConfig('main_cats',MAIN_CATS);
+  // Update all mats using this sc
+  const toUpdate=MATS.filter(m=>m.sc===oldSc);
+  for(const m of toUpdate){
+    m.sc=newSc;
+    await sbUpdate('materiaux',m.id,{sc:newSc});
+  }
+  renderCatList(); renderMat(); toast('Sous-catégorie renommée','ok');
+}
+
+async function renameFournisseur(oldName) {
+  const newName=prompt('Nouveau nom pour "'+oldName+'" :', oldName);
+  if(!newName||newName===oldName) return;
+  FOURNISSEURS=FOURNISSEURS.map(f=>f===oldName?newName:f);
+  await sbUpsertConfig('fournisseurs',FOURNISSEURS);
+  // Update all mats using this fournisseur
+  const toUpdate=MATS.filter(m=>m.fournisseur===oldName);
+  for(const m of toUpdate){
+    m.fournisseur=newName;
+    await sbUpdate('materiaux',m.id,{fournisseur:newName});
+  }
+  updateFournisseursDatalist(); renderFourList();
+  toast('Fournisseur renommé','ok');
+}
+
+// ─── FOURNISSEURS ───
+function renderFourList() {
+  const all=[...new Set([...FOURNISSEURS,...MATS.map(m=>m.fournisseur).filter(Boolean)])].sort();
+  const el=document.getElementById('cfg-four-list');
+  el.innerHTML=all.length ? all.map(f=>`
+    <div style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid var(--border)">
+      <span style="flex:1;font-size:12px">${f}</span>
+      <span style="font-size:9px;color:var(--muted);flex-shrink:0">${MATS.filter(m=>m.fournisseur===f).length} mat.</span>
+      <button class="btn btn-xs btn-ghost" onclick="renameFournisseur('${f}')" title="Renommer">✎</button>
+      <button class="btn btn-xs btn-red" onclick="delFournisseur('${f}')">✕</button>
+    </div>`).join('') : '<div style="font-size:12px;color:var(--muted)">Aucun fournisseur</div>';
+}
+
+async function addFournisseurManual() {
+  const val=document.getElementById('new-four-name').value.trim();
+  if(!val) return toast('Nom obligatoire','err');
+  if(FOURNISSEURS.includes(val)) return toast('Déjà dans la liste','err');
+  FOURNISSEURS.push(val);
+  await sbUpsertConfig('fournisseurs',FOURNISSEURS);
+  document.getElementById('new-four-name').value='';
+  updateFournisseursDatalist(); renderFourList();
+  toast('Fournisseur ajouté ✓','ok');
+}
+
+async function delFournisseur(name) {
+  FOURNISSEURS=FOURNISSEURS.filter(f=>f!==name);
+  await sbUpsertConfig('fournisseurs',FOURNISSEURS);
+  updateFournisseursDatalist(); renderFourList();
+  toast('Fournisseur supprimé','ok');
+}
+
+async function addFournisseur(val) {
+  // Called on blur (not oninput) to avoid adding partial names
+  val=val?.trim();
+  if(!val||val.length<2||FOURNISSEURS.includes(val)) return;
+  FOURNISSEURS.push(val);
+  await sbUpsertConfig('fournisseurs',FOURNISSEURS);
+  updateFournisseursDatalist();
+}
+
+function buildCatBar() {
+  const bar=document.getElementById('cat-bar');
+  const flt=document.getElementById('flt-sc');
+  const cur=flt.value;
+  let html='', opts='<option value="">Toutes catégories</option>';
+  Object.entries(MAIN_CATS).forEach(([mc,scs])=>{
+    const active=scs.filter(sc=>MATS.some(m=>m.sc===sc));
+    if(!active.length) return;
+    html+=`<div class="cat-section"><div class="cat-label" style="color:${MAIN_CLR[mc]||'#888'}">${mc}</div>
+      ${active.map(sc=>`<span class="chip" style="background:${SC_CLR[sc]||'#888'}" onclick="jumpToSC('${sc}')">${sc}</span>`).join('')}
+    </div>`;
+    opts+=`<optgroup label="${mc}">${active.map(sc=>`<option value="${sc}" ${sc===cur?'selected':''}>${sc}</option>`).join('')}</optgroup>`;
+  });
+  
+  bar.innerHTML=html; flt.innerHTML=opts;
+}
+
+function showBijDiag() {
+  const refCount={};
+  BIJS.forEach(b=>{ if(b.ref) refCount[b.ref]=(refCount[b.ref]||0)+1; });
+  const dups=Object.entries(refCount).filter(([r,n])=>n>1);
+  const banner=document.getElementById('bij-diag-banner');
+  if(!banner) return;
+  if(!dups.length){
+    banner.innerHTML='<div class="info-box">✓ Aucun doublon de référence.</div>';
+  } else {
+    let h='<div class="warn-box"><b>Doublons :</b>';
+    dups.forEach(([r,n])=>{
+      const names=BIJS.filter(b=>b.ref===r).map(b=>b.nom+(b.variante?' · '+b.variante:'')).join(', ');
+      h+=`<div style="margin-top:4px">⚠ <b>${r}</b> → ${names}</div>`;
+    });
+    h+='</div>';
+    banner.innerHTML=h;
+  }
+  banner.style.display='block';
+}
+
+function toggleBijDetail(id) {
+  const el=document.getElementById(id);
+  if(el) el.style.display=el.style.display==='none'?'block':'none';
+}
+
+function runDiag() {
+  const eur2 = v => v==null?'--':(+v).toFixed(4).replace('.',',')+'€';
+  let html='';
+
+  // ── 1. Doublons de références bijoux
+  const refCount={};
+  BIJS.forEach(b=>{ if(b.ref) refCount[b.ref]=(refCount[b.ref]||0)+1; });
+  const dups=Object.entries(refCount).filter(([r,n])=>n>1);
+  if(dups.length){
+    html+='<div class="warn-box"><b>References bijoux en doublon :</b><br>';
+    dups.forEach(([r,n])=>{
+      const names=BIJS.filter(b=>b.ref===r).map(b=>b.nom+(b.variante?' . '+b.variante:'')).join(', ');
+      html+=`<div style="margin-top:4px">⚠ ${r} utilise par ${n} bijoux : ${names}</div>`;
+    });
+    html+='</div>';
+  } else {
+    html+='<div class="info-box">Aucun doublon de reference bijou.</div>';
+  }
+
+  // ── 2. Listing 2 colonnes ref éditable inline
+  html+='<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin:12px 0 8px">Références — cliquez pour modifier</div>';
+  const byC={};
+  BIJS.forEach(b=>{ if(!byC[b.collection])byC[b.collection]=[]; byC[b.collection].push(b); });
+  Object.entries(byC).forEach(([coll,bs])=>{
+    html+=`<div style="font-size:12px;font-weight:700;color:var(--purple);margin:8px 0 4px;padding:4px 8px;background:var(--purpleP);border-radius:var(--rx)">${coll}</div>`;
+    html+='<div style="display:grid;grid-template-columns:1fr 1fr">';
+    bs.forEach(b=>{
+      const isDup=dups.some(([r])=>r===b.ref);
+      const bg=isDup?'var(--redP)':'var(--purpleP)';
+      const col=isDup?'var(--red)':'var(--purple)';
+      const bdr=isDup?'var(--red)':'var(--border)';
+      html+=`<div style="padding:7px 8px;border-bottom:1px solid var(--border);border-right:1px solid var(--border)">`;
+      html+=`<div style="font-weight:600;font-size:12px;margin-bottom:4px">${b.nom}${b.variante?' <span class="badge bm">'+b.variante+'</span>':''}</div>`;
+      html+=`<input value="${b.ref||''}" data-bij-id="${b.id}" style="font-size:11px;font-weight:700;color:${col};padding:3px 8px;border-radius:10px;width:100%;background:${bg};border:1px solid ${bdr}" onblur="diagSaveRef(this)" onkeydown="if(event.key==='Enter')this.blur()">`;
+      if(isDup) html+=`<div style="font-size:9px;color:var(--red);font-weight:700;margin-top:2px">DOUBLON ⚠</div>`;
+      html+=`</div>`;
+    });
+    if(bs.length%2!==0) html+='<div style="border-bottom:1px solid var(--border)"></div>';
+    html+='</div>';
+  });
+
+  document.getElementById('diag-result').innerHTML=html;
+}
+
+function renderMat() {
+  buildCatBar();
+  const filter=document.getElementById('flt-sc').value;
+  const search=(document.getElementById('mat-search')?.value||'').toLowerCase().trim();
+  let mats=filter?MATS.filter(m=>m.sc===filter):MATS;
+  if(search) mats=mats.filter(m=>
+    (m.ref||'').toLowerCase().includes(search)||
+    (m.designation||m.des||'').toLowerCase().includes(search)||
+    (m.variante||'').toLowerCase().includes(search)||
+    (m.fournisseur||'').toLowerCase().includes(search)
+  );
+  const tree={};
+  mats.forEach(m=>{
+    if(!tree[m.mc])tree[m.mc]={};
+    if(!tree[m.mc][m.sc])tree[m.mc][m.sc]=[];
+    tree[m.mc][m.sc].push(m);
+  });
+  let html='';
+  Object.entries(tree).forEach(([mc,subs])=>{
+    html+=`<div class="main-ban" style="background:${MAIN_CLR[mc]||'#888'}">◆ ${mc.toUpperCase()}</div>`;
+    Object.entries(subs).forEach(([sc,mats])=>{
+      html+=`<div id="anc-${esc(sc)}" class="sub-ban" style="background:${SC_CLR[sc]||'#888'}">${sc}</div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Réf.</th><th>Désignation</th><th>Variante</th><th>Fournisseur</th><th>Stock</th><th>PU moy.</th><th></th></tr></thead>
+        <tbody>${mats.map(m=>{
+          const pu=puMoyen(m), sc2=stockCumul(m);
+          return `<tr onclick="openMatModal('${m.id}')" style="cursor:pointer" title="Cliquer pour modifier">
+            <td class="ref">${m.ref}</td>
+            <td style="font-size:12px">${m.designation||m.des||'--'}</td>
+            <td><span class="badge bm">${m.variante||'--'}</span></td>
+            <td class="dim">${m.fournisseur||'--'}</td>
+            <td>${sc2?n(sc2):'<span class="dim">--</span>'}</td>
+            <td class="${pu?'hi':'dim'}">${pu?eur(pu,4):'--'}</td>
+            <td onclick="event.stopPropagation()" style="white-space:nowrap">
+              <div style="display:flex;gap:5px;justify-content:flex-end">
+                <button class="btn btn-sm btn-ghost" onclick="openReappro('${m.id}')" style="padding:6px 11px">↑ Réappro</button>
+                <button class="btn btn-sm btn-red" onclick="delMat('${m.id}')" style="padding:6px 11px">✕</button>
+              </div>
+            </td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>`;
+    });
+  });
+  document.getElementById('mat-body').innerHTML=html||`<div class="empty"><div class="empty-icon">📦</div><p>Aucun matériau</p></div>`;
+}
+
+const esc = s=>s.replace(/[^a-z0-9]/gi,'_');
+function jumpToSC(sc){document.getElementById('anc-'+esc(sc))?.scrollIntoView({behavior:'smooth',block:'start'});}
+
+// ═══════════════════════════════════════════════════════
+// BIJOUX
+// ═══════════════════════════════════════════════════════
+function autoRefBij(editId=null, isComp=false) {
+  if(isComp) {
+    const compNums=BIJS.filter(b=>b.id!==editId&&b.ref?.startsWith('COMP-')).map(b=>{const m=b.ref?.match(/(\d+)$/);return m?parseInt(m[1]):0;}).filter(n=>n>0);
+    return 'COMP-'+(((compNums.length?Math.max(...compNums):0)+1).toString().padStart(3,'0'));
+  }
+  const nums=BIJS.filter(b=>b.id!==editId&&!b.ref?.startsWith('COMP-')).map(b=>{const m=b.ref?.match(/(\d+)$/);return m?parseInt(m[1]):0;}).filter(n=>n>0);
+  return 'BIJ-'+(((nums.length?Math.max(...nums):0)+1).toString().padStart(3,'0'));
+}
+
+function checkBijRef(ref, editId) {
+  const exists = BIJS.some(b=>b.ref===ref && b.id!==editId);
+  const warn = document.getElementById('bij-ref-warn');
+  if(warn) warn.style.display = exists ? 'block' : 'none';
+  return exists;
+}
+
+function updateCollectionsList() {
+  const dl = document.getElementById('dl-collections');
+  if(!dl) return;
+  const colls = [...new Set(BIJS.map(b=>b.collection).filter(Boolean))].sort();
+  dl.innerHTML = colls.map(c=>`<option value="${c}">`).join('');
+}
+
+function toggleNoSell() {
+  const cb=document.getElementById('bij-no-sell');
+  const row=document.getElementById('no-sell-toggle');
+  cb.checked=!cb.checked;
+  row.className='toggle-row '+(cb.checked?'on':'off');
+  // Si nouveau bijou, regénérer la ref selon le type
+  const editId=document.getElementById('bij-edit-id').value;
+  if(!editId) {
+    const autoRef=autoRefBij(null,cb.checked);
+    document.getElementById('bij-ref').value=autoRef;
+    checkBijRef(autoRef,null);
+  }
+}
+
+async function diagSaveRef(input) {
+  const bijId=input.dataset.bijId;
+  const newRef=input.value.trim();
+  if(!bijId||!newRef) return;
+  const b=getBij(bijId);
+  if(!b||b.ref===newRef) return;
+  const dup=BIJS.some(x=>x.ref===newRef&&x.id!==bijId);
+  if(dup){
+    input.style.color='var(--red)';
+    document.getElementById('rename-result').innerHTML='<span style="color:var(--red)">⚠ '+newRef+' déjà utilisée.</span>';
+    return;
+  }
+  const ok=await sbUpdate('bijoux',bijId,{ref:newRef});
+  if(ok){
+    const i=BIJS.findIndex(x=>x.id===bijId);
+    if(i>=0) BIJS[i].ref=newRef;
+    input.style.color='var(--purple)'; input.style.background='var(--purpleP)';
+    document.getElementById('rename-result').innerHTML='<span style="color:var(--green)">✓ Renommé en '+newRef+'</span>';
+    renderBij();
+  }
+}
+
+async function renameBijRef() {
+  const sel=document.getElementById('rename-bij-sel');
+  const newRef=document.getElementById('rename-bij-newref').value.trim();
+  const bijId=sel.value;
+  const res=document.getElementById('rename-result');
+  if(!bijId||!newRef){res.innerHTML='<span style="color:var(--red)">Sélectionnez un bijou et entrez une nouvelle référence.</span>';return;}
+  if(BIJS.some(b=>b.ref===newRef&&b.id!==bijId)){res.innerHTML='<span style="color:var(--red)">Cette référence est déjà utilisée.</span>';return;}
+  const ok=await sbUpdate('bijoux',bijId,{ref:newRef});
+  if(ok){const i=BIJS.findIndex(b=>b.id===bijId);if(i>=0)BIJS[i].ref=newRef;renderBij();res.innerHTML='<span style="color:var(--green)">✓ Référence renommée en '+newRef+'</span>';populateRenameSelect();}
+}
+
+function populateRenameSelect() {
+  const sel=document.getElementById('rename-bij-sel');
+  if(!sel) return;
+  sel.innerHTML=BIJS.map(b=>`<option value="${b.id}">${b.nom}${b.variante?' · '+b.variante:''} — ${b.ref||'(sans ref)'}</option>`).join('');
+}
+
+function toggleIsMat() {
+  const cb = document.getElementById('bij-is-mat');
+  const row = document.getElementById('is-mat-toggle');
+  const lbl = document.getElementById('is-mat-label');
+  cb.checked = !cb.checked;
+  const on = cb.checked;
+  row.className = 'toggle-row ' + (on ? 'on' : 'off');
+  if(lbl) { lbl.style.color = on ? 'var(--purple)' : '#fff'; lbl.style.fontWeight='700'; }
+}
+
+function openBijModal(editId=null) {
+  document.getElementById('bij-edit-id').value=editId||'';
+  document.getElementById('bij-modal-title').textContent=editId?'Modifier bijou':'Nouveau bijou';
+  updateCollectionsList();
+
+  if(editId){
+    const b=getBij(editId); if(!b) return;
+    document.getElementById('bij-coll').value=b.collection||'';
+    document.getElementById('bij-ref').value=b.ref||'';
+
+    document.getElementById('bij-nom').value=b.nom||'';
+    document.getElementById('bij-var').value=b.variante||'';
+    document.getElementById('bij-pv').value=b.pv||'';
+    const isMat=b.is_mat||false;
+    document.getElementById('bij-is-mat').checked=isMat;
+    document.getElementById('is-mat-toggle').className='toggle-row '+(isMat?'on':'off');
+    const lbl=document.getElementById('is-mat-label');
+    if(lbl) lbl.style.color=isMat?'var(--purple)':'#fff';
+    const noSellEl=document.getElementById('bij-no-sell');
+    const noSellRow=document.getElementById('no-sell-toggle');
+    if(noSellEl){noSellEl.checked=b.no_sell||false; if(noSellRow) noSellRow.className='toggle-row '+(b.no_sell?'on':'off');}
+    document.getElementById('bij-mats-list').innerHTML='';
+    (b.mats||[]).forEach(m=>addMatRow(m.sc,m.ref,m.qty));
+  } else {
+    ['bij-coll','bij-nom','bij-var','bij-pv'].forEach(i=>document.getElementById(i).value='');
+    const autoRef=autoRefBij(null, false);
+    document.getElementById('bij-ref').value=autoRef;
+    checkBijRef(autoRef, null);
+    document.getElementById('bij-is-mat').checked=false;
+    document.getElementById('is-mat-toggle').className='toggle-row off';
+    const nsEl=document.getElementById('bij-no-sell');
+    const nsRow=document.getElementById('no-sell-toggle');
+    if(nsEl){nsEl.checked=false; if(nsRow) nsRow.className='toggle-row off';}
+    document.getElementById('bij-mats-list').innerHTML='';
+    addMatRow();
+  }
+  // reset to info tab
+  document.querySelectorAll('#m-bij .mtab').forEach((t,i)=>t.classList.toggle('on',i===0));
+  ['tab-info','tab-compo','tab-options'].forEach((id,i)=>{const d=document.getElementById(id);if(d)d.style.display=i===0?'block':'none';});
+  openModal('m-bij');
+}
+
+function addMatRow(sc='',ref='',qty='') {
+  const c=document.getElementById('bij-mats-list');
+  const allSC=[...new Set(MATS.map(m=>m.sc))].sort();
+  // Always show Bijou composition if any bij has is_mat true
+  const bijMats=BIJS.filter(b=>b.is_mat);
+  const scOpts=allSC.map(s=>`<option value="${s}" ${s===sc?'selected':''}>${s}</option>`).join('')
+    + (bijMats.length ? `<option value="Bijou (composition)" ${sc==='Bijou (composition)'?'selected':''}>💎 Bijou (composition)</option>` : '');
+  const div=document.createElement('div');
+  div.className='mat-row-item';
+  div.style.cssText='margin-bottom:10px;padding:10px;background:var(--bg);border-radius:var(--rs);border:1px solid var(--border)';
+  div.innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:6px;margin-bottom:6px">
+      <select class="bij-sc" onchange="filterBijRefs(this)" style="font-size:13px;padding:10px 8px">${scOpts}</select>
+      <select class="bij-ref" style="font-size:13px;padding:10px 8px"><option value="">-- Réf --</option></select>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <input class="bij-qty" type="number" placeholder="Quantité" value="${qty||''}" style="padding:10px;font-size:13px;flex:1">
+      <button class="btn btn-red btn-sm" onclick="this.closest('.mat-row-item').remove()" style="flex-shrink:0">✕ Supprimer</button>
+    </div>`;
+  c.appendChild(div);
+  filterBijRefs(div.querySelector('.bij-sc'),ref);
+}
+
+function filterBijRefs(sel,preselectRef='') {
+  const row=sel.closest('.mat-row-item');
+  const refSel=row.querySelector('.bij-ref');
+  const sc=sel.value;
+  let opts='<option value="">-- Réf --</option>';
+  if(sc==='Bijou (composition)'){BIJS.filter(b=>b.is_mat).forEach(b=>{opts+=`<option value="${b.ref}" ${b.ref===preselectRef?'selected':''}>${b.ref} · ${b.nom}${b.variante?' · '+b.variante:''}</option>`;});}
+  else{MATS.filter(m=>m.sc===sc).forEach(m=>{opts+=`<option value="${m.ref}" ${m.ref===preselectRef?'selected':''}>${m.ref} · ${m.variante||m.designation||m.des}</option>`;});}
+  refSel.innerHTML=opts;
+}
+
+async function saveBij() {
+  const editId=document.getElementById('bij-edit-id').value;
+  const coll=document.getElementById('bij-coll').value.trim();
+  const nom=document.getElementById('bij-nom').value.trim();
+  if(!coll||!nom) return toast('Collection et désignation obligatoires','err');
+  const rows=document.querySelectorAll('#bij-mats-list .mat-row-item');
+  const mats=[];
+  rows.forEach(row=>{
+    const sc=row.querySelector('.bij-sc')?.value;
+    const ref=row.querySelector('.bij-ref')?.value;
+    const qty=+row.querySelector('.bij-qty')?.value||null;
+    if(ref) mats.push({ref,qty,sc:sc||''});
+  });
+  const isMat=document.getElementById('bij-is-mat').checked;
+  const obj={
+    id:editId||uid(), collection:coll,
+    ref:document.getElementById('bij-ref').value.trim()||autoRefBij(),
+    nom, variante:document.getElementById('bij-var').value.trim(),
+    mats, pv:+document.getElementById('bij-pv').value||null,
+    is_mat:isMat,
+    no_sell:document.getElementById('bij-no-sell')?.checked||false,
+    draft:mats.some(m=>!m.qty)||!nom,
+  };
+  let ok;
+  if(editId){ok=await sbUpdate('bijoux',editId,obj);if(ok){const i=BIJS.findIndex(b=>b.id===editId);BIJS[i]=obj;}}
+  else{ok=await sbInsert('bijoux',obj);if(ok)BIJS.push(obj);}
+  if(ok){closeModal('m-bij');renderBij();toast(editId?'Bijou modifié ✓':'Bijou ajouté ✓','ok');}
+}
+
+async function delBij(id) {
+  if(!confirm('Supprimer ce bijou ?')) return;
+  const ok=await sbDelete('bijoux',id);
+  if(ok){BIJS=BIJS.filter(b=>b.id!==id);renderBij();toast('Supprimé','ok');}
+}
+
+async function dupBij(id) {
+  const b=getBij(id); if(!b) return;
+  const newRef=autoRefBij();
+  const obj={
+    id:uid(),collection:b.collection,ref:newRef,
+    nom:b.nom,variante:b.variante||'',
+    mats:JSON.parse(JSON.stringify(b.mats||[])),
+    pv:null,is_mat:false,draft:true
+  };
+  const ok=await sbInsert('bijoux',obj);
+  if(ok){BIJS.push(obj);renderBij();toast('Copie créée -- '+newRef+' (brouillon)','ok');setTimeout(()=>openBijModal(obj.id),400);}
+}
+
+function appendBijRef(suffix) {
+  const inp=document.getElementById('bij-ref');
+  if(!inp) return;
+  // Remove existing single-letter suffix before adding new one
+  const base=inp.value.replace(/[a-z]$/i,'');
+  inp.value=base+suffix;
+  checkBijRef(inp.value, document.getElementById('bij-edit-id').value);
+}
+
+async function inlineSavePV(bijId, valStr) {
+  const pv = parseFloat(String(valStr).replace(',','.'));
+  if(isNaN(pv) || pv < 0) return;
+  const ok = await sbUpdate('bijoux', bijId, {pv: pv||null});
+  if(ok) {
+    const i = BIJS.findIndex(b=>b.id===bijId);
+    if(i>=0) BIJS[i].pv = pv||null;
+    toast(pv ? 'Prix de vente : '+eur(pv) : 'Prix de vente effacé', 'ok');
+  }
+}
+
+async function quickSetPV(id) {
+  const b=getBij(id); if(!b) return;
+  const pm=prixMin(b);
+  const hint=pm?` (min. recommandé: ${eur(pm)})`:'';
+  const val=prompt(`Prix de vente pour "${b.nom}${b.variante?' · '+b.variante:''}"${hint}:`);
+  if(val===null) return;
+  const pv=parseFloat(val.replace(',','.'));
+  if(isNaN(pv)||pv<=0) return toast('Prix invalide','err');
+  const ok=await sbUpdate('bijoux',id,{pv});
+  if(ok){const i=BIJS.findIndex(b=>b.id===id);if(i>=0)BIJS[i].pv=pv;renderBij();toast('Prix de vente enregistré ✓','ok');}
+}
+
+function renderBij() {
+  const colls=[...new Set(BIJS.map(b=>b.collection))];
+  const collSel=document.getElementById('flt-coll');
+  const curColl=collSel.value;
+  collSel.innerHTML='<option value="">Toutes collections</option>'+colls.map(c=>`<option ${c===curColl?'selected':''}>${c}</option>`).join('');
+  const fc=collSel.value, fs=document.getElementById('flt-status').value;
+  const search=(document.getElementById('bij-search')?.value||'').toLowerCase().trim();
+  let bijs=BIJS;
+  if(fc) bijs=bijs.filter(b=>b.collection===fc);
+  if(fs==='ok') bijs=bijs.filter(b=>!isDraft(b));
+  if(fs==='draft') bijs=bijs.filter(b=>isDraft(b));
+  if(search) bijs=bijs.filter(b=>
+    (b.nom||'').toLowerCase().includes(search)||
+    (b.variante||'').toLowerCase().includes(search)||
+    (b.ref||'').toLowerCase().includes(search)||
+    (b.collection||'').toLowerCase().includes(search)
+  );
+  if(!bijs.length){document.getElementById('bij-body').innerHTML=`<div class="empty"><div class="empty-icon">💎</div><p>Aucun bijou</p></div>`;return;}
+  const byC={};
+  bijs.forEach(b=>{if(!byC[b.collection])byC[b.collection]=[];byC[b.collection].push(b);});
+  document.getElementById('bij-body').innerHTML=Object.entries(byC).map(([coll,bs])=>`
+    <div class="main-ban" style="background:var(--dark)">◆ ${coll.toUpperCase()}</div>
+    ${bs.map(b=>{
+      const cout=coutBijou(b),pm=prixMin(b),draft=isDraft(b),noSell=b.no_sell||false;
+      return `<div class="bij-card">
+        <div class="bij-hd" onclick="openBijModal('${b.id}')">
+          <div>
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+              <span style="font-family:Georgia,serif;color:var(--gold);font-size:15px;font-style:italic">${b.nom}</span>
+              ${b.variante?`<span class="badge bp">${b.variante}</span>`:''}
+              ${draft?'<span class="draft-pill">brouillon</span>':''}
+              ${b.is_mat?`<span class="badge bgn" style="font-size:8px">💎 composant</span>`:''}
+            </div>
+            ${b.ref?`<div style="font-size:11px;color:var(--gold2);margin-top:4px;letter-spacing:.3px;opacity:.8">${b.ref}</div>`:''}
+          </div>
+          <div style="display:flex;gap:4px">
+            <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();dupBij('${b.id}')" title="Dupliquer">⎘ Dupliquer</button>
+            <button class="btn btn-red btn-xs" onclick="event.stopPropagation();delBij('${b.id}')">✕</button>
+          </div>
+        </div>
+        <div style="padding:10px 14px">
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>Type</th><th>Réf.</th><th>Matériau</th><th>Qté</th><th>Prix</th></tr></thead>
+            <tbody>${(b.mats||[]).map(m=>{
+              const mat=getMat(m.ref);
+              const pu=mat?puMoyen(mat):null;
+              // Bijou composant ?
+              const bijComp=!mat?BIJS.find(bj=>bj.ref===m.ref&&bj.is_mat):null;
+              const coutComp=bijComp?coutBijou(bijComp):null;
+              const pm2=pu&&m.qty?pu*(+m.qty):(coutComp&&m.qty?coutComp*(+m.qty):null);
+              const detailId='det_'+b.id+'_'+m.ref.replace(/[^a-z0-9]/gi,'_');
+              const bijCompDetail=bijComp?(bijComp.mats||[]).map(bm=>{
+                const bmat=getMat(bm.ref);
+                return '<div style="padding:2px 0">• '+bm.ref+' '+(bmat?bmat.designation||bmat.des||'':'')+(bmat&&bmat.variante?' · '+bmat.variante:'')+' × '+(bm.qty||'?')+'</div>';
+              }).join(''):'';
+              const matLabel=mat
+                ?(mat.designation||mat.des||'')+(mat.variante?' · '+mat.variante:'')
+                :bijComp
+                  ?'<span style="color:var(--purple);font-weight:600">'+bijComp.nom+(bijComp.variante?' · '+bijComp.variante:'')+'</span>'
+                   +' <span class="badge bp" style="font-size:8px;cursor:pointer" onclick="event.stopPropagation();toggleBijDetail(\''+detailId+'\')">voir ↓</span>'
+                   +'<div id="'+detailId+'" style="display:none;margin-top:6px;padding:6px 8px;background:var(--purpleP);border-radius:var(--rs);font-size:11px">'+bijCompDetail+'</div>'
+                  :'--';
+              return `<tr>
+                <td><span class="badge" style="background:${SC_CLR[m.sc]||'#eee'};color:${m.sc?'#fff':'#888'};font-size:8px">${m.sc||'--'}</span></td>
+                <td class="ref">${m.ref}</td>
+                <td class="dim">${matLabel}</td>
+                <td>${m.qty?n(m.qty):`<span class="badge br">?</span>`}</td>
+                <td class="${pm2?'hi':'dim'}">${pm2?eur(pm2):'--'}</td>
+              </tr>`;
+            }).join('')}</tbody>
+          </table></div>
+        </div>
+        <div class="bij-foot">
+          <div class="bij-foot-cell">
+            <div class="cell-label" style="color:var(--muted)">Coût matériel</div>
+            <div class="cell-val" style="color:var(--purple)">${cout>0?eur(cout):'--'}</div>
+          </div>
+          ${noSell?`<div class="bij-foot-cell"><span class="badge bm">Non vendu seul</span></div>`:`
+          <div class="bij-foot-cell" style="background:var(--green);border-radius:var(--rs);color:#fff">
+            <div class="cell-label" style="opacity:.8">Prix minimum</div>
+            <div class="cell-val">${pm?eur(pm):'--'}</div>
+          </div>
+          <div class="bij-foot-cell" style="background:var(--purple);border-radius:var(--rs)">
+            <div class="cell-label" style="color:rgba(255,255,255,.75)">Prix de vente</div>
+            <div style="display:flex;align-items:center;gap:2px">
+              <input type="number" step="0.01"
+                value="${b.pv||''}" placeholder="—"
+                onclick="event.stopPropagation()"
+                onchange="event.stopPropagation();inlineSavePV('${b.id}',this.value)"
+                style="background:transparent;border:none;color:#fff;font-size:19px;font-weight:700;font-family:Georgia,serif;text-align:right;outline:none;cursor:text;width:68px">
+              <span style="color:rgba(255,255,255,.8);font-size:15px;font-weight:700">€</span>
+            </div>
+          </div>`}
+        </div>
+      </div>`;
+    }).join('')}`).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+// STOCK
+// ═══════════════════════════════════════════════════════
+// Base ref = strip trailing letters: #AI001b -> #AI001
+function baseRef(ref){ return ref.replace(/[a-z]+$/i,''); }
+
+function renderStock() {
+  const by={};
+  MATS.forEach(m=>{if(!by[m.mc])by[m.mc]={};if(!by[m.mc][m.sc])by[m.mc][m.sc]=[];by[m.mc][m.sc].push(m);});
+  let html='';
+  Object.entries(by).forEach(([mc,subs])=>{
+    html+=`<div class="main-ban" style="background:${MAIN_CLR[mc]||'#888'}">◆ ${mc.toUpperCase()}</div>`;
+    Object.entries(subs).forEach(([sc,mats])=>{
+      // Regroup variants (a/b/c) sharing same base ref
+      const groups={};
+      mats.forEach(m=>{
+        const base=baseRef(m.ref);
+        if(!groups[base])groups[base]={des:m.designation||m.des||'',items:[]};
+        groups[base].items.push(m);
+      });
+      html+=`<div class="sub-ban" style="background:${SC_CLR[sc]||'#888'}">${sc}</div>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Désignation</th><th>Références</th><th>Stock total</th><th>Consommé</th><th>Disponible</th></tr></thead>
+        <tbody>${Object.entries(groups).map(([base,g])=>{
+          const totG=g.items.reduce((s,m)=>s+stockCumul(m),0);
+          const cG=g.items.reduce((s,m)=>s+stockConsome(m.ref),0);
+          const dG=totG-cG;
+          const pct=totG?Math.min(100,(dG/totG)*100):0;
+          const clr=pct>50?'#2E7D4F':pct>20?'#C05820':'#C0392B';
+          const refs=g.items.map(m=>`<span class="badge bm" style="margin:1px 2px">${m.ref}${m.variante?' ('+m.variante+')':''}</span>`).join('');
+          return `<tr>
+            <td style="font-size:12px">${g.des}</td>
+            <td style="line-height:1.8">${refs}</td>
+            <td>${totG?n(totG):'<span class="dim">--</span>'}</td>
+            <td class="dim">${n(cG)||'0'}</td>
+            <td><b style="color:${clr}">${n(dG)}</b>
+              <div class="sbar"><div class="sfill" style="width:${pct}%;background:${clr}"></div></div>
+            </td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>`;
+    });
+  });
+  document.getElementById('stock-body').innerHTML=html||`<div class="empty"><div class="empty-icon">📊</div><p>Aucune donnée</p></div>`;
+}
+
+// ═══════════════════════════════════════════════════════
+// DÉPENSES
+// ═══════════════════════════════════════════════════════
+function renderDep() {
+  const depInit=MATS.reduce((s,m)=>s+(+m.prix||0),0);
+  const depRA=REAPPROS.reduce((s,r)=>s+(+r.prix||0),0);
+  document.getElementById('dep-stats').innerHTML=`
+    <div class="stat red"><div class="v">${eur(depInit)}</div><div class="l">Achats initiaux</div></div>
+    <div class="stat red"><div class="v">${eur(depRA)}</div><div class="l">Réappros</div></div>
+    <div class="stat red"><div class="v">${eur(depInit+depRA)}</div><div class="l">Total</div></div>`;
+  const by={};MATS.forEach(m=>{if(!by[m.mc])by[m.mc]=[];by[m.mc].push(m);});
+  let html='';
+  Object.entries(by).forEach(([mc,mats])=>{
+    const mcT=mats.reduce((s,m)=>{const r=REAPPROS.filter(r=>r.mat_id===m.id).reduce((ss,r)=>ss+(+r.prix||0),0);return s+(+m.prix||0)+r;},0);
+    html+=`<div class="main-ban" style="background:${MAIN_CLR[mc]||'#888'}">◆ ${mc.toUpperCase()} · ${eur(mcT)}</div>`;
+    mats.forEach(m=>{
+      const ras=REAPPROS.filter(r=>r.mat_id===m.id);
+      const pu=puMoyen(m);
+      if(!m.prix&&!ras.length) return;
+      html+=`<div style="padding:7px 0;border-bottom:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;margin-bottom:4px">
+          <div><span class="ref">${m.ref}</span> <span style="font-size:12px">${m.designation||m.des||''}${m.variante?' · '+m.variante:''}</span>
+          ${m.fournisseur?`<span class="badge bm" style="margin-left:4px">${m.fournisseur}</span>`:''}
+          </div>
+          ${pu?`<span class="badge bgn">PU moy: ${eur(pu,4)}</span>`:''}
+        </div>
+        ${m.prix?`<div style="display:flex;gap:5px;padding:3px 7px;background:var(--purpleP);border-radius:var(--rx);margin-bottom:2px;flex-wrap:wrap;align-items:center">
+          <span class="badge bp">Init.</span><span style="font-size:12px">${n(m.qty)} u</span>
+          <span style="font-weight:600;color:var(--red)">${eur(m.prix)}</span>
+        </div>`:''}
+        ${ras.map(r=>`<div style="display:flex;gap:5px;padding:3px 7px;border-radius:var(--rx);margin-bottom:2px;flex-wrap:wrap;align-items:center">
+          <span class="badge bp">Réappro</span>
+          <span style="font-size:11px;color:var(--muted)">${r.date||'--'}</span>
+          <span style="font-size:12px">${n(r.qty)} u</span>
+          <span style="font-weight:600;color:var(--red)">${eur(r.prix)}</span>
+          ${r.fournisseur?`<span class="badge bm">${r.fournisseur}</span>`:''}
+          ${r.note?`<span style="font-size:11px;color:var(--muted)">${r.note}</span>`:''}
+          <button class="btn btn-xs btn-red" onclick="delRA('${r.id}')">✕</button>
+        </div>`).join('')}
+      </div>`;
+    });
+  });
+  document.getElementById('dep-body').innerHTML=html||`<div class="empty"><div class="empty-icon">💸</div><p>Aucun achat</p></div>`;
+}
+
+// ═══════════════════════════════════════════════════════
+// PRODUCTION
+// ═══════════════════════════════════════════════════════
+function openProdModal() {
+  const sel = document.getElementById('p-bij');
+  if(!BIJS || BIJS.length===0) {
+    toast('Aucun bijou chargé — vérifiez la connexion Supabase','err');
+    return;
+  }
+  sel.innerHTML = BIJS.map(b=>{
+    const qProd = prodTot(b.id);
+    const ref = b.ref ? ' ('+b.ref+')' : '';
+    const stock = qProd - venteTot(b.id).qty;
+    const info = qProd ? ' · '+qProd+' prod., '+stock+' en stock' : '';
+    return `<option value="${b.id}">${b.nom}${b.variante?' · '+b.variante:''}${ref}${info}</option>`;
+  }).join('');
+  document.getElementById('p-date').value = today();
+  document.getElementById('p-qty').value = '1';
+  renderProdPrev();
+  openModal('m-prod');
+}
+function renderProdPrev() {
+  const bijId=document.getElementById('p-bij').value;
+  const qty=+document.getElementById('p-qty').value||1;
+  const b=getBij(bijId); if(!b){document.getElementById('prod-prev').innerHTML='';return;}
+  let ok=true;
+  const rows=(b.mats||[]).map(m=>{
+    const mat=getMat(m.ref);
+    const need=(+m.qty||0)*qty, dispo=mat?stockDispo(mat):0;
+    const enough=dispo>=need;
+    if(!enough&&m.qty) ok=false;
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 8px;border-radius:var(--rx);margin-bottom:2px;background:${enough?'var(--greenP)':'var(--redP)'}">
+      <span class="ref">${m.ref}</span>
+      <span style="font-size:12px">Besoin: <b>${n(need)||'?'}</b></span>
+      <span style="color:${enough?'var(--green)':'var(--red)'};font-weight:700;font-size:12px">Dispo: ${n(dispo)} ${m.qty?(enough?'✓':'⚠'):''}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('prod-prev').innerHTML=`<div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:5px">Matériaux nécessaires</div>${rows}${!ok?'<div class="warn-box" style="margin-top:5px">⚠ Stock insuffisant</div>':''}`;
+}
+async function saveProd() {
+  const bijId=document.getElementById('p-bij').value;
+  const qty=+document.getElementById('p-qty').value||1;
+  const statut=document.getElementById('p-statut')?.value||'produit';
+  const obj={id:uid(),bij_id:bijId,qty,date:document.getElementById('p-date').value,statut};
+  const ok=await sbInsert('productions',obj);
+  if(ok){
+    PRODS.push(obj);
+    closeModal('m-prod');
+    renderRent();
+    toast(statut==='produit'?'Production enregistrée ✓':'Mise en production enregistrée ✓','ok');
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// VENTES & RENTABILITÉ
+// ═══════════════════════════════════════════════════════
+function stockDispo2(bijId) {
+  // Stock = productions "produit" - ventes
+  const prodFini=PRODS.filter(p=>p.bij_id===bijId&&(!p.statut||p.statut==='produit')).reduce((s,p)=>s+(+p.qty||0),0);
+  return prodFini - venteTot(bijId).qty;
+}
+
+function openVenteModal() {
+  // Seulement bijoux ayant des productions enregistrées (statut produit)
+  const bijsAvecStock = BIJS.filter(b=>!b.no_sell&&stockDispo2(b.id)>0);
+  if(!bijsAvecStock.length) {
+    toast('Aucune production disponible à la vente — enregistrez d'abord une production','err');
+    return;
+  }
+  document.getElementById('v-bij').innerHTML = bijsAvecStock.map(b=>{
+    const stock = stockDispo2(b.id);
+    return `<option value="${b.id}">${b.nom}${b.variante?' · '+b.variante:''} ${b.ref?'['+b.ref+']':''} — ${stock} en stock</option>`;
+  }).join('');
+  document.getElementById('v-date').value=today();
+  ['v-qty','v-note'].forEach(i=>document.getElementById(i).value=i==='v-qty'?'1':'');
+  venteAutoPrice();
+  venteStockCheck();
+  openModal('m-vente');
+}
+
+function venteAutoPrice() {
+  const bijId=document.getElementById('v-bij').value;
+  const b=getBij(bijId); if(!b) return;
+  const prixInp=document.getElementById('v-prix');
+  const hint=document.getElementById('v-prix-hint');
+  if(b.pv) {
+    prixInp.value=b.pv;
+    if(hint) hint.textContent='Prix de vente défini sur la fiche : '+eur(b.pv);
+  } else {
+    prixInp.value='';
+    const pm=prixMin(b);
+    if(hint) hint.textContent=pm?'Prix minimum recommandé : '+eur(pm):'Aucun prix défini sur la fiche.';
+  }
+}
+
+function venteStockCheck() {
+  const bijId=document.getElementById('v-bij').value;
+  const qty=+document.getElementById('v-qty').value||1;
+  const stock=stockDispo2(bijId);
+  const warn=document.getElementById('v-stock-warn');
+  if(!warn) return;
+  if(qty>stock) {
+    warn.textContent='⚠ Stock disponible : '+n(stock)+' — vous essayez de vendre '+qty;
+    warn.style.display='block';
+  } else {
+    warn.style.display='none';
+  }
+}
+async function saveVente() {
+  const bijId=document.getElementById('v-bij').value;
+  const qty=+document.getElementById('v-qty').value||1;
+  const prix=+document.getElementById('v-prix').value;
+  if(!prix) return toast('Prix obligatoire','err');
+  const obj={id:uid(),bij_id:bijId,qty,prix,date:document.getElementById('v-date').value,canal:document.getElementById('v-canal').value,note:document.getElementById('v-note').value};
+  const ok=await sbInsert('ventes',obj);
+  if(ok){VENTES.push(obj);closeModal('m-vente');renderRent();toast('Vente enregistrée ✓','ok');}
+}
+async function delVente(id) {
+  const ok=await sbDelete('ventes',id);
+  if(ok){VENTES=VENTES.filter(v=>v.id!==id);renderRent();toast('Supprimé','ok');}
+}
+
+function openRentEdit(bijId) {
+  const b=getBij(bijId); if(!b) return;
+  document.getElementById('re-bij-id').value=bijId;
+  document.getElementById('re-title').textContent=b.nom+(b.variante?' · '+b.variante:'');
+  document.getElementById('re-pv').value=b.pv||'';
+  document.getElementById('re-prod-add').value='';
+  const pm=prixMin(b);
+  document.getElementById('re-pmin-box').innerHTML=pm?`Prix minimum calculé : <b>${eur(pm)}</b> (coût mat. + 60% + 5€)`:'Composition incomplète';
+  openModal('m-rent-edit');
+}
+async function saveRentEdit() {
+  const bijId=document.getElementById('re-bij-id').value;
+  const pv=+document.getElementById('re-pv').value||null;
+  const addProd=+document.getElementById('re-prod-add').value||0;
+  const ok=await sbUpdate('bijoux',bijId,{pv});
+  if(ok){const i=BIJS.findIndex(b=>b.id===bijId);if(i>=0)BIJS[i].pv=pv;}
+  if(addProd>0){
+    const obj={id:uid(),bij_id:bijId,qty:addProd,date:today()};
+    const ok2=await sbInsert('productions',obj);
+    if(ok2) PRODS.push(obj);
+  }
+  closeModal('m-rent-edit'); renderRent(); toast('Modifié ✓','ok');
+}
+
+function renderRent() {
+  const depTotal=MATS.reduce((s,m)=>s+(+m.prix||0),0)+REAPPROS.reduce((s,r)=>s+(+r.prix||0),0);
+  const ca=VENTES.reduce((s,v)=>s+(+v.qty||0)*(+v.prix||0),0);
+  const ben=ca-depTotal;
+  document.getElementById('rent-stats').innerHTML=`
+    <div class="stat red"><div class="v">${eur(depTotal)}</div><div class="l">Dépenses</div></div>
+    <div class="stat grn"><div class="v">${eur(ca)}</div><div class="l">CA total</div></div>
+    <div class="stat ${ben>=0?'grn':'red'}"><div class="v">${eur(ben)}</div><div class="l">Bénéfice net</div></div>`;
+  // ── Productions
+  const prodByBij={};
+  PRODS.forEach(p=>{ if(!prodByBij[p.bij_id])prodByBij[p.bij_id]=0; prodByBij[p.bij_id]+=+p.qty||0; });
+  let prodHtml='';
+  if(!Object.keys(prodByBij).length){
+    prodHtml='<div class="empty"><div class="empty-icon">🏭</div><p>Aucune production enregistrée</p></div>';
+  } else {
+    prodHtml='<div class="tbl-wrap"><table><thead><tr><th>Bijou</th><th>Réf.</th><th>Produits</th><th>Vendus</th><th>Stock dispo</th><th>Coût total</th></tr></thead><tbody>';
+    Object.entries(prodByBij).forEach(([bijId,qProd])=>{
+      const b=getBij(bijId); if(!b) return;
+      const vt=venteTot(bijId);
+      const stock=qProd-vt.qty;
+      const cout=coutBijou(b);
+      prodHtml+=`<tr>
+        <td style="font-size:12px;font-weight:600">${b.nom}${b.variante?' · '+b.variante:''}</td>
+        <td class="ref">${b.ref||'--'}</td>
+        <td><b>${n(qProd)}</b></td>
+        <td style="color:var(--green)">${n(vt.qty)}</td>
+        <td><b style="color:${stock<0?'var(--red)':stock===0?'var(--muted)':'var(--green)'}">${n(stock)}</b></td>
+        <td class="${cout>0?'hi':'dim'}">${cout>0?eur(cout*qProd):'--'}</td>
+      </tr>`;
+    });
+    prodHtml+='</tbody></table></div>';
+  }
+  document.getElementById('prod-list-body').innerHTML=prodHtml;
+
+  // ── Ventes
+  if(!VENTES.length){document.getElementById('rent-body').innerHTML=`<div class="empty"><div class="empty-icon">💰</div><p>Aucune vente enregistrée</p></div>`;return;}
+  let ventHtml='<div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Bijou</th><th>Qté</th><th>Prix/u</th><th>Total</th><th>Canal</th><th></th></tr></thead><tbody>';
+  const sortedV=[...VENTES].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  sortedV.forEach(v=>{
+    const b=getBij(v.bij_id);
+    ventHtml+=`<tr>
+      <td class="dim">${v.date||'--'}</td>
+      <td style="font-size:12px">${b?b.nom+(b.variante?' · '+b.variante:''):'--'}</td>
+      <td><b>${n(v.qty)}</b></td>
+      <td style="color:var(--purple)">${eur(v.prix)}</td>
+      <td class="hi">${eur(v.qty*v.prix)}</td>
+      <td><span class="badge bm">${v.canal||'--'}</span></td>
+      <td><button class="btn btn-xs btn-red" onclick="delVente('${v.id}')">✕</button></td>
+    </tr>`;
+  });
+  ventHtml+='</tbody></table></div>';
+  document.getElementById('rent-body').innerHTML=ventHtml;
+}
+
+// ═══════════════════════════════════════════════════════
+// PAGE PARAMÈTRES
+// ═══════════════════════════════════════════════════════
+let HDR_CFG = {name:'Atelier', sub:'bijoux', dark:'#1A1228', gold:'#C8A951'};
+
+function renderCfg() {
+  // Prefill header fields
+  document.getElementById('cfg-hdr-name').value = HDR_CFG.name||'';
+  document.getElementById('cfg-hdr-sub').value  = HDR_CFG.sub||'';
+  document.getElementById('cfg-color-dark').value    = HDR_CFG.dark||'#1A1228';
+  document.getElementById('cfg-color-dark-hex').value= HDR_CFG.dark||'#1A1228';
+  document.getElementById('cfg-color-gold').value    = HDR_CFG.gold||'#C8A951';
+  document.getElementById('cfg-color-gold-hex').value= HDR_CFG.gold||'#C8A951';
+  updateHdrPreview();
+  // Prefill connection
+  document.getElementById('s-url').value = localStorage.getItem(SBURL_KEY)||'';
+  document.getElementById('s-key').value = localStorage.getItem(SBKEY_KEY)||'';
+  // Render lists
+  renderCatList();
+  renderFourList();
+  populateRenameSelect();
+  runDiag();
+}
+
+function syncColor(type) {
+  if(type==='dark') {
+    const hex=document.getElementById('cfg-color-dark-hex').value;
+    if(/^#[0-9a-f]{6}$/i.test(hex)) document.getElementById('cfg-color-dark').value=hex;
+  } else {
+    const hex=document.getElementById('cfg-color-gold-hex').value;
+    if(/^#[0-9a-f]{6}$/i.test(hex)) document.getElementById('cfg-color-gold').value=hex;
+  }
+  updateHdrPreview();
+}
+
+// Also sync when color picker changes
+document.addEventListener('input', e => {
+  if(e.target.id==='cfg-color-dark'){document.getElementById('cfg-color-dark-hex').value=e.target.value;updateHdrPreview();}
+  if(e.target.id==='cfg-color-gold'){document.getElementById('cfg-color-gold-hex').value=e.target.value;updateHdrPreview();}
+  if(e.target.id==='cfg-hdr-name'||e.target.id==='cfg-hdr-sub') updateHdrPreview();
+});
+
+function updateHdrPreview() {
+  const name = document.getElementById('cfg-hdr-name')?.value||'Atelier';
+  const sub  = document.getElementById('cfg-hdr-sub')?.value||'bijoux';
+  const dark = document.getElementById('cfg-color-dark')?.value||'#1A1228';
+  const gold = document.getElementById('cfg-color-gold')?.value||'#C8A951';
+  const prev = document.getElementById('prev-hdr');
+  if(prev) {
+    prev.style.background=dark;
+    document.getElementById('prev-logo').textContent='✦ '+name;
+    document.getElementById('prev-logo').style.color=gold;
+    document.getElementById('prev-sub').textContent=sub;
+    document.getElementById('prev-sub').style.color='rgba(255,255,255,.4)';
+  }
+}
+
+async function saveHdrConfig() {
+  HDR_CFG = {
+    name: document.getElementById('cfg-hdr-name').value.trim()||'Atelier',
+    sub:  document.getElementById('cfg-hdr-sub').value.trim()||'bijoux',
+    dark: document.getElementById('cfg-color-dark').value||'#1A1228',
+    gold: document.getElementById('cfg-color-gold').value||'#C8A951',
+  };
+  await sbUpsertConfig('header', HDR_CFG);
+  applyHdrConfig();
+  toast('Apparence sauvegardée ✓','ok');
+}
+
+function applyHdrConfig() {
+  // Update actual header
+  const logoEl = document.querySelector('.logo');
+  if(logoEl) {
+    logoEl.childNodes[0].textContent = '✦ '+HDR_CFG.name+' ';
+    const sub = logoEl.querySelector('.logo-sub');
+    if(sub) sub.textContent = HDR_CFG.sub;
+  }
+  // Update CSS variables
+  document.documentElement.style.setProperty('--dark', HDR_CFG.dark);
+  document.documentElement.style.setProperty('--gold', HDR_CFG.gold);
+  // Update tab bar background
+  document.querySelector('.tabs').style.background = HDR_CFG.dark;
+  document.querySelector('.hdr').style.background  = HDR_CFG.dark;
+}
+
+// ═══════════════════════════════════════════════════════
+// INIT -- Auto-connect if credentials saved
+// ═══════════════════════════════════════════════════════
+(async function init() {
+  const url=localStorage.getItem(SBURL_KEY), key=localStorage.getItem(SBKEY_KEY);
+  if(url&&key) {
+    document.getElementById('cfg-url').value=url;
+    document.getElementById('cfg-key').value=key;
+    try {
+      SB=supabase.createClient(url,key);
+      const {error}=await SB.from('config').select('key').limit(1);
+      if(error) throw error;
+      document.getElementById('setup-screen').style.display='none';
+      await loadAll();
+      setSyncOk();
+    } catch(e) {
+      setSyncErr();
+      // Show setup screen with error so user can re-enter credentials
+      showSetupError('Connexion automatique échouée -- vérifiez vos identifiants ou la connexion réseau.');
+      document.getElementById('setup-screen').style.display = 'flex';
+    }
+  }
+  // Allow ?reset in URL to clear credentials
+  if(location.search.includes('reset')) {
+    localStorage.removeItem(SBURL_KEY); localStorage.removeItem(SBKEY_KEY);
+  }
+  document.querySelectorAll('input[type=date]').forEach(el=>{if(!el.value)el.value=today();});
+})();
+</script>
+</body>
+</html>
