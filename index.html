@@ -858,29 +858,59 @@ async function connect() {
   const url = document.getElementById('cfg-url').value.trim();
   const key = document.getElementById('cfg-key').value.trim();
   const btn = document.getElementById('btn-connect');
-  if (!url || !key) { showSetupError('URL et clé obligatoires'); return; }
-  // Clean URL (remove trailing slash)
+  const errEl = document.getElementById('setup-error');
+
+  if (!url || !key) { showSetupError('URL et clé anon obligatoires'); return; }
+
   const cleanUrl = url.replace(/\/$/, '');
   btn.textContent = '⏳ Connexion...'; btn.disabled = true;
+  errEl.style.display = 'none';
+
+  // Timeout 10 secondes
+  const timer = setTimeout(() => {
+    btn.textContent = 'Se connecter →'; btn.disabled = false;
+    showSetupError('Délai dépassé — vérifiez votre URL Supabase et votre connexion internet.');
+  }, 10000);
+
   try {
     SB = supabase.createClient(cleanUrl, key);
-    const { error } = await SB.from('config').select('key').limit(1);
+    const { data, error } = await SB.from('config').select('key').limit(1);
+    clearTimeout(timer);
     if (error) throw error;
     if (document.getElementById('cfg-remember').checked) {
       localStorage.setItem(SBURL_KEY, cleanUrl);
       localStorage.setItem(SBKEY_KEY, key);
     }
-    document.getElementById('setup-error').style.display = 'none';
+    errEl.style.display = 'none';
     document.getElementById('setup-screen').style.display = 'none';
     await loadAll();
     setSyncOk();
   } catch(e) {
+    clearTimeout(timer);
     btn.textContent = 'Se connecter →'; btn.disabled = false;
     let msg = e.message || String(e);
-    if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
-      msg = 'Impossible de joindre Supabase. Verifiez l URL du projet.';
-    } else if (msg.includes('Invalid API key') || msg.includes('JWT')) {
-      msg = 'Cle invalide. Verifiez la cle anon public (pas service_role).';
+    if (!msg || msg === 'undefined') msg = 'Erreur inconnue — vérifiez URL et clé anon.';
+    if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('fetch')) {
+      msg = '❌ Impossible de joindre Supabase.
+
+Vérifiez :
+1. URL exacte (https://xxx.supabase.co)
+2. Clé anon public (pas service_role)
+3. Votre URL GitHub dans Supabase → Settings → API → Allowed origins';
+    } else if (msg.includes('Invalid API key') || msg.includes('JWT') || msg.includes('apikey')) {
+      msg = '❌ Clé invalide — utilisez la clé "anon public", pas "service_role".';
+    } else if (msg.includes('relation') || msg.includes('does not exist')) {
+      msg = '✓ Connexion OK mais table config manquante — exécutez le SQL de création des tables.';
+      clearTimeout(timer);
+      // Connection works even if config table missing
+      if (document.getElementById('cfg-remember').checked) {
+        localStorage.setItem(SBURL_KEY, cleanUrl);
+        localStorage.setItem(SBKEY_KEY, key);
+      }
+      document.getElementById('setup-screen').style.display = 'none';
+      await loadAll();
+      setSyncOk();
+      return;
     }
     showSetupError(msg);
   }
@@ -888,7 +918,9 @@ async function connect() {
 
 function showSetupError(msg) {
   const el = document.getElementById('setup-error');
+  el.style.whiteSpace = 'pre-line';
   el.textContent = msg; el.style.display = 'block';
+  el.scrollIntoView({behavior:'smooth', block:'center'});
 }
 
 function toggleRemember() {
