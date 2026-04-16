@@ -221,10 +221,10 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
 .bij-card{border:1.5px solid var(--border);border-radius:var(--r);margin-bottom:10px;overflow:hidden}
 .bij-hd{background:var(--dark);padding:10px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;cursor:pointer;-webkit-user-select:none}
 .bij-title{font-family:var(--serif);color:var(--gold);font-size:14px;font-style:italic}
-.bij-foot{background:#F8F6FF;padding:8px 14px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:6px;align-items:stretch}
-.bij-foot-cell{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:100px;padding:6px 11px;border-radius:var(--rs);gap:4px}
+.bij-foot{background:#F8F6FF;padding:7px 14px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:6px;align-items:center}
+.bij-foot-cell{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:96px;padding:5px 10px;border-radius:var(--rs);gap:3px}
 .bij-foot-cell .cell-label{font-size:9px;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;line-height:1;color:inherit;opacity:.75}
-.bij-foot-cell .cell-val{font-size:18px;font-weight:700;font-family:Georgia,serif;line-height:1;text-align:center}
+.bij-foot-cell .cell-val{font-size:17px;font-weight:700;font-family:Georgia,serif;line-height:1;text-align:center;height:20px;display:flex;align-items:center;justify-content:center}
 /* Supprimer flèches input number dans bij-foot */
 .bij-foot-cell input[type=number]::-webkit-inner-spin-button,
 .bij-foot-cell input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
@@ -821,6 +821,40 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
   <div class="mfoot">
    <button class="btn btn-ghost" onclick="closeModal('m-prod')">Annuler</button>
    <button class="btn btn-p" onclick="saveProd()">Valider</button>
+  </div>
+ </div>
+</div>
+
+<!-- EDIT PRODUCTION -->
+<div id="m-edit-prod" class="overlay" onclick="bgClose(event,this)">
+ <div class="modal">
+  <div class="drag"></div>
+  <div class="modal-title" id="ep-title">Modifier la production</div>
+  <input type="hidden" id="ep-prod-id">
+  <div class="r2">
+   <div class="fg"><label>Quantité</label>
+    <input id="ep-qty" type="number" value="1" min="1">
+   </div>
+   <div class="fg"><label>Date</label>
+    <input id="ep-date" type="date">
+   </div>
+  </div>
+  <div class="fg"><label>Statut</label>
+   <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">
+    <div id="eps-produit" onclick="setEPStatut('produit')"
+      style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:20px;cursor:pointer;border:2px solid var(--purple);background:var(--purple);color:#fff;font-size:13px;font-weight:600;transition:.15s">
+     <span>✅</span> Déjà produit
+    </div>
+    <div id="eps-encours" onclick="setEPStatut('en_cours')"
+      style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:20px;cursor:pointer;border:2px solid var(--border);background:#fff;color:var(--muted);font-size:13px;font-weight:600;transition:.15s">
+     <span>🔧</span> En cours / à produire
+    </div>
+   </div>
+   <input type="hidden" id="ep-statut-val" value="produit">
+  </div>
+  <div class="mfoot">
+   <button class="btn btn-ghost" onclick="closeModal('m-edit-prod')">Annuler</button>
+   <button class="btn btn-p" onclick="saveEditProd()">Enregistrer</button>
   </div>
  </div>
 </div>
@@ -2004,13 +2038,13 @@ function renderBij() {
                </div>
                <div class="bij-foot-cell" style="background:var(--purple);color:#fff">
                  <div class="cell-label">Prix de vente</div>
-                 <div style="display:flex;align-items:baseline;gap:2px">
+                 <div class="cell-val" style="gap:1px">
                    <input type="number" step="0.01"
                      value="${b.pv||''}" placeholder="--"
                      onclick="event.stopPropagation()"
                      onchange="event.stopPropagation();inlineSavePV('${b.id}',this.value)"
-                     style="background:transparent;border:none;color:#fff;font-size:18px;font-weight:700;font-family:Georgia,serif;text-align:right;outline:none;cursor:text;width:62px">
-                   <span style="color:rgba(255,255,255,.85);font-size:13px;font-weight:700">€</span>
+                     style="background:transparent;border:none;color:#fff;font-size:17px;font-weight:700;font-family:Georgia,serif;text-align:right;outline:none;cursor:text;width:58px;height:20px;padding:0">
+                   <span style="color:rgba(255,255,255,.85);font-size:12px;font-weight:700;line-height:20px">€</span>
                  </div>
                </div>`}
         </div>
@@ -2207,23 +2241,44 @@ function renderProdPrev() {
         <span style="color:${enough?'var(--green)':'var(--red)'};font-weight:700;font-size:12px">Dispo: ${n(dispo)} ${m.qty?(enough?'✓':'⚠'):''}</span>
       </div>`;
     }
-    // Cas 2 : bijou composant no_sell — stock calculé depuis ses matériaux
+    // Cas 2 : bijou composant (is_mat)
     const bijComp=BIJS.find(bj=>bj.ref===m.ref&&bj.is_mat);
     if(bijComp) {
-      // Stock dispo = productions finies existantes + ce qu'on peut produire depuis les matériaux
       const prodExist=PRODS.filter(p=>p.bij_id===bijComp.id&&(!p.statut||p.statut==='produit')).reduce((s,p)=>s+(+p.qty||0),0);
       const venteExist=venteTot(bijComp.id).qty;
-      const stockExist=prodExist-venteExist;
+      const stockExist=Math.max(0,prodExist-venteExist);
       const peutProduire=stockProduisableComp(bijComp, need);
       const totalDispo=stockExist+peutProduire;
       const enough=totalDispo>=need;
       if(!enough&&m.qty) ok=false;
-      const note=bijComp.no_sell?' (composant — sera produit auto)':''
-      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 8px;border-radius:var(--rx);margin-bottom:2px;background:${enough?'var(--purpleP)':'var(--redP)'}">
-        <span class="ref" style="color:var(--purple)">💎 ${m.ref}</span>
-        <span style="font-size:12px">Besoin: <b>${n(need)||'?'}</b>${note}</span>
-        <span style="color:${enough?'var(--purple)':'var(--red)'};font-weight:700;font-size:12px">Dispo: ${n(totalDispo)} ${m.qty?(enough?'✓':'⚠'):''}</span>
-      </div>`;
+
+      if(bijComp.no_sell) {
+        // no_sell : pas besoin de prod enregistrée, juste vérifier les matériaux
+        return `<div style="padding:4px 8px;border-radius:var(--rx);margin-bottom:2px;background:${enough?'var(--purpleP)':'var(--redP)'}">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span class="ref" style="color:var(--purple)">💎 ${bijComp.ref} <span style="font-size:10px;opacity:.7">(composant auto)</span></span>
+            <span style="color:${enough?'var(--purple)':'var(--red)'};font-weight:700;font-size:12px">Dispo: ${n(totalDispo)} / ${n(need)} ${enough?'✓':'⚠'}</span>
+          </div>
+        </div>`;
+      } else {
+        // Vendable : proposer choix prod existante ou nouvelle prod
+        const prodsExist=PRODS.filter(p=>p.bij_id===bijComp.id&&(!p.statut||p.statut==='produit'));
+        const stockLabel=stockExist>0?`${n(stockExist)} en stock`:'0 en stock';
+        const prodsOpts=prodsExist.length
+          ? prodsExist.map((p,i)=>`<option value="use_${p.id}">Utiliser prod. du ${p.date||'--'} (qté ${p.qty})</option>`).join('')
+          : '';
+        return `<div style="padding:6px 8px;border-radius:var(--rx);margin-bottom:4px;background:${enough?'var(--purpleP)':'var(--redP)'}">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <span class="ref" style="color:var(--purple)">💎 ${bijComp.ref} — ${bijComp.nom}${bijComp.variante?' · '+bijComp.variante:''}</span>
+            <span style="color:${enough?'var(--purple)':'var(--red)'};font-weight:700;font-size:12px">${stockLabel} ${enough?'✓':'⚠'}</span>
+          </div>
+          <select data-comp-id="${bijComp.id}" class="comp-prod-sel"
+            style="font-size:12px;padding:5px 8px;border-radius:var(--rx);border:1px solid var(--border);width:100%">
+            <option value="new">➕ Compter comme nouvelle production</option>
+            ${prodsOpts}
+          </select>
+        </div>`;
+      }
     }
     // Cas 3 : référence introuvable
     return `<div style="padding:4px 8px;border-radius:var(--rx);margin-bottom:2px;background:var(--orangeP);font-size:12px;color:var(--orange)">
@@ -2236,14 +2291,31 @@ async function saveProd() {
   const bijId=document.getElementById('p-bij').value;
   const qty=+document.getElementById('p-qty').value||1;
   const statut=document.getElementById('p-statut-val')?.value||'produit';
-  const obj={id:uid(),bij_id:bijId,qty,date:document.getElementById('p-date').value,statut};
+  const date=document.getElementById('p-date').value;
+
+  // Enregistrer la production principale
+  const obj={id:uid(),bij_id:bijId,qty,date,statut};
   const ok=await sbInsert('productions',obj);
-  if(ok){
-    PRODS.push(obj);
-    closeModal('m-prod');
-    renderRent();
-    toast(statut==='produit'?'Production enregistrée ✓':'Mise en production enregistrée ✓','ok');
+  if(!ok) return;
+  PRODS.push(obj);
+
+  // Traiter les compositions vendables
+  const compSels=document.querySelectorAll('#prod-prev .comp-prod-sel');
+  for(const sel of compSels) {
+    const compId=sel.dataset.compId;
+    const val=sel.value;
+    if(val==='new') {
+      // Nouvelle prod pour la composition
+      const cobj={id:uid(),bij_id:compId,qty,date,statut};
+      const ok2=await sbInsert('productions',cobj);
+      if(ok2) PRODS.push(cobj);
+    }
+    // Si val commence par 'use_' : utiliser prod existante (pas de nouvel enregistrement)
   }
+
+  closeModal('m-prod');
+  renderRent();
+  toast(statut==='produit'?'Production enregistrée ✓':'Mise en production enregistrée ✓','ok');
 }
 
 // ═══════════════════════════════════════════════════════
@@ -2253,6 +2325,57 @@ function stockDispo2(bijId) {
   // Stock = productions "produit" - ventes
   const prodFini=PRODS.filter(p=>p.bij_id===bijId&&(!p.statut||p.statut==='produit')).reduce((s,p)=>s+(+p.qty||0),0);
   return prodFini - venteTot(bijId).qty;
+}
+
+function toggleProdDetail(id) {
+  const el=document.getElementById(id);
+  if(el) el.style.display=el.style.display==='none'?'table-row':'none';
+}
+
+function openEditProd(prodId) {
+  const p=PRODS.find(x=>x.id===prodId); if(!p) return;
+  const b=getBij(p.bij_id);
+  document.getElementById('ep-prod-id').value=prodId;
+  document.getElementById('ep-qty').value=p.qty||1;
+  document.getElementById('ep-date').value=p.date||today();
+  document.getElementById('ep-title').textContent='Modifier — '+(b?b.nom+(b.variante?' · '+b.variante:''):'');
+  const isProd=!p.statut||p.statut==='produit';
+  setEPStatut(isProd?'produit':'en_cours');
+  openModal('m-edit-prod');
+}
+
+function setEPStatut(val) {
+  document.getElementById('ep-statut-val').value=val;
+  const isProd=val==='produit';
+  const elP=document.getElementById('eps-produit');
+  const elE=document.getElementById('eps-encours');
+  elP.style.background=isProd?'var(--purple)':'#fff';
+  elP.style.color=isProd?'#fff':'var(--muted)';
+  elP.style.borderColor=isProd?'var(--purple)':'var(--border)';
+  elE.style.background=!isProd?'var(--purple)':'#fff';
+  elE.style.color=!isProd?'#fff':'var(--muted)';
+  elE.style.borderColor=!isProd?'var(--purple)':'var(--border)';
+}
+
+async function saveEditProd() {
+  const id=document.getElementById('ep-prod-id').value;
+  const qty=+document.getElementById('ep-qty').value||1;
+  const date=document.getElementById('ep-date').value;
+  const statut=document.getElementById('ep-statut-val').value||'produit';
+  const ok=await sbUpdate('productions',id,{qty,date,statut});
+  if(ok){
+    const i=PRODS.findIndex(p=>p.id===id);
+    if(i>=0) PRODS[i]={...PRODS[i],qty,date,statut};
+    closeModal('m-edit-prod');
+    renderRent();
+    toast('Production modifiée ✓','ok');
+  }
+}
+
+async function delProd(id) {
+  if(!confirm('Supprimer cette production ?')) return;
+  const ok=await sbDelete('productions',id);
+  if(ok){PRODS=PRODS.filter(p=>p.id!==id);renderRent();toast('Production supprimée','ok');}
 }
 
 function openVenteModal() {
@@ -2360,13 +2483,29 @@ function renderRent() {
       const vt=venteTot(bijId);
       const stock=qProd-vt.qty;
       const cout=coutBijou(b);
-      prodHtml+=`<tr>
+      // Détail des lignes de production pour ce bijou
+      const prodsLignes=PRODS.filter(p=>p.bij_id===bijId);
+      prodHtml+=`<tr style="cursor:pointer" onclick="toggleProdDetail('pd_${bijId}')">
         <td style="font-size:12px;font-weight:600">${b.nom}${b.variante?' · '+b.variante:''}</td>
         <td class="ref">${b.ref||'--'}</td>
         <td><b>${n(qProd)}</b></td>
         <td style="color:var(--green)">${n(vt.qty)}</td>
         <td><b style="color:${stock<0?'var(--red)':stock===0?'var(--muted)':'var(--green)'}">${n(stock)}</b></td>
         <td class="${cout>0?'hi':'dim'}">${cout>0?eur(cout*qProd):'--'}</td>
+      </tr>
+      <tr id="pd_${bijId}" style="display:none">
+        <td colspan="6" style="padding:0">
+          <div style="padding:6px 10px;background:var(--purpleP)">
+            ${prodsLignes.map(p=>`
+              <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;font-size:12px">
+                <span class="badge bm">${p.date||'--'}</span>
+                <span><b>${n(p.qty)}</b> pcs</span>
+                <span class="badge ${(!p.statut||p.statut==='produit')?'bgn':'bp'}">${(!p.statut||p.statut==='produit')?'✅ Produit':'🔧 En cours'}</span>
+                <button class="btn btn-xs btn-ghost" onclick="event.stopPropagation();openEditProd('${p.id}')">✎ Modifier</button>
+                <button class="btn btn-xs btn-red" onclick="event.stopPropagation();delProd('${p.id}')">✕</button>
+              </div>`).join('')}
+          </div>
+        </td>
       </tr>`;
     });
     prodHtml+='</tbody></table></div>';
