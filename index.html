@@ -1119,17 +1119,18 @@ async function loadAll() {
   const mainCatsCfg = cfg.find(c=>c.key==='main_cats');
   const fourCfg     = cfg.find(c=>c.key==='fournisseurs');
   const hdrCfg      = cfg.find(c=>c.key==='header');
-  // Catégories globales (création) pour rétrocompatibilité
-  MAIN_CATS = mainCatsCfg?.value || {"Perles":["Perles de rocailles","Perles heishi","Perles étoile","Perles fruit/food","Perles verre","Perles lettre","Perles de culture","Perles métal","Perles agate"],"Acier inoxydable":["Anneau","Fermoir","Fil & Chaîne","Tiges & Boucles"],"Emballage":["Emballage"],"Autre":["Autre"]};
+  // Catégories création (rétrocompatibilité avec main_cats)
+  const legacyCats = mainCatsCfg?.value || {"Perles":["Perles de rocailles","Perles heishi","Perles étoile","Perles fruit/food","Perles verre","Perles lettre","Perles de culture","Perles métal","Perles agate"],"Acier inoxydable":["Anneau","Fermoir","Fil & Chaîne","Tiges & Boucles"],"Emballage":["Emballage"],"Autre":["Autre"]};
   // Catégories par type
   const catsByTypeCfg = cfg.find(cc=>cc.key==='cats_by_type');
-  CATS_BY_TYPE = catsByTypeCfg?.value || {
-    creation: MAIN_CATS,
-    envoi: {"Emballage":["Boîte","Pochette","Papier de soie","Ruban","Étiquette","Autre envoi"]},
-    consommable: {"Consommables":["Colle","Fil de montage","Vernis","Autre consommable"]},
-    outil: {"Outils":["Pince","Ciseau","Matériel photo","Abonnement","Autre outil"]}
+  const rawCBT = catsByTypeCfg?.value || {};
+  CATS_BY_TYPE = {
+    creation: (rawCBT.creation && Object.keys(rawCBT.creation).length>0) ? rawCBT.creation : legacyCats,
+    envoi:    (rawCBT.envoi    && Object.keys(rawCBT.envoi).length>0)    ? rawCBT.envoi    : {"Emballage":["Boîte","Pochette","Papier de soie","Ruban","Étiquette","Autre envoi"]},
+    consommable:(rawCBT.consommable && Object.keys(rawCBT.consommable).length>0) ? rawCBT.consommable : {"Consommables":["Colle","Fil de montage","Vernis","Autre consommable"]},
+    outil:    (rawCBT.outil    && Object.keys(rawCBT.outil).length>0)    ? rawCBT.outil    : {"Outils":["Pince","Ciseau","Matériel photo","Abonnement","Autre outil"]}
   };
-  // MAIN_CATS pointe sur le type courant pour rétrocompatibilité
+  // MAIN_CATS pointe sur le type courant
   MAIN_CATS = CATS_BY_TYPE[CUR_MAT_TYPE]||CATS_BY_TYPE.creation;
   FOURNISSEURS = fourCfg?.value || [];
   if(hdrCfg?.value) { HDR_CFG={...HDR_CFG,...hdrCfg.value}; applyHdrConfig(); }
@@ -1250,8 +1251,19 @@ async function addFournisseur(val) {
 
 function updateMatMCSelect() {
   const mcs=Object.keys(MAIN_CATS);
+  // Select dans le modal matériau
+  const matMC=document.getElementById('mat-mc');
+  if(matMC){
+    const cur=matMC.value;
+    matMC.innerHTML=mcs.map(mc=>`<option${mc===cur?' selected':''}>${mc}</option>`).join('');
+  }
+  // Select dans le modal addcat
   const addcatMC=document.getElementById('addcat-mc');
   if(addcatMC) addcatMC.innerHTML=mcs.map(mc=>`<option>${mc}</option>`).join('');
+  // Mettre à jour mat-sc selon le premier MC
+  const matSC=document.getElementById('mat-sc');
+  const firstMC=mcs[0]||'';
+  if(matSC && firstMC) matSC.innerHTML=(MAIN_CATS[firstMC]||[]).map(s=>`<option>${s}</option>`).join('');
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1371,16 +1383,33 @@ function openMatModal(editId=null) {
     document.getElementById('mat-ref').value=m.ref;
     checkMatRef(m.ref);
     document.getElementById('mat-fournisseur').value=m.fournisseur||'';
-    document.getElementById('mat-type').value=m.type||'creation';
+    const mtype=m.type||'creation';
+    document.getElementById('mat-type').value=mtype;
     document.getElementById('mat-renouvellement').value=m.date_renouvellement||'';
+    // Charger les catégories du type du matériau édité
+    MAIN_CATS=CATS_BY_TYPE[mtype]||CATS_BY_TYPE.creation;
     onMatTypeChange();
+    // Resélectionner mc et sc
+    const mcSel=document.getElementById('mat-mc');
+    if(mcSel){
+      mcSel.value=m.mc||'';
+      syncSC();
+      const scSel=document.getElementById('mat-sc');
+      if(scSel) scSel.value=m.sc||'';
+    }
     document.getElementById('mat-qty').value=m.qty||'';
     document.getElementById('mat-prix').value=m.prix||'';
     calcPU();
   } else {
     document.getElementById('mat-modal-title').textContent='Nouveau matériau';
     ['mat-edit-id','mat-des','mat-var','mat-fournisseur','mat-qty','mat-prix'].forEach(i=>document.getElementById(i).value='');
-    const typeEl=document.getElementById('mat-type'); if(typeEl){ typeEl.value=CUR_MAT_TYPE||'creation'; onMatTypeChange(); }
+    const typeEl=document.getElementById('mat-type');
+  if(typeEl){
+    typeEl.value=CUR_MAT_TYPE||'creation';
+    // S'assurer que MAIN_CATS pointe sur le bon type
+    MAIN_CATS=CATS_BY_TYPE[CUR_MAT_TYPE]||CATS_BY_TYPE.creation;
+    onMatTypeChange();
+  }
     const renEl=document.getElementById('mat-renouvellement'); if(renEl) renEl.value='';
     onMatTypeChange();
     const refInp=document.getElementById('mat-ref');
@@ -1754,8 +1783,12 @@ function switchGTab(tab) {
 
 function switchMatType(type) {
   CUR_MAT_TYPE = type;
-  // MAIN_CATS pointe sur les catégories du type courant
   MAIN_CATS = CATS_BY_TYPE[type]||CATS_BY_TYPE.creation;
+  // Mettre à jour les couleurs pour les catégories du nouveau type
+  Object.keys(MAIN_CATS).forEach(mc=>{
+    if(!MAIN_CLR[mc]) MAIN_CLR[mc]='#5A5A6A';
+    (MAIN_CATS[mc]||[]).forEach(sc=>{if(!SC_CLR[sc]) SC_CLR[sc]='#5A5A5A';});
+  });
   ['creation','envoi','consommable','outil'].forEach(t=>{
     const btn=document.getElementById('mtype-'+t);
     if(btn){btn.className=t===type?'btn btn-p btn-sm':'btn btn-ghost btn-sm';}
