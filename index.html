@@ -1087,7 +1087,7 @@ async function sbUpsertConfig(key, value) {
 // IN-MEMORY STATE (populated from Supabase)
 // ═══════════════════════════════════════════════════════
 let MATS=[], BIJS=[], VENTES=[], PRODS=[], REAPPROS=[], KITS=[];
-let MAIN_CATS={}, FOURNISSEURS=[], SC_CLR={}, MAIN_CLR={};
+let MAIN_CATS={}, CATS_BY_TYPE={creation:{},envoi:{},consommable:{},outil:{}}, FOURNISSEURS=[], SC_CLR={}, MAIN_CLR={};
 
 const DEFAULT_MAIN_CLR = {"Perles":"#7A4F9A","Acier inoxydable":"#2E6A8A","Emballage":"#5A6A3A","Autre":"#5A5A6A"};
 const DEFAULT_SC_CLR = {
@@ -1119,7 +1119,18 @@ async function loadAll() {
   const mainCatsCfg = cfg.find(c=>c.key==='main_cats');
   const fourCfg     = cfg.find(c=>c.key==='fournisseurs');
   const hdrCfg      = cfg.find(c=>c.key==='header');
-  MAIN_CATS    = mainCatsCfg?.value || {"Perles":["Perles de rocailles","Perles heishi","Perles étoile","Perles fruit/food","Perles verre","Perles lettre","Perles de culture","Perles métal","Perles agate"],"Acier inoxydable":["Anneau","Fermoir","Fil & Chaîne","Tiges & Boucles"],"Emballage":["Emballage"],"Autre":["Autre"]};
+  // Catégories globales (création) pour rétrocompatibilité
+  MAIN_CATS = mainCatsCfg?.value || {"Perles":["Perles de rocailles","Perles heishi","Perles étoile","Perles fruit/food","Perles verre","Perles lettre","Perles de culture","Perles métal","Perles agate"],"Acier inoxydable":["Anneau","Fermoir","Fil & Chaîne","Tiges & Boucles"],"Emballage":["Emballage"],"Autre":["Autre"]};
+  // Catégories par type
+  const catsByTypeCfg = cfg.find(cc=>cc.key==='cats_by_type');
+  CATS_BY_TYPE = catsByTypeCfg?.value || {
+    creation: MAIN_CATS,
+    envoi: {"Emballage":["Boîte","Pochette","Papier de soie","Ruban","Étiquette","Autre envoi"]},
+    consommable: {"Consommables":["Colle","Fil de montage","Vernis","Autre consommable"]},
+    outil: {"Outils":["Pince","Ciseau","Matériel photo","Abonnement","Autre outil"]}
+  };
+  // MAIN_CATS pointe sur le type courant pour rétrocompatibilité
+  MAIN_CATS = CATS_BY_TYPE[CUR_MAT_TYPE]||CATS_BY_TYPE.creation;
   FOURNISSEURS = fourCfg?.value || [];
   if(hdrCfg?.value) { HDR_CFG={...HDR_CFG,...hdrCfg.value}; applyHdrConfig(); }
   MAIN_CLR = {...DEFAULT_MAIN_CLR};
@@ -1201,6 +1212,16 @@ function onMatTypeChange() {
   const type=document.getElementById('mat-type')?.value||'creation';
   const renRow=document.getElementById('mat-renouvellement-row');
   if(renRow) renRow.style.display=type==='outil'?'block':'none';
+  // Mettre à jour les catégories disponibles selon le type sélectionné dans le modal
+  const cats=CATS_BY_TYPE[type]||CATS_BY_TYPE.creation;
+  const mcSel=document.getElementById('mat-mc');
+  if(mcSel){
+    mcSel.innerHTML=Object.keys(cats).map(mc=>`<option>${mc}</option>`).join('');
+    // Mettre à jour les sous-catégories
+    const mc=mcSel.value;
+    const scSel=document.getElementById('mat-sc');
+    if(scSel) scSel.innerHTML=(cats[mc]||[]).map(s=>`<option>${s}</option>`).join('');
+  }
 }
 
 function autoRef(sc, editId=null) {
@@ -1289,7 +1310,9 @@ function exportJSON() {
 // ═══════════════════════════════════════════════════════
 function syncSC() {
   const mc=document.getElementById('mat-mc').value;
-  document.getElementById('mat-sc').innerHTML=(MAIN_CATS[mc]||[]).map(s=>`<option>${s}</option>`).join('');
+  const type=document.getElementById('mat-type')?.value||CUR_MAT_TYPE||'creation';
+  const cats=CATS_BY_TYPE[type]||CATS_BY_TYPE.creation;
+  document.getElementById('mat-sc').innerHTML=(cats[mc]||[]).map(s=>`<option>${s}</option>`).join('');
   genRef();
 }
 function genRef() {
@@ -1357,7 +1380,7 @@ function openMatModal(editId=null) {
   } else {
     document.getElementById('mat-modal-title').textContent='Nouveau matériau';
     ['mat-edit-id','mat-des','mat-var','mat-fournisseur','mat-qty','mat-prix'].forEach(i=>document.getElementById(i).value='');
-    const typeEl=document.getElementById('mat-type'); if(typeEl) typeEl.value=CUR_MAT_TYPE||'creation';
+    const typeEl=document.getElementById('mat-type'); if(typeEl){ typeEl.value=CUR_MAT_TYPE||'creation'; onMatTypeChange(); }
     const renEl=document.getElementById('mat-renouvellement'); if(renEl) renEl.value='';
     onMatTypeChange();
     const refInp=document.getElementById('mat-ref');
@@ -1446,10 +1469,14 @@ function switchCfgTab(el, showId) {
 }
 
 function openAddCat() {
-  // Peupler selects
+  // Afficher le type courant dans le titre
+  const typeLabels={creation:'🪡 Création',envoi:'📬 Envois',consommable:'🧪 Consommables',outil:'🔧 Outils'};
+  const titleEl=document.querySelector('#m-addcat .modal-title');
+  if(titleEl) titleEl.textContent='⚙ Catégories — '+( typeLabels[CUR_MAT_TYPE]||'Création');
+  // MAIN_CATS pointe sur le bon type
+  MAIN_CATS = CATS_BY_TYPE[CUR_MAT_TYPE]||CATS_BY_TYPE.creation;
   document.getElementById('addcat-mc').innerHTML=Object.keys(MAIN_CATS).map(mc=>`<option>${mc}</option>`).join('');
   ['addcat-name','new-mc-name','new-four-name'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
-  // Reset onglet Catégories
   document.querySelectorAll('#cfg-tabs .mtab').forEach((t,i)=>t.classList.toggle('on',i===0));
   const cc=document.getElementById('cfg-cats'), cf=document.getElementById('cfg-fours');
   if(cc) cc.style.display='block';
@@ -1498,7 +1525,8 @@ async function addMainCat() {
   if(!name) return toast('Nom obligatoire','err');
   if(MAIN_CATS[name]) return toast('Catégorie déjà existante','err');
   MAIN_CATS[name]=[];
-  await sbUpsertConfig('main_cats',MAIN_CATS);
+  CATS_BY_TYPE[CUR_MAT_TYPE]=MAIN_CATS;
+  await sbUpsertConfig('cats_by_type',CATS_BY_TYPE);
   document.getElementById('new-mc-name').value='';
   renderCatList(); renderMat(); toast('Catégorie ajoutée ✓','ok');
 }
@@ -1507,7 +1535,8 @@ async function delMainCat(mc) {
   const used=MATS.filter(m=>m.mc===mc).length;
   if(used>0 && !confirm(`${used} matériau(x) utilisent cette catégorie. Supprimer quand même ?`)) return;
   delete MAIN_CATS[mc];
-  await sbUpsertConfig('main_cats',MAIN_CATS);
+  CATS_BY_TYPE[CUR_MAT_TYPE]=MAIN_CATS;
+  await sbUpsertConfig('cats_by_type',CATS_BY_TYPE);
   renderCatList(); renderMat(); toast('Catégorie supprimée','ok');
 }
 
@@ -1518,7 +1547,8 @@ async function saveNewCat() {
   if(!MAIN_CATS[mc]) MAIN_CATS[mc]=[];
   if(MAIN_CATS[mc].includes(name)) return toast('Sous-catégorie déjà existante','err');
   MAIN_CATS[mc].push(name);
-  await sbUpsertConfig('main_cats',MAIN_CATS);
+  CATS_BY_TYPE[CUR_MAT_TYPE]=MAIN_CATS;
+  await sbUpsertConfig('cats_by_type',CATS_BY_TYPE);
   document.getElementById('addcat-name').value='';
   renderCatList(); renderMat(); toast('Sous-catégorie ajoutée ✓','ok');
 }
@@ -1527,7 +1557,8 @@ async function delSubCat(mc, sc) {
   const used=MATS.filter(m=>m.sc===sc).length;
   if(used>0 && !confirm(`${used} matériau(x) utilisent cette sous-catégorie. Supprimer quand même ?`)) return;
   MAIN_CATS[mc]=MAIN_CATS[mc].filter(s=>s!==sc);
-  await sbUpsertConfig('main_cats',MAIN_CATS);
+  CATS_BY_TYPE[CUR_MAT_TYPE]=MAIN_CATS;
+  await sbUpsertConfig('cats_by_type',CATS_BY_TYPE);
   renderCatList(); renderMat(); toast('Sous-catégorie supprimée','ok');
 }
 
@@ -1723,10 +1754,13 @@ function switchGTab(tab) {
 
 function switchMatType(type) {
   CUR_MAT_TYPE = type;
+  // MAIN_CATS pointe sur les catégories du type courant
+  MAIN_CATS = CATS_BY_TYPE[type]||CATS_BY_TYPE.creation;
   ['creation','envoi','consommable','outil'].forEach(t=>{
     const btn=document.getElementById('mtype-'+t);
     if(btn){btn.className=t===type?'btn btn-p btn-sm':'btn btn-ghost btn-sm';}
   });
+  updateMatMCSelect();
   renderMat();
 }
 
