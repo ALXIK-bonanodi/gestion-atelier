@@ -508,9 +508,9 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
 
       <div style="margin-bottom:16px">
         <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Catégories principales</div>
-        <div id="cfg-mc-list"></div>
+        <div id="m-cfg-mc-list"></div>
         <div style="display:flex;gap:6px;margin-top:8px">
-          <input id="new-mc-name" placeholder="Nouvelle catégorie principale" style="flex:1">
+          <input id="m-new-mc-name" placeholder="Nouvelle catégorie principale" style="flex:1">
           <button class="btn btn-p btn-sm" onclick="addMainCat()">＋ Ajouter</button>
         </div>
       </div>
@@ -526,7 +526,7 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
 
       <div>
         <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Sous-catégories existantes</div>
-        <div id="cfg-sc-list"></div>
+        <div id="m-cfg-sc-list"></div>
       </div>
 
     </div>
@@ -687,25 +687,25 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
   <div id="cfg-cats">
    <div style="margin-bottom:12px">
     <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Catégories principales</div>
-    <div id="cfg-mc-list"></div>
+    <div id="m-cfg-mc-list"></div>
     <div style="display:flex;gap:6px;margin-top:8px">
-     <input id="new-mc-name" placeholder="Nouvelle catégorie principale" style="flex:1">
+     <input id="m-new-mc-name" placeholder="Nouvelle catégorie principale" style="flex:1">
      <button class="btn btn-p btn-sm" onclick="addMainCat()">＋</button>
     </div>
    </div>
    <div style="margin-bottom:12px">
     <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Nouvelle sous-catégorie</div>
     <div style="display:flex;gap:6px;margin-bottom:6px">
-     <select id="addcat-mc" style="flex:1"></select>
+     <select id="m-addcat-mc" style="flex:1"></select>
     </div>
     <div style="display:flex;gap:6px">
-     <input id="addcat-name" placeholder="Nom de la sous-catégorie" style="flex:1">
+     <input id="m-addcat-name" placeholder="Nom de la sous-catégorie" style="flex:1">
      <button class="btn btn-p btn-sm" onclick="saveNewCat()">＋</button>
     </div>
    </div>
    <div>
     <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Sous-catégories existantes</div>
-    <div id="cfg-sc-list"></div>
+    <div id="m-cfg-sc-list"></div>
    </div>
   </div>
 
@@ -1173,11 +1173,31 @@ function puMoyen(mat) {
   const qT=qB+qE, pT=pB+pE;
   return (qT&&pT)?pT/qT:null;
 }
+function matsConsumedByBij(bij, qtyProd, depth=0) {
+  // Retourne {ref: qtyConsommée} pour tous les matériaux (récursif via compositions)
+  if(depth>4) return {};
+  const result={};
+  for(const m of (bij.mats||[])) {
+    const mat=getMat(m.ref);
+    if(mat) {
+      result[m.ref]=(result[m.ref]||0)+(+m.qty||0)*qtyProd;
+    } else {
+      // Bijou composant — descendre récursivement
+      const comp=BIJS.find(b=>b.ref===m.ref);
+      if(comp) {
+        const sub=matsConsumedByBij(comp,(+m.qty||1)*qtyProd,depth+1);
+        for(const [r,q] of Object.entries(sub)) result[r]=(result[r]||0)+q;
+      }
+    }
+  }
+  return result;
+}
+
 function stockConsome(ref) {
   return PRODS.reduce((s,p)=>{
     const b=getBij(p.bij_id); if(!b) return s;
-    const m=(b.mats||[]).find(m=>m.ref===ref);
-    return s+(m?(+m.qty||0)*(+p.qty||0):0);
+    const consumed=matsConsumedByBij(b,+p.qty||0);
+    return s+(consumed[ref]||0);
   },0);
 }
 function stockDispo(mat) { return stockCumul(mat)-stockConsome(mat.ref); }
@@ -1259,7 +1279,8 @@ function updateMatMCSelect() {
   }
   // Select dans le modal addcat
   const addcatMC=document.getElementById('addcat-mc');
-  if(addcatMC) addcatMC.innerHTML=mcs.map(mc=>`<option>${mc}</option>`).join('');
+  const mAddcatMC=document.getElementById('m-addcat-mc');
+  if(mAddcatMC) mAddcatMC.innerHTML=mcs.map(mc=>`<option>${mc}</option>`).join('');
   // Mettre à jour mat-sc selon le premier MC
   const matSC=document.getElementById('mat-sc');
   const firstMC=mcs[0]||'';
@@ -1504,8 +1525,8 @@ function openAddCat() {
   if(titleEl) titleEl.textContent='⚙ Catégories — '+( typeLabels[CUR_MAT_TYPE]||'Création');
   // MAIN_CATS pointe sur le bon type
   MAIN_CATS = CATS_BY_TYPE[CUR_MAT_TYPE]||CATS_BY_TYPE.creation;
-  document.getElementById('addcat-mc').innerHTML=Object.keys(MAIN_CATS).map(mc=>`<option>${mc}</option>`).join('');
-  ['addcat-name','new-mc-name','new-four-name'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('m-addcat-mc').innerHTML=Object.keys(MAIN_CATS).map(mc=>`<option>${mc}</option>`).join('');
+  ['m-addcat-name','m-new-mc-name','new-four-name'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   document.querySelectorAll('#cfg-tabs .mtab').forEach((t,i)=>t.classList.toggle('on',i===0));
   const cc=document.getElementById('cfg-cats'), cf=document.getElementById('cfg-fours');
   if(cc) cc.style.display='block';
@@ -1516,7 +1537,7 @@ function openAddCat() {
 
 function renderCatList() {
   // Main cats list
-  const mcEl=document.getElementById('cfg-mc-list');
+  const mcEl=document.getElementById('m-cfg-mc-list');
   mcEl.innerHTML=Object.keys(MAIN_CATS).map(mc=>`
     <div style="display:flex;align-items:center;gap:6px;padding:5px 8px;background:var(--bg);border-radius:var(--rx);margin-bottom:4px">
       <span style="flex:1;font-size:13px;font-weight:600">${mc}</span>
@@ -1525,10 +1546,10 @@ function renderCatList() {
     </div>`).join('');
 
   // Update mc select
-  document.getElementById('addcat-mc').innerHTML=Object.keys(MAIN_CATS).map(mc=>`<option>${mc}</option>`).join('');
+  document.getElementById('m-addcat-mc').innerHTML=Object.keys(MAIN_CATS).map(mc=>`<option>${mc}</option>`).join('');
 
   // Sub cats list grouped -- 2 colonnes + renommer
-  const scEl=document.getElementById('cfg-sc-list');
+  const scEl=document.getElementById('m-cfg-sc-list');
   let html='';
   Object.entries(MAIN_CATS).forEach(([mc,scs])=>{
     if(!scs.length) return;
@@ -1550,13 +1571,13 @@ function renderCatList() {
 }
 
 async function addMainCat() {
-  const name=document.getElementById('new-mc-name').value.trim();
+  const name=document.getElementById('m-new-mc-name').value.trim();
   if(!name) return toast('Nom obligatoire','err');
   if(MAIN_CATS[name]) return toast('Catégorie déjà existante','err');
   MAIN_CATS[name]=[];
   CATS_BY_TYPE[CUR_MAT_TYPE]=MAIN_CATS;
   await sbUpsertConfig('cats_by_type',CATS_BY_TYPE);
-  document.getElementById('new-mc-name').value='';
+  document.getElementById('m-new-mc-name').value='';
   renderCatList(); renderMat(); toast('Catégorie ajoutée ✓','ok');
 }
 
@@ -1570,15 +1591,15 @@ async function delMainCat(mc) {
 }
 
 async function saveNewCat() {
-  const mc=document.getElementById('addcat-mc').value;
-  const name=document.getElementById('addcat-name').value.trim();
+  const mc=document.getElementById('m-addcat-mc').value;
+  const name=document.getElementById('m-addcat-name').value.trim();
   if(!name) return toast('Nom obligatoire','err');
   if(!MAIN_CATS[mc]) MAIN_CATS[mc]=[];
   if(MAIN_CATS[mc].includes(name)) return toast('Sous-catégorie déjà existante','err');
   MAIN_CATS[mc].push(name);
   CATS_BY_TYPE[CUR_MAT_TYPE]=MAIN_CATS;
   await sbUpsertConfig('cats_by_type',CATS_BY_TYPE);
-  document.getElementById('addcat-name').value='';
+  document.getElementById('m-addcat-name').value='';
   renderCatList(); renderMat(); toast('Sous-catégorie ajoutée ✓','ok');
 }
 
@@ -2234,7 +2255,7 @@ function renderStock() {
       });
       html+=`<div class="sub-ban" style="background:${SC_CLR[sc]||'#888'}">${sc}</div>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>Désignation</th><th>Références</th><th>Stock total</th><th>Consommé</th><th>Disponible</th></tr></thead>
+        <thead><tr><th>Désignation</th><th>Références</th><th>Stock total</th><th>Consommé</th><th>Disponible</th><th></th></tr></thead>
         <tbody>${Object.entries(groups).map(([base,g])=>{
           const totG=g.items.reduce((s,m)=>s+stockCumul(m),0);
           const cG=g.items.reduce((s,m)=>s+stockConsome(m.ref),0);
@@ -2242,6 +2263,7 @@ function renderStock() {
           const pct=totG?Math.min(100,(dG/totG)*100):0;
           const clr=pct>50?'#2E7D4F':pct>20?'#C05820':'#C0392B';
           const refs=g.items.map(m=>`<span class="badge bm" style="margin:1px 2px">${m.ref}${m.variante?' ('+m.variante+')':''}</span>`).join('');
+          const firstMat=g.items[0];
           return `<tr>
             <td style="font-size:12px">${g.des}</td>
             <td style="line-height:1.8">${refs}</td>
@@ -2250,6 +2272,7 @@ function renderStock() {
             <td><b style="color:${clr}">${n(dG)}</b>
               <div class="sbar"><div class="sfill" style="width:${pct}%;background:${clr}"></div></div>
             </td>
+            <td><button class="btn btn-xs btn-ghost" onclick="openReappro('${firstMat.id}')" style="padding:4px 8px">↑ Réappro</button></td>
           </tr>`;
         }).join('')}</tbody>
       </table></div>`;
