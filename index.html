@@ -333,9 +333,8 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
 </div>
 
 <div class="tabs">
-  <div class="tab on" data-p="mat" onclick="goTab(this)">📦 Matériaux</div>
+  <div class="tab on" data-p="mat" onclick="goTab(this)">📦 Gestion</div>
   <div class="tab" data-p="bij" onclick="goTab(this)">💎 Bijoux</div>
-  <div class="tab" data-p="stock" onclick="goTab(this)">📊 Stock</div>
   <div class="tab" data-p="dep" onclick="goTab(this)">💸 Dépenses</div>
   <div class="tab" data-p="rent" onclick="goTab(this)">📈 Rentabilité</div>
   <div class="tab" data-p="cfg" onclick="goTab(this)">⚙ Paramètres</div>
@@ -344,18 +343,54 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
 <main id="main-area">
 
 <div id="p-mat" class="page on">
-  <div class="card">
-    <div id="cat-bar" class="cat-bar"></div>
-    <div class="card-bd">
-      <div class="abar">
-        <button class="btn btn-p" onclick="openMatModal()">＋ Nouveau matériau</button>
-        <button class="btn btn-ghost" onclick="openAddCat()">＋ Catégorie</button>
-        <select id="flt-sc" onchange="renderMat()" style="width:auto;flex:1;max-width:180px;font-size:12px;padding:8px 26px 8px 10px"></select>
+  <!-- Onglets principaux : Matériaux / Stock -->
+  <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:0;background:#fff;border-radius:var(--r) var(--r) 0 0;overflow:hidden">
+    <div id="gtab-mat" onclick="switchGTab('mat')" style="flex:1;padding:12px;text-align:center;font-size:13px;font-weight:700;cursor:pointer;border-bottom:3px solid var(--purple);color:var(--purple);background:var(--purpleP)">📦 Matériaux</div>
+    <div id="gtab-stock" onclick="switchGTab('stock')" style="flex:1;padding:12px;text-align:center;font-size:13px;font-weight:700;cursor:pointer;border-bottom:3px solid transparent;color:var(--muted);background:#fff">📊 Stock</div>
+  </div>
+
+  <!-- PANEL MATÉRIAUX -->
+  <div id="gpanel-mat">
+    <!-- Sous-onglets types -->
+    <div style="display:flex;gap:4px;padding:10px 14px 0;background:#fff;flex-wrap:wrap">
+      <button id="mtype-creation" class="btn btn-p btn-sm" onclick="switchMatType('creation')">🪡 Création</button>
+      <button id="mtype-envoi" class="btn btn-ghost btn-sm" onclick="switchMatType('envoi')">📬 Envois</button>
+      <button id="mtype-consommable" class="btn btn-ghost btn-sm" onclick="switchMatType('consommable')">🧪 Consommables</button>
+      <button id="mtype-outil" class="btn btn-ghost btn-sm" onclick="switchMatType('outil')">🔧 Outils</button>
+    </div>
+    <div class="card" style="border-radius:0 0 var(--r) var(--r)">
+      <div id="cat-bar" class="cat-bar"></div>
+      <div class="card-bd">
+        <div class="abar">
+          <button class="btn btn-p" onclick="openMatModal()">＋ Nouveau</button>
+          <button class="btn btn-ghost" onclick="openAddCat()">＋ Catégorie</button>
+          <select id="flt-sc" onchange="renderMat()" style="width:auto;flex:1;max-width:180px;font-size:12px;padding:8px 26px 8px 10px"></select>
+        </div>
+        <div style="margin-bottom:10px">
+          <input id="mat-search" type="search" placeholder="🔍 Rechercher…" oninput="renderMat()" style="font-size:13px;padding:10px 14px;border-radius:20px">
+        </div>
+        <div id="mat-body"><div class="loading">Chargement…</div></div>
       </div>
-      <div style="margin-bottom:10px">
-        <input id="mat-search" type="search" placeholder="🔍 Rechercher une référence, désignation, variante…" oninput="renderMat()" style="font-size:13px;padding:10px 14px;border-radius:20px">
+    </div>
+  </div>
+
+  <!-- PANEL STOCK -->
+  <div id="gpanel-stock" style="display:none">
+    <div class="card">
+      <div class="card-hd">
+        <h2>📊 Stock global</h2>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button id="sflt-all" class="btn btn-p btn-sm" onclick="switchStockFlt('all')">Tout</button>
+          <button id="sflt-creation" class="btn btn-ghost btn-sm" onclick="switchStockFlt('creation')">🪡 Création</button>
+          <button id="sflt-envoi" class="btn btn-ghost btn-sm" onclick="switchStockFlt('envoi')">📬 Envois</button>
+          <button id="sflt-consommable" class="btn btn-ghost btn-sm" onclick="switchStockFlt('consommable')">🧪 Consommables</button>
+          <button id="sflt-outil" class="btn btn-ghost btn-sm" onclick="switchStockFlt('outil')">🔧 Outils</button>
+        </div>
       </div>
-      <div id="mat-body"><div class="loading">Chargement…</div></div>
+      <div class="card-bd">
+        <div class="info-box" style="margin-bottom:10px">Stock = quantité initiale + réappros − consommation productions</div>
+        <div id="stock-body"><div class="loading">Chargement…</div></div>
+      </div>
     </div>
   </div>
 </div>
@@ -381,15 +416,7 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
   </div>
 </div>
 
-<div id="p-stock" class="page">
-  <div class="card">
-    <div class="card-hd"><h2>📊 Stock matériaux</h2></div>
-    <div class="card-bd">
-      <div class="info-box">Stock = stock saisi − consommation des productions enregistrées</div>
-      <div id="stock-body"><div class="loading">Chargement…</div></div>
-    </div>
-  </div>
-</div>
+<!-- stock panel moved into p-mat -->
 
 <div id="p-dep" class="page">
   <div id="dep-stats" class="stats"></div>
@@ -555,6 +582,14 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
   <div class="drag"></div>
   <div class="modal-title" id="mat-modal-title">Nouveau matériau</div>
   <input type="hidden" id="mat-edit-id">
+  <div class="fg"><label>Type</label>
+   <select id="mat-type" onchange="onMatTypeChange()">
+    <option value="creation">🪡 Matériau de création</option>
+    <option value="envoi">📬 Matériau d'envoi</option>
+    <option value="consommable">🧪 Consommable de production</option>
+    <option value="outil">🔧 Outil / Équipement</option>
+   </select>
+  </div>
   <div class="r2">
    <div class="fg"><label>Catégorie principale</label>
     <select id="mat-mc" onchange="syncSC();genRef()">
@@ -563,6 +598,11 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
    </div>
    <div class="fg"><label>Sous-catégorie</label>
     <select id="mat-sc" onchange="genRef()"></select>
+   </div>
+  </div>
+  <div id="mat-renouvellement-row" style="display:none">
+   <div class="fg"><label>Date de renouvellement (optionnel)</label>
+    <input id="mat-renouvellement" type="date">
    </div>
   </div>
   <div class="fg">
@@ -1046,7 +1086,7 @@ async function sbUpsertConfig(key, value) {
 // ═══════════════════════════════════════════════════════
 // IN-MEMORY STATE (populated from Supabase)
 // ═══════════════════════════════════════════════════════
-let MATS=[], BIJS=[], VENTES=[], PRODS=[], REAPPROS=[];
+let MATS=[], BIJS=[], VENTES=[], PRODS=[], REAPPROS=[], KITS=[];
 let MAIN_CATS={}, FOURNISSEURS=[], SC_CLR={}, MAIN_CLR={};
 
 const DEFAULT_MAIN_CLR = {"Perles":"#7A4F9A","Acier inoxydable":"#2E6A8A","Emballage":"#5A6A3A","Autre":"#5A5A6A"};
@@ -1066,15 +1106,16 @@ const SC_PREFIX = {
 };
 
 async function loadAll() {
-  const [mats, bijs, ventes, prods, reappros, cfg] = await Promise.all([
+  const [mats, bijs, ventes, prods, reappros, cfg, kits] = await Promise.all([
     sbGet('materiaux', {order:'ref'}),
     sbGet('bijoux', {order:'collection'}),
     sbGet('ventes', {order:'date'}),
     sbGet('productions', {order:'date'}),
     sbGet('reappros', {order:'date'}),
     sbGet('config'),
+    sbGet('kits_envoi').catch(()=>[]),
   ]);
-  MATS=mats; BIJS=bijs; VENTES=ventes; PRODS=prods; REAPPROS=reappros;
+  MATS=mats; BIJS=bijs; VENTES=ventes; PRODS=prods; REAPPROS=reappros; KITS=kits||[];
   const mainCatsCfg = cfg.find(c=>c.key==='main_cats');
   const fourCfg     = cfg.find(c=>c.key==='fournisseurs');
   const hdrCfg      = cfg.find(c=>c.key==='header');
@@ -1156,6 +1197,12 @@ function isDraft(bij){return bij.draft||((bij.mats||[]).some(m=>!m.qty));}
 function venteTot(bijId){return VENTES.filter(v=>v.bij_id===bijId).reduce((a,v)=>({qty:a.qty+(+v.qty||0),ca:a.ca+(+v.qty||0)*(+v.prix||0)}),{qty:0,ca:0});}
 function prodTot(bijId){return PRODS.filter(p=>p.bij_id===bijId).reduce((s,p)=>s+(+p.qty||0),0);}
 
+function onMatTypeChange() {
+  const type=document.getElementById('mat-type')?.value||'creation';
+  const renRow=document.getElementById('mat-renouvellement-row');
+  if(renRow) renRow.style.display=type==='outil'?'block':'none';
+}
+
 function autoRef(sc, editId=null) {
   const pfx = SC_PREFIX[sc] || sc.replace(/[^A-Z]/gi,'').slice(0,2).toUpperCase();
   const refsForPfx = MATS.filter(m=>m.id!==editId&&m.ref.startsWith('#'+pfx)).map(m=>parseInt(m.ref.replace(/\D/g,''))||0);
@@ -1189,7 +1236,7 @@ function updateMatMCSelect() {
 // ═══════════════════════════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════════════════════════
-const RENDERS = {mat:renderMat,bij:renderBij,stock:renderStock,dep:renderDep,rent:renderRent,cfg:renderCfg};
+const RENDERS = {mat:renderMat,bij:renderBij,dep:renderDep,rent:renderRent,cfg:renderCfg};
 
 function goTab(el) {
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
@@ -1301,12 +1348,18 @@ function openMatModal(editId=null) {
     document.getElementById('mat-ref').value=m.ref;
     checkMatRef(m.ref);
     document.getElementById('mat-fournisseur').value=m.fournisseur||'';
+    document.getElementById('mat-type').value=m.type||'creation';
+    document.getElementById('mat-renouvellement').value=m.date_renouvellement||'';
+    onMatTypeChange();
     document.getElementById('mat-qty').value=m.qty||'';
     document.getElementById('mat-prix').value=m.prix||'';
     calcPU();
   } else {
     document.getElementById('mat-modal-title').textContent='Nouveau matériau';
     ['mat-edit-id','mat-des','mat-var','mat-fournisseur','mat-qty','mat-prix'].forEach(i=>document.getElementById(i).value='');
+    const typeEl=document.getElementById('mat-type'); if(typeEl) typeEl.value=CUR_MAT_TYPE||'creation';
+    const renEl=document.getElementById('mat-renouvellement'); if(renEl) renEl.value='';
+    onMatTypeChange();
     const refInp=document.getElementById('mat-ref');
     if(refInp) refInp.value='';
     document.getElementById('mat-ref-dup').style.display='none';
@@ -1652,11 +1705,47 @@ function runDiag() {
   document.getElementById('diag-result').innerHTML=html;
 }
 
+let CUR_MAT_TYPE = 'creation';
+let CUR_STOCK_FLT = 'all';
+
+function switchGTab(tab) {
+  const isPanMat = tab==='mat';
+  document.getElementById('gpanel-mat').style.display = isPanMat?'block':'none';
+  document.getElementById('gpanel-stock').style.display = isPanMat?'none':'block';
+  document.getElementById('gtab-mat').style.borderBottomColor = isPanMat?'var(--purple)':'transparent';
+  document.getElementById('gtab-mat').style.color = isPanMat?'var(--purple)':'var(--muted)';
+  document.getElementById('gtab-mat').style.background = isPanMat?'var(--purpleP)':'#fff';
+  document.getElementById('gtab-stock').style.borderBottomColor = !isPanMat?'var(--purple)':'transparent';
+  document.getElementById('gtab-stock').style.color = !isPanMat?'var(--purple)':'var(--muted)';
+  document.getElementById('gtab-stock').style.background = !isPanMat?'var(--purpleP)':'#fff';
+  if(!isPanMat) renderStock();
+}
+
+function switchMatType(type) {
+  CUR_MAT_TYPE = type;
+  ['creation','envoi','consommable','outil'].forEach(t=>{
+    const btn=document.getElementById('mtype-'+t);
+    if(btn){btn.className=t===type?'btn btn-p btn-sm':'btn btn-ghost btn-sm';}
+  });
+  renderMat();
+}
+
+function switchStockFlt(flt) {
+  CUR_STOCK_FLT = flt;
+  ['all','creation','envoi','consommable','outil'].forEach(t=>{
+    const btn=document.getElementById('sflt-'+t);
+    if(btn){btn.className=t===flt?'btn btn-p btn-sm':'btn btn-ghost btn-sm';}
+  });
+  renderStock();
+}
+
 function renderMat() {
   buildCatBar();
   const filter=document.getElementById('flt-sc').value;
   const search=(document.getElementById('mat-search')?.value||'').toLowerCase().trim();
-  let mats=filter?MATS.filter(m=>m.sc===filter):MATS;
+  // Filtrer par type courant
+  let mats=MATS.filter(m=>(m.type||'creation')===CUR_MAT_TYPE);
+  if(filter) mats=mats.filter(m=>m.sc===filter);
   if(search) mats=mats.filter(m=>
     (m.ref||'').toLowerCase().includes(search)||
     (m.designation||m.des||'').toLowerCase().includes(search)||
@@ -2059,8 +2148,12 @@ function renderBij() {
 function baseRef(ref){ return ref.replace(/[a-z]+$/i,''); }
 
 function renderStock() {
+  // Filter by type
+  const filteredMats = CUR_STOCK_FLT==='all' ? MATS : MATS.filter(m=>(m.type||'creation')===CUR_STOCK_FLT);
+  // Outils : pas de stock (achat/dépense seulement)
+  const stockableMats = filteredMats.filter(m=>(m.type||'creation')!=='outil');
   const by={};
-  MATS.forEach(m=>{if(!by[m.mc])by[m.mc]={};if(!by[m.mc][m.sc])by[m.mc][m.sc]=[];by[m.mc][m.sc].push(m);});
+  stockableMats.forEach(m=>{if(!by[m.mc])by[m.mc]={};if(!by[m.mc][m.sc])by[m.mc][m.sc]=[];by[m.mc][m.sc].push(m);});
   let html='';
   Object.entries(by).forEach(([mc,subs])=>{
     html+=`<div class="main-ban" style="background:${MAIN_CLR[mc]||'#888'}">◆ ${mc.toUpperCase()}</div>`;
