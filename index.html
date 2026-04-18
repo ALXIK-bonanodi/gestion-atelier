@@ -105,6 +105,7 @@ body{
 /* MAIN SCROLL AREA */
 main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0;background:var(--bg)}
 .page{display:none;padding:12px;max-width:960px;margin:0 auto;padding-bottom:calc(80px + env(safe-area-inset-bottom))}
+#p-mat{padding:0;max-width:none}
 .page.on{display:block}
 
 /* CARDS */
@@ -348,24 +349,35 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
 
 <main id="main-area">
 
-<div id="p-mat" class="page on">
-  <!-- Onglets principaux : Matériaux / Stock -->
-  <div style="display:flex;background:#fff;border-radius:var(--r) var(--r) 0 0;overflow:hidden;border-bottom:2px solid var(--border)">
-    <div id="gtab-mat" onclick="switchGTab('mat')" class="gtab gtab-on">📦 Matériaux</div>
-    <div id="gtab-stock" onclick="switchGTab('stock')" class="gtab">📊 Stock</div>
-  </div>
-
-  <!-- PANEL MATÉRIAUX -->
-  <div id="gpanel-mat">
-    <!-- Sous-onglets types — même style que onglets principaux -->
-    <div style="display:flex;border-bottom:1px solid var(--border);background:#fff;overflow-x:auto;-webkit-overflow-scrolling:touch">
+<div id="p-mat" class="page on" style="padding:0">
+  <!-- BARRE DE NAVIGATION FIXE -->
+  <div id="gestion-nav" style="position:sticky;top:0;z-index:50;background:#fff;box-shadow:0 2px 8px rgba(26,18,40,.08)">
+    <!-- Onglets principaux -->
+    <div style="display:flex;border-bottom:2px solid var(--border)">
+      <div id="gtab-mat" onclick="switchGTab('mat')" class="gtab gtab-on">📦 Matériaux</div>
+      <div id="gtab-stock" onclick="switchGTab('stock')" class="gtab">📊 Stock</div>
+    </div>
+    <!-- Sous-onglets matériaux -->
+    <div id="subnav-mat" style="display:flex;border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none">
       <div id="mtype-tout" onclick="switchMatType('tout')" class="sub-tab sub-tab-on">🗂 Tout</div>
       <div id="mtype-creation" onclick="switchMatType('creation')" class="sub-tab">🪡 Création</div>
       <div id="mtype-envoi" onclick="switchMatType('envoi')" class="sub-tab">📬 Envois</div>
       <div id="mtype-consommable" onclick="switchMatType('consommable')" class="sub-tab">🧪 Consommables</div>
       <div id="mtype-outil" onclick="switchMatType('outil')" class="sub-tab">🔧 Outils</div>
     </div>
-    <div class="card" style="border-radius:0 0 var(--r) var(--r);margin-top:0">
+    <!-- Sous-onglets stock (masqués par défaut) -->
+    <div id="subnav-stock" style="display:none;border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:6px 10px;gap:6px;flex-wrap:wrap">
+      <button id="sflt-all" class="btn btn-p btn-sm" onclick="switchStockFlt('all')">Tout</button>
+      <button id="sflt-creation" class="btn btn-ghost btn-sm" onclick="switchStockFlt('creation')">🪡 Création</button>
+      <button id="sflt-envoi" class="btn btn-ghost btn-sm" onclick="switchStockFlt('envoi')">📬 Envois</button>
+      <button id="sflt-consommable" class="btn btn-ghost btn-sm" onclick="switchStockFlt('consommable')">🧪 Consommables</button>
+      <button id="sflt-outil" class="btn btn-ghost btn-sm" onclick="switchStockFlt('outil')">🔧 Outils</button>
+    </div>
+  </div>
+
+  <!-- PANEL MATÉRIAUX -->
+  <div id="gpanel-mat" style="padding:12px;max-width:960px;margin:0 auto">
+    <div class="card" style="margin-top:0">
       <div id="cat-bar" class="cat-bar"></div>
       <div class="card-bd">
         <div class="abar">
@@ -382,18 +394,9 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
   </div>
 
   <!-- PANEL STOCK -->
-  <div id="gpanel-stock" style="display:none">
+  <div id="gpanel-stock" style="display:none;padding:12px;max-width:960px;margin:0 auto">
     <div class="card">
-      <div class="card-hd">
-        <h2>📊 Stock global</h2>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button id="sflt-all" class="btn btn-p btn-sm" onclick="switchStockFlt('all')">Tout</button>
-          <button id="sflt-creation" class="btn btn-ghost btn-sm" onclick="switchStockFlt('creation')">🪡 Création</button>
-          <button id="sflt-envoi" class="btn btn-ghost btn-sm" onclick="switchStockFlt('envoi')">📬 Envois</button>
-          <button id="sflt-consommable" class="btn btn-ghost btn-sm" onclick="switchStockFlt('consommable')">🧪 Consommables</button>
-          <button id="sflt-outil" class="btn btn-ghost btn-sm" onclick="switchStockFlt('outil')">🔧 Outils</button>
-        </div>
-      </div>
+      <div class="card-hd"><h2>📊 Stock global</h2></div>
       <div class="card-bd">
         <div class="info-box" style="margin-bottom:10px">Stock = quantité initiale + réappros − consommation productions</div>
         <div id="stock-body"><div class="loading">Chargement…</div></div>
@@ -1660,15 +1663,17 @@ function renderCatListCtx(ctx) {
 }
 
 async function saveCatsByType() {
-  // Ne jamais sauvegarder un type vide par accident
-  // MAIN_CATS reflète le type modifié (passé en argument aux fonctions)
-  await sbUpsertConfig('cats_by_type', CATS_BY_TYPE);
-  await sbUpsertConfig('main_cats', CATS_BY_TYPE.creation||{});
+  // Sauvegarder seulement les 4 types valides — jamais 'tout'
+  const toSave = {
+    creation:    CATS_BY_TYPE.creation    || {},
+    envoi:       CATS_BY_TYPE.envoi       || {},
+    consommable: CATS_BY_TYPE.consommable || {},
+    outil:       CATS_BY_TYPE.outil       || {}
+  };
+  await sbUpsertConfig('cats_by_type', toSave);
+  await sbUpsertConfig('main_cats', toSave.creation);
   buildCatBar();
   updateMatMCSelect();
-  // Rafraîchir les listes de catégories
-  renderCatListCtx('modal');
-  renderCatListCtx('params');
 }
 
 async function addMainCat(ctx) {
@@ -1690,12 +1695,13 @@ async function addMainCat(ctx) {
 }
 
 async function delMainCat(mc) {
+  const type=Object.keys(CATS_BY_TYPE).find(t=>t!=='tout'&&CATS_BY_TYPE[t]&&CATS_BY_TYPE[t][mc])||'creation';
   const used=MATS.filter(m=>m.mc===mc).length;
-  if(used>0 && !confirm(`${used} matériau(x) utilisent cette catégorie. Supprimer quand même ?`)) return;
-  delete MAIN_CATS[mc];
-  CATS_BY_TYPE[CUR_MAT_TYPE]=MAIN_CATS;
+  if(used>0&&!confirm(`${used} matériau(x) utilisent cette catégorie. Supprimer quand même ?`)) return;
+  delete CATS_BY_TYPE[type][mc];
+  if(type===CUR_MAT_TYPE) MAIN_CATS=CATS_BY_TYPE[type];
   await saveCatsByType();
-  renderCatList(); renderCatListCtx('params'); renderMat(); toast('Catégorie supprimée','ok');
+  renderCatListCtx('modal'); renderCatListCtx('params'); renderMat(); toast('Catégorie supprimée','ok');
 }
 
 async function saveNewCat(ctx) {
@@ -1716,44 +1722,39 @@ async function saveNewCat(ctx) {
 }
 
 async function delSubCat(mc, sc) {
+  const type=Object.keys(CATS_BY_TYPE).find(t=>t!=='tout'&&CATS_BY_TYPE[t]&&CATS_BY_TYPE[t][mc]&&CATS_BY_TYPE[t][mc].includes(sc))||'creation';
   const used=MATS.filter(m=>m.sc===sc).length;
-  if(used>0 && !confirm(`${used} matériau(x) utilisent cette sous-catégorie. Supprimer quand même ?`)) return;
-  MAIN_CATS[mc]=MAIN_CATS[mc].filter(s=>s!==sc);
-  CATS_BY_TYPE[CUR_MAT_TYPE]=MAIN_CATS;
+  if(used>0&&!confirm(`${used} matériau(x) utilisent cette sous-catégorie. Supprimer quand même ?`)) return;
+  CATS_BY_TYPE[type][mc]=CATS_BY_TYPE[type][mc].filter(s=>s!==sc);
+  if(type===CUR_MAT_TYPE) MAIN_CATS=CATS_BY_TYPE[type];
   await saveCatsByType();
-  renderCatList(); renderCatListCtx('params'); renderMat(); toast('Sous-catégorie supprimée','ok');
+  renderCatListCtx('modal'); renderCatListCtx('params'); renderMat(); toast('Sous-catégorie supprimée','ok');
 }
 
 async function renameMainCat(oldName) {
+  const type=Object.keys(CATS_BY_TYPE).find(t=>t!=='tout'&&CATS_BY_TYPE[t]&&CATS_BY_TYPE[t][oldName])||'creation';
   const newName=prompt('Nouveau nom pour "'+oldName+'" :', oldName);
   if(!newName||newName===oldName) return;
-  if(MAIN_CATS[newName]) return toast('Ce nom existe déjà','err');
-  // Rename key in MAIN_CATS
-  const scs=MAIN_CATS[oldName];
-  delete MAIN_CATS[oldName];
-  MAIN_CATS[newName]=scs;
-  await sbUpsertConfig('main_cats',MAIN_CATS);
-  // Update all mats using this mc
+  if(CATS_BY_TYPE[type][newName]) return toast('Ce nom existe déjà','err');
+  const scs=CATS_BY_TYPE[type][oldName];
+  delete CATS_BY_TYPE[type][oldName];
+  CATS_BY_TYPE[type][newName]=scs;
   const toUpdate=MATS.filter(m=>m.mc===oldName);
-  for(const m of toUpdate){
-    m.mc=newName;
-    await sbUpdate('materiaux',m.id,{mc:newName});
-  }
-  renderCatListCtx('modal'); renderCatListCtx('params'); renderMat(); toast('Renommé : '+oldName+' -> '+newName,'ok');
+  for(const m of toUpdate){ m.mc=newName; await sbUpdate('materiaux',m.id,{mc:newName}); }
+  if(type===CUR_MAT_TYPE) MAIN_CATS=CATS_BY_TYPE[type];
+  await saveCatsByType();
+  renderCatListCtx('modal'); renderCatListCtx('params'); renderMat(); toast('Renommé','ok');
 }
 
 async function renameSubCat(mc, oldSc) {
+  const type=Object.keys(CATS_BY_TYPE).find(t=>t!=='tout'&&CATS_BY_TYPE[t]&&CATS_BY_TYPE[t][mc]&&CATS_BY_TYPE[t][mc].includes(oldSc))||'creation';
   const newSc=prompt('Nouveau nom pour "'+oldSc+'" :', oldSc);
   if(!newSc||newSc===oldSc) return;
-  if((MAIN_CATS[mc]||[]).includes(newSc)) return toast('Ce nom existe déjà','err');
-  MAIN_CATS[mc]=MAIN_CATS[mc].map(s=>s===oldSc?newSc:s);
-  await sbUpsertConfig('main_cats',MAIN_CATS);
-  // Update all mats using this sc
-  const toUpdate=MATS.filter(m=>m.sc===oldSc);
-  for(const m of toUpdate){
-    m.sc=newSc;
-    await sbUpdate('materiaux',m.id,{sc:newSc});
-  }
+  const idx=CATS_BY_TYPE[type][mc]?.indexOf(oldSc);
+  if(idx>=0) CATS_BY_TYPE[type][mc][idx]=newSc;
+  MATS.filter(m=>m.sc===oldSc).forEach(m=>m.sc=newSc);
+  if(type===CUR_MAT_TYPE) MAIN_CATS=CATS_BY_TYPE[type];
+  await saveCatsByType();
   renderCatListCtx('modal'); renderCatListCtx('params'); renderMat(); toast('Sous-catégorie renommée','ok');
 }
 
@@ -1914,6 +1915,11 @@ function switchGTab(tab) {
   document.getElementById('gpanel-stock').style.display = isPanMat?'none':'block';
   document.getElementById('gtab-mat').className = 'gtab'+(isPanMat?' gtab-on':'');
   document.getElementById('gtab-stock').className = 'gtab'+(!isPanMat?' gtab-on':'');
+  // Afficher la bonne sous-barre
+  const subMat=document.getElementById('subnav-mat');
+  const subStock=document.getElementById('subnav-stock');
+  if(subMat) subMat.style.display=isPanMat?'flex':'none';
+  if(subStock) subStock.style.display=isPanMat?'none':'flex';
   if(!isPanMat) renderStock();
 }
 
@@ -2496,7 +2502,7 @@ async function openProdModal() {
     openModal('m-prod');
     return;
   }
-  list.innerHTML = BIJS.map(b => {
+  list.innerHTML = BIJS.filter(b=>!b.no_sell).map(b => {
     const qProd = prodTot(b.id);
     const stock = qProd - venteTot(b.id).qty;
     const info = qProd ? ' · ' + qProd + ' prod., ' + stock + ' dispo' : '';
@@ -2521,11 +2527,11 @@ async function openProdModal() {
 }
 // Calcule le stock "produisable" d'un bijou composant no_sell
 // = min(stockDispo(mat) / qty_mat) pour chaque matériau → combien on peut en faire
-function stockProduisableComp(bijComp, qtyNeeded) {
-  if(!bijComp || !bijComp.no_sell) return 0;
+function stockProduisableComp(bijComp) {
+  // Combien d'unités peut-on produire avec le stock matériaux disponible
+  if(!bijComp) return 0;
   const mats = bijComp.mats || [];
-  if(!mats.length) return 0;
-  // Pour chaque matériau du composant, combien peut-on en faire ?
+  if(!mats.length) return Infinity; // pas de matériaux définis = pas de contrainte
   let maxFaisable = Infinity;
   for(const m of mats) {
     const mat = getMat(m.ref);
@@ -2562,7 +2568,7 @@ function renderProdPrev() {
       const prodExist=PRODS.filter(p=>p.bij_id===bijComp.id&&(!p.statut||p.statut==='produit')).reduce((s,p)=>s+(+p.qty||0),0);
       const venteExist=venteTot(bijComp.id).qty;
       const stockExist=Math.max(0,prodExist-venteExist);
-      const peutProduire=stockProduisableComp(bijComp, need);
+      const peutProduire=bijComp.no_sell ? stockProduisableComp(bijComp) : 0;
       const totalDispo=stockExist+peutProduire;
       const enough=totalDispo>=need;
       if(!enough&&m.qty) ok=false;
