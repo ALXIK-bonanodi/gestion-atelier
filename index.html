@@ -1749,12 +1749,16 @@ async function saveMat() {
   if(!designation) return toast('Désignation obligatoire','err');
   const ref=document.getElementById('mat-ref').value||autoRef(document.getElementById('mat-sc').value);
   if(!editId && MATS.find(m=>m.ref===ref)) return toast('Référence déjà existante : '+ref,'err');
+  const matType=document.getElementById('mat-type')?.value||'creation';
+  const dateRenouv=document.getElementById('mat-renouvellement')?.value||null;
   const obj={
     id:editId||uid(), mc:document.getElementById('mat-mc').value,
     sc:document.getElementById('mat-sc').value, ref, designation, variante:varV,
     fournisseur:document.getElementById('mat-fournisseur').value.trim(),
     qty:+document.getElementById('mat-qty').value||null,
     prix:+document.getElementById('mat-prix').value||null,
+    type:matType,
+    date_renouvellement:dateRenouv,
   };
   let ok;
   if(editId){ok=await sbUpdate('materiaux',editId,obj);if(ok){const i=MATS.findIndex(m=>m.id===editId);MATS[i]=obj;}}
@@ -2286,8 +2290,7 @@ function switchGTab(tab) {
   const subStock=document.getElementById('subnav-stock');
   if(subMat) subMat.style.display=isPanMat?'flex':'none';
   if(subStock) subStock.style.display=isPanMat?'none':'flex';
-  // Toujours re-render stock quand on switche vers cet onglet
-  if(!isPanMat) { document.getElementById('stock-body').innerHTML='<div class="loading">Chargement…</div>'; setTimeout(renderStock,50); }
+  if(!isPanMat) renderStock();
 }
 
 function switchMatType(type) {
@@ -2775,12 +2778,13 @@ function renderBij() {
 }
 
 function renderStock() {
-  // S'assurer que les couleurs sont initialisées
-  Object.values(CATS_BY_TYPE||{}).forEach(cats=>{
-    Object.entries(cats||{}).forEach(([mc,scs])=>{
-      if(!MAIN_CLR[mc]) MAIN_CLR[mc]='#5A5A6A';
-      (scs||[]).forEach(sc=>{if(!SC_CLR[sc]) SC_CLR[sc]='#5A5A5A';});
-    });
+  const el=document.getElementById('stock-body');
+  if(!el) return;
+  if(!MATS||!MATS.length){el.innerHTML='<div class="empty"><div class="empty-icon">📦</div><p>Aucun matériau chargé</p></div>';return;}
+  // Initialiser couleurs pour tous les MC présents dans MATS
+  MATS.forEach(m=>{
+    if(m.mc&&!MAIN_CLR[m.mc]) MAIN_CLR[m.mc]='#5A5A6A';
+    if(m.sc&&!SC_CLR[m.sc]) SC_CLR[m.sc]='#5A5A5A';
   });
   const filteredMats = CUR_STOCK_FLT==='all' ? MATS : MATS.filter(m=>(m.type||'creation')===CUR_STOCK_FLT);
   const stockableMats = filteredMats.filter(m=>(m.type||'creation')!=='outil');
@@ -2822,7 +2826,7 @@ function renderStock() {
       </table></div>`;
     });
   });
-  document.getElementById('stock-body').innerHTML=html||`<div class="empty"><div class="empty-icon">📊</div><p>Aucune donnée</p></div>`;
+  el.innerHTML=html||`<div class="empty"><div class="empty-icon">📊</div><p>Aucune donnée de stock</p></div>`;
 }
 
 // ═══════════════════════════════════════════════════════
