@@ -122,7 +122,9 @@ main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0;backgr
 
 /* CAT BAR */
 .cat-bar{padding:10px 12px 8px;background:var(--goldP);border-bottom:1px solid #E8D9B0}
-.sub-tab{padding:10px 14px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;transition:.12s;-webkit-user-select:none}
+.gtab{flex:1;padding:12px;text-align:center;font-size:13px;font-weight:700;cursor:pointer;border-bottom:3px solid transparent;color:var(--muted);background:#fff;transition:.12s;-webkit-user-select:none}
+.gtab-on{color:var(--purple);border-bottom-color:var(--purple);background:var(--purpleP)}
+.sub-tab{padding:9px 13px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;transition:.12s;-webkit-user-select:none}
 .sub-tab:active{background:var(--purpleP)}
 .sub-tab-on{color:var(--purple);border-bottom-color:var(--purple);background:var(--purpleP)}
 .cat-section{display:flex;align-items:flex-start;flex-wrap:wrap;gap:4px;margin-bottom:6px}
@@ -347,9 +349,9 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
 
 <div id="p-mat" class="page on">
   <!-- Onglets principaux : Matériaux / Stock -->
-  <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:0;background:#fff;border-radius:var(--r) var(--r) 0 0;overflow:hidden">
-    <div id="gtab-mat" onclick="switchGTab('mat')" style="flex:1;padding:12px;text-align:center;font-size:13px;font-weight:700;cursor:pointer;border-bottom:3px solid var(--purple);color:var(--purple);background:var(--purpleP)">📦 Matériaux</div>
-    <div id="gtab-stock" onclick="switchGTab('stock')" style="flex:1;padding:12px;text-align:center;font-size:13px;font-weight:700;cursor:pointer;border-bottom:3px solid transparent;color:var(--muted);background:#fff">📊 Stock</div>
+  <div style="display:flex;background:#fff;border-radius:var(--r) var(--r) 0 0;overflow:hidden;border-bottom:2px solid var(--border)">
+    <div id="gtab-mat" onclick="switchGTab('mat')" class="gtab gtab-on">📦 Matériaux</div>
+    <div id="gtab-stock" onclick="switchGTab('stock')" class="gtab">📊 Stock</div>
   </div>
 
   <!-- PANEL MATÉRIAUX -->
@@ -1132,13 +1134,16 @@ async function loadAll() {
   const catsByTypeCfg = cfg.find(cc=>cc.key==='cats_by_type');
   const rawCBT = catsByTypeCfg?.value || {};
   CATS_BY_TYPE = {
-    creation: (rawCBT.creation && Object.keys(rawCBT.creation).length>0) ? rawCBT.creation : legacyCats,
-    envoi:    (rawCBT.envoi    && Object.keys(rawCBT.envoi).length>0)    ? rawCBT.envoi    : {"Emballage":["Boîte","Pochette","Papier de soie","Ruban","Étiquette","Autre envoi"]},
-    consommable:(rawCBT.consommable && Object.keys(rawCBT.consommable).length>0) ? rawCBT.consommable : {"Consommables":["Colle","Fil de montage","Vernis","Autre consommable"]},
-    outil:    (rawCBT.outil    && Object.keys(rawCBT.outil).length>0)    ? rawCBT.outil    : {"Outils":["Pince","Ciseau","Matériel photo","Abonnement","Autre outil"]}
+    creation:    (rawCBT.creation    && Object.keys(rawCBT.creation).length>0)    ? rawCBT.creation    : legacyCats,
+    envoi:       (rawCBT.envoi       && Object.keys(rawCBT.envoi).length>0)       ? rawCBT.envoi       : {"Emballage":["Boîte","Pochette","Papier de soie","Ruban","Étiquette","Autre envoi"]},
+    consommable: (rawCBT.consommable && Object.keys(rawCBT.consommable).length>0) ? rawCBT.consommable : {"Consommables":["Colle","Fil de montage","Vernis","Autre consommable"]},
+    outil:       (rawCBT.outil       && Object.keys(rawCBT.outil).length>0)       ? rawCBT.outil       : {"Outils":["Pince","Ciseau","Matériel photo","Abonnement","Autre outil"]}
   };
-  // MAIN_CATS pointe sur le type courant
-  MAIN_CATS = CATS_BY_TYPE[CUR_MAT_TYPE]||CATS_BY_TYPE.creation;
+  // Si cats_by_type.creation était vide mais main_cats ne l'est pas → réparer
+  if(Object.keys(CATS_BY_TYPE.creation).length===0 && Object.keys(legacyCats).length>0) {
+    CATS_BY_TYPE.creation = legacyCats;
+  }
+  MAIN_CATS = CATS_BY_TYPE.creation;
   FOURNISSEURS = fourCfg?.value || [];
   if(hdrCfg?.value) { HDR_CFG={...HDR_CFG,...hdrCfg.value}; applyHdrConfig(); }
   MAIN_CLR = {...DEFAULT_MAIN_CLR};
@@ -1644,12 +1649,15 @@ function renderCatListCtx(ctx) {
 }
 
 async function saveCatsByType() {
-  if(CUR_MAT_TYPE!=='tout') CATS_BY_TYPE[CUR_MAT_TYPE]=MAIN_CATS;
+  // Ne jamais sauvegarder un type vide par accident
+  // MAIN_CATS reflète le type modifié (passé en argument aux fonctions)
   await sbUpsertConfig('cats_by_type', CATS_BY_TYPE);
   await sbUpsertConfig('main_cats', CATS_BY_TYPE.creation||{});
-  // Rafraîchir la barre de catégories
   buildCatBar();
   updateMatMCSelect();
+  // Rafraîchir les listes de catégories
+  renderCatListCtx('modal');
+  renderCatListCtx('params');
 }
 
 async function addMainCat(ctx) {
@@ -1660,11 +1668,12 @@ async function addMainCat(ctx) {
   if(!CATS_BY_TYPE[type]) CATS_BY_TYPE[type]={};
   if(CATS_BY_TYPE[type][name]) return toast('Catégorie déjà existante','err');
   CATS_BY_TYPE[type][name]=[];
-  if(type===CUR_MAT_TYPE) MAIN_CATS=CATS_BY_TYPE[type];
+  // Mettre à jour MAIN_CATS uniquement si on édite le type courant affiché
+  if(type===CUR_MAT_TYPE||(CUR_MAT_TYPE==='tout')) {
+    if(CUR_MAT_TYPE!=='tout') MAIN_CATS=CATS_BY_TYPE[type];
+  }
   await saveCatsByType();
   document.getElementById(pfx+'new-mc-name').value='';
-  renderCatListCtx(ctx||'modal');
-  renderCatList();
   renderMat();
   toast('Catégorie ajoutée ✓','ok');
 }
@@ -1684,15 +1693,13 @@ async function saveNewCat(ctx) {
   const mc=document.getElementById(pfx+'addcat-mc').value;
   const name=document.getElementById(pfx+'addcat-name').value.trim();
   if(!name) return toast('Nom obligatoire','err');
+  if(!mc) return toast('Sélectionnez une catégorie principale','err');
   if(!CATS_BY_TYPE[type]) CATS_BY_TYPE[type]={};
   if(!CATS_BY_TYPE[type][mc]) CATS_BY_TYPE[type][mc]=[];
   if(CATS_BY_TYPE[type][mc].includes(name)) return toast('Sous-catégorie déjà existante','err');
   CATS_BY_TYPE[type][mc].push(name);
-  if(type===CUR_MAT_TYPE) MAIN_CATS=CATS_BY_TYPE[type];
   await saveCatsByType();
   document.getElementById(pfx+'addcat-name').value='';
-  renderCatListCtx(ctx||'modal');
-  renderCatList();
   renderMat();
   toast('Sous-catégorie ajoutée ✓','ok');
 }
@@ -1887,12 +1894,8 @@ function switchGTab(tab) {
   const isPanMat = tab==='mat';
   document.getElementById('gpanel-mat').style.display = isPanMat?'block':'none';
   document.getElementById('gpanel-stock').style.display = isPanMat?'none':'block';
-  document.getElementById('gtab-mat').style.borderBottomColor = isPanMat?'var(--purple)':'transparent';
-  document.getElementById('gtab-mat').style.color = isPanMat?'var(--purple)':'var(--muted)';
-  document.getElementById('gtab-mat').style.background = isPanMat?'var(--purpleP)':'#fff';
-  document.getElementById('gtab-stock').style.borderBottomColor = !isPanMat?'var(--purple)':'transparent';
-  document.getElementById('gtab-stock').style.color = !isPanMat?'var(--purple)':'var(--muted)';
-  document.getElementById('gtab-stock').style.background = !isPanMat?'var(--purpleP)':'#fff';
+  document.getElementById('gtab-mat').className = 'gtab'+(isPanMat?' gtab-on':'');
+  document.getElementById('gtab-stock').className = 'gtab'+(!isPanMat?' gtab-on':'');
   if(!isPanMat) renderStock();
 }
 
