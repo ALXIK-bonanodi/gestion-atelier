@@ -1046,33 +1046,48 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
 
 <!-- VENTE -->
 <div id="m-vente" class="overlay" onclick="bgClose(event,this)">
- <div class="modal">
+ <div class="modal" style="max-width:560px">
   <div class="drag"></div>
-  <div class="modal-title">Enregistrer une vente</div>
-  <div class="fg"><label>Bijou produit</label>
-   <select id="v-bij" onchange="venteAutoPrice()">
-    <!-- populated from productions -->
-   </select>
-   <div style="font-size:10px;color:var(--muted);margin-top:3px">Seuls les bijoux ayant une production enregistrée sont listés</div>
-  </div>
+  <div class="modal-title">🛍 Nouvelle commande</div>
+
+  <!-- Infos commande -->
   <div class="r2">
-   <div class="fg"><label>Quantité vendue</label><input id="v-qty" type="number" value="1" oninput="venteStockCheck()"></div>
-   <div class="fg"><label>Prix de vente (€/u)</label>
-    <input id="v-prix" type="number" step="0.01">
-    <div id="v-prix-hint" style="font-size:10px;color:var(--muted);margin-top:3px"></div>
+   <div class="fg"><label>Plateforme / Canal</label>
+    <select id="v-canal" onchange="onCanalChange()">
+     <option value="atelier">🏪 Atelier / direct</option>
+     <option value="shopify">🛒 Shopify</option>
+     <option value="etsy">🟠 Etsy</option>
+     <option value="vinted">💚 Vinted</option>
+     <option value="marche">🎪 Marché / événement</option>
+     <option value="instagram">📷 Instagram</option>
+     <option value="autre">• Autre</option>
+    </select>
    </div>
-  </div>
-  <div id="v-stock-warn" style="display:none" class="warn-box"></div>
-  <div class="r2">
    <div class="fg"><label>Date</label><input id="v-date" type="date"></div>
-   <div class="fg"><label>Canal</label>
-    <select id="v-canal"><option>Vente directe</option><option>Shopify</option><option>Marché / événement</option><option>Commande</option><option>Instagram</option><option>Autre</option></select>
-   </div>
   </div>
-  <div class="fg"><label>Note</label><input id="v-note"></div>
+  <div class="r2">
+   <div class="fg"><label>Nom client (optionnel)</label><input id="v-client" placeholder="Prénom Nom"></div>
+   <div class="fg" id="v-ref-row" style="display:none"><label>Réf. commande plateforme</label><input id="v-ref-plateforme" placeholder="Ex: #1234"></div>
+  </div>
+
+  <!-- Lignes produits -->
+  <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin:10px 0 6px">Produits vendus</div>
+  <div id="v-lignes-list"></div>
+  <button class="btn btn-ghost btn-sm" onclick="addVenteLigne()" style="margin-top:4px">＋ Ajouter un produit</button>
+
+  <!-- Totaux -->
+  <div id="v-totaux" style="margin-top:10px;padding:10px 12px;background:var(--purpleP);border-radius:var(--rs);font-size:13px"></div>
+
+  <!-- Livraison -->
+  <div class="fg" style="margin-top:8px">
+   <label>Frais de livraison (€)</label>
+   <input id="v-livraison" type="number" step="0.01" value="0" oninput="updateVenteTotaux()">
+  </div>
+  <div class="fg"><label>Note</label><input id="v-note" placeholder="Message client, personnalisation…"></div>
+
   <div class="mfoot">
    <button class="btn btn-ghost" onclick="closeModal('m-vente')">Annuler</button>
-   <button class="btn btn-p" onclick="saveVente()">Enregistrer</button>
+   <button class="btn btn-p" onclick="saveVente()">Enregistrer la commande</button>
   </div>
  </div>
 </div>
@@ -1354,7 +1369,7 @@ const SC_PREFIX = {
 };
 
 async function loadAll() {
-  const [mats, bijs, ventes, prods, reappros, cfg, kits, charges, tva_entries] = await Promise.all([
+  const [mats, bijs, ventes, prods, reappros, cfg, kits, charges, tva_entries, commandes] = await Promise.all([
     sbGet('materiaux', {order:'ref'}),
     sbGet('bijoux', {order:'collection'}),
     sbGet('ventes', {order:'date'}),
@@ -1364,8 +1379,9 @@ async function loadAll() {
     sbGet('kits_envoi').catch(()=>[]),
     sbGet('charges').catch(()=>[]),
     sbGet('tva_entries').catch(()=>[]),
+    sbGet('commandes').catch(()=>[]),
   ]);
-  MATS=mats; BIJS=bijs; VENTES=ventes; PRODS=prods; REAPPROS=reappros; KITS=kits||[]; CHARGES=charges||[]; TVA_ENTRIES=tva_entries||[];
+  MATS=mats; BIJS=bijs; VENTES=ventes; PRODS=prods; REAPPROS=reappros; KITS=kits||[]; CHARGES=charges||[]; TVA_ENTRIES=tva_entries||[]; COMMANDES=commandes||[];
   const mainCatsCfg = cfg.find(c=>c.key==='main_cats');
   const fourCfg     = cfg.find(c=>c.key==='fournisseurs');
   const hdrCfg      = cfg.find(c=>c.key==='header');
@@ -2968,7 +2984,7 @@ function renderDep() {
 // ═══════════════════════════════════════════════════════
 // COMPTABILITÉ — données
 // ═══════════════════════════════════════════════════════
-let CHARGES=[], TVA_ENTRIES=[];
+let CHARGES=[], TVA_ENTRIES=[], COMMANDES=[];
 let COMPTA_TAB='ventes';
 let CH_FLT='all';
 
@@ -3013,27 +3029,50 @@ function renderCompta() {
   let ventes=VENTES;
   if(periodeFilter) ventes=ventes.filter(v=>(v.date||'').startsWith(periodeFilter));
   const sortedV=[...ventes].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  // Grouper par commande
+  const byCmd={};
+  sortedV.forEach(v=>{
+    const key=v.commande_id||v.id;
+    if(!byCmd[key]) byCmd[key]={lignes:[],date:v.date,canal:v.canal,commande_id:v.commande_id};
+    byCmd[key].lignes.push(v);
+  });
+  const CANAL_ICONS={atelier:'🏪',shopify:'🛒',etsy:'🟠',vinted:'💚',marche:'🎪',instagram:'📷',autre:'•'};
   let html='';
-  if(!sortedV.length){
+  if(!Object.keys(byCmd).length){
     html='<div class="empty"><div class="empty-icon">💰</div><p>Aucune vente</p></div>';
   } else {
-    html='<div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Bijou</th><th>Qté</th><th>Prix/u</th><th>Total</th><th>Canal</th><th></th></tr></thead><tbody>';
-    sortedV.forEach(v=>{
-      const b=getBij(v.bij_id);
-      html+=`<tr>
-        <td class="dim">${v.date||'--'}</td>
-        <td style="font-size:12px">${b?b.nom+(b.variante?' · '+b.variante:''):'--'}</td>
-        <td><b>${n(v.qty)}</b></td>
-        <td style="color:var(--purple)">${eur(v.prix)}</td>
-        <td class="hi">${eur((+v.qty||0)*(+v.prix||0))}</td>
-        <td><span class="badge bm">${v.canal||'--'}</span></td>
-        <td style="display:flex;gap:4px">
-          <button class="btn btn-xs btn-ghost" onclick="genFacture('${v.id}')" title="Générer facture">🧾</button>
-          <button class="btn btn-xs btn-red" onclick="delVente('${v.id}')">✕</button>
-        </td>
-      </tr>`;
+    Object.entries(byCmd).sort((a,b)=>(b[1].date||'').localeCompare(a[1].date||'')).forEach(([cmdKey,cmd])=>{
+      const cmd_obj=COMMANDES.find(x=>x.id===cmd.commande_id);
+      const totalLignes=cmd.lignes.reduce((s,v)=>s+(+v.qty||0)*(+v.prix||0),0);
+      const livraison=cmd_obj?.frais_livraison||0;
+      const totalCmd=totalLignes+livraison;
+      const canalIcon=CANAL_ICONS[cmd.canal]||'•';
+      const isMulti=cmd.lignes.length>1;
+      html+=`<div style="border:1.5px solid var(--border);border-radius:var(--r);margin-bottom:10px;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--purpleP);flex-wrap:wrap;gap:6px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-weight:700;color:var(--purple)">${canalIcon} ${cmd_obj?.client_nom||cmd.canal||'--'}</span>
+            <span class="badge bm">${cmd.date||'--'}</span>
+            ${cmd_obj?.ref_plateforme?`<span class="badge bp">${cmd_obj.ref_plateforme}</span>`:''}
+            ${isMulti?`<span class="badge bgn">${cmd.lignes.length} articles</span>`:''}
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <b style="color:var(--purple)">${eur(totalCmd)}</b>
+            <button class="btn btn-xs btn-ghost" onclick="genFactureCmd('${cmdKey}')" title="Facture">🧾</button>
+          </div>
+        </div>
+        ${cmd.lignes.map(v=>{
+          const b=getBij(v.bij_id);
+          return `<div style="display:flex;align-items:center;gap:8px;padding:6px 12px;border-top:1px solid var(--border);flex-wrap:wrap">
+            <span style="flex:1;font-size:12px">${b?b.nom+(b.variante?' · '+b.variante:''):'--'} <span class="ref">${b?.ref||''}</span></span>
+            <span class="dim">${n(v.qty)} × ${eur(v.prix)}</span>
+            <span style="font-weight:600;color:var(--purple)">${eur((+v.qty||0)*(+v.prix||0))}</span>
+            <button class="btn btn-xs btn-red" onclick="delVente('${v.id}')">✕</button>
+          </div>`;
+        }).join('')}
+        ${livraison?`<div style="display:flex;justify-content:space-between;padding:5px 12px;border-top:1px solid var(--border);font-size:12px;color:var(--muted)"><span>Livraison</span><span>${eur(livraison)}</span></div>`:''}
+      </div>`;
     });
-    html+='</tbody></table></div>';
   }
   const rb=document.getElementById('rent-body');
   if(rb) rb.innerHTML=html;
@@ -3252,6 +3291,66 @@ async function exportBilanPDF() {
 }
 
 // ── FACTURE ────────────────────────────────────────────
+function genFactureCmd(cmdKey) {
+  // Facture pour une commande complète
+  const cmd=COMMANDES.find(x=>x.id===cmdKey);
+  const lignes=VENTES.filter(v=>(v.commande_id||v.id)===cmdKey);
+  if(!lignes.length) return;
+  const num='FAC-'+cmdKey.slice(-6).toUpperCase();
+  const date=cmd?.date||lignes[0]?.date||today();
+  const lignesHTML=lignes.map(v=>{
+    const b=getBij(v.bij_id);
+    const nom=b?b.nom+(b.variante?' · '+b.variante:''):'Article';
+    return `<tr><td>${nom} ${b?.ref?'<small>['+b.ref+']</small>':''}</td><td style="text-align:center">${v.qty}</td><td style="text-align:right">${eur(v.prix)}</td><td style="text-align:right;font-weight:700">${eur((+v.qty||0)*(+v.prix||0))}</td></tr>`;
+  }).join('');
+  const sousTotal=lignes.reduce((s,v)=>s+(+v.qty||0)*(+v.prix||0),0);
+  const livraison=cmd?.frais_livraison||0;
+  const total=sousTotal+livraison;
+  const CANAL_LABELS={atelier:'Vente directe',shopify:'Shopify',etsy:'Etsy',vinted:'Vinted',marche:'Marché',instagram:'Instagram',autre:'Autre'};
+  const canal=CANAL_LABELS[cmd?.canal||lignes[0]?.canal]||'--';
+  const win=window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+    <title>Facture ${num}</title>
+    <style>body{font-family:Arial,sans-serif;max-width:700px;margin:40px auto;padding:20px;color:#1A1228}
+    .hdr{display:flex;justify-content:space-between;margin-bottom:30px}
+    .atelier{font-size:22px;font-weight:700;color:#6B4E8E}
+    table{width:100%;border-collapse:collapse;margin:16px 0}
+    th{background:#6B4E8E;color:#fff;padding:9px;text-align:left}
+    td{padding:9px;border-bottom:1px solid #eee}
+    .total-section{text-align:right;margin-top:8px}
+    .total-line{padding:4px 0;font-size:13px}
+    .grand-total{font-size:18px;font-weight:700;color:#6B4E8E;padding:8px 0;border-top:2px solid #6B4E8E;margin-top:4px}
+    .note{font-size:11px;color:#aaa;margin-top:30px;border-top:1px solid #eee;padding-top:10px}
+    @media print{button{display:none}}</style></head><body>
+    <div class="hdr">
+      <div><div class="atelier">✦ Atelier Bijoux</div>
+        <div style="font-size:12px;color:#888;margin-top:3px">Artisan créateur de bijoux</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:18px;font-weight:700;color:#888">Facture ${num}</div>
+        <div style="font-size:12px;color:#888;margin-top:3px">Date : ${date}</div>
+        <div style="font-size:12px;color:#888">Canal : ${canal}</div>
+        ${cmd?.ref_plateforme?`<div style="font-size:12px;color:#888">Réf : ${cmd.ref_plateforme}</div>`:''}
+      </div>
+    </div>
+    ${cmd?.client_nom?`<div style="margin-bottom:16px"><b>Client :</b> ${cmd.client_nom}</div>`:''}
+    <table>
+      <thead><tr><th>Désignation</th><th style="text-align:center">Qté</th><th style="text-align:right">Prix/u</th><th style="text-align:right">Total</th></tr></thead>
+      <tbody>${lignesHTML}</tbody>
+    </table>
+    <div class="total-section">
+      <div class="total-line">Sous-total : ${eur(sousTotal)}</div>
+      ${livraison?`<div class="total-line">Frais de livraison : ${eur(livraison)}</div>`:''}
+      <div class="grand-total">Total : ${eur(total)}</div>
+    </div>
+    <div style="margin-top:6px;text-align:right;font-size:11px;color:#aaa">TVA non applicable — art. 293 B du CGI</div>
+    ${cmd?.note?`<div style="margin-top:12px;font-size:12px;color:#666;padding:8px;background:#f9f9f9;border-radius:6px">Note : ${cmd.note}</div>`:''}
+    <button onclick="window.print()" style="margin-top:20px;padding:10px 20px;background:#6B4E8E;color:#fff;border:none;border-radius:20px;cursor:pointer;font-size:14px">🖨 Imprimer / PDF</button>
+    <div class="note">Document généré par Atelier Bijoux — ${new Date().toLocaleDateString('fr-FR')}</div>
+    </body></html>`);
+  win.document.close();
+}
+
 function genFacture(venteId) {
   const v=VENTES.find(x=>x.id===venteId); if(!v) return;
   const b=getBij(v.bij_id);
@@ -3599,21 +3698,76 @@ async function delProd(id) {
   if(ok){PRODS=PRODS.filter(p=>p.id!==id);renderRent();toast('Production supprimée','ok');}
 }
 
-function openVenteModal() {
-  // Seulement bijoux ayant des productions enregistrées (statut produit)
-  const bijsAvecStock = BIJS.filter(b=>!b.no_sell&&stockDispo2(b.id)>0);
-  if(!bijsAvecStock.length) {
-    toast('Aucune production disponible à la vente — enregistrez une production d\u0027abord','err');
-    return;
+function onCanalChange() {
+  const canal=document.getElementById('v-canal').value;
+  const refRow=document.getElementById('v-ref-row');
+  if(refRow) refRow.style.display=['shopify','etsy','vinted'].includes(canal)?'block':'none';
+}
+
+function addVenteLigne(bijId='', qty=1, prix='') {
+  const bijsAvecStock=BIJS.filter(b=>!b.no_sell&&stockDispo2(b.id)>0);
+  const opts=bijsAvecStock.map(b=>`<option value="${b.id}" ${b.id===bijId?'selected':''}>${b.nom}${b.variante?' · '+b.variante:''} [${b.ref||'--'}] — ${stockDispo2(b.id)} dispo</option>`).join('');
+  const div=document.createElement('div');
+  div.className='v-ligne';
+  div.style.cssText='display:grid;grid-template-columns:1fr 60px 80px 28px;gap:6px;align-items:center;margin-bottom:6px';
+  div.innerHTML=`
+    <select class="v-l-bij" onchange="onVenteLigneBijChange(this)" style="font-size:12px;padding:8px">${opts||'<option value="">Aucune production disponible</option>'}</select>
+    <input class="v-l-qty" type="number" value="${qty}" min="1" oninput="updateVenteTotaux()" style="padding:8px;font-size:12px;text-align:center">
+    <input class="v-l-prix" type="number" value="${prix}" step="0.01" placeholder="Prix€" oninput="updateVenteTotaux()" style="padding:8px;font-size:12px">
+    <button class="btn btn-red btn-xs" onclick="this.closest('.v-ligne').remove();updateVenteTotaux()">✕</button>`;
+  document.getElementById('v-lignes-list').appendChild(div);
+  // Auto-prix
+  const bijSel=div.querySelector('.v-l-bij');
+  const prixInp=div.querySelector('.v-l-prix');
+  if(bijSel.value&&!prix){
+    const b=getBij(bijSel.value);
+    if(b&&b.pv) prixInp.value=b.pv;
+    else if(b){ const pm=prixMin(b); if(pm) prixInp.value=pm; }
   }
-  document.getElementById('v-bij').innerHTML = bijsAvecStock.map(b=>{
-    const stock = stockDispo2(b.id);
-    return `<option value="${b.id}">${b.nom}${b.variante?' · '+b.variante:''} ${b.ref?'['+b.ref+']':''} — ${stock} en stock</option>`;
-  }).join('');
+  updateVenteTotaux();
+}
+
+function onVenteLigneBijChange(sel) {
+  const row=sel.closest('.v-ligne');
+  const prixInp=row.querySelector('.v-l-prix');
+  const b=getBij(sel.value);
+  if(b&&b.pv) prixInp.value=b.pv;
+  else if(b){ const pm=prixMin(b); if(pm) prixInp.value=pm; }
+  updateVenteTotaux();
+}
+
+function updateVenteTotaux() {
+  const lignes=document.querySelectorAll('#v-lignes-list .v-ligne');
+  let total=0;
+  lignes.forEach(l=>{
+    const qty=+l.querySelector('.v-l-qty').value||0;
+    const prix=+l.querySelector('.v-l-prix').value||0;
+    total+=qty*prix;
+  });
+  const livraison=+document.getElementById('v-livraison')?.value||0;
+  const div=document.getElementById('v-totaux');
+  if(div) div.innerHTML=`
+    <div style="display:flex;justify-content:space-between">
+      <span>${lignes.length} article(s)</span>
+      <span style="font-weight:600">Sous-total : <b style="color:var(--purple)">${eur(total)}</b></span>
+    </div>
+    ${livraison?`<div style="display:flex;justify-content:space-between;margin-top:3px"><span>Livraison</span><span>${eur(livraison)}</span></div>`:''}
+    <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:14px;font-weight:700">
+      <span>Total commande</span><span style="color:var(--purple)">${eur(total+livraison)}</span>
+    </div>`;
+}
+
+function openVenteModal() {
   document.getElementById('v-date').value=today();
-  ['v-qty','v-note'].forEach(i=>document.getElementById(i).value=i==='v-qty'?'1':'');
-  venteAutoPrice();
-  venteStockCheck();
+  document.getElementById('v-canal').value='atelier';
+  document.getElementById('v-client').value='';
+  document.getElementById('v-ref-plateforme').value='';
+  document.getElementById('v-note').value='';
+  document.getElementById('v-livraison').value='0';
+  document.getElementById('v-lignes-list').innerHTML='';
+  document.getElementById('v-totaux').innerHTML='';
+  onCanalChange();
+  addVenteLigne(); // Ajouter une première ligne vide
   openModal('m-vente');
 }
 
@@ -3646,17 +3800,53 @@ function venteStockCheck() {
   }
 }
 async function saveVente() {
-  const bijId=document.getElementById('v-bij').value;
-  const qty=+document.getElementById('v-qty').value||1;
-  const prix=+document.getElementById('v-prix').value;
-  if(!prix) return toast('Prix obligatoire','err');
-  const obj={id:uid(),bij_id:bijId,qty,prix,date:document.getElementById('v-date').value,canal:document.getElementById('v-canal').value,note:document.getElementById('v-note').value};
-  const ok=await sbInsert('ventes',obj);
-  if(ok){VENTES.push(obj);closeModal('m-vente');renderRent();toast('Vente enregistrée ✓','ok');}
+  const lignes=[...document.querySelectorAll('#v-lignes-list .v-ligne')].map(l=>({
+    bij_id:l.querySelector('.v-l-bij').value,
+    qty:+l.querySelector('.v-l-qty').value||1,
+    prix:+l.querySelector('.v-l-prix').value||0
+  })).filter(l=>l.bij_id&&l.prix>0);
+  if(!lignes.length) return toast('Ajoutez au moins un produit avec un prix','err');
+  const cmdId=uid();
+  const cmd={
+    id:cmdId,
+    date:document.getElementById('v-date').value,
+    canal:document.getElementById('v-canal').value,
+    ref_plateforme:document.getElementById('v-ref-plateforme').value||null,
+    client_nom:document.getElementById('v-client').value||null,
+    frais_livraison:+document.getElementById('v-livraison').value||0,
+    note:document.getElementById('v-note').value||null,
+    statut:'confirmee'
+  };
+  const okCmd=await sbInsert('commandes',cmd);
+  if(!okCmd) return;
+  COMMANDES.push(cmd);
+  // Insérer chaque ligne de vente
+  for(const l of lignes) {
+    const obj={id:uid(),bij_id:l.bij_id,qty:l.qty,prix:l.prix,
+      date:cmd.date,canal:cmd.canal,note:cmd.note,commande_id:cmdId};
+    const ok=await sbInsert('ventes',obj);
+    if(ok) VENTES.push(obj);
+  }
+  closeModal('m-vente');
+  renderRent();
+  renderCompta();
+  toast(`Commande enregistrée — ${lignes.length} produit(s) ✓`,'ok');
 }
 async function delVente(id) {
+  const v=VENTES.find(x=>x.id===id);
   const ok=await sbDelete('ventes',id);
-  if(ok){VENTES=VENTES.filter(v=>v.id!==id);renderRent();toast('Supprimé','ok');}
+  if(ok){
+    VENTES=VENTES.filter(x=>x.id!==id);
+    // Supprimer la commande si plus aucune vente liée
+    if(v?.commande_id) {
+      const remaining=VENTES.filter(x=>x.commande_id===v.commande_id);
+      if(!remaining.length) {
+        await sbDelete('commandes',v.commande_id);
+        COMMANDES=COMMANDES.filter(c=>c.id!==v.commande_id);
+      }
+    }
+    renderRent(); renderCompta(); toast('Supprimé','ok');
+  }
 }
 
 function openRentEdit(bijId) {
