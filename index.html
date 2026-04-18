@@ -1399,7 +1399,14 @@ async function loadAll() {
   updateFournisseursDatalist();
   // Afficher onglet Tout par défaut
   CUR_MAT_TYPE='tout';
+  // Construire MAIN_CATS depuis MATS (source de vérité absolue)
   MAIN_CATS={};
+  MATS.forEach(m=>{
+    if(!m.mc) return;
+    if(!MAIN_CATS[m.mc]) MAIN_CATS[m.mc]=[];
+    if(m.sc&&!MAIN_CATS[m.mc].includes(m.sc)) MAIN_CATS[m.mc].push(m.sc);
+  });
+  // Compléter avec la config Supabase
   Object.values(CATS_BY_TYPE).forEach(cats=>{
     Object.entries(cats||{}).forEach(([mc,scs])=>{
       if(!MAIN_CATS[mc]) MAIN_CATS[mc]=[];
@@ -2325,8 +2332,14 @@ function switchMatType(type) {
   const btnCat=document.getElementById('btn-addcat');
   if(btnCat) btnCat.style.display=type==='tout'?'none':'';
   if(type==='tout') {
+    // Construire depuis MATS directement (source de vérité)
     MAIN_CATS={};
-    // Fusionner toutes les catégories pour la barre
+    MATS.forEach(m=>{
+      if(!m.mc) return;
+      if(!MAIN_CATS[m.mc]) MAIN_CATS[m.mc]=[];
+      if(m.sc&&!MAIN_CATS[m.mc].includes(m.sc)) MAIN_CATS[m.mc].push(m.sc);
+    });
+    // Compléter avec CATS_BY_TYPE si des catégories manquent
     Object.values(CATS_BY_TYPE).forEach(cats=>{
       Object.entries(cats||{}).forEach(([mc,scs])=>{
         if(!MAIN_CATS[mc]) MAIN_CATS[mc]=[];
@@ -2334,16 +2347,20 @@ function switchMatType(type) {
       });
     });
   } else {
-    let cats=CATS_BY_TYPE[type]||{};
-    // Fallback depuis les matériaux si cats vide
-    if(!Object.keys(cats).length) {
-      cats={};
-      MATS.filter(m=>(m.type||'creation')===type).forEach(m=>{
-        if(!cats[m.mc]) cats[m.mc]=[];
-        if(m.sc&&!cats[m.mc].includes(m.sc)) cats[m.mc].push(m.sc);
-      });
-    }
-    MAIN_CATS=cats;
+    // Toujours construire depuis MATS pour ce type
+    const catsFromMats={};
+    MATS.filter(m=>(m.type||'creation')===type).forEach(m=>{
+      if(!m.mc) return;
+      if(!catsFromMats[m.mc]) catsFromMats[m.mc]=[];
+      if(m.sc&&!catsFromMats[m.mc].includes(m.sc)) catsFromMats[m.mc].push(m.sc);
+    });
+    // Compléter avec CATS_BY_TYPE (pour les catégories sans matériaux encore)
+    const catsCfg=CATS_BY_TYPE[type]||{};
+    Object.entries(catsCfg).forEach(([mc,scs])=>{
+      if(!catsFromMats[mc]) catsFromMats[mc]=[];
+      scs.forEach(sc=>{ if(!catsFromMats[mc].includes(sc)) catsFromMats[mc].push(sc); });
+    });
+    MAIN_CATS=catsFromMats;
   }
   // Couleurs
   Object.keys(MAIN_CATS).forEach(mc=>{
@@ -3682,7 +3699,7 @@ function renderRent() {
   if(!Object.keys(prodByBij).length){
     prodHtml='<div class="empty"><div class="empty-icon">🏭</div><p>Aucune production enregistrée</p></div>';
   } else {
-    prodHtml='<div class="tbl-wrap"><table><thead><tr><th>Bijou</th><th>Réf.</th><th>Produits</th><th>Vendus</th><th>Stock dispo</th><th>Coût total</th></tr></thead><tbody>';
+    prodHtml='<div class="tbl-wrap"><table><thead><tr><th>Bijou</th><th>Réf.</th><th>Produits</th><th>Vendus</th><th>Stock dispo</th><th>Coût mat.</th><th>PV unit.</th><th>Marge</th></tr></thead><tbody>';
     Object.entries(prodByBij).forEach(([bijId,qProd])=>{
       const b=getBij(bijId); if(!b) return;
       const vt=venteTot(bijId);
@@ -3690,16 +3707,22 @@ function renderRent() {
       const cout=coutBijou(b);
       // Détail des lignes de production pour ce bijou
       const prodsLignes=PRODS.filter(p=>p.bij_id===bijId);
+      const pv=b.pv||null;
+      const pm=prixMin(b);
+      const pvAff=pv||pm;
+      const marge=pvAff&&cout>0?Math.round(((pvAff-cout)/pvAff)*100):null;
       prodHtml+=`<tr style="cursor:pointer" onclick="toggleProdDetail('pd_${bijId}')">
         <td style="font-size:12px;font-weight:600">${b.nom}${b.variante?' · '+b.variante:''}</td>
         <td class="ref">${b.ref||'--'}</td>
         <td><b>${n(qProd)}</b></td>
         <td style="color:var(--green)">${n(vt.qty)}</td>
         <td><b style="color:${stock<0?'var(--red)':stock===0?'var(--muted)':'var(--green)'}">${n(stock)}</b></td>
-        <td class="${cout>0?'hi':'dim'}">${cout>0?eur(cout*qProd):'--'}</td>
+        <td class="dim">${cout>0?eur(cout):'--'}</td>
+        <td style="color:var(--purple);font-weight:600">${pvAff?eur(pvAff):'<span class="dim">--</span>'}</td>
+        <td>${marge!==null?`<span class="badge ${marge>=30?'bgn':marge>=10?'bp':'br'}">${marge}%</span>`:'<span class="dim">--</span>'}</td>
       </tr>
       <tr id="pd_${bijId}" style="display:none">
-        <td colspan="6" style="padding:0">
+        <td colspan="8" style="padding:0">
           <div style="padding:6px 10px;background:var(--purpleP)">
             ${prodsLignes.map(p=>`
               <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;font-size:12px">
