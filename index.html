@@ -685,6 +685,25 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
  </div>
 </div>
 
+<!-- SÉLECTION MATÉRIAU POUR DÉPENSE -->
+<div id="m-dep-select" class="overlay" onclick="bgClose(event,this)">
+ <div class="modal">
+  <div class="drag"></div>
+  <div class="modal-title">Nouvelle dépense — choisir un matériau</div>
+  <div class="fg">
+   <input id="dep-mat-search" type="search" placeholder="🔍 Référence, désignation…"
+     oninput="filterDepMatList()"
+     style="font-size:13px;padding:10px 14px;border-radius:20px;margin-bottom:8px">
+   <div id="dep-mat-list" style="max-height:260px;overflow-y:auto;border:1.5px solid var(--border);border-radius:var(--rs);background:#fff"></div>
+   <input type="hidden" id="dep-mat-sel-id">
+  </div>
+  <div class="mfoot">
+   <button class="btn btn-ghost" onclick="closeModal('m-dep-select')">Annuler</button>
+   <button class="btn btn-p" onclick="onDepMatConfirm()">Suivant →</button>
+  </div>
+ </div>
+</div>
+
 <!-- RÉAPPRO -->
 <div id="m-reappro" class="overlay" onclick="bgClose(event,this)">
  <div class="modal">
@@ -1588,11 +1607,20 @@ function openReappro(id) {
   const sc=stockCumul(m), pu=puMoyen(m);
   document.getElementById('ra-info').innerHTML=`
     <div style="background:var(--purpleP);border-radius:var(--rs);padding:10px 12px;margin-bottom:10px">
-      <div style="font-weight:700;color:var(--purple)">${m.ref} -- ${m.designation||m.des||''} ${m.variante||''}</div>
-      <div style="font-size:12px;color:var(--muted);margin-top:3px">Stock: <b>${n(sc)}</b> · PU moyen: <b>${pu?eur(pu,4):'--'}</b></div>
+      <div style="font-weight:700;color:var(--purple)">${m.ref} · ${m.designation||m.des||''} ${m.variante||''}</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:3px">
+        Stock actuel: <b>${n(sc)}</b> · PU moyen: <b>${pu?eur(pu,4):'--'}</b>
+        ${m.fournisseur?` · Fournisseur habituel: <b>${m.fournisseur}</b>`:''}
+      </div>
     </div>`;
   document.getElementById('ra-date').value=today();
-  ['ra-qty','ra-nb','ra-prix','ra-note','ra-fournisseur'].forEach(i=>{const el=document.getElementById(i);if(el)el.value=i==='ra-nb'?'1':'';});
+  // Pré-remplir depuis la fiche (modifiable)
+  const nbEl=document.getElementById('ra-nb'); if(nbEl) nbEl.value='1';
+  const prixEl=document.getElementById('ra-prix');
+  if(prixEl) prixEl.value=m.prix?+(m.prix/Math.max(1,+(m.qty||1))).toFixed(4):'';
+  const fourEl=document.getElementById('ra-fournisseur'); if(fourEl) fourEl.value=m.fournisseur||'';
+  const noteEl=document.getElementById('ra-note'); if(noteEl) noteEl.value='';
+  const qtyEl=document.getElementById('ra-qty'); if(qtyEl) qtyEl.value='';
   document.getElementById('ra-preview').innerHTML='';
   setRAStatutModal('valide');
   previewRA();
@@ -2018,10 +2046,47 @@ function openDepModal(matId) {
   }
 }
 
+function renderDepMatList(filter='') {
+  const q=filter.toLowerCase();
+  const filtered=MATS.filter(m=>
+    !q||
+    (m.ref||'').toLowerCase().includes(q)||
+    (m.designation||m.des||'').toLowerCase().includes(q)||
+    (m.variante||'').toLowerCase().includes(q)||
+    (m.fournisseur||'').toLowerCase().includes(q)
+  );
+  const curSel=document.getElementById('dep-mat-sel-id')?.value;
+  document.getElementById('dep-mat-list').innerHTML=filtered.map(m=>`
+    <div onclick="selectDepMat('${m.id}')" data-id="${m.id}"
+      style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px;
+      background:${m.id===curSel?'var(--purpleP)':'#fff'};transition:background .1s">
+      <span class="ref" style="color:var(--purple)">${m.ref}</span>
+      <span style="margin-left:6px">${m.designation||m.des||''} ${m.variante?'· '+m.variante:''}</span>
+      <span style="font-size:11px;color:var(--muted);margin-left:4px">${m.fournisseur?'— '+m.fournisseur:''}</span>
+    </div>`).join('')||'<div style="padding:10px;color:var(--muted);font-size:12px">Aucun matériau trouvé</div>';
+  // Sélectionner le premier par défaut si rien de sélectionné
+  if(!curSel&&filtered.length) selectDepMat(filtered[0].id);
+}
+function selectDepMat(id) {
+  document.getElementById('dep-mat-sel-id').value=id;
+  document.querySelectorAll('#dep-mat-list [data-id]').forEach(el=>{
+    el.style.background=el.dataset.id===id?'var(--purpleP)':'#fff';
+  });
+}
+function filterDepMatList() {
+  renderDepMatList(document.getElementById('dep-mat-search')?.value||'');
+}
 function openDepSelectModal() {
-  const sel=document.getElementById('dep-mat-sel');
-  if(sel) sel.innerHTML=MATS.map(m=>`<option value="${m.id}">${m.ref} — ${m.designation||m.des||''} ${m.variante||''}</option>`).join('');
+  document.getElementById('dep-mat-search').value='';
+  document.getElementById('dep-mat-sel-id').value='';
+  renderDepMatList();
   openModal('m-dep-select');
+}
+function onDepMatConfirm() {
+  const id=document.getElementById('dep-mat-sel-id').value;
+  if(!id) return toast('Sélectionnez un matériau','err');
+  closeModal('m-dep-select');
+  openReappro(id);
 }
 
 function switchGTab(tab) {
@@ -2955,7 +3020,8 @@ function renderRent() {
   const depTotal=MATS.reduce((s,m)=>s+(+m.prix||0),0)+REAPPROS.reduce((s,r)=>s+(+r.prix||0),0);
   const ca=VENTES.reduce((s,v)=>s+(+v.qty||0)*(+v.prix||0),0);
   const ben=ca-depTotal;
-  document.getElementById('rent-stats').innerHTML=`
+  const rsEl=document.getElementById('rent-stats');
+  if(rsEl) rsEl.innerHTML=`
     <div class="stat red"><div class="v">${eur(depTotal)}</div><div class="l">Dépenses</div></div>
     <div class="stat grn"><div class="v">${eur(ca)}</div><div class="l">CA total</div></div>
     <div class="stat ${ben>=0?'grn':'red'}"><div class="v">${eur(ben)}</div><div class="l">Bénéfice net</div></div>`;
@@ -2999,11 +3065,14 @@ function renderRent() {
     });
     prodHtml+='</tbody></table></div>';
   }
-  document.getElementById('prod-list-body').innerHTML=prodHtml;
-  const creatProd=document.getElementById('creat-prod-list-body');
-  if(creatProd) creatProd.innerHTML=prodHtml;
+  // Écrire dans les deux containers (prod-list-body peut ne pas exister)
+  ['prod-list-body','creat-prod-list-body'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.innerHTML=prodHtml;
+  });
+  const rentStats=document.getElementById('rent-stats');
   const creatStats=document.getElementById('creat-rent-stats');
-  if(creatStats) creatStats.innerHTML=document.getElementById('rent-stats').innerHTML;
+  if(creatStats&&rentStats) creatStats.innerHTML=rentStats.innerHTML;
 
   // ── Ventes
   if(!VENTES.length){document.getElementById('rent-body').innerHTML=`<div class="empty"><div class="empty-icon">💰</div><p>Aucune vente enregistrée</p></div>`;return;}
