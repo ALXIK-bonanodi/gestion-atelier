@@ -128,6 +128,7 @@ main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0;backgr
 .gtab-on{color:var(--purple);border-bottom-color:var(--purple);background:var(--purpleP)}
 .sub-tab{padding:9px 12px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;transition:.12s;-webkit-user-select:none}
 .sub-tab:active{background:var(--purpleP)}
+.fab-top{position:fixed;bottom:80px;right:16px;z-index:200;width:40px;height:40px;border-radius:50%;background:var(--purple);color:#fff;border:none;font-size:18px;box-shadow:0 3px 10px rgba(107,78,142,.4);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.2s;-webkit-user-select:none}
 .sub-tab-on{color:var(--purple);border-bottom-color:var(--purple);background:var(--purpleP)}
 .cat-section{display:flex;align-items:flex-start;flex-wrap:wrap;gap:4px;margin-bottom:6px}
 .cat-section:last-child{margin-bottom:0}
@@ -351,7 +352,8 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
 
 <div id="p-mat" class="page on" style="padding:0">
   <!-- BARRE DE NAVIGATION FIXE -->
-  <div id="gestion-nav" style="position:sticky;top:0;z-index:50;background:#fff;box-shadow:0 2px 8px rgba(26,18,40,.08)">
+  <div style="position:sticky;top:0;z-index:50;background:#fff;box-shadow:0 2px 8px rgba(26,18,40,.08)">
+  <div id="gestion-nav" style="max-width:960px;margin:0 auto;width:100%">
     <!-- Onglets principaux -->
     <div style="display:flex;border-bottom:2px solid var(--border)">
       <div id="gtab-mat" onclick="switchGTab('mat')" class="gtab gtab-on">📦 Matériaux</div>
@@ -374,6 +376,8 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
       <button id="sflt-outil" class="btn btn-ghost btn-sm" onclick="switchStockFlt('outil')">🔧 Outils</button>
     </div>
   </div>
+  </div><!-- /outer sticky -->
+  <button class="fab-top" id="fab-top-mat" onclick="document.getElementById('main-area').scrollTop=0" title="Haut de page">↑</button>
 
   <!-- PANEL MATÉRIAUX -->
   <div id="gpanel-mat" style="padding:12px;max-width:960px;margin:0 auto">
@@ -420,11 +424,15 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
       <div class="card-bd">
         <div class="abar">
           <button class="btn btn-p" onclick="openBijModal()">＋ Nouveau bijou</button>
-          <select id="flt-coll" onchange="renderBij()" style="width:auto;flex:1;max-width:140px;font-size:12px;padding:8px 26px 8px 10px"></select>
           <select id="flt-status" onchange="renderBij()" style="width:auto;font-size:12px;padding:8px 26px 8px 10px">
             <option value="">Tous</option><option value="ok">Complets</option><option value="draft">Brouillons</option>
           </select>
+          <div style="display:flex;gap:4px">
+            <button id="bij-view-list" class="btn btn-p btn-sm" onclick="setBijView('list')" title="Vue liste">☰</button>
+            <button id="bij-view-grid" class="btn btn-ghost btn-sm" onclick="setBijView('grid')" title="Vue grille">⊞</button>
+          </div>
         </div>
+        <div id="bij-coll-bar" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px"></div>
         <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap">
           <input id="bij-search" type="search" placeholder="🔍 Rechercher…" oninput="renderBij()" style="font-size:13px;padding:10px 14px;border-radius:20px;flex:1;min-width:160px">
           <button class="btn btn-ghost btn-sm" onclick="showBijDiag()">🔍 Doublons</button>
@@ -449,6 +457,7 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
     </div>
   </div>
 </div>
+  <button class="fab-top" id="fab-top-bij" onclick="document.getElementById('main-area').scrollTop=0" title="Haut de page">↑</button>
 
 <!-- stock panel moved into p-mat -->
 
@@ -1617,7 +1626,7 @@ function openReappro(id) {
   // Pré-remplir depuis la fiche (modifiable)
   const nbEl=document.getElementById('ra-nb'); if(nbEl) nbEl.value='1';
   const prixEl=document.getElementById('ra-prix');
-  if(prixEl) prixEl.value=m.prix?+(m.prix/Math.max(1,+(m.qty||1))).toFixed(4):'';
+  if(prixEl) prixEl.value=m.prix||'';
   const fourEl=document.getElementById('ra-fournisseur'); if(fourEl) fourEl.value=m.fournisseur||'';
   const noteEl=document.getElementById('ra-note'); if(noteEl) noteEl.value='';
   const qtyEl=document.getElementById('ra-qty'); if(qtyEl) qtyEl.value='';
@@ -1926,10 +1935,11 @@ function buildCatBar() {
     Object.entries(cats||{}).forEach(([mc,scs])=>{
       const active=scs.filter(sc=>MATS.some(m=>m.sc===sc&&(CUR_MAT_TYPE==='tout'||(m.type||'creation')===CUR_MAT_TYPE)));
       if(!active.length) return;
-      html+=`<div class="cat-section"><div class="cat-label" style="color:${MAIN_CLR[mc]||'#888'}">${mc}</div>
+      html+=`<div class="cat-section">
+        <span class="chip" style="background:${MAIN_CLR[mc]||'#888'};font-weight:700" onclick="jumpToMC('${mc}')">${mc}</span>
         ${active.map(sc=>`<span class="chip" style="background:${SC_CLR[sc]||'#888'}" onclick="jumpToSC('${sc}')">${sc}</span>`).join('')}
       </div>`;
-      opts+=`<optgroup label="${mc}">${active.map(sc=>`<option value="${sc}" ${sc===cur?'selected':''}>${sc}</option>`).join('')}</optgroup>`;
+      opts+=`<optgroup label="${mc}"><option value="__mc__${mc}">◆ ${mc} (tout)</option>${active.map(sc=>`<option value="${sc}" ${sc===cur?'selected':''}>${sc}</option>`).join('')}</optgroup>`;
     });
   });
   bar.innerHTML=html||'';
@@ -2149,7 +2159,7 @@ function renderMat() {
   const search=(document.getElementById('mat-search')?.value||'').toLowerCase().trim();
   // Filtrer par type courant (tout = pas de filtre type)
   let mats=CUR_MAT_TYPE==='tout'?[...MATS]:MATS.filter(m=>(m.type||'creation')===CUR_MAT_TYPE);
-  if(filter) mats=mats.filter(m=>m.sc===filter);
+  if(filter && filter.startsWith('__mc__')) { const mc=filter.slice(6); mats=mats.filter(m=>m.mc===mc); } else if(filter) { mats=mats.filter(m=>m.sc===filter); }
   if(search) mats=mats.filter(m=>
     (m.ref||'').toLowerCase().includes(search)||
     (m.designation||m.des||'').toLowerCase().includes(search)||
@@ -2164,7 +2174,7 @@ function renderMat() {
   });
   let html='';
   Object.entries(tree).forEach(([mc,subs])=>{
-    html+=`<div class="main-ban" style="background:${MAIN_CLR[mc]||'#888'}">◆ ${mc.toUpperCase()}</div>`;
+    html+=`<div id="anc-mc-${esc(mc)}" class="main-ban" style="background:${MAIN_CLR[mc]||'#888'}">◆ ${mc.toUpperCase()}</div>`;
     Object.entries(subs).forEach(([sc,mats])=>{
       html+=`<div id="anc-${esc(sc)}" class="sub-ban" style="background:${SC_CLR[sc]||'#888'}">${sc}</div>
       <div class="tbl-wrap"><table>
@@ -2196,6 +2206,7 @@ function renderMat() {
 
 const esc = s=>s.replace(/[^a-z0-9]/gi,'_');
 function jumpToSC(sc){document.getElementById('anc-'+esc(sc))?.scrollIntoView({behavior:'smooth',block:'start'});}
+function jumpToMC(mc){document.getElementById('anc-mc-'+esc(mc))?.scrollIntoView({behavior:'smooth',block:'start'});}
 
 // ═══════════════════════════════════════════════════════
 // BIJOUX
@@ -2441,12 +2452,27 @@ async function quickSetPV(id) {
   if(ok){const i=BIJS.findIndex(b=>b.id===id);if(i>=0)BIJS[i].pv=pv;renderBij();toast('Prix de vente enregistré ✓','ok');}
 }
 
+let BIJ_COLL_FLT='';
+let BIJ_VIEW='list';
+function setBijView(v){
+  BIJ_VIEW=v;
+  const el1=document.getElementById('bij-view-list');
+  const el2=document.getElementById('bij-view-grid');
+  if(el1) el1.className=v==='list'?'btn btn-p btn-sm':'btn btn-ghost btn-sm';
+  if(el2) el2.className=v==='grid'?'btn btn-p btn-sm':'btn btn-ghost btn-sm';
+  renderBij();
+}
+function setBijCollFlt(coll){
+  BIJ_COLL_FLT=coll;
+  renderBij();
+}
 function renderBij() {
-  const colls=[...new Set(BIJS.map(b=>b.collection))];
-  const collSel=document.getElementById('flt-coll');
-  const curColl=collSel.value;
-  collSel.innerHTML='<option value="">Toutes collections</option>'+colls.map(c=>`<option ${c===curColl?'selected':''}>${c}</option>`).join('');
-  const fc=collSel.value, fs=document.getElementById('flt-status').value;
+  const colls=[...new Set(BIJS.map(b=>b.collection).filter(Boolean))];
+  const collBar=document.getElementById('bij-coll-bar');
+  if(collBar) collBar.innerHTML=
+    `<span class="chip" style="background:${BIJ_COLL_FLT===''?'var(--purple)':'#888'}" onclick="setBijCollFlt('')">Toutes</span>`+
+    colls.map(coll=>`<span class="chip" style="background:${BIJ_COLL_FLT===coll?'var(--purple)':'var(--dark)'}" onclick="setBijCollFlt('${coll}')">${coll}</span>`).join('');
+  const fc=BIJ_COLL_FLT, fs=document.getElementById('flt-status').value;
   const search=(document.getElementById('bij-search')?.value||'').toLowerCase().trim();
   let bijs=BIJS;
   if(fc) bijs=bijs.filter(b=>b.collection===fc);
@@ -2461,8 +2487,10 @@ function renderBij() {
   if(!bijs.length){document.getElementById('bij-body').innerHTML=`<div class="empty"><div class="empty-icon">💎</div><p>Aucun bijou</p></div>`;return;}
   const byC={};
   bijs.forEach(b=>{if(!byC[b.collection])byC[b.collection]=[];byC[b.collection].push(b);});
+  const isGrid=BIJ_VIEW==='grid';
   document.getElementById('bij-body').innerHTML=Object.entries(byC).map(([coll,bs])=>`
     <div class="main-ban" style="background:var(--dark)">◆ ${coll.toUpperCase()}</div>
+    ${isGrid?'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:6px">':''}
     ${bs.map(b=>{
       const cout=coutBijou(b),pm=prixMin(b),draft=isDraft(b),noSell=b.no_sell||false;
       return `<div class="bij-card">
@@ -2488,7 +2516,6 @@ function renderBij() {
             <tbody>${(b.mats||[]).map(m=>{
               const mat=getMat(m.ref);
               const pu=mat?puMoyen(mat):null;
-              // Bijou composant ?
               const bijComp=!mat?BIJS.find(bj=>bj.ref===m.ref&&bj.is_mat):null;
               const coutComp=bijComp?coutBijou(bijComp):null;
               const pm2=pu&&m.qty?pu*(+m.qty):(coutComp&&m.qty?coutComp*(+m.qty):null);
@@ -2545,14 +2572,10 @@ function renderBij() {
                </div>`}
         </div>
       </div>`;
-    }).join('')}`).join('');
+    }).join('')}
+    ${isGrid?'</div>':''}
+  `).join('');
 }
-
-// ═══════════════════════════════════════════════════════
-// STOCK
-// ═══════════════════════════════════════════════════════
-// Base ref = strip trailing letters: #AI001b -> #AI001
-function baseRef(ref){ return ref.replace(/[a-z]+$/i,''); }
 
 function renderStock() {
   // Filter by type
