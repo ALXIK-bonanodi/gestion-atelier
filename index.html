@@ -1193,6 +1193,7 @@ async function loadAll() {
     });
   });
   renderMat();
+  renderRent();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1942,14 +1943,7 @@ function switchCreatTab(tab) {
 }
 
 function renderCreatProd() {
-  // Copier les données de prod-list-body vers creat-prod-list-body
   renderRent();
-  const src=document.getElementById('prod-list-body');
-  const dst=document.getElementById('creat-prod-list-body');
-  if(src&&dst) dst.innerHTML=src.innerHTML;
-  const statsSrc=document.getElementById('rent-stats');
-  const statsDst=document.getElementById('creat-rent-stats');
-  if(statsSrc&&statsDst) statsDst.innerHTML=statsSrc.innerHTML;
 }
 
 let DEP_MODAL_MAT_ID=null;
@@ -2956,6 +2950,10 @@ function renderRent() {
     prodHtml+='</tbody></table></div>';
   }
   document.getElementById('prod-list-body').innerHTML=prodHtml;
+  const creatProd=document.getElementById('creat-prod-list-body');
+  if(creatProd) creatProd.innerHTML=prodHtml;
+  const creatStats=document.getElementById('creat-rent-stats');
+  if(creatStats) creatStats.innerHTML=document.getElementById('rent-stats').innerHTML;
 
   // ── Ventes
   if(!VENTES.length){document.getElementById('rent-body').innerHTML=`<div class="empty"><div class="empty-icon">💰</div><p>Aucune vente enregistrée</p></div>`;return;}
