@@ -352,8 +352,8 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
 
 <div id="p-mat" class="page on" style="padding:0">
   <!-- BARRE DE NAVIGATION FIXE -->
-  <div style="position:sticky;top:0;z-index:50;background:#fff;box-shadow:0 2px 8px rgba(26,18,40,.08)">
-  <div id="gestion-nav" style="max-width:960px;margin:0 auto;width:100%">
+  <div style="position:sticky;top:0;z-index:50;box-shadow:0 2px 8px rgba(26,18,40,.08)">
+  <div id="gestion-nav" style="max-width:960px;margin:0 auto;background:#fff">
     <!-- Onglets principaux -->
     <div style="display:flex;border-bottom:2px solid var(--border)">
       <div id="gtab-mat" onclick="switchGTab('mat')" class="gtab gtab-on">📦 Matériaux</div>
@@ -368,7 +368,7 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
       <div id="mtype-outil" onclick="switchMatType('outil')" class="sub-tab">🔧 Outils</div>
     </div>
     <!-- Sous-onglets stock (masqués par défaut) -->
-    <div id="subnav-stock" style="display:none;border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:6px 10px;gap:6px;flex-wrap:wrap">
+    <div id="subnav-stock" style="display:none;border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:6px 10px;gap:6px;align-items:center;flex-wrap:wrap">
       <button id="sflt-all" class="btn btn-p btn-sm" onclick="switchStockFlt('all')">Tout</button>
       <button id="sflt-creation" class="btn btn-ghost btn-sm" onclick="switchStockFlt('creation')">🪡 Création</button>
       <button id="sflt-envoi" class="btn btn-ghost btn-sm" onclick="switchStockFlt('envoi')">📬 Envois</button>
@@ -725,7 +725,7 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
     <div id="ra-qty-calc" style="font-size:11px;color:var(--purple);margin-top:3px"></div>
    </div>
    <div class="fg"><label>Prix total de l'achat (€) *</label>
-    <input id="ra-prix" type="number" step="0.01" oninput="previewRA()">
+    <input id="ra-prix" type="number" step="0.01" oninput="this.dataset.userEdited='1';previewRA()">
    </div>
   </div>
   <input type="hidden" id="ra-qty">
@@ -1626,7 +1626,8 @@ function openReappro(id) {
   // Pré-remplir depuis la fiche (modifiable)
   const nbEl=document.getElementById('ra-nb'); if(nbEl) nbEl.value='1';
   const prixEl=document.getElementById('ra-prix');
-  if(prixEl) prixEl.value=m.prix||'';
+  // Prix suggéré = prix initial de la fiche × nombre de conditionnements (éditable)
+  if(prixEl){ prixEl.value=m.prix||''; prixEl.dataset.userEdited=''; }
   const fourEl=document.getElementById('ra-fournisseur'); if(fourEl) fourEl.value=m.fournisseur||'';
   const noteEl=document.getElementById('ra-note'); if(noteEl) noteEl.value='';
   const qtyEl=document.getElementById('ra-qty'); if(qtyEl) qtyEl.value='';
@@ -1638,13 +1639,16 @@ function openReappro(id) {
 function previewRA() {
   const m=MATS.find(m=>m.id===RA_MAT_ID); if(!m) return;
   const nb=+document.getElementById('ra-nb')?.value||1;
-  const qtyUnit=+(m.qty||0); // quantité unitaire de la référence
-  const addQ=nb*qtyUnit; // quantité totale ajoutée
-  const addP=+document.getElementById('ra-prix').value||0;
-  // Mettre à jour le champ caché ra-qty
+  const qtyUnit=+(m.qty||0);
+  const addQ=nb*qtyUnit;
+  // Suggérer le prix total = prix_fiche × nb (seulement si l'utilisateur n'a pas encore changé)
+  const prixEl=document.getElementById('ra-prix');
+  if(prixEl && prixEl.dataset.userEdited!=='1' && m.prix) {
+    prixEl.value=(+(m.prix)*nb).toFixed(2);
+  }
+  const addP=+prixEl?.value||0;
   const raQtyEl=document.getElementById('ra-qty');
   if(raQtyEl) raQtyEl.value=addQ;
-  // Afficher le calcul
   const calcEl=document.getElementById('ra-qty-calc');
   if(calcEl) calcEl.textContent=nb+' × '+n(qtyUnit)+' = '+n(addQ)+' unités';
   if(!addQ||!addP){document.getElementById('ra-preview').innerHTML='';return;}
@@ -2109,8 +2113,8 @@ function switchGTab(tab) {
   const subMat=document.getElementById('subnav-mat');
   const subStock=document.getElementById('subnav-stock');
   if(subMat) subMat.style.display=isPanMat?'flex':'none';
-  if(subStock) subStock.style.display=isPanMat?'none':'flex';
-  if(!isPanMat) renderStock();
+  if(subStock) { subStock.style.display=isPanMat?'none':'flex'; subStock.style.flexWrap='wrap'; }
+  if(!isPanMat) { renderStock(); }
 }
 
 function switchMatType(type) {
