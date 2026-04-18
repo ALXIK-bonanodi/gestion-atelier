@@ -2582,33 +2582,50 @@ function openBijModal(editId=null) {
   openModal('m-bij');
 }
 
-function buildSCOptions(selectedSc) {
-  // Construire les options groupées par catégorie principale
+function buildSCOptions(selectedMC, selectedSC) {
+  // Valeur = "mc|||sc" pour distinguer les sous-catégories homonymes
+  const selectedVal = selectedMC&&selectedSC ? selectedMC+'|||'+selectedSC : '';
   let opts = '';
-  // Catégories création
+  // Construire depuis MATS directement (source de vérité)
+  const mcMap = {};
+  MATS.filter(m=>m.type==='creation'||!m.type).forEach(m=>{
+    if(!m.mc||!m.sc) return;
+    if(!mcMap[m.mc]) mcMap[m.mc] = new Set();
+    mcMap[m.mc].add(m.sc);
+  });
+  // Compléter avec CATS_BY_TYPE.creation
   Object.entries(CATS_BY_TYPE.creation||{}).forEach(([mc,scs])=>{
-    if(!scs.length) return;
+    if(!mcMap[mc]) mcMap[mc]=new Set();
+    scs.forEach(sc=>mcMap[mc].add(sc));
+  });
+  Object.entries(mcMap).forEach(([mc,scs])=>{
+    if(!scs.size) return;
     opts+=`<optgroup label="◆ ${mc}">`;
-    scs.forEach(sc=>{ opts+=`<option value="${sc}" ${sc===selectedSc?'selected':''}>${sc}</option>`; });
+    scs.forEach(sc=>{
+      const val=mc+'|||'+sc;
+      opts+=`<option value="${val}" ${val===selectedVal?'selected':''}>${sc}</option>`;
+    });
     opts+='</optgroup>';
   });
   // Bijoux composants
   const bijMats=BIJS.filter(b=>b.is_mat);
   if(bijMats.length) {
     opts+=`<optgroup label="◆ Compositions">`;
-    opts+=`<option value="Bijou (composition)" ${selectedSc==='Bijou (composition)'?'selected':''}>💎 Bijou (composition)</option>`;
+    opts+=`<option value="|||Bijou (composition)" ${selectedSC==='Bijou (composition)'?'selected':''}>💎 Bijou (composition)</option>`;
     opts+='</optgroup>';
   }
-  // Si sc existe mais pas dans les cats connues, l'ajouter quand même
-  if(selectedSc && !opts.includes(`value="${selectedSc}"`)) {
-    opts+=`<option value="${selectedSc}" selected>${selectedSc}</option>`;
-  }
-  return opts || MATS.map(m=>m.sc).filter((v,i,a)=>a.indexOf(v)===i).map(sc=>`<option value="${sc}" ${sc===selectedSc?'selected':''}>${sc}</option>`).join('');
+  return opts;
 }
 
 function addMatRow(sc='',ref='',qty='') {
   const c=document.getElementById('bij-mats-list');
-  const scOpts=buildSCOptions(sc);
+  // mc peut être passé séparément, ou déduit depuis MATS
+  let initMC = '', initSC = sc;
+  if(ref) {
+    const matFound = MATS.find(m=>m.ref===ref);
+    if(matFound) { initMC=matFound.mc; initSC=matFound.sc; }
+  }
+  const scOpts=buildSCOptions(initMC, initSC);
   const div=document.createElement('div');
   div.className='mat-row-item';
   div.style.cssText='margin-bottom:10px;padding:10px;background:var(--bg);border-radius:var(--rs);border:1px solid var(--border)';
@@ -2628,10 +2645,21 @@ function addMatRow(sc='',ref='',qty='') {
 function filterBijRefs(sel,preselectRef='') {
   const row=sel.closest('.mat-row-item');
   const refSel=row.querySelector('.bij-ref');
-  const sc=sel.value;
+  const val=sel.value; // format "mc|||sc" ou "|||Bijou (composition)"
+  const parts=val.split('|||');
+  const mc=parts[0]||'';
+  const sc=parts[1]||'';
   let opts='<option value="">-- Réf --</option>';
-  if(sc==='Bijou (composition)'){BIJS.filter(b=>b.is_mat).forEach(b=>{opts+=`<option value="${b.ref}" ${b.ref===preselectRef?'selected':''}>${b.ref} · ${b.nom}${b.variante?' · '+b.variante:''}</option>`;});}
-  else{MATS.filter(m=>m.sc===sc).forEach(m=>{opts+=`<option value="${m.ref}" ${m.ref===preselectRef?'selected':''}>${m.ref} · ${m.variante||m.designation||m.des}</option>`;});}
+  if(sc==='Bijou (composition)') {
+    BIJS.filter(b=>b.is_mat).forEach(b=>{
+      opts+=`<option value="${b.ref}" ${b.ref===preselectRef?'selected':''}>${b.ref} · ${b.nom}${b.variante?' · '+b.variante:''}</option>`;
+    });
+  } else {
+    // Filtrer par mc ET sc pour éviter les doublons inter-catégories
+    MATS.filter(m=>m.sc===sc&&(!mc||m.mc===mc)).forEach(m=>{
+      opts+=`<option value="${m.ref}" ${m.ref===preselectRef?'selected':''}>${m.ref} · ${m.designation||m.des||m.variante||''}</option>`;
+    });
+  }
   refSel.innerHTML=opts;
 }
 
