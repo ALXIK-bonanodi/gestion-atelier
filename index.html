@@ -501,34 +501,37 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
     </div>
   </div>
 
-  <!-- Catégories -->
+  <!-- Catégories par type -->
   <div class="card">
     <div class="card-hd"><h2>🗂 Catégories matériaux</h2></div>
     <div class="card-bd">
-
-      <div style="margin-bottom:16px">
+      <!-- Sélecteur de type -->
+      <div style="display:flex;gap:4px;margin-bottom:14px;flex-wrap:wrap">
+        <button id="p-type-creation" class="btn btn-p btn-sm" onclick="setCfgType('creation')">🪡 Création</button>
+        <button id="p-type-envoi" class="btn btn-ghost btn-sm" onclick="setCfgType('envoi')">📬 Envois</button>
+        <button id="p-type-consommable" class="btn btn-ghost btn-sm" onclick="setCfgType('consommable')">🧪 Consommables</button>
+        <button id="p-type-outil" class="btn btn-ghost btn-sm" onclick="setCfgType('outil')">🔧 Outils</button>
+      </div>
+      <div style="margin-bottom:14px">
         <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Catégories principales</div>
-        <div id="m-cfg-mc-list"></div>
+        <div id="p-cfg-mc-list"></div>
         <div style="display:flex;gap:6px;margin-top:8px">
-          <input id="m-new-mc-name" placeholder="Nouvelle catégorie principale" style="flex:1">
-          <button class="btn btn-p btn-sm" onclick="addMainCat()">＋ Ajouter</button>
+          <input id="p-new-mc-name" placeholder="Nouvelle catégorie principale" style="flex:1">
+          <button class="btn btn-p btn-sm" onclick="addMainCat('params')">＋ Ajouter</button>
         </div>
       </div>
-
-      <div style="margin-bottom:16px">
-        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Ajouter une sous-catégorie</div>
-        <div class="r2" style="margin-bottom:6px">
-          <select id="addcat-mc"></select>
-          <input id="addcat-name" placeholder="Nom de la sous-catégorie">
+      <div style="margin-bottom:14px">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Nouvelle sous-catégorie</div>
+        <div style="display:flex;gap:6px;margin-bottom:6px">
+          <select id="p-addcat-mc" style="flex:1"></select>
+          <input id="p-addcat-name" placeholder="Nom de la sous-catégorie" style="flex:1">
+          <button class="btn btn-p btn-sm" onclick="saveNewCat('params')">＋</button>
         </div>
-        <button class="btn btn-p btn-sm" onclick="saveNewCat()">＋ Ajouter la sous-catégorie</button>
       </div>
-
       <div>
         <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Sous-catégories existantes</div>
-        <div id="m-cfg-sc-list"></div>
+        <div id="p-cfg-sc-list"></div>
       </div>
-
     </div>
   </div>
 
@@ -1262,6 +1265,51 @@ function updateFournisseursDatalist() {
   dl.innerHTML=all.map(f=>`<option value="${f}">`).join('');
 }
 
+async function delMainCatCtx(mc, ctx) {
+  const type=getCatCtxType(ctx);
+  if(!CATS_BY_TYPE[type]) return;
+  const used=MATS.filter(m=>m.mc===mc&&(m.type||'creation')===type).length;
+  if(used>0 && !confirm(used+' matériau(x) utilisent cette catégorie. Supprimer quand même ?')) return;
+  delete CATS_BY_TYPE[type][mc];
+  if(type===CUR_MAT_TYPE) MAIN_CATS=CATS_BY_TYPE[type];
+  await saveCatsByType();
+  renderCatListCtx(ctx); renderMat(); toast('Catégorie supprimée','ok');
+}
+async function delSubCatCtx(mc, sc, ctx) {
+  const type=getCatCtxType(ctx);
+  if(!CATS_BY_TYPE[type]||!CATS_BY_TYPE[type][mc]) return;
+  const used=MATS.filter(m=>m.sc===sc&&(m.type||'creation')===type).length;
+  if(used>0 && !confirm(used+' matériau(x) utilisent cette sous-catégorie. Supprimer quand même ?')) return;
+  CATS_BY_TYPE[type][mc]=CATS_BY_TYPE[type][mc].filter(s=>s!==sc);
+  if(type===CUR_MAT_TYPE) MAIN_CATS=CATS_BY_TYPE[type];
+  await saveCatsByType();
+  renderCatListCtx(ctx); renderMat(); toast('Sous-catégorie supprimée','ok');
+}
+async function renameMainCatCtx(oldName, ctx) {
+  const type=getCatCtxType(ctx);
+  const newName=prompt('Nouveau nom pour "'+oldName+'" :', oldName);
+  if(!newName||newName===oldName) return;
+  if(CATS_BY_TYPE[type][newName]) return toast('Ce nom existe déjà','err');
+  const scs=CATS_BY_TYPE[type][oldName];
+  delete CATS_BY_TYPE[type][oldName];
+  CATS_BY_TYPE[type][newName]=scs;
+  MATS.filter(m=>m.mc===oldName&&(m.type||'creation')===type).forEach(m=>m.mc=newName);
+  if(type===CUR_MAT_TYPE) MAIN_CATS=CATS_BY_TYPE[type];
+  await saveCatsByType();
+  renderCatListCtx(ctx); renderMat(); toast('Renommé','ok');
+}
+async function renameSubCatCtx(mc, oldSc, ctx) {
+  const type=getCatCtxType(ctx);
+  const newSc=prompt('Nouveau nom pour "'+oldSc+'" :', oldSc);
+  if(!newSc||newSc===oldSc) return;
+  const idx=CATS_BY_TYPE[type][mc]?.indexOf(oldSc);
+  if(idx>=0) CATS_BY_TYPE[type][mc][idx]=newSc;
+  MATS.filter(m=>m.sc===oldSc&&(m.type||'creation')===type).forEach(m=>m.sc=newSc);
+  if(type===CUR_MAT_TYPE) MAIN_CATS=CATS_BY_TYPE[type];
+  await saveCatsByType();
+  renderCatListCtx(ctx); renderMat(); toast('Sous-catégorie renommée','ok');
+}
+
 async function addFournisseur(val) {
   val=val?.trim(); if(!val||FOURNISSEURS.includes(val)) return;
   FOURNISSEURS.push(val);
@@ -1515,7 +1563,7 @@ function switchCfgTab(el, showId) {
     const d=document.getElementById(id); if(d) d.style.display=id===showId?'block':'none';
   });
   if(showId==='cfg-fours') renderFourList();
-  else renderCatList();
+  else { renderCatListCtx('modal'); renderCatListCtx('params'); }
 }
 
 function openAddCat() {
@@ -1531,54 +1579,89 @@ function openAddCat() {
   const cc=document.getElementById('cfg-cats'), cf=document.getElementById('cfg-fours');
   if(cc) cc.style.display='block';
   if(cf) cf.style.display='none';
-  renderCatList();
+  renderCatListCtx("modal");
   openModal('m-addcat');
 }
 
-function renderCatList() {
-  // Main cats list
-  const mcEl=document.getElementById('m-cfg-mc-list');
-  mcEl.innerHTML=Object.keys(MAIN_CATS).map(mc=>`
+function renderCatList() { renderCatListCtx("modal"); }
+
+function getCatCtxType(ctx) {
+  return ctx==='params' ? (ADDCAT_CFG_TYPE||CUR_MAT_TYPE||'creation') : (CUR_MAT_TYPE||'creation');
+}
+function getCatCtxPrefix(ctx) { return ctx==='params' ? 'p-' : 'm-'; }
+
+let ADDCAT_CFG_TYPE = 'creation';
+
+function setCfgType(type) {
+  ADDCAT_CFG_TYPE = type;
+  ['creation','envoi','consommable','outil'].forEach(t=>{
+    const btn=document.getElementById('p-type-'+t);
+    if(btn) btn.className=t===type?'btn btn-p btn-sm':'btn btn-ghost btn-sm';
+  });
+  // Mettre à jour MAIN_CATS et rafraîchir la liste
+  MAIN_CATS=CATS_BY_TYPE[type]||{};
+  renderCatListCtx('params');
+}
+
+function renderCatListCtx(ctx) {
+  const pfx = getCatCtxPrefix(ctx);
+  const type = getCatCtxType(ctx);
+  const cats = CATS_BY_TYPE[type]||{};
+  const mcEl=document.getElementById(pfx+'cfg-mc-list');
+  if(!mcEl) return;
+  mcEl.innerHTML=Object.keys(cats).map(mc=>`
     <div style="display:flex;align-items:center;gap:6px;padding:5px 8px;background:var(--bg);border-radius:var(--rx);margin-bottom:4px">
       <span style="flex:1;font-size:13px;font-weight:600">${mc}</span>
-      <span style="font-size:10px;color:var(--muted)">${MAIN_CATS[mc].length} sous-cat.</span>
-      <button class="btn btn-xs btn-red" onclick="delMainCat('${mc}')" title="Supprimer">✕</button>
-    </div>`).join('');
-
-  // Update mc select
-  document.getElementById('m-addcat-mc').innerHTML=Object.keys(MAIN_CATS).map(mc=>`<option>${mc}</option>`).join('');
-
-  // Sub cats list grouped -- 2 colonnes + renommer
-  const scEl=document.getElementById('m-cfg-sc-list');
+      <span style="font-size:10px;color:var(--muted)">${cats[mc].length} sous-cat.</span>
+      <button class="btn btn-xs btn-ghost" onclick="renameMainCatCtx('${mc}','${ctx}')">✎</button>
+      <button class="btn btn-xs btn-red" onclick="delMainCatCtx('${mc}','${ctx}')">✕</button>
+    </div>`).join('')||'<div style="font-size:12px;color:var(--muted);padding:4px">Aucune catégorie</div>';
+  const mcSel=document.getElementById(pfx+'addcat-mc');
+  if(mcSel) mcSel.innerHTML=Object.keys(cats).map(mc=>`<option>${mc}</option>`).join('');
+  const scEl=document.getElementById(pfx+'cfg-sc-list');
+  if(!scEl) return;
   let html='';
-  Object.entries(MAIN_CATS).forEach(([mc,scs])=>{
+  Object.entries(cats).forEach(([mc,scs])=>{
     if(!scs.length) return;
     html+=`<div style="margin-bottom:12px">
-      <div style="font-size:10px;font-weight:700;color:var(--purple);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">${mc}
-        <button class="btn btn-xs btn-ghost" style="margin-left:6px" onclick="renameMainCat('${mc}')">✎</button>
+      <div style="font-size:10px;font-weight:700;color:var(--purple);margin-bottom:6px;text-transform:uppercase">${mc}
+        <button class="btn btn-xs btn-ghost" style="margin-left:6px" onclick="renameMainCatCtx('${mc}','${ctx}')">✎</button>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">`;
     html+=scs.map(sc=>`
         <div style="display:flex;align-items:center;gap:4px;padding:5px 8px;background:var(--bg);border-radius:var(--rx)">
-          <span style="flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${sc}">${sc}</span>
-          <span style="font-size:9px;color:var(--muted);flex-shrink:0">${MATS.filter(m=>m.sc===sc).length}</span>
-          <button class="btn btn-xs btn-ghost" style="padding:3px 6px" onclick="renameSubCat('${mc}','${sc}')" title="Renommer">✎</button>
-          <button class="btn btn-xs btn-red" style="padding:3px 6px" onclick="delSubCat('${mc}','${sc}')" title="Supprimer">✕</button>
+          <span style="flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${sc}</span>
+          <button class="btn btn-xs btn-ghost" style="padding:3px 6px" onclick="renameSubCatCtx('${mc}','${sc}','${ctx}')">✎</button>
+          <button class="btn btn-xs btn-red" style="padding:3px 6px" onclick="delSubCatCtx('${mc}','${sc}','${ctx}')">✕</button>
         </div>`).join('');
     html+=`</div></div>`;
   });
   scEl.innerHTML=html||'<div style="font-size:12px;color:var(--muted)">Aucune sous-catégorie</div>';
 }
 
-async function addMainCat() {
-  const name=document.getElementById('m-new-mc-name').value.trim();
-  if(!name) return toast('Nom obligatoire','err');
-  if(MAIN_CATS[name]) return toast('Catégorie déjà existante','err');
-  MAIN_CATS[name]=[];
+async function saveCatsByType() {
+  // Sauvegarder CATS_BY_TYPE ET synchroniser main_cats (création) pour rétrocompatibilité
   CATS_BY_TYPE[CUR_MAT_TYPE]=MAIN_CATS;
-  await sbUpsertConfig('cats_by_type',CATS_BY_TYPE);
-  document.getElementById('m-new-mc-name').value='';
-  renderCatList(); renderMat(); toast('Catégorie ajoutée ✓','ok');
+  await sbUpsertConfig('cats_by_type', CATS_BY_TYPE);
+  // Sync main_cats = cats création pour rétrocompatibilité
+  await sbUpsertConfig('main_cats', CATS_BY_TYPE.creation||{});
+}
+
+async function addMainCat(ctx) {
+  const pfx=getCatCtxPrefix(ctx||'modal');
+  const type=getCatCtxType(ctx||'modal');
+  const name=document.getElementById(pfx+'new-mc-name').value.trim();
+  if(!name) return toast('Nom obligatoire','err');
+  if(!CATS_BY_TYPE[type]) CATS_BY_TYPE[type]={};
+  if(CATS_BY_TYPE[type][name]) return toast('Catégorie déjà existante','err');
+  CATS_BY_TYPE[type][name]=[];
+  if(type===CUR_MAT_TYPE) MAIN_CATS=CATS_BY_TYPE[type];
+  await saveCatsByType();
+  document.getElementById(pfx+'new-mc-name').value='';
+  renderCatListCtx(ctx||'modal');
+  renderCatList();
+  renderMat();
+  toast('Catégorie ajoutée ✓','ok');
 }
 
 async function delMainCat(mc) {
@@ -1586,21 +1669,27 @@ async function delMainCat(mc) {
   if(used>0 && !confirm(`${used} matériau(x) utilisent cette catégorie. Supprimer quand même ?`)) return;
   delete MAIN_CATS[mc];
   CATS_BY_TYPE[CUR_MAT_TYPE]=MAIN_CATS;
-  await sbUpsertConfig('cats_by_type',CATS_BY_TYPE);
-  renderCatList(); renderMat(); toast('Catégorie supprimée','ok');
+  await saveCatsByType();
+  renderCatList(); renderCatListCtx('params'); renderMat(); toast('Catégorie supprimée','ok');
 }
 
-async function saveNewCat() {
-  const mc=document.getElementById('m-addcat-mc').value;
-  const name=document.getElementById('m-addcat-name').value.trim();
+async function saveNewCat(ctx) {
+  const pfx=getCatCtxPrefix(ctx||'modal');
+  const type=getCatCtxType(ctx||'modal');
+  const mc=document.getElementById(pfx+'addcat-mc').value;
+  const name=document.getElementById(pfx+'addcat-name').value.trim();
   if(!name) return toast('Nom obligatoire','err');
-  if(!MAIN_CATS[mc]) MAIN_CATS[mc]=[];
-  if(MAIN_CATS[mc].includes(name)) return toast('Sous-catégorie déjà existante','err');
-  MAIN_CATS[mc].push(name);
-  CATS_BY_TYPE[CUR_MAT_TYPE]=MAIN_CATS;
-  await sbUpsertConfig('cats_by_type',CATS_BY_TYPE);
-  document.getElementById('m-addcat-name').value='';
-  renderCatList(); renderMat(); toast('Sous-catégorie ajoutée ✓','ok');
+  if(!CATS_BY_TYPE[type]) CATS_BY_TYPE[type]={};
+  if(!CATS_BY_TYPE[type][mc]) CATS_BY_TYPE[type][mc]=[];
+  if(CATS_BY_TYPE[type][mc].includes(name)) return toast('Sous-catégorie déjà existante','err');
+  CATS_BY_TYPE[type][mc].push(name);
+  if(type===CUR_MAT_TYPE) MAIN_CATS=CATS_BY_TYPE[type];
+  await saveCatsByType();
+  document.getElementById(pfx+'addcat-name').value='';
+  renderCatListCtx(ctx||'modal');
+  renderCatList();
+  renderMat();
+  toast('Sous-catégorie ajoutée ✓','ok');
 }
 
 async function delSubCat(mc, sc) {
@@ -1608,8 +1697,8 @@ async function delSubCat(mc, sc) {
   if(used>0 && !confirm(`${used} matériau(x) utilisent cette sous-catégorie. Supprimer quand même ?`)) return;
   MAIN_CATS[mc]=MAIN_CATS[mc].filter(s=>s!==sc);
   CATS_BY_TYPE[CUR_MAT_TYPE]=MAIN_CATS;
-  await sbUpsertConfig('cats_by_type',CATS_BY_TYPE);
-  renderCatList(); renderMat(); toast('Sous-catégorie supprimée','ok');
+  await saveCatsByType();
+  renderCatList(); renderCatListCtx('params'); renderMat(); toast('Sous-catégorie supprimée','ok');
 }
 
 async function renameMainCat(oldName) {
@@ -1627,7 +1716,7 @@ async function renameMainCat(oldName) {
     m.mc=newName;
     await sbUpdate('materiaux',m.id,{mc:newName});
   }
-  renderCatList(); renderMat(); toast('Renommé : '+oldName+' -> '+newName,'ok');
+  renderCatListCtx('modal'); renderCatListCtx('params'); renderMat(); toast('Renommé : '+oldName+' -> '+newName,'ok');
 }
 
 async function renameSubCat(mc, oldSc) {
@@ -1642,7 +1731,7 @@ async function renameSubCat(mc, oldSc) {
     m.sc=newSc;
     await sbUpdate('materiaux',m.id,{sc:newSc});
   }
-  renderCatList(); renderMat(); toast('Sous-catégorie renommée','ok');
+  renderCatListCtx('modal'); renderCatListCtx('params'); renderMat(); toast('Sous-catégorie renommée','ok');
 }
 
 async function renameFournisseur(oldName) {
@@ -2733,7 +2822,8 @@ function renderCfg() {
   document.getElementById('s-url').value = localStorage.getItem(SBURL_KEY)||'';
   document.getElementById('s-key').value = localStorage.getItem(SBKEY_KEY)||'';
   // Render lists
-  renderCatList();
+  renderCatListCtx("modal");
+  renderCatListCtx("params");
   renderFourList();
   populateRenameSelect();
   runDiag();
