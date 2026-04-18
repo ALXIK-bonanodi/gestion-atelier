@@ -1499,13 +1499,20 @@ function onMatTypeChange() {
   const type=document.getElementById('mat-type')?.value||'creation';
   const renRow=document.getElementById('mat-renouvellement-row');
   if(renRow) renRow.style.display=type==='outil'?'block':'none';
-  // Mettre à jour les catégories disponibles selon le type sélectionné dans le modal
-  const cats=CATS_BY_TYPE[type]||CATS_BY_TYPE.creation;
+  // Catégories selon le type
+  let cats=CATS_BY_TYPE[type]||{};
+  // Fallback : construire depuis les matériaux existants si cats vide
+  if(!Object.keys(cats).length) {
+    MATS.filter(m=>(m.type||'creation')===type).forEach(m=>{
+      if(!cats[m.mc]) cats[m.mc]=[];
+      if(m.sc&&!cats[m.mc].includes(m.sc)) cats[m.mc].push(m.sc);
+    });
+  }
   const mcSel=document.getElementById('mat-mc');
   if(mcSel){
-    mcSel.innerHTML=Object.keys(cats).map(mc=>`<option>${mc}</option>`).join('');
-    // Mettre à jour les sous-catégories
-    const mc=mcSel.value;
+    const prevMC=mcSel.value;
+    mcSel.innerHTML=Object.keys(cats).map(mc=>`<option${mc===prevMC?' selected':''}>${mc}</option>`).join('');
+    const mc=mcSel.value||Object.keys(cats)[0]||'';
     const scSel=document.getElementById('mat-sc');
     if(scSel) scSel.innerHTML=(cats[mc]||[]).map(s=>`<option>${s}</option>`).join('');
   }
@@ -2112,7 +2119,21 @@ function buildCatBar() {
   const source = CUR_MAT_TYPE==='tout'
     ? CATS_BY_TYPE  // itérer sur tous les types
     : {[CUR_MAT_TYPE]: CATS_BY_TYPE[CUR_MAT_TYPE]||{}};
-  Object.entries(source).forEach(([typeKey, cats])=>{
+  // Si source est vide, construire depuis MATS directement
+  let effectiveSource=source;
+  const sourceIsEmpty=Object.values(source).every(cats=>!cats||!Object.keys(cats).length);
+  if(sourceIsEmpty) {
+    effectiveSource={};
+    const typesToShow=CUR_MAT_TYPE==='tout'?['creation','envoi','consommable','outil']:[CUR_MAT_TYPE];
+    typesToShow.forEach(t=>{
+      effectiveSource[t]={};
+      MATS.filter(m=>(m.type||'creation')===t).forEach(m=>{
+        if(!effectiveSource[t][m.mc]) effectiveSource[t][m.mc]=[];
+        if(m.sc&&!effectiveSource[t][m.mc].includes(m.sc)) effectiveSource[t][m.mc].push(m.sc);
+      });
+    });
+  }
+  Object.entries(effectiveSource).forEach(([typeKey, cats])=>{
     Object.entries(cats||{}).forEach(([mc,scs])=>{
       const active=scs.filter(sc=>MATS.some(m=>m.sc===sc&&(CUR_MAT_TYPE==='tout'||(m.type||'creation')===CUR_MAT_TYPE)));
       if(!active.length) return;
@@ -2313,7 +2334,16 @@ function switchMatType(type) {
       });
     });
   } else {
-    MAIN_CATS = CATS_BY_TYPE[type]||{};
+    let cats=CATS_BY_TYPE[type]||{};
+    // Fallback depuis les matériaux si cats vide
+    if(!Object.keys(cats).length) {
+      cats={};
+      MATS.filter(m=>(m.type||'creation')===type).forEach(m=>{
+        if(!cats[m.mc]) cats[m.mc]=[];
+        if(m.sc&&!cats[m.mc].includes(m.sc)) cats[m.mc].push(m.sc);
+      });
+    }
+    MAIN_CATS=cats;
   }
   // Couleurs
   Object.keys(MAIN_CATS).forEach(mc=>{
@@ -2775,6 +2805,11 @@ function renderBij() {
     }).join('')}
     ${isGrid?'</div>':''}
   `).join('');
+}
+
+function baseRef(ref) {
+  // Retire le suffixe lettres minuscules : #AI001b → #AI001
+  return (ref||'').replace(/[a-z]+$/i, '');
 }
 
 function renderStock() {
