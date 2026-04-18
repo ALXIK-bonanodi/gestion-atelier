@@ -2937,10 +2937,10 @@ function renderDep() {
 // COMPTABILITÉ — données
 // ═══════════════════════════════════════════════════════
 let CHARGES=[], TVA_ENTRIES=[], COMMANDES=[];
-// ── Utilitaire : catégories fusionnées MATS + config pour un type donné
+// ── Utilitaire : catégories fusionnées config + MATS pour un type donné
 function getCatsForType(type) {
   const result = {};
-  // 1. D'abord les catégories de la config (inclut celles sans matériaux)
+  // 1. Config Supabase = source de vérité pour les noms officiels
   const cfgCats = type === 'tout'
     ? Object.values(CATS_BY_TYPE).reduce((acc, cats) => {
         Object.entries(cats||{}).forEach(([mc,scs]) => {
@@ -2954,12 +2954,30 @@ function getCatsForType(type) {
     if (!result[mc]) result[mc] = [];
     scs.forEach(sc => { if (!result[mc].includes(sc)) result[mc].push(sc); });
   });
-  // 2. Ensuite les MC/SC réels depuis MATS (pour ceux non encore dans la config)
+  // 2. MATS : ajouter uniquement les MC/SC absents de la config
+  //    Si un MC existe déjà dans la config, on NE touche PAS à ses SC
+  //    (évite les doublons quand sc dans MATS ≠ nom dans config)
   const matsToScan = type === 'tout' ? MATS : MATS.filter(m => (m.type||'creation') === type);
   matsToScan.forEach(m => {
     if (!m.mc) return;
-    if (!result[m.mc]) result[m.mc] = [];
-    if (m.sc && !result[m.mc].includes(m.sc)) result[m.mc].push(m.sc);
+    if (result[m.mc]) {
+      // MC déjà dans la config → n'ajouter la SC que si elle n'est vraiment pas couverte
+      // ET si aucune SC de ce MC ne ressemble à cette SC (évite doublons de renommage)
+      if (m.sc && !result[m.mc].includes(m.sc)) {
+        // Vérifier si une SC similaire existe déjà (même début, casse insensible)
+        const scLow = m.sc.toLowerCase();
+        const alreadyCovered = result[m.mc].some(s => 
+          s.toLowerCase() === scLow ||
+          s.toLowerCase().startsWith(scLow) ||
+          scLow.startsWith(s.toLowerCase())
+        );
+        if (!alreadyCovered) result[m.mc].push(m.sc);
+      }
+    } else {
+      // MC absent de la config → créer avec ses SC
+      if (!result[m.mc]) result[m.mc] = [];
+      if (m.sc && !result[m.mc].includes(m.sc)) result[m.mc].push(m.sc);
+    }
   });
   return result;
 }
