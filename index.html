@@ -122,6 +122,9 @@ main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0;backgr
 
 /* CAT BAR */
 .cat-bar{padding:10px 12px 8px;background:var(--goldP);border-bottom:1px solid #E8D9B0}
+.sub-tab{padding:10px 14px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;transition:.12s;-webkit-user-select:none}
+.sub-tab:active{background:var(--purpleP)}
+.sub-tab-on{color:var(--purple);border-bottom-color:var(--purple);background:var(--purpleP)}
 .cat-section{display:flex;align-items:flex-start;flex-wrap:wrap;gap:4px;margin-bottom:6px}
 .cat-section:last-child{margin-bottom:0}
 .cat-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);width:100%;margin-bottom:2px}
@@ -351,19 +354,20 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
 
   <!-- PANEL MATÉRIAUX -->
   <div id="gpanel-mat">
-    <!-- Sous-onglets types -->
-    <div style="display:flex;gap:4px;padding:10px 14px 0;background:#fff;flex-wrap:wrap">
-      <button id="mtype-creation" class="btn btn-p btn-sm" onclick="switchMatType('creation')">🪡 Création</button>
-      <button id="mtype-envoi" class="btn btn-ghost btn-sm" onclick="switchMatType('envoi')">📬 Envois</button>
-      <button id="mtype-consommable" class="btn btn-ghost btn-sm" onclick="switchMatType('consommable')">🧪 Consommables</button>
-      <button id="mtype-outil" class="btn btn-ghost btn-sm" onclick="switchMatType('outil')">🔧 Outils</button>
+    <!-- Sous-onglets types — même style que onglets principaux -->
+    <div style="display:flex;border-bottom:1px solid var(--border);background:#fff;overflow-x:auto;-webkit-overflow-scrolling:touch">
+      <div id="mtype-tout" onclick="switchMatType('tout')" class="sub-tab sub-tab-on">🗂 Tout</div>
+      <div id="mtype-creation" onclick="switchMatType('creation')" class="sub-tab">🪡 Création</div>
+      <div id="mtype-envoi" onclick="switchMatType('envoi')" class="sub-tab">📬 Envois</div>
+      <div id="mtype-consommable" onclick="switchMatType('consommable')" class="sub-tab">🧪 Consommables</div>
+      <div id="mtype-outil" onclick="switchMatType('outil')" class="sub-tab">🔧 Outils</div>
     </div>
-    <div class="card" style="border-radius:0 0 var(--r) var(--r)">
+    <div class="card" style="border-radius:0 0 var(--r) var(--r);margin-top:0">
       <div id="cat-bar" class="cat-bar"></div>
       <div class="card-bd">
         <div class="abar">
           <button class="btn btn-p" onclick="openMatModal()">＋ Nouveau</button>
-          <button class="btn btn-ghost" onclick="openAddCat()">＋ Catégorie</button>
+          <button class="btn btn-ghost" id="btn-addcat" onclick="openAddCat()">＋ Catégorie</button>
           <select id="flt-sc" onchange="renderMat()" style="width:auto;flex:1;max-width:180px;font-size:12px;padding:8px 26px 8px 10px"></select>
         </div>
         <div style="margin-bottom:10px">
@@ -1144,7 +1148,7 @@ async function loadAll() {
     if (!MAIN_CLR[mc]) MAIN_CLR[mc] = '#5A5A6A';
     (MAIN_CATS[mc]||[]).forEach(sc => { if(!SC_CLR[sc]) SC_CLR[sc]='#5A5A5A'; });
   });
-  updateMatMCSelect();
+  switchMatType('tout');
   updateFournisseursDatalist();
   renderMat();
 }
@@ -1640,11 +1644,12 @@ function renderCatListCtx(ctx) {
 }
 
 async function saveCatsByType() {
-  // Sauvegarder CATS_BY_TYPE ET synchroniser main_cats (création) pour rétrocompatibilité
-  CATS_BY_TYPE[CUR_MAT_TYPE]=MAIN_CATS;
+  if(CUR_MAT_TYPE!=='tout') CATS_BY_TYPE[CUR_MAT_TYPE]=MAIN_CATS;
   await sbUpsertConfig('cats_by_type', CATS_BY_TYPE);
-  // Sync main_cats = cats création pour rétrocompatibilité
   await sbUpsertConfig('main_cats', CATS_BY_TYPE.creation||{});
+  // Rafraîchir la barre de catégories
+  buildCatBar();
+  updateMatMCSelect();
 }
 
 async function addMainCat(ctx) {
@@ -1795,7 +1800,7 @@ function buildCatBar() {
   const cur=flt.value;
   let html='', opts='<option value="">Toutes catégories</option>';
   Object.entries(MAIN_CATS).forEach(([mc,scs])=>{
-    const active=scs.filter(sc=>MATS.some(m=>m.sc===sc));
+    const active=scs.filter(sc=>MATS.some(m=>m.sc===sc&&(CUR_MAT_TYPE==='tout'||(m.type||'creation')===CUR_MAT_TYPE)));
     if(!active.length) return;
     html+=`<div class="cat-section"><div class="cat-label" style="color:${MAIN_CLR[mc]||'#888'}">${mc}</div>
       ${active.map(sc=>`<span class="chip" style="background:${SC_CLR[sc]||'#888'}" onclick="jumpToSC('${sc}')">${sc}</span>`).join('')}
@@ -1875,7 +1880,7 @@ function runDiag() {
   document.getElementById('diag-result').innerHTML=html;
 }
 
-let CUR_MAT_TYPE = 'creation';
+let CUR_MAT_TYPE = 'tout';
 let CUR_STOCK_FLT = 'all';
 
 function switchGTab(tab) {
@@ -1893,15 +1898,30 @@ function switchGTab(tab) {
 
 function switchMatType(type) {
   CUR_MAT_TYPE = type;
-  MAIN_CATS = CATS_BY_TYPE[type]||CATS_BY_TYPE.creation;
-  // Mettre à jour les couleurs pour les catégories du nouveau type
+  // Mettre à jour sous-onglets
+  ['tout','creation','envoi','consommable','outil'].forEach(t=>{
+    const el=document.getElementById('mtype-'+t);
+    if(el) el.className='sub-tab'+(t===type?' sub-tab-on':'');
+  });
+  // Masquer bouton catégorie sur "Tout"
+  const btnCat=document.getElementById('btn-addcat');
+  if(btnCat) btnCat.style.display=type==='tout'?'none':'';
+  if(type==='tout') {
+    MAIN_CATS={};
+    // Fusionner toutes les catégories pour la barre
+    Object.values(CATS_BY_TYPE).forEach(cats=>{
+      Object.entries(cats||{}).forEach(([mc,scs])=>{
+        if(!MAIN_CATS[mc]) MAIN_CATS[mc]=[];
+        scs.forEach(sc=>{ if(!MAIN_CATS[mc].includes(sc)) MAIN_CATS[mc].push(sc); });
+      });
+    });
+  } else {
+    MAIN_CATS = CATS_BY_TYPE[type]||{};
+  }
+  // Couleurs
   Object.keys(MAIN_CATS).forEach(mc=>{
     if(!MAIN_CLR[mc]) MAIN_CLR[mc]='#5A5A6A';
     (MAIN_CATS[mc]||[]).forEach(sc=>{if(!SC_CLR[sc]) SC_CLR[sc]='#5A5A5A';});
-  });
-  ['creation','envoi','consommable','outil'].forEach(t=>{
-    const btn=document.getElementById('mtype-'+t);
-    if(btn){btn.className=t===type?'btn btn-p btn-sm':'btn btn-ghost btn-sm';}
   });
   updateMatMCSelect();
   renderMat();
@@ -1920,8 +1940,8 @@ function renderMat() {
   buildCatBar();
   const filter=document.getElementById('flt-sc').value;
   const search=(document.getElementById('mat-search')?.value||'').toLowerCase().trim();
-  // Filtrer par type courant
-  let mats=MATS.filter(m=>(m.type||'creation')===CUR_MAT_TYPE);
+  // Filtrer par type courant (tout = pas de filtre type)
+  let mats=CUR_MAT_TYPE==='tout'?[...MATS]:MATS.filter(m=>(m.type||'creation')===CUR_MAT_TYPE);
   if(filter) mats=mats.filter(m=>m.sc===filter);
   if(search) mats=mats.filter(m=>
     (m.ref||'').toLowerCase().includes(search)||
@@ -1944,8 +1964,10 @@ function renderMat() {
         <thead><tr><th>Réf.</th><th>Désignation</th><th>Variante</th><th>Fournisseur</th><th>Stock</th><th>PU moy.</th><th></th></tr></thead>
         <tbody>${mats.map(m=>{
           const pu=puMoyen(m), sc2=stockCumul(m);
+          const typeLabels={creation:'🪡',envoi:'📬',consommable:'🧪',outil:'🔧'};
+          const typeBadge=CUR_MAT_TYPE==='tout'?`<span style="font-size:9px;opacity:.6">${typeLabels[m.type||'creation']||''}</span>`:'';
           return `<tr onclick="openMatModal('${m.id}')" style="cursor:pointer" title="Cliquer pour modifier">
-            <td class="ref">${m.ref}</td>
+            <td class="ref">${typeBadge} ${m.ref}</td>
             <td style="font-size:12px">${m.designation||m.des||'--'}</td>
             <td><span class="badge bm">${m.variante||'--'}</span></td>
             <td class="dim">${m.fournisseur||'--'}</td>
