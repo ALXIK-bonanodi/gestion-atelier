@@ -1415,20 +1415,7 @@ async function loadAll() {
   updateFournisseursDatalist();
   // Afficher onglet Tout par défaut
   CUR_MAT_TYPE='tout';
-  // Construire MAIN_CATS depuis MATS (source de vérité absolue)
-  MAIN_CATS={};
-  MATS.forEach(m=>{
-    if(!m.mc) return;
-    if(!MAIN_CATS[m.mc]) MAIN_CATS[m.mc]=[];
-    if(m.sc&&!MAIN_CATS[m.mc].includes(m.sc)) MAIN_CATS[m.mc].push(m.sc);
-  });
-  // Compléter avec la config Supabase
-  Object.values(CATS_BY_TYPE).forEach(cats=>{
-    Object.entries(cats||{}).forEach(([mc,scs])=>{
-      if(!MAIN_CATS[mc]) MAIN_CATS[mc]=[];
-      (scs||[]).forEach(sc=>{if(!MAIN_CATS[mc].includes(sc)) MAIN_CATS[mc].push(sc);});
-    });
-  });
+  MAIN_CATS = getCatsForType('tout');
   renderMat();
   renderRent();
   // Pré-calculer stock pour que l'onglet s'affiche immédiatement
@@ -1522,15 +1509,7 @@ function onMatTypeChange() {
   const type=document.getElementById('mat-type')?.value||'creation';
   const renRow=document.getElementById('mat-renouvellement-row');
   if(renRow) renRow.style.display=type==='outil'?'block':'none';
-  // Catégories selon le type
-  let cats=CATS_BY_TYPE[type]||{};
-  // Fallback : construire depuis les matériaux existants si cats vide
-  if(!Object.keys(cats).length) {
-    MATS.filter(m=>(m.type||'creation')===type).forEach(m=>{
-      if(!cats[m.mc]) cats[m.mc]=[];
-      if(m.sc&&!cats[m.mc].includes(m.sc)) cats[m.mc].push(m.sc);
-    });
-  }
+  const cats=getCatsForType(type);
   const mcSel=document.getElementById('mat-mc');
   if(mcSel){
     const prevMC=mcSel.value;
@@ -2138,24 +2117,10 @@ function buildCatBar() {
   if(!bar||!flt) return;
   const cur=flt.value;
   let html='', opts='<option value="">Toutes catégories</option>';
-  // Source de catégories selon le type courant
-  const source = CUR_MAT_TYPE==='tout'
-    ? CATS_BY_TYPE  // itérer sur tous les types
-    : {[CUR_MAT_TYPE]: CATS_BY_TYPE[CUR_MAT_TYPE]||{}};
-  // Si source est vide, construire depuis MATS directement
-  let effectiveSource=source;
-  const sourceIsEmpty=Object.values(source).every(cats=>!cats||!Object.keys(cats).length);
-  if(sourceIsEmpty) {
-    effectiveSource={};
-    const typesToShow=CUR_MAT_TYPE==='tout'?['creation','envoi','consommable','outil']:[CUR_MAT_TYPE];
-    typesToShow.forEach(t=>{
-      effectiveSource[t]={};
-      MATS.filter(m=>(m.type||'creation')===t).forEach(m=>{
-        if(!effectiveSource[t][m.mc]) effectiveSource[t][m.mc]=[];
-        if(m.sc&&!effectiveSource[t][m.mc].includes(m.sc)) effectiveSource[t][m.mc].push(m.sc);
-      });
-    });
-  }
+  // Catégories fusionnées config + MATS pour le type courant
+  const effectiveCats = getCatsForType(CUR_MAT_TYPE);
+  // Envelopper dans le format attendu par la boucle
+  const effectiveSource = {[CUR_MAT_TYPE]: effectiveCats};
   Object.entries(effectiveSource).forEach(([typeKey, cats])=>{
     Object.entries(cats||{}).forEach(([mc,scs])=>{
       const active=scs.filter(sc=>MATS.some(m=>m.sc===sc&&(CUR_MAT_TYPE==='tout'||(m.type||'creation')===CUR_MAT_TYPE)));
@@ -2347,37 +2312,7 @@ function switchMatType(type) {
   // Masquer bouton catégorie sur "Tout"
   const btnCat=document.getElementById('btn-addcat');
   if(btnCat) btnCat.style.display=type==='tout'?'none':'';
-  if(type==='tout') {
-    // Construire depuis MATS directement (source de vérité)
-    MAIN_CATS={};
-    MATS.forEach(m=>{
-      if(!m.mc) return;
-      if(!MAIN_CATS[m.mc]) MAIN_CATS[m.mc]=[];
-      if(m.sc&&!MAIN_CATS[m.mc].includes(m.sc)) MAIN_CATS[m.mc].push(m.sc);
-    });
-    // Compléter avec CATS_BY_TYPE si des catégories manquent
-    Object.values(CATS_BY_TYPE).forEach(cats=>{
-      Object.entries(cats||{}).forEach(([mc,scs])=>{
-        if(!MAIN_CATS[mc]) MAIN_CATS[mc]=[];
-        scs.forEach(sc=>{ if(!MAIN_CATS[mc].includes(sc)) MAIN_CATS[mc].push(sc); });
-      });
-    });
-  } else {
-    // Toujours construire depuis MATS pour ce type
-    const catsFromMats={};
-    MATS.filter(m=>(m.type||'creation')===type).forEach(m=>{
-      if(!m.mc) return;
-      if(!catsFromMats[m.mc]) catsFromMats[m.mc]=[];
-      if(m.sc&&!catsFromMats[m.mc].includes(m.sc)) catsFromMats[m.mc].push(m.sc);
-    });
-    // Compléter avec CATS_BY_TYPE (pour les catégories sans matériaux encore)
-    const catsCfg=CATS_BY_TYPE[type]||{};
-    Object.entries(catsCfg).forEach(([mc,scs])=>{
-      if(!catsFromMats[mc]) catsFromMats[mc]=[];
-      scs.forEach(sc=>{ if(!catsFromMats[mc].includes(sc)) catsFromMats[mc].push(sc); });
-    });
-    MAIN_CATS=catsFromMats;
-  }
+  MAIN_CATS = getCatsForType(type);
   // Couleurs
   Object.keys(MAIN_CATS).forEach(mc=>{
     if(!MAIN_CLR[mc]) MAIN_CLR[mc]='#5A5A6A';
@@ -2583,23 +2518,12 @@ function openBijModal(editId=null) {
 }
 
 function buildSCOptions(selectedMC, selectedSC) {
-  // Valeur = "mc|||sc" pour distinguer les sous-catégories homonymes
   const selectedVal = selectedMC&&selectedSC ? selectedMC+'|||'+selectedSC : '';
   let opts = '';
-  // Construire depuis MATS directement (source de vérité)
-  const mcMap = {};
-  MATS.filter(m=>m.type==='creation'||!m.type).forEach(m=>{
-    if(!m.mc||!m.sc) return;
-    if(!mcMap[m.mc]) mcMap[m.mc] = new Set();
-    mcMap[m.mc].add(m.sc);
-  });
-  // Compléter avec CATS_BY_TYPE.creation
-  Object.entries(CATS_BY_TYPE.creation||{}).forEach(([mc,scs])=>{
-    if(!mcMap[mc]) mcMap[mc]=new Set();
-    scs.forEach(sc=>mcMap[mc].add(sc));
-  });
+  // Catégories fusionnées config + MATS (inclut celles sans matériaux)
+  const mcMap = getCatsForType('creation');
   Object.entries(mcMap).forEach(([mc,scs])=>{
-    if(!scs.size) return;
+    if(!scs.length) return;
     opts+=`<optgroup label="◆ ${mc}">`;
     scs.forEach(sc=>{
       const val=mc+'|||'+sc;
@@ -3013,6 +2937,33 @@ function renderDep() {
 // COMPTABILITÉ — données
 // ═══════════════════════════════════════════════════════
 let CHARGES=[], TVA_ENTRIES=[], COMMANDES=[];
+// ── Utilitaire : catégories fusionnées MATS + config pour un type donné
+function getCatsForType(type) {
+  const result = {};
+  // 1. D'abord les catégories de la config (inclut celles sans matériaux)
+  const cfgCats = type === 'tout'
+    ? Object.values(CATS_BY_TYPE).reduce((acc, cats) => {
+        Object.entries(cats||{}).forEach(([mc,scs]) => {
+          if (!acc[mc]) acc[mc] = [];
+          scs.forEach(sc => { if (!acc[mc].includes(sc)) acc[mc].push(sc); });
+        });
+        return acc;
+      }, {})
+    : CATS_BY_TYPE[type] || {};
+  Object.entries(cfgCats).forEach(([mc, scs]) => {
+    if (!result[mc]) result[mc] = [];
+    scs.forEach(sc => { if (!result[mc].includes(sc)) result[mc].push(sc); });
+  });
+  // 2. Ensuite les MC/SC réels depuis MATS (pour ceux non encore dans la config)
+  const matsToScan = type === 'tout' ? MATS : MATS.filter(m => (m.type||'creation') === type);
+  matsToScan.forEach(m => {
+    if (!m.mc) return;
+    if (!result[m.mc]) result[m.mc] = [];
+    if (m.sc && !result[m.mc].includes(m.sc)) result[m.mc].push(m.sc);
+  });
+  return result;
+}
+
 let COMPTA_TAB='ventes';
 let CH_FLT='all';
 
