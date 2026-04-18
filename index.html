@@ -361,7 +361,7 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
       <!-- Sous-onglets matériaux -->
       <div id="subnav-mat" style="display:flex;border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none">
         <div id="mtype-tout" onclick="switchMatType('tout')" class="sub-tab sub-tab-on">🗂 Tout</div>
-        <div id="mtype-creation" onclick="switchMatType('creation')" class="sub-tab">🪡 Création</div>
+        <div id="mtype-creation" onclick="switchMatType('creation')" class="sub-tab">🧵 Création</div>
         <div id="mtype-envoi" onclick="switchMatType('envoi')" class="sub-tab">📬 Envois</div>
         <div id="mtype-consommable" onclick="switchMatType('consommable')" class="sub-tab">🧪 Consommables</div>
         <div id="mtype-outil" onclick="switchMatType('outil')" class="sub-tab">🔧 Outils</div>
@@ -369,7 +369,7 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
       <!-- Sous-onglets stock -->
       <div id="subnav-stock" style="display:none;border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:6px 10px;gap:6px;flex-wrap:wrap">
         <button id="sflt-all" class="btn btn-p btn-sm" onclick="switchStockFlt('all')">Tout</button>
-        <button id="sflt-creation" class="btn btn-ghost btn-sm" onclick="switchStockFlt('creation')">🪡 Création</button>
+        <button id="sflt-creation" class="btn btn-ghost btn-sm" onclick="switchStockFlt('creation')">🧵 Création</button>
         <button id="sflt-envoi" class="btn btn-ghost btn-sm" onclick="switchStockFlt('envoi')">📬 Envois</button>
         <button id="sflt-consommable" class="btn btn-ghost btn-sm" onclick="switchStockFlt('consommable')">🧪 Consommables</button>
         <button id="sflt-outil" class="btn btn-ghost btn-sm" onclick="switchStockFlt('outil')">🔧 Outils</button>
@@ -709,7 +709,7 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
     <div class="card-bd">
       <!-- Sélecteur de type -->
       <div style="display:flex;gap:4px;margin-bottom:14px;flex-wrap:wrap">
-        <button id="p-type-creation" class="btn btn-p btn-sm" onclick="setCfgType('creation')">🪡 Création</button>
+        <button id="p-type-creation" class="btn btn-p btn-sm" onclick="setCfgType('creation')">🧵 Création</button>
         <button id="p-type-envoi" class="btn btn-ghost btn-sm" onclick="setCfgType('envoi')">📬 Envois</button>
         <button id="p-type-consommable" class="btn btn-ghost btn-sm" onclick="setCfgType('consommable')">🧪 Consommables</button>
         <button id="p-type-outil" class="btn btn-ghost btn-sm" onclick="setCfgType('outil')">🔧 Outils</button>
@@ -789,7 +789,7 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
   <input type="hidden" id="mat-edit-id">
   <div class="fg"><label>Type</label>
    <select id="mat-type" onchange="onMatTypeChange()">
-    <option value="creation">🪡 Matériau de création</option>
+    <option value="creation">🧵 Matériau de création</option>
     <option value="envoi">📬 Matériau d'envoi</option>
     <option value="consommable">🧪 Consommable de production</option>
     <option value="outil">🔧 Outil / Équipement</option>
@@ -928,7 +928,7 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
   <div id="cfg-cats">
    <!-- Sélecteur de type dans le modal -->
    <div style="display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap">
-    <button id="mcat-type-creation" class="btn btn-p btn-sm" onclick="setModalCatType('creation')">🪡 Création</button>
+    <button id="mcat-type-creation" class="btn btn-p btn-sm" onclick="setModalCatType('creation')">🧵 Création</button>
     <button id="mcat-type-envoi" class="btn btn-ghost btn-sm" onclick="setModalCatType('envoi')">📬 Envois</button>
     <button id="mcat-type-consommable" class="btn btn-ghost btn-sm" onclick="setModalCatType('consommable')">🧪 Consommables</button>
     <button id="mcat-type-outil" class="btn btn-ghost btn-sm" onclick="setModalCatType('outil')">🔧 Outils</button>
@@ -1408,6 +1408,8 @@ async function loadAll() {
   });
   renderMat();
   renderRent();
+  // Pré-calculer stock pour que l'onglet s'affiche immédiatement
+  if(typeof renderStock==="function") renderStock();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -2280,12 +2282,12 @@ function switchGTab(tab) {
   document.getElementById('gpanel-stock').style.display = isPanMat?'none':'block';
   document.getElementById('gtab-mat').className = 'gtab'+(isPanMat?' gtab-on':'');
   document.getElementById('gtab-stock').className = 'gtab'+(!isPanMat?' gtab-on':'');
-  // Afficher la bonne sous-barre
   const subMat=document.getElementById('subnav-mat');
   const subStock=document.getElementById('subnav-stock');
   if(subMat) subMat.style.display=isPanMat?'flex':'none';
-  if(subStock) { subStock.style.display=isPanMat?'none':'flex'; }
-  if(!isPanMat) renderStock();
+  if(subStock) subStock.style.display=isPanMat?'none':'flex';
+  // Toujours re-render stock quand on switche vers cet onglet
+  if(!isPanMat) { document.getElementById('stock-body').innerHTML='<div class="loading">Chargement…</div>'; setTimeout(renderStock,50); }
 }
 
 function switchMatType(type) {
@@ -2514,13 +2516,33 @@ function openBijModal(editId=null) {
   openModal('m-bij');
 }
 
+function buildSCOptions(selectedSc) {
+  // Construire les options groupées par catégorie principale
+  let opts = '';
+  // Catégories création
+  Object.entries(CATS_BY_TYPE.creation||{}).forEach(([mc,scs])=>{
+    if(!scs.length) return;
+    opts+=`<optgroup label="◆ ${mc}">`;
+    scs.forEach(sc=>{ opts+=`<option value="${sc}" ${sc===selectedSc?'selected':''}>${sc}</option>`; });
+    opts+='</optgroup>';
+  });
+  // Bijoux composants
+  const bijMats=BIJS.filter(b=>b.is_mat);
+  if(bijMats.length) {
+    opts+=`<optgroup label="◆ Compositions">`;
+    opts+=`<option value="Bijou (composition)" ${selectedSc==='Bijou (composition)'?'selected':''}>💎 Bijou (composition)</option>`;
+    opts+='</optgroup>';
+  }
+  // Si sc existe mais pas dans les cats connues, l'ajouter quand même
+  if(selectedSc && !opts.includes(`value="${selectedSc}"`)) {
+    opts+=`<option value="${selectedSc}" selected>${selectedSc}</option>`;
+  }
+  return opts || MATS.map(m=>m.sc).filter((v,i,a)=>a.indexOf(v)===i).map(sc=>`<option value="${sc}" ${sc===selectedSc?'selected':''}>${sc}</option>`).join('');
+}
+
 function addMatRow(sc='',ref='',qty='') {
   const c=document.getElementById('bij-mats-list');
-  const allSC=[...new Set(MATS.map(m=>m.sc))].sort();
-  // Always show Bijou composition if any bij has is_mat true
-  const bijMats=BIJS.filter(b=>b.is_mat);
-  const scOpts=allSC.map(s=>`<option value="${s}" ${s===sc?'selected':''}>${s}</option>`).join('')
-    + (bijMats.length ? `<option value="Bijou (composition)" ${sc==='Bijou (composition)'?'selected':''}>💎 Bijou (composition)</option>` : '');
+  const scOpts=buildSCOptions(sc);
   const div=document.createElement('div');
   div.className='mat-row-item';
   div.style.cssText='margin-bottom:10px;padding:10px;background:var(--bg);border-radius:var(--rs);border:1px solid var(--border)';
@@ -2753,9 +2775,14 @@ function renderBij() {
 }
 
 function renderStock() {
-  // Filter by type
+  // S'assurer que les couleurs sont initialisées
+  Object.values(CATS_BY_TYPE||{}).forEach(cats=>{
+    Object.entries(cats||{}).forEach(([mc,scs])=>{
+      if(!MAIN_CLR[mc]) MAIN_CLR[mc]='#5A5A6A';
+      (scs||[]).forEach(sc=>{if(!SC_CLR[sc]) SC_CLR[sc]='#5A5A5A';});
+    });
+  });
   const filteredMats = CUR_STOCK_FLT==='all' ? MATS : MATS.filter(m=>(m.type||'creation')===CUR_STOCK_FLT);
-  // Outils : pas de stock (achat/dépense seulement)
   const stockableMats = filteredMats.filter(m=>(m.type||'creation')!=='outil');
   const by={};
   stockableMats.forEach(m=>{if(!by[m.mc])by[m.mc]={};if(!by[m.mc][m.sc])by[m.mc][m.sc]=[];by[m.mc][m.sc].push(m);});
