@@ -343,8 +343,7 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
 <div class="tabs">
   <div class="tab on" data-p="mat" onclick="goTab(this)">📦 Gestion</div>
   <div class="tab" data-p="bij" onclick="goTab(this)">✨ Création</div>
-  <div class="tab" data-p="dep" onclick="goTab(this)">💸 Dépenses</div>
-  <div class="tab" data-p="rent" onclick="goTab(this)">📈 Rentabilité</div>
+  <div class="tab" data-p="compta" onclick="goTab(this)">🧾 Comptabilité</div>
   <div class="tab" data-p="cfg" onclick="goTab(this)">⚙ Paramètres</div>
 </div>
 
@@ -461,36 +460,197 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
 
 <!-- stock panel moved into p-mat -->
 
-<div id="p-dep" class="page">
-  <div id="dep-stats" class="stats"></div>
-  <div class="card">
-    <div class="card-hd"><h2>💸 Dépenses & réapprovisionnements</h2></div>
-    <div class="card-bd">
-      <div class="abar">
-        <button class="btn btn-p" onclick="openDepModal()">＋ Nouvelle dépense</button>
-        <div style="display:flex;gap:4px">
-          <button id="dep-flt-all" class="btn btn-p btn-sm" onclick="setDepFlt('all')">Tout</button>
-          <button id="dep-flt-valide" class="btn btn-ghost btn-sm" onclick="setDepFlt('valide')">✅ Validé</button>
-          <button id="dep-flt-attente" class="btn btn-ghost btn-sm" onclick="setDepFlt('attente')">⏳ Attente</button>
-          <button id="dep-flt-annule" class="btn btn-ghost btn-sm" onclick="setDepFlt('annule')">❌ Annulé</button>
-        </div>
+<div id="p-compta" class="page" style="padding:0">
+  <!-- Nav sticky -->
+  <div style="position:sticky;top:0;z-index:50">
+    <div style="max-width:960px;margin:0 auto;background:#fff;box-shadow:0 2px 8px rgba(26,18,40,.08)">
+      <div style="display:flex;overflow-x:auto;scrollbar-width:none;border-bottom:2px solid var(--border)">
+        <div id="ctab-ventes" onclick="switchComptaTab('ventes')" class="gtab gtab-on">💰 Ventes</div>
+        <div id="ctab-depenses" onclick="switchComptaTab('depenses')" class="gtab">💸 Dépenses</div>
+        <div id="ctab-charges" onclick="switchComptaTab('charges')" class="gtab">🏛 Charges</div>
+        <div id="ctab-tva" onclick="switchComptaTab('tva')" class="gtab">🧾 TVA</div>
+        <div id="ctab-bilan" onclick="switchComptaTab('bilan')" class="gtab">📊 Bilan</div>
       </div>
-      <div id="dep-body"><div class="loading">Chargement…</div></div>
+    </div>
+  </div>
+
+  <!-- VENTES -->
+  <div id="cpanel-ventes" style="padding:12px;max-width:960px;margin:0 auto">
+    <div id="rent-stats" class="stats"></div>
+    <div class="card">
+      <div class="card-hd"><h2>💰 Ventes</h2></div>
+      <div class="card-bd">
+        <div class="abar">
+          <button class="btn btn-p" onclick="openVenteModal()">＋ Enregistrer une vente</button>
+          <select id="vente-periode-flt" onchange="renderCompta()" style="font-size:12px;padding:8px 26px 8px 10px">
+            <option value="">Toutes périodes</option>
+          </select>
+        </div>
+        <div id="rent-body"><div class="loading">Chargement…</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DÉPENSES MATÉRIAUX -->
+  <div id="cpanel-depenses" style="display:none;padding:12px;max-width:960px;margin:0 auto">
+    <div id="dep-stats" class="stats"></div>
+    <div class="card">
+      <div class="card-hd"><h2>💸 Dépenses matériaux & réappros</h2></div>
+      <div class="card-bd">
+        <div class="abar">
+          <button class="btn btn-p" onclick="openDepModal()">＋ Nouvelle dépense</button>
+          <div style="display:flex;gap:4px;flex-wrap:wrap">
+            <button id="dep-flt-all" class="btn btn-p btn-sm" onclick="setDepFlt('all')">Tout</button>
+            <button id="dep-flt-valide" class="btn btn-ghost btn-sm" onclick="setDepFlt('valide')">✅ Validé</button>
+            <button id="dep-flt-attente" class="btn btn-ghost btn-sm" onclick="setDepFlt('attente')">⏳ Attente</button>
+            <button id="dep-flt-annule" class="btn btn-ghost btn-sm" onclick="setDepFlt('annule')">❌ Annulé</button>
+          </div>
+        </div>
+        <div id="dep-body"><div class="loading">Chargement…</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHARGES FISCALES & SOCIALES -->
+  <div id="cpanel-charges" style="display:none;padding:12px;max-width:960px;margin:0 auto">
+    <div id="charges-stats" class="stats"></div>
+    <div class="card">
+      <div class="card-hd"><h2>🏛 Charges fiscales & sociales</h2>
+        <button class="btn btn-p" onclick="openChargeModal()">＋ Nouvelle charge</button>
+      </div>
+      <div class="card-bd">
+        <div style="display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap">
+          <button id="ch-flt-all" class="btn btn-p btn-sm" onclick="setChFlt('all')">Tout</button>
+          <button id="ch-flt-urssaf" class="btn btn-ghost btn-sm" onclick="setChFlt('urssaf')">URSSAF</button>
+          <button id="ch-flt-tva" class="btn btn-ghost btn-sm" onclick="setChFlt('tva')">TVA</button>
+          <button id="ch-flt-impot" class="btn btn-ghost btn-sm" onclick="setChFlt('impot')">Impôts</button>
+          <button id="ch-flt-cfe" class="btn btn-ghost btn-sm" onclick="setChFlt('cfe')">CFE</button>
+          <button id="ch-flt-frais" class="btn btn-ghost btn-sm" onclick="setChFlt('frais')">Frais divers</button>
+        </div>
+        <div id="charges-body"><div class="loading">Chargement…</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TVA -->
+  <div id="cpanel-tva" style="display:none;padding:12px;max-width:960px;margin:0 auto">
+    <div class="card">
+      <div class="card-hd"><h2>🧾 Suivi TVA</h2></div>
+      <div class="card-bd">
+        <div class="info-box" style="margin-bottom:12px">
+          <b>Votre situation actuelle :</b> Micro-entreprise — franchise en base de TVA (art. 293 B CGI).<br>
+          Vous n'êtes <b>pas assujettie à la TVA</b> tant que votre CA reste sous les seuils (36 800 € pour les prestations de services / BNC artistiques). Au-dessus, vous devenez automatiquement assujettie.<br>
+          <div style="margin-top:6px;padding:6px 10px;background:var(--purpleP);border-radius:var(--rs);font-size:12px">
+            💡 Ce suivi vous permet d'<b>anticiper</b> la TVA si vous dépassez les seuils ou changez de statut.
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          <button class="btn btn-p" onclick="openTVAModal('collectee')">＋ TVA collectée</button>
+          <button class="btn btn-ghost" onclick="openTVAModal('deductible')">＋ TVA déductible</button>
+          <select id="tva-periode-flt" onchange="renderTVA()" style="font-size:12px;padding:8px 26px 8px 10px">
+            <option value="">Toutes périodes</option>
+          </select>
+        </div>
+        <div id="tva-body"><div class="loading">Chargement…</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BILAN PÉRIODIQUE -->
+  <div id="cpanel-bilan" style="display:none;padding:12px;max-width:960px;margin:0 auto">
+    <div class="card">
+      <div class="card-hd"><h2>📊 Bilan comptable</h2>
+        <button class="btn btn-ghost" onclick="exportBilanPDF()">⬇ Export PDF</button>
+      </div>
+      <div class="card-bd">
+        <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+          <select id="bilan-type" onchange="renderBilan()" style="font-size:12px;padding:8px 26px 8px 10px">
+            <option value="mois">Par mois</option>
+            <option value="trimestre">Par trimestre</option>
+            <option value="annee">Par année</option>
+          </select>
+          <select id="bilan-annee" onchange="renderBilan()" style="font-size:12px;padding:8px 26px 8px 10px"></select>
+        </div>
+        <div id="bilan-body"><div class="loading">Chargement…</div></div>
+      </div>
     </div>
   </div>
 </div>
 
-<div id="p-rent" class="page">
-  <div id="rent-stats" class="stats"></div>
-  <div class="card">
-    <div class="card-hd"><h2>💰 Ventes</h2></div>
-    <div class="card-bd">
-      <div class="abar">
-        <button class="btn btn-p" onclick="openVenteModal()">＋ Enregistrer une vente</button>
-      </div>
-      <div id="rent-body"><div class="loading">Chargement…</div></div>
-    </div>
+<!-- CHARGE -->
+<div id="m-charge" class="overlay" onclick="bgClose(event,this)">
+ <div class="modal">
+  <div class="drag"></div>
+  <div class="modal-title" id="ch-modal-title">Nouvelle charge</div>
+  <div class="r2">
+   <div class="fg"><label>Nom / intitulé *</label><input id="ch-nom" placeholder="Ex: Cotisation URSSAF T1"></div>
+   <div class="fg"><label>Catégorie</label>
+    <select id="ch-categorie">
+     <option value="urssaf">🏛 URSSAF / cotisations sociales</option>
+     <option value="tva">🧾 TVA à reverser</option>
+     <option value="impot">📋 Impôts / IR</option>
+     <option value="cfe">🏢 CFE / taxes locales</option>
+     <option value="abonnement">💳 Abonnements</option>
+     <option value="frais">📎 Frais divers</option>
+     <option value="autre">• Autre</option>
+    </select>
+   </div>
   </div>
+  <div class="r2">
+   <div class="fg"><label>Montant (€) *</label><input id="ch-montant" type="number" step="0.01"></div>
+   <div class="fg"><label>Date</label><input id="ch-date" type="date"></div>
+  </div>
+  <div class="r2">
+   <div class="fg"><label>Statut</label>
+    <select id="ch-statut">
+     <option value="paye">✅ Payé</option>
+     <option value="attente">⏳ En attente</option>
+     <option value="annule">❌ Annulé</option>
+    </select>
+   </div>
+   <div class="fg"><label>Récurrence</label>
+    <select id="ch-recurrence">
+     <option value="aucune">Ponctuelle</option>
+     <option value="mensuelle">↻ Mensuelle</option>
+     <option value="trimestrielle">↻ Trimestrielle</option>
+     <option value="annuelle">↻ Annuelle</option>
+    </select>
+   </div>
+  </div>
+  <div class="fg"><label>Note</label><input id="ch-note" placeholder="Détails, période concernée…"></div>
+  <div class="mfoot">
+   <button class="btn btn-ghost" onclick="closeModal('m-charge')">Annuler</button>
+   <button class="btn btn-p" onclick="saveCharge()">Enregistrer</button>
+  </div>
+ </div>
+</div>
+
+<!-- TVA -->
+<div id="m-tva" class="overlay" onclick="bgClose(event,this)">
+ <div class="modal">
+  <div class="drag"></div>
+  <div class="modal-title" id="tva-modal-title">TVA collectée</div>
+  <input type="hidden" id="tva-type" value="collectee">
+  <div class="r2">
+   <div class="fg"><label>Montant TVA (€) *</label><input id="tva-montant" type="number" step="0.01"></div>
+   <div class="fg"><label>Taux (%)</label><input id="tva-taux" type="number" value="20"></div>
+  </div>
+  <div class="r2">
+   <div class="fg"><label>Période (AAAA-MM)</label><input id="tva-periode" type="month"></div>
+   <div class="fg"><label>Note</label><input id="tva-note" placeholder="Facture, référence…"></div>
+  </div>
+  <div class="info-box" style="font-size:11px;margin-top:6px">
+   <b>Cas d'assujettissement à la TVA :</b><br>
+   · Dépassement seuil CA : &gt;36 800€/an (BNC) ou &gt;91 900€ (ventes)<br>
+   · Changement de statut (SARL, SAS, EI réelle…)<br>
+   · Option volontaire pour la TVA<br>
+   En franchise : mention "TVA non applicable — art. 293 B CGI" sur factures.
+  </div>
+  <div class="mfoot">
+   <button class="btn btn-ghost" onclick="closeModal('m-tva')">Annuler</button>
+   <button class="btn btn-p" onclick="saveTVA()">Enregistrer</button>
+  </div>
+ </div>
 </div>
 
 <!-- ═══ PARAMÈTRES ═══ -->
@@ -1194,7 +1354,7 @@ const SC_PREFIX = {
 };
 
 async function loadAll() {
-  const [mats, bijs, ventes, prods, reappros, cfg, kits] = await Promise.all([
+  const [mats, bijs, ventes, prods, reappros, cfg, kits, charges, tva_entries] = await Promise.all([
     sbGet('materiaux', {order:'ref'}),
     sbGet('bijoux', {order:'collection'}),
     sbGet('ventes', {order:'date'}),
@@ -1202,8 +1362,10 @@ async function loadAll() {
     sbGet('reappros', {order:'date'}),
     sbGet('config'),
     sbGet('kits_envoi').catch(()=>[]),
+    sbGet('charges').catch(()=>[]),
+    sbGet('tva_entries').catch(()=>[]),
   ]);
-  MATS=mats; BIJS=bijs; VENTES=ventes; PRODS=prods; REAPPROS=reappros; KITS=kits||[];
+  MATS=mats; BIJS=bijs; VENTES=ventes; PRODS=prods; REAPPROS=reappros; KITS=kits||[]; CHARGES=charges||[]; TVA_ENTRIES=tva_entries||[];
   const mainCatsCfg = cfg.find(c=>c.key==='main_cats');
   const fourCfg     = cfg.find(c=>c.key==='fournisseurs');
   const hdrCfg      = cfg.find(c=>c.key==='header');
@@ -1437,7 +1599,7 @@ function updateMatMCSelect() {
 // ═══════════════════════════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════════════════════════
-const RENDERS = {mat:renderMat,bij:renderBij,dep:renderDep,rent:renderRent,cfg:renderCfg};
+const RENDERS = {mat:renderMat,bij:renderBij,compta:renderCompta,cfg:renderCfg};
 
 function goTab(el) {
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
@@ -2719,6 +2881,393 @@ function renderDep() {
   });
   document.getElementById('dep-body').innerHTML=html||`<div class="empty"><div class="empty-icon">💸</div><p>Aucune dépense</p></div>`;
 }
+
+// ═══════════════════════════════════════════════════════
+// COMPTABILITÉ — données
+// ═══════════════════════════════════════════════════════
+let CHARGES=[], TVA_ENTRIES=[];
+let COMPTA_TAB='ventes';
+let CH_FLT='all';
+
+// Charger les données compta dans loadAll
+// (ajout après le chargement existant)
+
+function switchComptaTab(tab) {
+  COMPTA_TAB=tab;
+  const tabs=['ventes','depenses','charges','tva','bilan'];
+  tabs.forEach(t=>{
+    const el=document.getElementById('ctab-'+t);
+    if(el) el.className='gtab'+(t===tab?' gtab-on':'');
+    const panel=document.getElementById('cpanel-'+t);
+    if(panel) panel.style.display=t===tab?'block':'none';
+  });
+  if(tab==='ventes') renderCompta();
+  if(tab==='depenses') renderDep();
+  if(tab==='charges') renderCharges();
+  if(tab==='tva') renderTVA();
+  if(tab==='bilan') renderBilan();
+}
+
+function renderCompta() {
+  // Stats globales
+  const ca=VENTES.reduce((s,v)=>s+(+v.qty||0)*(+v.prix||0),0);
+  const depMat=MATS.reduce((s,m)=>s+(+m.prix||0),0)+REAPPROS.filter(r=>(!r.statut||r.statut==='valide')).reduce((s,r)=>s+(+r.prix||0),0);
+  const depCharges=CHARGES.filter(ch=>ch.statut==='paye').reduce((s,ch)=>s+(+ch.montant||0),0);
+  const ben=ca-depMat-depCharges;
+  const rsEl=document.getElementById('rent-stats');
+  if(rsEl) rsEl.innerHTML=`
+    <div class="stat grn"><div class="v">${eur(ca)}</div><div class="l">CA total</div></div>
+    <div class="stat red"><div class="v">${eur(depMat+depCharges)}</div><div class="l">Total dépenses</div></div>
+    <div class="stat ${ben>=0?'grn':'red'}"><div class="v">${eur(ben)}</div><div class="l">Résultat net</div></div>`;
+  // Peupler filtre période
+  const periodes=[...new Set(VENTES.map(v=>(v.date||'').slice(0,7)).filter(Boolean))].sort().reverse();
+  const fltSel=document.getElementById('vente-periode-flt');
+  if(fltSel){
+    const cur=fltSel.value;
+    fltSel.innerHTML='<option value="">Toutes périodes</option>'+periodes.map(p=>`<option ${p===cur?'selected':''}>${p}</option>`).join('');
+  }
+  const periodeFilter=fltSel?.value||'';
+  let ventes=VENTES;
+  if(periodeFilter) ventes=ventes.filter(v=>(v.date||'').startsWith(periodeFilter));
+  const sortedV=[...ventes].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  let html='';
+  if(!sortedV.length){
+    html='<div class="empty"><div class="empty-icon">💰</div><p>Aucune vente</p></div>';
+  } else {
+    html='<div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Bijou</th><th>Qté</th><th>Prix/u</th><th>Total</th><th>Canal</th><th></th></tr></thead><tbody>';
+    sortedV.forEach(v=>{
+      const b=getBij(v.bij_id);
+      html+=`<tr>
+        <td class="dim">${v.date||'--'}</td>
+        <td style="font-size:12px">${b?b.nom+(b.variante?' · '+b.variante:''):'--'}</td>
+        <td><b>${n(v.qty)}</b></td>
+        <td style="color:var(--purple)">${eur(v.prix)}</td>
+        <td class="hi">${eur((+v.qty||0)*(+v.prix||0))}</td>
+        <td><span class="badge bm">${v.canal||'--'}</span></td>
+        <td style="display:flex;gap:4px">
+          <button class="btn btn-xs btn-ghost" onclick="genFacture('${v.id}')" title="Générer facture">🧾</button>
+          <button class="btn btn-xs btn-red" onclick="delVente('${v.id}')">✕</button>
+        </td>
+      </tr>`;
+    });
+    html+='</tbody></table></div>';
+  }
+  const rb=document.getElementById('rent-body');
+  if(rb) rb.innerHTML=html;
+}
+
+// ── CHARGES ──────────────────────────────────────────
+const CAT_CHARGES={
+  urssaf:{label:'URSSAF / cotisations sociales',icon:'🏛',color:'#5A4A8A'},
+  tva:{label:'TVA à reverser',icon:'🧾',color:'#2E6A8A'},
+  impot:{label:'Impôts / IR',icon:'📋',color:'#8A4A2E'},
+  cfe:{label:'CFE / taxes locales',icon:'🏢',color:'#4A8A5A'},
+  abonnement:{label:'Abonnements',icon:'💳',color:'#6A5A2A'},
+  frais:{label:'Frais divers',icon:'📎',color:'#5A5A5A'},
+  autre:{label:'Autre',icon:'•',color:'#888'},
+};
+
+function setChFlt(flt){
+  CH_FLT=flt;
+  Object.keys({all:1,...CAT_CHARGES}).forEach(k=>{
+    const btn=document.getElementById('ch-flt-'+k);
+    if(btn) btn.className=k===flt?'btn btn-p btn-sm':'btn btn-ghost btn-sm';
+  });
+  renderCharges();
+}
+
+function renderCharges() {
+  const charges=CH_FLT==='all'?CHARGES:CHARGES.filter(ch=>ch.categorie===CH_FLT);
+  const total=charges.filter(ch=>ch.statut==='paye').reduce((s,ch)=>s+(+ch.montant||0),0);
+  const attente=charges.filter(ch=>ch.statut==='attente').reduce((s,ch)=>s+(+ch.montant||0),0);
+  const cstEl=document.getElementById('charges-stats');
+  if(cstEl) cstEl.innerHTML=`
+    <div class="stat red"><div class="v">${eur(total)}</div><div class="l">Payé</div></div>
+    <div class="stat" style="background:var(--goldP)"><div class="v">${eur(attente)}</div><div class="l">En attente</div></div>
+    <div class="stat red"><div class="v">${eur(total+attente)}</div><div class="l">Total</div></div>`;
+  if(!charges.length){
+    document.getElementById('charges-body').innerHTML='<div class="empty"><div class="empty-icon">🏛</div><p>Aucune charge enregistrée</p></div>';
+    return;
+  }
+  // Grouper par catégorie
+  const bycat={};
+  charges.forEach(ch=>{if(!bycat[ch.categorie])bycat[ch.categorie]=[];bycat[ch.categorie].push(ch);});
+  let html='';
+  Object.entries(bycat).forEach(([cat,items])=>{
+    const info=CAT_CHARGES[cat]||{label:cat,icon:'•',color:'#888'};
+    const catTotal=items.reduce((s,ch)=>s+(+ch.montant||0),0);
+    html+=`<div class="main-ban" style="background:${info.color}">${info.icon} ${info.label.toUpperCase()} · ${eur(catTotal)}</div>`;
+    items.sort((a,b)=>(b.date||'').localeCompare(a.date||'')).forEach(ch=>{
+      const s=ch.statut||'paye';
+      const sClr=s==='paye'?'var(--green)':s==='attente'?'var(--orange)':'var(--red)';
+      const sLabel=s==='paye'?'✅ Payé':s==='attente'?'⏳ En attente':'❌ Annulé';
+      const recLabel=ch.recurrence&&ch.recurrence!=='aucune'?`<span class="badge bp" style="font-size:9px">↻ ${ch.recurrence}</span>`:'';
+      html+=`<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);flex-wrap:wrap">
+        <span class="badge bm">${ch.date||'--'}</span>
+        <span style="flex:1;font-size:13px;font-weight:600">${ch.nom}</span>
+        ${recLabel}
+        <span style="color:var(--red);font-weight:700">${eur(ch.montant)}</span>
+        <span style="font-size:11px;color:${sClr};font-weight:600">${sLabel}</span>
+        <select onchange="setChargeStatut('${ch.id}',this.value)" style="font-size:11px;padding:3px 6px;border-radius:10px;border:1.5px solid ${sClr};color:${sClr};font-weight:700;background:#fff">
+          <option value="paye" ${s==='paye'?'selected':''}>✅ Payé</option>
+          <option value="attente" ${s==='attente'?'selected':''}>⏳ En attente</option>
+          <option value="annule" ${s==='annule'?'selected':''}>❌ Annulé</option>
+        </select>
+        <button class="btn btn-xs btn-ghost" onclick="openChargeModal('${ch.id}')">✎</button>
+        <button class="btn btn-xs btn-red" onclick="delCharge('${ch.id}')">✕</button>
+      </div>`;
+      if(ch.note) html+=`<div style="font-size:11px;color:var(--muted);padding:0 0 6px 4px">${ch.note}</div>`;
+    });
+  });
+  document.getElementById('charges-body').innerHTML=html;
+}
+
+async function setChargeStatut(id, statut) {
+  const ok=await sbUpdate('charges',id,{statut});
+  if(ok){const i=CHARGES.findIndex(ch=>ch.id===id);if(i>=0)CHARGES[i].statut=statut;renderCharges();}
+}
+async function delCharge(id) {
+  if(!confirm('Supprimer cette charge ?')) return;
+  const ok=await sbDelete('charges',id);
+  if(ok){CHARGES=CHARGES.filter(ch=>ch.id!==id);renderCharges();toast('Supprimé','ok');}
+}
+
+// ── TVA ──────────────────────────────────────────────
+function renderTVA() {
+  const periodes=[...new Set([...VENTES.map(v=>(v.date||'').slice(0,7)),...TVA_ENTRIES.map(t=>t.periode||'')].filter(Boolean))].sort().reverse();
+  const fltSel=document.getElementById('tva-periode-flt');
+  if(fltSel){
+    const cur=fltSel.value;
+    fltSel.innerHTML='<option value="">Toutes périodes</option>'+periodes.map(p=>`<option ${p===cur?'selected':''}>${p}</option>`).join('');
+  }
+  const periodeFilter=fltSel?.value||'';
+  let entries=[...TVA_ENTRIES];
+  if(periodeFilter) entries=entries.filter(t=>t.periode===periodeFilter);
+  const collectee=entries.filter(t=>t.type==='collectee').reduce((s,t)=>s+(+t.montant||0),0);
+  const deductible=entries.filter(t=>t.type==='deductible').reduce((s,t)=>s+(+t.montant||0),0);
+  const solde=collectee-deductible;
+  let html=`
+    <div class="stats" style="margin-bottom:12px">
+      <div class="stat grn"><div class="v">${eur(collectee)}</div><div class="l">TVA collectée</div></div>
+      <div class="stat red"><div class="v">${eur(deductible)}</div><div class="l">TVA déductible</div></div>
+      <div class="stat ${solde>=0?'red':'grn'}"><div class="v">${eur(solde)}</div><div class="l">${solde>=0?'À reverser':'Crédit TVA'}</div></div>
+    </div>`;
+  if(!entries.length){html+='<div class="empty"><div class="empty-icon">🧾</div><p>Aucune entrée TVA</p></div>';}
+  else {
+    html+='<div class="tbl-wrap"><table><thead><tr><th>Date/Période</th><th>Type</th><th>Source</th><th>Taux</th><th>Montant</th><th>Note</th><th></th></tr></thead><tbody>';
+    [...entries].sort((a,b)=>(b.periode||'').localeCompare(a.periode||'')).forEach(t=>{
+      html+=`<tr>
+        <td class="dim">${t.periode||'--'}</td>
+        <td><span class="badge ${t.type==='collectee'?'bgn':'bp'}">${t.type==='collectee'?'Collectée':'Déductible'}</span></td>
+        <td class="dim">${t.source||'manuel'}</td>
+        <td class="dim">${t.taux||20}%</td>
+        <td class="${t.type==='collectee'?'hi':'dim'}">${eur(t.montant)}</td>
+        <td style="font-size:11px;color:var(--muted)">${t.note||''}</td>
+        <td><button class="btn btn-xs btn-red" onclick="delTVA('${t.id}')">✕</button></td>
+      </tr>`;
+    });
+    html+='</tbody></table></div>';
+  }
+  const tb=document.getElementById('tva-body');
+  if(tb) tb.innerHTML=html;
+}
+
+async function delTVA(id) {
+  const ok=await sbDelete('tva_entries',id);
+  if(ok){TVA_ENTRIES=TVA_ENTRIES.filter(t=>t.id!==id);renderTVA();}
+}
+
+// ── BILAN ─────────────────────────────────────────────
+function renderBilan() {
+  const type=document.getElementById('bilan-type')?.value||'mois';
+  const anneeEl=document.getElementById('bilan-annee');
+  const annees=[...new Set(VENTES.map(v=>(v.date||'').slice(0,4)).filter(Boolean))].sort().reverse();
+  if(anneeEl){
+    const cur=anneeEl.value||annees[0]||new Date().getFullYear().toString();
+    anneeEl.innerHTML=annees.map(a=>`<option ${a===cur?'selected':''}>${a}</option>`).join('');
+    if(!anneeEl.value&&annees.length) anneeEl.value=annees[0];
+  }
+  const annee=anneeEl?.value||new Date().getFullYear().toString();
+  let periodes=[];
+  if(type==='mois') { for(let m=1;m<=12;m++) periodes.push(annee+'-'+String(m).padStart(2,'0')); }
+  else if(type==='trimestre') { periodes=['T1 '+annee,'T2 '+annee,'T3 '+annee,'T4 '+annee]; }
+  else { periodes=[annee]; }
+  const getPeriodeVentes=(p)=>{
+    if(type==='mois') return VENTES.filter(v=>(v.date||'').startsWith(p));
+    if(type==='trimestre'){
+      const q=parseInt(p[1]); const months=[(q-1)*3+1,(q-1)*3+2,(q-1)*3+3].map(m=>annee+'-'+String(m).padStart(2,'0'));
+      return VENTES.filter(v=>months.some(m=>(v.date||'').startsWith(m)));
+    }
+    return VENTES.filter(v=>(v.date||'').startsWith(p));
+  };
+  const getPeriodeCharges=(p)=>{
+    if(type==='mois') return CHARGES.filter(ch=>(ch.date||'').startsWith(p)&&ch.statut==='paye');
+    if(type==='trimestre'){
+      const q=parseInt(p[1]); const months=[(q-1)*3+1,(q-1)*3+2,(q-1)*3+3].map(m=>annee+'-'+String(m).padStart(2,'0'));
+      return CHARGES.filter(ch=>months.some(m=>(ch.date||'').startsWith(m))&&ch.statut==='paye');
+    }
+    return CHARGES.filter(ch=>(ch.date||'').startsWith(p)&&ch.statut==='paye');
+  };
+  let html='<div class="tbl-wrap"><table><thead><tr><th>Période</th><th>CA</th><th>Dép. mat.</th><th>Charges</th><th>Total dep.</th><th>Résultat</th><th>Marge</th></tr></thead><tbody>';
+  let totCA=0,totDepMat=0,totCharges=0;
+  periodes.forEach(p=>{
+    const vp=getPeriodeVentes(p);
+    const cp=getPeriodeCharges(p);
+    const ca=vp.reduce((s,v)=>s+(+v.qty||0)*(+v.prix||0),0);
+    const charges=cp.reduce((s,ch)=>s+(+ch.montant||0),0);
+    // Dépenses matériaux : réappros validés de la période
+    const depMat=REAPPROS.filter(r=>(!r.statut||r.statut==='valide')&&(r.date||'').startsWith(type==='annee'?p:p)).reduce((s,r)=>s+(+r.prix||0),0);
+    const depTot=depMat+charges;
+    const res=ca-depTot;
+    const marge=ca?((res/ca)*100).toFixed(1):0;
+    totCA+=ca; totDepMat+=depMat; totCharges+=charges;
+    if(!ca&&!depTot) return; // Masquer les périodes vides
+    html+=`<tr style="${res<0?'background:var(--redP)':''}">
+      <td style="font-weight:600">${p}</td>
+      <td class="hi">${eur(ca)}</td>
+      <td class="dim">${eur(depMat)}</td>
+      <td class="dim">${eur(charges)}</td>
+      <td style="color:var(--red)">${eur(depTot)}</td>
+      <td style="font-weight:700;color:${res>=0?'var(--green)':'var(--red)'}">${eur(res)}</td>
+      <td><span class="badge ${res>=0?'bgn':'br'}">${marge}%</span></td>
+    </tr>`;
+  });
+  const totDep=totDepMat+totCharges;
+  const totRes=totCA-totDep;
+  html+=`<tr style="font-weight:700;background:var(--purpleP)">
+    <td>TOTAL</td>
+    <td style="color:var(--green)">${eur(totCA)}</td>
+    <td>${eur(totDepMat)}</td>
+    <td>${eur(totCharges)}</td>
+    <td style="color:var(--red)">${eur(totDep)}</td>
+    <td style="color:${totRes>=0?'var(--green)':'var(--red)'}">${eur(totRes)}</td>
+    <td><span class="badge ${totRes>=0?'bgn':'br'}">${totCA?((totRes/totCA)*100).toFixed(1):0}%</span></td>
+  </tr>`;
+  html+='</tbody></table></div>';
+  const bb=document.getElementById('bilan-body');
+  if(bb) bb.innerHTML=html;
+}
+
+async function exportBilanPDF() {
+  // Export simple via print
+  const type=document.getElementById('bilan-type')?.value||'mois';
+  const annee=document.getElementById('bilan-annee')?.value||new Date().getFullYear();
+  const html=document.getElementById('bilan-body')?.innerHTML||'';
+  const win=window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+    <title>Bilan ${type} ${annee}</title>
+    <style>body{font-family:Arial,sans-serif;font-size:12px;padding:20px}
+    table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:6px;text-align:left}
+    th{background:#6B4E8E;color:#fff}.hi{color:#1a7a1a;font-weight:700}.dim{color:#888}
+    h1{color:#6B4E8E}</style></head><body>
+    <h1>Bilan comptable — ${type} ${annee}</h1>
+    <p style="color:#888;font-size:11px">Généré le ${new Date().toLocaleDateString('fr-FR')}</p>
+    ${html}
+    </body></html>`);
+  win.document.close();
+  setTimeout(()=>win.print(),300);
+}
+
+// ── FACTURE ────────────────────────────────────────────
+function genFacture(venteId) {
+  const v=VENTES.find(x=>x.id===venteId); if(!v) return;
+  const b=getBij(v.bij_id);
+  const nom=b?b.nom+(b.variante?' · '+b.variante:''):'Article';
+  const win=window.open('','_blank');
+  const num='FAC-'+venteId.slice(-6).toUpperCase();
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+    <title>Facture ${num}</title>
+    <style>body{font-family:Arial,sans-serif;max-width:700px;margin:40px auto;padding:20px;color:#1A1228}
+    .hdr{display:flex;justify-content:space-between;margin-bottom:40px}
+    .atelier{font-size:22px;font-weight:700;color:#6B4E8E}
+    .num{font-size:18px;color:#888}
+    table{width:100%;border-collapse:collapse;margin:20px 0}
+    th{background:#6B4E8E;color:#fff;padding:10px;text-align:left}
+    td{padding:10px;border-bottom:1px solid #eee}
+    .total{font-size:18px;font-weight:700;text-align:right;padding:10px;color:#6B4E8E}
+    .note{font-size:11px;color:#aaa;margin-top:30px;border-top:1px solid #eee;padding-top:10px}
+    @media print{button{display:none}}</style></head><body>
+    <div class="hdr">
+      <div><div class="atelier">✦ Atelier Bijoux</div>
+        <div style="font-size:13px;color:#888;margin-top:4px">Artisan bijoutier</div>
+      </div>
+      <div style="text-align:right">
+        <div class="num">Facture ${num}</div>
+        <div style="font-size:13px;color:#888">Date : ${v.date||'--'}</div>
+      </div>
+    </div>
+    <table>
+      <thead><tr><th>Désignation</th><th>Qté</th><th>Prix/u</th><th>Total HT</th></tr></thead>
+      <tbody>
+        <tr><td>${nom}</td><td>${v.qty}</td><td>${eur(v.prix)}</td><td>${eur((+v.qty||0)*(+v.prix||0))}</td></tr>
+      </tbody>
+    </table>
+    ${v.note?`<p style="font-size:12px;color:#666">Note : ${v.note}</p>`:''}
+    <div class="total">Total : ${eur((+v.qty||0)*(+v.prix||0))}</div>
+    <div style="margin-top:8px;text-align:right;font-size:11px;color:#aaa">
+      TVA non applicable — art. 293 B du CGI (franchise en base)
+    </div>
+    <button onclick="window.print()" style="margin-top:20px;padding:10px 20px;background:#6B4E8E;color:#fff;border:none;border-radius:20px;cursor:pointer;font-size:14px">🖨 Imprimer / Télécharger PDF</button>
+    <div class="note">Document généré par Atelier Bijoux — ${new Date().toLocaleDateString('fr-FR')}</div>
+    </body></html>`);
+  win.document.close();
+}
+
+// ── MODAL CHARGE ──────────────────────────────────────
+let EDIT_CHARGE_ID=null;
+function openChargeModal(editId=null) {
+  EDIT_CHARGE_ID=editId||null;
+  const ch=editId?CHARGES.find(c=>c.id===editId):null;
+  document.getElementById('ch-modal-title').textContent=ch?'Modifier la charge':'Nouvelle charge';
+  document.getElementById('ch-nom').value=ch?.nom||'';
+  document.getElementById('ch-categorie').value=ch?.categorie||'urssaf';
+  document.getElementById('ch-montant').value=ch?.montant||'';
+  document.getElementById('ch-date').value=ch?.date||today();
+  document.getElementById('ch-statut').value=ch?.statut||'paye';
+  document.getElementById('ch-recurrence').value=ch?.recurrence||'aucune';
+  document.getElementById('ch-note').value=ch?.note||'';
+  openModal('m-charge');
+}
+async function saveCharge() {
+  const nom=document.getElementById('ch-nom').value.trim();
+  const montant=+document.getElementById('ch-montant').value;
+  if(!nom||!montant) return toast('Nom et montant obligatoires','err');
+  const obj={
+    id:EDIT_CHARGE_ID||uid(),
+    nom, montant,
+    categorie:document.getElementById('ch-categorie').value,
+    date:document.getElementById('ch-date').value,
+    statut:document.getElementById('ch-statut').value,
+    recurrence:document.getElementById('ch-recurrence').value,
+    note:document.getElementById('ch-note').value,
+  };
+  let ok;
+  if(EDIT_CHARGE_ID){ ok=await sbUpdate('charges',EDIT_CHARGE_ID,obj); if(ok){const i=CHARGES.findIndex(c=>c.id===EDIT_CHARGE_ID);if(i>=0)CHARGES[i]=obj;} }
+  else { ok=await sbInsert('charges',obj); if(ok) CHARGES.push(obj); }
+  if(ok){closeModal('m-charge');renderCharges();toast('Charge enregistrée ✓','ok');}
+}
+
+// ── MODAL TVA ─────────────────────────────────────────
+function openTVAModal(type='collectee') {
+  document.getElementById('tva-type').value=type;
+  document.getElementById('tva-montant').value='';
+  document.getElementById('tva-taux').value='20';
+  document.getElementById('tva-periode').value=today().slice(0,7);
+  document.getElementById('tva-note').value='';
+  document.getElementById('tva-modal-title').textContent=type==='collectee'?'Ajouter TVA collectée':'Ajouter TVA déductible';
+  openModal('m-tva');
+}
+async function saveTVA() {
+  const montant=+document.getElementById('tva-montant').value;
+  if(!montant) return toast('Montant obligatoire','err');
+  const obj={id:uid(),type:document.getElementById('tva-type').value,montant,taux:+document.getElementById('tva-taux').value||20,
+    periode:document.getElementById('tva-periode').value,note:document.getElementById('tva-note').value,source:'manuel'};
+  const ok=await sbInsert('tva_entries',obj);
+  if(ok){TVA_ENTRIES.push(obj);closeModal('m-tva');renderTVA();toast('Entrée TVA ajoutée ✓','ok');}
+}
+
+// Proxy pour renderRent (compat)
+function renderRent() { renderCompta(); }
 
 // ═══════════════════════════════════════════════════════
 // PRODUCTION
