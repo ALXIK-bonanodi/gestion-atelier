@@ -2528,19 +2528,23 @@ async function openProdModal() {
 // Calcule le stock "produisable" d'un bijou composant no_sell
 // = min(stockDispo(mat) / qty_mat) pour chaque matériau → combien on peut en faire
 function stockProduisableComp(bijComp) {
-  // Combien d'unités peut-on produire avec le stock matériaux disponible
+  // Combien d'unités du composant peut-on produire avec le stock matériaux disponible
   if(!bijComp) return 0;
   const mats = bijComp.mats || [];
-  if(!mats.length) return Infinity; // pas de matériaux définis = pas de contrainte
-  let maxFaisable = Infinity;
+  if(!mats.length) return 999; // pas de composition définie = pas de contrainte
+  let maxFaisable = 999;
+  let hasAtLeastOneMat = false;
   for(const m of mats) {
+    if(!m.qty) continue;
     const mat = getMat(m.ref);
-    if(!mat || !m.qty) continue;
+    if(!mat) continue; // matériau inconnu, ignorer
+    hasAtLeastOneMat = true;
     const dispo = stockDispo(mat);
-    const faisable = Math.floor(dispo / (+m.qty||1));
+    const faisable = Math.floor(dispo / (+m.qty));
     if(faisable < maxFaisable) maxFaisable = faisable;
   }
-  return maxFaisable === Infinity ? 0 : maxFaisable;
+  // Si aucun matériau trouvé dans MATS, on ne peut pas bloquer
+  return hasAtLeastOneMat ? maxFaisable : 999;
 }
 
 function renderProdPrev() {
@@ -2571,7 +2575,8 @@ function renderProdPrev() {
       const peutProduire=bijComp.no_sell ? stockProduisableComp(bijComp) : 0;
       const totalDispo=stockExist+peutProduire;
       const enough=totalDispo>=need;
-      if(!enough&&m.qty) ok=false;
+      // Pour no_sell : ne jamais bloquer la production, juste avertir
+      if(!enough&&m.qty&&!bijComp.no_sell) ok=false;
 
       if(bijComp.no_sell) {
         // no_sell : pas besoin de prod enregistrée, juste vérifier les matériaux
