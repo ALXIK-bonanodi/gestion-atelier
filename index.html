@@ -122,9 +122,10 @@ main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0;backgr
 
 /* CAT BAR */
 .cat-bar{padding:10px 12px 8px;background:var(--goldP);border-bottom:1px solid #E8D9B0}
-.gtab{flex:1;padding:12px;text-align:center;font-size:13px;font-weight:700;cursor:pointer;border-bottom:3px solid transparent;color:var(--muted);background:#fff;transition:.12s;-webkit-user-select:none}
+.gtab{flex:1;padding:11px;text-align:center;font-size:13px;font-weight:700;cursor:pointer;border-bottom:3px solid transparent;color:var(--muted);background:#fff;transition:.12s;-webkit-user-select:none}
+.gtab:active{background:var(--bg)}
 .gtab-on{color:var(--purple);border-bottom-color:var(--purple);background:var(--purpleP)}
-.sub-tab{padding:9px 13px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;transition:.12s;-webkit-user-select:none}
+.sub-tab{padding:9px 12px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;transition:.12s;-webkit-user-select:none}
 .sub-tab:active{background:var(--purpleP)}
 .sub-tab-on{color:var(--purple);border-bottom-color:var(--purple);background:var(--purpleP)}
 .cat-section{display:flex;align-items:flex-start;flex-wrap:wrap;gap:4px;margin-bottom:6px}
@@ -1148,13 +1149,23 @@ async function loadAll() {
   if(hdrCfg?.value) { HDR_CFG={...HDR_CFG,...hdrCfg.value}; applyHdrConfig(); }
   MAIN_CLR = {...DEFAULT_MAIN_CLR};
   SC_CLR = {...DEFAULT_SC_CLR};
-  // Add colors for custom categories
-  Object.keys(MAIN_CATS).forEach(mc => {
-    if (!MAIN_CLR[mc]) MAIN_CLR[mc] = '#5A5A6A';
-    (MAIN_CATS[mc]||[]).forEach(sc => { if(!SC_CLR[sc]) SC_CLR[sc]='#5A5A5A'; });
+  // Initialiser couleurs pour TOUS les types
+  Object.values(CATS_BY_TYPE).forEach(cats=>{
+    Object.entries(cats||{}).forEach(([mc,scs])=>{
+      if(!MAIN_CLR[mc]) MAIN_CLR[mc]='#5A5A6A';
+      (scs||[]).forEach(sc=>{if(!SC_CLR[sc]) SC_CLR[sc]='#5A5A5A';});
+    });
   });
-  switchMatType('tout');
   updateFournisseursDatalist();
+  // Afficher onglet Tout par défaut
+  CUR_MAT_TYPE='tout';
+  MAIN_CATS={};
+  Object.values(CATS_BY_TYPE).forEach(cats=>{
+    Object.entries(cats||{}).forEach(([mc,scs])=>{
+      if(!MAIN_CATS[mc]) MAIN_CATS[mc]=[];
+      (scs||[]).forEach(sc=>{if(!MAIN_CATS[mc].includes(sc)) MAIN_CATS[mc].push(sc);});
+    });
+  });
   renderMat();
 }
 
@@ -1804,18 +1815,25 @@ async function addFournisseur(val) {
 function buildCatBar() {
   const bar=document.getElementById('cat-bar');
   const flt=document.getElementById('flt-sc');
+  if(!bar||!flt) return;
   const cur=flt.value;
   let html='', opts='<option value="">Toutes catégories</option>';
-  Object.entries(MAIN_CATS).forEach(([mc,scs])=>{
-    const active=scs.filter(sc=>MATS.some(m=>m.sc===sc&&(CUR_MAT_TYPE==='tout'||(m.type||'creation')===CUR_MAT_TYPE)));
-    if(!active.length) return;
-    html+=`<div class="cat-section"><div class="cat-label" style="color:${MAIN_CLR[mc]||'#888'}">${mc}</div>
-      ${active.map(sc=>`<span class="chip" style="background:${SC_CLR[sc]||'#888'}" onclick="jumpToSC('${sc}')">${sc}</span>`).join('')}
-    </div>`;
-    opts+=`<optgroup label="${mc}">${active.map(sc=>`<option value="${sc}" ${sc===cur?'selected':''}>${sc}</option>`).join('')}</optgroup>`;
+  // Source de catégories selon le type courant
+  const source = CUR_MAT_TYPE==='tout'
+    ? CATS_BY_TYPE  // itérer sur tous les types
+    : {[CUR_MAT_TYPE]: CATS_BY_TYPE[CUR_MAT_TYPE]||{}};
+  Object.entries(source).forEach(([typeKey, cats])=>{
+    Object.entries(cats||{}).forEach(([mc,scs])=>{
+      const active=scs.filter(sc=>MATS.some(m=>m.sc===sc&&(CUR_MAT_TYPE==='tout'||(m.type||'creation')===CUR_MAT_TYPE)));
+      if(!active.length) return;
+      html+=`<div class="cat-section"><div class="cat-label" style="color:${MAIN_CLR[mc]||'#888'}">${mc}</div>
+        ${active.map(sc=>`<span class="chip" style="background:${SC_CLR[sc]||'#888'}" onclick="jumpToSC('${sc}')">${sc}</span>`).join('')}
+      </div>`;
+      opts+=`<optgroup label="${mc}">${active.map(sc=>`<option value="${sc}" ${sc===cur?'selected':''}>${sc}</option>`).join('')}</optgroup>`;
+    });
   });
-  
-  bar.innerHTML=html; flt.innerHTML=opts;
+  bar.innerHTML=html||'';
+  flt.innerHTML=opts;
 }
 
 function showBijDiag() {
