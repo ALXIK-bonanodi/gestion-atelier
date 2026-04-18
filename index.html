@@ -351,32 +351,32 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
 <main id="main-area">
 
 <div id="p-mat" class="page on" style="padding:0">
-  <!-- BARRE DE NAVIGATION FIXE -->
-  <div style="position:sticky;top:0;z-index:50;box-shadow:0 2px 8px rgba(26,18,40,.08)">
-  <div id="gestion-nav" style="max-width:960px;margin:0 auto;background:#fff">
-    <!-- Onglets principaux -->
-    <div style="display:flex;border-bottom:2px solid var(--border)">
-      <div id="gtab-mat" onclick="switchGTab('mat')" class="gtab gtab-on">📦 Matériaux</div>
-      <div id="gtab-stock" onclick="switchGTab('stock')" class="gtab">📊 Stock</div>
-    </div>
-    <!-- Sous-onglets matériaux -->
-    <div id="subnav-mat" style="display:flex;border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none">
-      <div id="mtype-tout" onclick="switchMatType('tout')" class="sub-tab sub-tab-on">🗂 Tout</div>
-      <div id="mtype-creation" onclick="switchMatType('creation')" class="sub-tab">🪡 Création</div>
-      <div id="mtype-envoi" onclick="switchMatType('envoi')" class="sub-tab">📬 Envois</div>
-      <div id="mtype-consommable" onclick="switchMatType('consommable')" class="sub-tab">🧪 Consommables</div>
-      <div id="mtype-outil" onclick="switchMatType('outil')" class="sub-tab">🔧 Outils</div>
-    </div>
-    <!-- Sous-onglets stock (masqués par défaut) -->
-    <div id="subnav-stock" style="display:none;border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:6px 10px;gap:6px;align-items:center;flex-wrap:wrap">
-      <button id="sflt-all" class="btn btn-p btn-sm" onclick="switchStockFlt('all')">Tout</button>
-      <button id="sflt-creation" class="btn btn-ghost btn-sm" onclick="switchStockFlt('creation')">🪡 Création</button>
-      <button id="sflt-envoi" class="btn btn-ghost btn-sm" onclick="switchStockFlt('envoi')">📬 Envois</button>
-      <button id="sflt-consommable" class="btn btn-ghost btn-sm" onclick="switchStockFlt('consommable')">🧪 Consommables</button>
-      <button id="sflt-outil" class="btn btn-ghost btn-sm" onclick="switchStockFlt('outil')">🔧 Outils</button>
+  <!-- BARRE DE NAVIGATION FIXE — même structure que p-bij -->
+  <div style="position:sticky;top:0;z-index:50">
+    <div id="gestion-nav" style="max-width:960px;margin:0 auto;background:#fff;box-shadow:0 2px 8px rgba(26,18,40,.08)">
+      <!-- Onglets principaux -->
+      <div style="display:flex;border-bottom:2px solid var(--border)">
+        <div id="gtab-mat" onclick="switchGTab('mat')" class="gtab gtab-on">📦 Matériaux</div>
+        <div id="gtab-stock" onclick="switchGTab('stock')" class="gtab">📊 Stock</div>
+      </div>
+      <!-- Sous-onglets matériaux -->
+      <div id="subnav-mat" style="display:flex;border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none">
+        <div id="mtype-tout" onclick="switchMatType('tout')" class="sub-tab sub-tab-on">🗂 Tout</div>
+        <div id="mtype-creation" onclick="switchMatType('creation')" class="sub-tab">🪡 Création</div>
+        <div id="mtype-envoi" onclick="switchMatType('envoi')" class="sub-tab">📬 Envois</div>
+        <div id="mtype-consommable" onclick="switchMatType('consommable')" class="sub-tab">🧪 Consommables</div>
+        <div id="mtype-outil" onclick="switchMatType('outil')" class="sub-tab">🔧 Outils</div>
+      </div>
+      <!-- Sous-onglets stock -->
+      <div id="subnav-stock" style="display:none;border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:6px 10px;gap:6px;flex-wrap:wrap">
+        <button id="sflt-all" class="btn btn-p btn-sm" onclick="switchStockFlt('all')">Tout</button>
+        <button id="sflt-creation" class="btn btn-ghost btn-sm" onclick="switchStockFlt('creation')">🪡 Création</button>
+        <button id="sflt-envoi" class="btn btn-ghost btn-sm" onclick="switchStockFlt('envoi')">📬 Envois</button>
+        <button id="sflt-consommable" class="btn btn-ghost btn-sm" onclick="switchStockFlt('consommable')">🧪 Consommables</button>
+        <button id="sflt-outil" class="btn btn-ghost btn-sm" onclick="switchStockFlt('outil')">🔧 Outils</button>
+      </div>
     </div>
   </div>
-  </div><!-- /outer sticky -->
   <button class="fab-top" id="fab-top-mat" onclick="document.getElementById('main-area').scrollTop=0" title="Haut de page">↑</button>
 
   <!-- PANEL MATÉRIAUX -->
@@ -766,6 +766,13 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
 
   <!-- TAB CATÉGORIES -->
   <div id="cfg-cats">
+   <!-- Sélecteur de type dans le modal -->
+   <div style="display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap">
+    <button id="mcat-type-creation" class="btn btn-p btn-sm" onclick="setModalCatType('creation')">🪡 Création</button>
+    <button id="mcat-type-envoi" class="btn btn-ghost btn-sm" onclick="setModalCatType('envoi')">📬 Envois</button>
+    <button id="mcat-type-consommable" class="btn btn-ghost btn-sm" onclick="setModalCatType('consommable')">🧪 Consommables</button>
+    <button id="mcat-type-outil" class="btn btn-ghost btn-sm" onclick="setModalCatType('outil')">🔧 Outils</button>
+   </div>
    <div style="margin-bottom:12px">
     <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Catégories principales</div>
     <div id="m-cfg-mc-list"></div>
@@ -1519,45 +1526,33 @@ function calcPU() {
 }
 
 function openMatModal(editId=null) {
-  // Toujours repeupler mat-mc depuis MAIN_CATS en premier
-  const mcSel = document.getElementById('mat-mc');
-  mcSel.innerHTML = Object.keys(MAIN_CATS).map(mc=>`<option>${mc}</option>`).join('');
-
   document.getElementById('mat-edit-id').value=editId||'';
   if(editId) {
     const m=MATS.find(m=>m.id===editId); if(!m) return;
-    document.getElementById('mat-modal-title').textContent='Modifier matériau';
-    // Vérifier que la mc du matériau existe dans la liste, sinon l'ajouter
-    if(m.mc && !Array.from(mcSel.options).find(o=>o.value===m.mc)) {
-      mcSel.innerHTML += `<option>${m.mc}</option>`;
+    // Charger les catégories du type de CE matériau
+    const mtype=m.type||'creation';
+    MAIN_CATS=CATS_BY_TYPE[mtype]||CATS_BY_TYPE.creation;
+    document.getElementById('mat-modal-title').textContent='Modifier — '+m.ref;
+    document.getElementById('mat-type').value=mtype;
+    onMatTypeChange(); // met à jour mat-mc et mat-sc selon le type
+    // Sélectionner mc et sc
+    const mcSel=document.getElementById('mat-mc');
+    if(mcSel) {
+      if(!Array.from(mcSel.options).find(o=>o.value===m.mc)) mcSel.innerHTML+=`<option>${m.mc}</option>`;
+      mcSel.value=m.mc||'';
     }
-    mcSel.value=m.mc;
-    syncSC(); // peuple mat-sc avec les sous-cats de cette mc
-    // Vérifier que la sc existe, sinon l'ajouter
+    syncSC();
     const scSel=document.getElementById('mat-sc');
-    if(m.sc && !Array.from(scSel.options).find(o=>o.value===m.sc)) {
-      scSel.innerHTML += `<option>${m.sc}</option>`;
+    if(scSel) {
+      if(!Array.from(scSel.options).find(o=>o.value===m.sc)) scSel.innerHTML+=`<option>${m.sc}</option>`;
+      scSel.value=m.sc||'';
     }
-    scSel.value=m.sc;
     document.getElementById('mat-des').value=m.designation||m.des||'';
     document.getElementById('mat-var').value=m.variante||'';
     document.getElementById('mat-ref').value=m.ref;
     checkMatRef(m.ref);
     document.getElementById('mat-fournisseur').value=m.fournisseur||'';
-    const mtype=m.type||'creation';
-    document.getElementById('mat-type').value=mtype;
     document.getElementById('mat-renouvellement').value=m.date_renouvellement||'';
-    // Charger les catégories du type du matériau édité
-    MAIN_CATS=CATS_BY_TYPE[mtype]||CATS_BY_TYPE.creation;
-    onMatTypeChange();
-    // Resélectionner mc et sc
-    const mcSel=document.getElementById('mat-mc');
-    if(mcSel){
-      mcSel.value=m.mc||'';
-      syncSC();
-      const scSel=document.getElementById('mat-sc');
-      if(scSel) scSel.value=m.sc||'';
-    }
     document.getElementById('mat-qty').value=m.qty||'';
     document.getElementById('mat-prix').value=m.prix||'';
     calcPU();
@@ -1701,14 +1696,28 @@ function switchCfgTab(el, showId) {
   else { renderCatListCtx('modal'); renderCatListCtx('params'); }
 }
 
+function setModalCatType(type) {
+  // Mettre à jour le type actif dans le modal catégorie
+  CUR_MAT_TYPE=type;
+  MAIN_CATS=CATS_BY_TYPE[type]||{};
+  ['creation','envoi','consommable','outil'].forEach(t=>{
+    const btn=document.getElementById('mcat-type-'+t);
+    if(btn) btn.className=t===type?'btn btn-p btn-sm':'btn btn-ghost btn-sm';
+  });
+  renderCatListCtx("modal");
+  // Aussi mettre à jour les sous-onglets de la page
+  switchMatType(type);
+}
+
 function openAddCat() {
-  // Afficher le type courant dans le titre
-  const typeLabels={creation:'🪡 Création',envoi:'📬 Envois',consommable:'🧪 Consommables',outil:'🔧 Outils'};
-  const titleEl=document.querySelector('#m-addcat .modal-title');
-  if(titleEl) titleEl.textContent='⚙ Catégories — '+( typeLabels[CUR_MAT_TYPE]||'Création');
-  // MAIN_CATS pointe sur le bon type
-  MAIN_CATS = CATS_BY_TYPE[CUR_MAT_TYPE]||CATS_BY_TYPE.creation;
-  document.getElementById('m-addcat-mc').innerHTML=Object.keys(MAIN_CATS).map(mc=>`<option>${mc}</option>`).join('');
+  const type=CUR_MAT_TYPE==='tout'?'creation':CUR_MAT_TYPE;
+  CUR_MAT_TYPE=type;
+  MAIN_CATS=CATS_BY_TYPE[type]||{};
+  // Activer le bon bouton de type dans le modal
+  ['creation','envoi','consommable','outil'].forEach(t=>{
+    const btn=document.getElementById('mcat-type-'+t);
+    if(btn) btn.className=t===type?'btn btn-p btn-sm':'btn btn-ghost btn-sm';
+  });
   ['m-addcat-name','m-new-mc-name','new-four-name'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   document.querySelectorAll('#cfg-tabs .mtab').forEach((t,i)=>t.classList.toggle('on',i===0));
   const cc=document.getElementById('cfg-cats'), cf=document.getElementById('cfg-fours');
@@ -2113,8 +2122,8 @@ function switchGTab(tab) {
   const subMat=document.getElementById('subnav-mat');
   const subStock=document.getElementById('subnav-stock');
   if(subMat) subMat.style.display=isPanMat?'flex':'none';
-  if(subStock) { subStock.style.display=isPanMat?'none':'flex'; subStock.style.flexWrap='wrap'; }
-  if(!isPanMat) { renderStock(); }
+  if(subStock) { subStock.style.display=isPanMat?'none':'flex'; }
+  if(!isPanMat) renderStock();
 }
 
 function switchMatType(type) {
@@ -2744,13 +2753,12 @@ function quickProd(bijId) {
 async function openProdModal(preselectBijId) {
   const list = document.getElementById('p-bij-list');
   // Recharger BIJS si vide
+  // Toujours recharger la liste fraîche
   if(!BIJS || BIJS.length===0) {
-    list.innerHTML = '<div style="padding:10px;color:var(--muted);font-size:12px">Chargement...</div>';
-    openModal('m-prod');
-    try { const {data}=await SB.from('bijoux').select('*'); if(data){BIJS=data;} } catch(e){}
+    try { const {data}=await SB.from('bijoux').select('*'); if(data) BIJS=data; } catch(e){}
   }
   if(!BIJS || BIJS.length===0) {
-    list.innerHTML = '<div style="padding:10px;color:var(--red);font-size:12px">Aucun bijou trouvé — vérifiez la connexion.</div>';
+    list.innerHTML = '<div style="padding:10px;color:var(--red);font-size:12px">Aucun bijou trouvé.</div>';
     openModal('m-prod');
     return;
   }
