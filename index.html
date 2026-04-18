@@ -341,7 +341,7 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
 
 <div class="tabs">
   <div class="tab on" data-p="mat" onclick="goTab(this)">📦 Gestion</div>
-  <div class="tab" data-p="bij" onclick="goTab(this)">💎 Bijoux</div>
+  <div class="tab" data-p="bij" onclick="goTab(this)">✨ Création</div>
   <div class="tab" data-p="dep" onclick="goTab(this)">💸 Dépenses</div>
   <div class="tab" data-p="rent" onclick="goTab(this)">📈 Rentabilité</div>
   <div class="tab" data-p="cfg" onclick="goTab(this)">⚙ Paramètres</div>
@@ -405,23 +405,47 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
   </div>
 </div>
 
-<div id="p-bij" class="page">
-  <div class="card">
-    <div class="card-hd"><h2>💎 Bijoux & compositions</h2></div>
-    <div class="card-bd">
-      <div class="abar">
-        <button class="btn btn-p" onclick="openBijModal()">＋ Nouveau bijou</button>
-        <select id="flt-coll" onchange="renderBij()" style="width:auto;flex:1;max-width:140px;font-size:12px;padding:8px 26px 8px 10px"></select>
-        <select id="flt-status" onchange="renderBij()" style="width:auto;font-size:12px;padding:8px 26px 8px 10px">
-          <option value="">Tous</option><option value="ok">Complets</option><option value="draft">Brouillons</option>
-        </select>
+<div id="p-bij" class="page" style="padding:0">
+  <!-- Nav sticky -->
+  <div style="position:sticky;top:0;z-index:50;background:#fff;box-shadow:0 2px 8px rgba(26,18,40,.08)">
+    <div style="display:flex;border-bottom:2px solid var(--border)">
+      <div id="ctab-bij" onclick="switchCreatTab('bij')" class="gtab gtab-on">💎 Bijoux</div>
+      <div id="ctab-prod" onclick="switchCreatTab('prod')" class="gtab">🏭 Productions</div>
+    </div>
+  </div>
+
+  <!-- Panel Bijoux -->
+  <div id="cpanel-bij" style="padding:12px;max-width:960px;margin:0 auto">
+    <div class="card">
+      <div class="card-bd">
+        <div class="abar">
+          <button class="btn btn-p" onclick="openBijModal()">＋ Nouveau bijou</button>
+          <select id="flt-coll" onchange="renderBij()" style="width:auto;flex:1;max-width:140px;font-size:12px;padding:8px 26px 8px 10px"></select>
+          <select id="flt-status" onchange="renderBij()" style="width:auto;font-size:12px;padding:8px 26px 8px 10px">
+            <option value="">Tous</option><option value="ok">Complets</option><option value="draft">Brouillons</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap">
+          <input id="bij-search" type="search" placeholder="🔍 Rechercher…" oninput="renderBij()" style="font-size:13px;padding:10px 14px;border-radius:20px;flex:1;min-width:160px">
+          <button class="btn btn-ghost btn-sm" onclick="showBijDiag()">🔍 Doublons</button>
+        </div>
+        <div id="bij-diag-banner" style="display:none;margin-bottom:8px"></div>
+        <div id="bij-body"><div class="loading">Chargement…</div></div>
       </div>
-      <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap">
-        <input id="bij-search" type="search" placeholder="🔍 Rechercher…" oninput="renderBij()" style="font-size:13px;padding:10px 14px;border-radius:20px;flex:1;min-width:160px">
-        <button class="btn btn-ghost btn-sm" onclick="showBijDiag()">🔍 Doublons</button>
+    </div>
+  </div>
+
+  <!-- Panel Productions (copié de p-rent) -->
+  <div id="cpanel-prod" style="display:none;padding:12px;max-width:960px;margin:0 auto">
+    <div id="creat-rent-stats" class="stats"></div>
+    <div class="card">
+      <div class="card-hd"><h2>🏭 Productions</h2></div>
+      <div class="card-bd">
+        <div class="abar">
+          <button class="btn btn-p" onclick="openProdModal()">＋ Enregistrer une production</button>
+        </div>
+        <div id="creat-prod-list-body"><div class="loading">Chargement…</div></div>
       </div>
-      <div id="bij-diag-banner" style="display:none;margin-bottom:8px"></div>
-      <div id="bij-body"><div class="loading">Chargement…</div></div>
     </div>
   </div>
 </div>
@@ -431,9 +455,17 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
 <div id="p-dep" class="page">
   <div id="dep-stats" class="stats"></div>
   <div class="card">
-    <div class="card-hd"><h2>💸 Historique des achats</h2></div>
+    <div class="card-hd"><h2>💸 Dépenses & réapprovisionnements</h2></div>
     <div class="card-bd">
-      <div class="info-box">Utilisez ↑ sur un matériau pour enregistrer un réapprovisionnement. Le prix unitaire moyen se recalcule automatiquement.</div>
+      <div class="abar">
+        <button class="btn btn-p" onclick="openDepModal()">＋ Nouvelle dépense</button>
+        <div style="display:flex;gap:4px">
+          <button id="dep-flt-all" class="btn btn-p btn-sm" onclick="setDepFlt('all')">Tout</button>
+          <button id="dep-flt-valide" class="btn btn-ghost btn-sm" onclick="setDepFlt('valide')">✅ Validé</button>
+          <button id="dep-flt-attente" class="btn btn-ghost btn-sm" onclick="setDepFlt('attente')">⏳ Attente</button>
+          <button id="dep-flt-annule" class="btn btn-ghost btn-sm" onclick="setDepFlt('annule')">❌ Annulé</button>
+        </div>
+      </div>
       <div id="dep-body"><div class="loading">Chargement…</div></div>
     </div>
   </div>
@@ -441,15 +473,6 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
 
 <div id="p-rent" class="page">
   <div id="rent-stats" class="stats"></div>
-  <div class="card">
-    <div class="card-hd"><h2>🏭 Productions</h2></div>
-    <div class="card-bd">
-      <div class="abar">
-        <button class="btn btn-p" onclick="openProdModal()">＋ Enregistrer une production</button>
-      </div>
-      <div id="prod-list-body"><div class="loading">Chargement…</div></div>
-    </div>
-  </div>
   <div class="card">
     <div class="card-hd"><h2>💰 Ventes</h2></div>
     <div class="card-bd">
@@ -1190,11 +1213,11 @@ function toast(msg, type='', dur=2800) {
 }
 
 function stockCumul(mat) {
-  return (+(mat.qty||0)) + REAPPROS.filter(r=>r.mat_id===mat.id).reduce((s,r)=>s+(+r.qty||0),0);
+  return (+(mat.qty||0)) + REAPPROS.filter(r=>r.mat_id===mat.id&&(!r.statut||r.statut==='valide')).reduce((s,r)=>s+(+r.qty||0),0);
 }
 function puMoyen(mat) {
   const qB=+(mat.qty||0), pB=+(mat.prix||0);
-  const ra=REAPPROS.filter(r=>r.mat_id===mat.id);
+  const ra=REAPPROS.filter(r=>r.mat_id===mat.id&&(!r.statut||r.statut==='valide'));
   const qE=ra.reduce((s,r)=>s+(+r.qty||0),0), pE=ra.reduce((s,r)=>s+(+r.prix||0),0);
   const qT=qB+qE, pT=pB+pE;
   return (qT&&pT)?pT/qT:null;
@@ -1570,7 +1593,7 @@ function previewRA() {
 async function saveRA() {
   const qty=+document.getElementById('ra-qty').value, prix=+document.getElementById('ra-prix').value;
   if(!qty||!prix) return toast('Quantité et prix obligatoires','err');
-  const obj={id:uid(),mat_id:RA_MAT_ID,qty,prix,date:document.getElementById('ra-date').value,fournisseur:document.getElementById('ra-fournisseur').value,note:document.getElementById('ra-note').value};
+  const obj={id:uid(),mat_id:RA_MAT_ID,qty,prix,date:document.getElementById('ra-date').value,fournisseur:document.getElementById('ra-fournisseur').value,note:document.getElementById('ra-note').value,statut:'valide'};
   const ok=await sbInsert('reappros',obj);
   if(ok){REAPPROS.push(obj);closeModal('m-reappro');renderMat();toast('Réappro enregistré ✓','ok');}
 }
@@ -1908,6 +1931,49 @@ function runDiag() {
 
 let CUR_MAT_TYPE = 'tout';
 let CUR_STOCK_FLT = 'all';
+
+function switchCreatTab(tab) {
+  const isBij = tab==='bij';
+  document.getElementById('cpanel-bij').style.display = isBij?'block':'none';
+  document.getElementById('cpanel-prod').style.display = isBij?'none':'block';
+  document.getElementById('ctab-bij').className = 'gtab'+(isBij?' gtab-on':'');
+  document.getElementById('ctab-prod').className = 'gtab'+(!isBij?' gtab-on':'');
+  if(!isBij) renderCreatProd();
+}
+
+function renderCreatProd() {
+  // Copier les données de prod-list-body vers creat-prod-list-body
+  renderRent();
+  const src=document.getElementById('prod-list-body');
+  const dst=document.getElementById('creat-prod-list-body');
+  if(src&&dst) dst.innerHTML=src.innerHTML;
+  const statsSrc=document.getElementById('rent-stats');
+  const statsDst=document.getElementById('creat-rent-stats');
+  if(statsSrc&&statsDst) statsDst.innerHTML=statsSrc.innerHTML;
+}
+
+let DEP_MODAL_MAT_ID=null;
+function openDepModal(matId) {
+  DEP_MODAL_MAT_ID=matId||null;
+  // Réutiliser le modal réappro existant
+  if(matId) {
+    openReappro(matId);
+  } else {
+    // Ouvrir avec sélection matériau
+    RA_MAT_ID=null;
+    document.getElementById('ra-modal-title').textContent='Nouvelle dépense';
+    // Ajouter un select matériau si pas déjà présent
+    const sel=document.getElementById('ra-mat-sel');
+    if(sel) {
+      sel.innerHTML=MATS.map(m=>`<option value="${m.id}">${m.ref} ${m.designation||m.des||''}</option>`).join('');
+      sel.style.display='';
+    }
+    document.getElementById('ra-date').value=today();
+    ['ra-qty','ra-prix','ra-note','ra-fournisseur'].forEach(i=>document.getElementById(i).value='');
+    document.getElementById('ra-preview').innerHTML='';
+    openModal('m-reappro');
+  }
+}
 
 function switchGTab(tab) {
   const isPanMat = tab==='mat';
@@ -2297,6 +2363,7 @@ function renderBij() {
             ${b.ref?`<div style="font-size:11px;color:var(--gold2);margin-top:4px;letter-spacing:.3px;opacity:.8">${b.ref}</div>`:''}
           </div>
           <div style="display:flex;gap:4px">
+            <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();openProdModalForBij('${b.id}')" title="Envoyer en production">🏭</button>
             <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();dupBij('${b.id}')" title="Dupliquer">⎘ Dupliquer</button>
             <button class="btn btn-red btn-xs" onclick="event.stopPropagation();delBij('${b.id}')">✕</button>
           </div>
@@ -2422,46 +2489,85 @@ function renderStock() {
 // ═══════════════════════════════════════════════════════
 // DÉPENSES
 // ═══════════════════════════════════════════════════════
+let DEP_FLT='all';
+function setDepFlt(flt) {
+  DEP_FLT=flt;
+  ['all','valide','attente','annule'].forEach(f=>{
+    const btn=document.getElementById('dep-flt-'+f);
+    if(btn) btn.className=f===flt?'btn btn-p btn-sm':'btn btn-ghost btn-sm';
+  });
+  renderDep();
+}
+
+const STATUT_LABELS={'valide':'✅ Validé','attente':'⏳ En attente','annule':'❌ Annulé'};
+const STATUT_COLORS={'valide':'var(--green)','attente':'var(--orange)','annule':'var(--red)'};
+
+async function setRAStatut(id, statut) {
+  const ok=await sbUpdate('reappros',id,{statut});
+  if(ok){
+    const i=REAPPROS.findIndex(r=>r.id===id);
+    if(i>=0) REAPPROS[i].statut=statut;
+    renderDep(); renderMat(); renderStock && renderStock();
+    toast('Statut mis à jour ✓','ok');
+  }
+}
+
 function renderDep() {
+  // Filtrer réappros selon le filtre actif
+  const rasFiltered = DEP_FLT==='all' ? REAPPROS : REAPPROS.filter(r=>(r.statut||'valide')===DEP_FLT);
   const depInit=MATS.reduce((s,m)=>s+(+m.prix||0),0);
-  const depRA=REAPPROS.reduce((s,r)=>s+(+r.prix||0),0);
+  const depRA=REAPPROS.filter(r=>(!r.statut||r.statut==='valide')).reduce((s,r)=>s+(+r.prix||0),0);
+  const depTotal=depInit+depRA;
   document.getElementById('dep-stats').innerHTML=`
     <div class="stat red"><div class="v">${eur(depInit)}</div><div class="l">Achats initiaux</div></div>
-    <div class="stat red"><div class="v">${eur(depRA)}</div><div class="l">Réappros</div></div>
-    <div class="stat red"><div class="v">${eur(depInit+depRA)}</div><div class="l">Total</div></div>`;
+    <div class="stat red"><div class="v">${eur(depRA)}</div><div class="l">Réappros validés</div></div>
+    <div class="stat red"><div class="v">${eur(depTotal)}</div><div class="l">Total validé</div></div>`;
   const by={};MATS.forEach(m=>{if(!by[m.mc])by[m.mc]=[];by[m.mc].push(m);});
   let html='';
   Object.entries(by).forEach(([mc,mats])=>{
-    const mcT=mats.reduce((s,m)=>{const r=REAPPROS.filter(r=>r.mat_id===m.id).reduce((ss,r)=>ss+(+r.prix||0),0);return s+(+m.prix||0)+r;},0);
-    html+=`<div class="main-ban" style="background:${MAIN_CLR[mc]||'#888'}">◆ ${mc.toUpperCase()} · ${eur(mcT)}</div>`;
+    let mcHtml='';
     mats.forEach(m=>{
-      const ras=REAPPROS.filter(r=>r.mat_id===m.id);
-      const pu=puMoyen(m);
+      const ras=rasFiltered.filter(r=>r.mat_id===m.id);
+      const showInit=!DEP_FLT||DEP_FLT==='all'||DEP_FLT==='valide';
       if(!m.prix&&!ras.length) return;
-      html+=`<div style="padding:7px 0;border-bottom:1px solid var(--border)">
+      const pu=puMoyen(m);
+      mcHtml+=`<div style="padding:7px 0;border-bottom:1px solid var(--border)">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;margin-bottom:4px">
           <div><span class="ref">${m.ref}</span> <span style="font-size:12px">${m.designation||m.des||''}${m.variante?' · '+m.variante:''}</span>
           ${m.fournisseur?`<span class="badge bm" style="margin-left:4px">${m.fournisseur}</span>`:''}
           </div>
           ${pu?`<span class="badge bgn">PU moy: ${eur(pu,4)}</span>`:''}
         </div>
-        ${m.prix?`<div style="display:flex;gap:5px;padding:3px 7px;background:var(--purpleP);border-radius:var(--rx);margin-bottom:2px;flex-wrap:wrap;align-items:center">
-          <span class="badge bp">Init.</span><span style="font-size:12px">${n(m.qty)} u</span>
+        ${showInit&&m.prix?`<div style="display:flex;gap:5px;padding:4px 8px;background:var(--purpleP);border-radius:var(--rx);margin-bottom:3px;flex-wrap:wrap;align-items:center">
+          <span class="badge bp">Achat initial</span>
+          <span style="font-size:12px">${n(m.qty)} u</span>
           <span style="font-weight:600;color:var(--red)">${eur(m.prix)}</span>
+          <span class="badge bgn">✅ Validé</span>
         </div>`:''}
-        ${ras.map(r=>`<div style="display:flex;gap:5px;padding:3px 7px;border-radius:var(--rx);margin-bottom:2px;flex-wrap:wrap;align-items:center">
-          <span class="badge bp">Réappro</span>
-          <span style="font-size:11px;color:var(--muted)">${r.date||'--'}</span>
-          <span style="font-size:12px">${n(r.qty)} u</span>
-          <span style="font-weight:600;color:var(--red)">${eur(r.prix)}</span>
-          ${r.fournisseur?`<span class="badge bm">${r.fournisseur}</span>`:''}
-          ${r.note?`<span style="font-size:11px;color:var(--muted)">${r.note}</span>`:''}
-          <button class="btn btn-xs btn-red" onclick="delRA('${r.id}')">✕</button>
-        </div>`).join('')}
+        ${ras.map(r=>{
+          const s=r.statut||'valide';
+          const clr=STATUT_COLORS[s]||'var(--muted)';
+          return `<div style="display:flex;gap:5px;padding:4px 8px;border-radius:var(--rx);margin-bottom:3px;flex-wrap:wrap;align-items:center;border:1px solid ${clr}20;background:${clr}10">
+            <span class="badge bp">↑ Réappro</span>
+            <span style="font-size:11px;color:var(--muted)">${r.date||'--'}</span>
+            <span style="font-size:12px">${n(r.qty)} u</span>
+            <span style="font-weight:600;color:var(--red)">${eur(r.prix)}</span>
+            ${r.fournisseur?`<span class="badge bm">${r.fournisseur}</span>`:''}
+            ${r.note?`<span style="font-size:11px;color:var(--muted)">${r.note}</span>`:''}
+            <select onchange="setRAStatut('${r.id}',this.value)"
+              style="font-size:11px;padding:3px 6px;border-radius:10px;border:1.5px solid ${clr};color:${clr};font-weight:700;background:#fff;cursor:pointer">
+              <option value="valide" ${s==='valide'?'selected':''}>✅ Validé</option>
+              <option value="attente" ${s==='attente'?'selected':''}>⏳ En attente</option>
+              <option value="annule" ${s==='annule'?'selected':''}>❌ Annulé</option>
+            </select>
+            <button class="btn btn-xs btn-red" onclick="delRA('${r.id}')">✕</button>
+          </div>`;
+        }).join('')}
       </div>`;
     });
+    if(mcHtml) html+=`<div class="main-ban" style="background:${MAIN_CLR[mc]||'#888'}">◆ ${mc.toUpperCase()}</div>`+mcHtml;
   });
-  document.getElementById('dep-body').innerHTML=html||`<div class="empty"><div class="empty-icon">💸</div><p>Aucun achat</p></div>`;
+  document.getElementById('dep-body').innerHTML=html||`<div class="empty"><div class="empty-icon">💸</div><p>Aucune dépense</p></div>`;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -2489,7 +2595,17 @@ function selectPBij(bijId) {
   renderProdPrev();
 }
 
-async function openProdModal() {
+function openProdModalForBij(bijId) {
+  // Naviguer vers l onglet Productions et ouvrir le modal avec ce bijou présélectionné
+  const tab=document.querySelector('[data-p=bij]');
+  if(tab) goTab(tab);
+  switchCreatTab('prod');
+  setTimeout(()=>{
+    openProdModal(bijId);
+  },100);
+}
+
+async function openProdModal(preselectBijId) {
   const list = document.getElementById('p-bij-list');
   // Recharger BIJS si vide
   if(!BIJS || BIJS.length===0) {
@@ -2514,11 +2630,14 @@ async function openProdModal() {
       <span style="font-size:11px;color:var(--muted)">${info}</span>
     </div>`;
   }).join('');
-  // Sélectionner le premier par défaut
-  const firstId = BIJS[0]?.id||'';
+  // Sélectionner le bijou pré-sélectionné ou le premier par défaut
+  const firstId = preselectBijId || BIJS.filter(b=>!b.no_sell)[0]?.id||'';
   document.getElementById('p-bij').value = firstId;
-  const firstRow = list.querySelector('.pbij-row');
-  if(firstRow) { firstRow.style.background='var(--purpleP)'; firstRow.style.fontWeight='700'; }
+  document.querySelectorAll('#p-bij-list .pbij-row').forEach(el=>{
+    const isFirst = el.dataset.id===firstId;
+    el.style.background = isFirst?'var(--purpleP)':'';
+    el.style.fontWeight = isFirst?'700':'';
+  });
   document.getElementById('p-date').value = today();
   document.getElementById('p-qty').value = '1';
   setPStatut('produit');
