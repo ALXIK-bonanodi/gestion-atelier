@@ -833,12 +833,23 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
    <datalist id="dl-fournisseurs"></datalist>
    <div style="font-size:10px;color:var(--muted);margin-top:3px">Tapez pour filtrer ou créer un nouveau fournisseur</div>
   </div>
+  <div class="fg"><label>Unité de mesure du stock</label>
+   <select id="mat-unite" onchange="onUniteChange()">
+    <option value="unite">Unité (pcs)</option>
+    <option value="gramme">Gramme (g)</option>
+    <option value="metre">Mètre (m)</option>
+    <option value="centimetre">Centimètre (cm)</option>
+    <option value="pelote">Pelote</option>
+    <option value="kilo">Kilogramme (kg)</option>
+    <option value="litre">Litre (L)</option>
+   </select>
+  </div>
   <div class="r3">
-   <div class="fg"><label>Stock actuel</label>
+   <div class="fg"><label id="mat-qty-label">Stock actuel</label>
     <input id="mat-qty" type="number" placeholder="450" oninput="calcPU()"></div>
    <div class="fg"><label>Prix d'achat (€)</label>
     <input id="mat-prix" type="number" step="0.01" placeholder="9.50" oninput="calcPU()"></div>
-   <div class="fg"><label>Prix unitaire</label>
+   <div class="fg"><label id="mat-pu-label">Prix unitaire</label>
     <div id="mat-pu" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--rs);color:var(--green);font-weight:700;background:var(--greenP)">—</div>
    </div>
   </div>
@@ -1565,6 +1576,41 @@ function isFilMC(mc) {
   return mcL.includes('laine') || mcL.includes('fil') || mcL.includes('pelote') || mcL.includes('wool') || mcL.includes('yarn');
 }
 
+const UNITE_LABELS = {
+  unite:      {stock:'Quantité (pcs)',    pu:'Prix / pièce',    short:'pcs',   step:1},
+  gramme:     {stock:'Quantité (g)',      pu:'Prix / gramme',   short:'g',     step:1},
+  metre:      {stock:'Longueur (m)',      pu:'Prix / mètre',    short:'m',     step:0.01},
+  centimetre: {stock:'Longueur (cm)',     pu:'Prix / cm',       short:'cm',    step:1},
+  pelote:     {stock:'Nb pelotes',        pu:'Prix / pelote',   short:'pelote',step:0.5},
+  kilo:       {stock:'Quantité (kg)',     pu:'Prix / kg',       short:'kg',    step:0.001},
+  litre:      {stock:'Volume (L)',        pu:'Prix / litre',    short:'L',     step:0.01},
+};
+
+function getUniteShort(mat) {
+  return UNITE_LABELS[mat.unite||'unite']?.short||'pcs';
+}
+
+function onUniteChange() {
+  const unite = document.getElementById('mat-unite')?.value||'unite';
+  const info = UNITE_LABELS[unite]||UNITE_LABELS.unite;
+  const lbl = document.getElementById('mat-qty-label');
+  const puLbl = document.getElementById('mat-pu-label');
+  const qtyInp = document.getElementById('mat-qty');
+  if(lbl) lbl.textContent = info.stock;
+  if(puLbl) puLbl.textContent = info.pu;
+  if(qtyInp) qtyInp.step = info.step;
+  // Détecter auto l'unité selon la catégorie si pas encore modifiée
+}
+
+function autoDetectUnite(mc, sc) {
+  const mcL=(mc||'').toLowerCase(), scL=(sc||'').toLowerCase();
+  if(mcL.includes('tissu')||scL.includes('tissu')||scL.includes('toile')||scL.includes('coton')) return 'metre';
+  if(mcL.includes('laine')||mcL.includes('fil')||mcL.includes('pelote')) return 'pelote';
+  if(scL.includes('poudre')||scL.includes('sable')||scL.includes('glitter')) return 'gramme';
+  if(scL.includes('ruban')||scL.includes('cordon')||scL.includes('chaîne')||scL.includes('fil')) return 'metre';
+  return 'unite';
+}
+
 function onMatTypeChange() {
   const type=document.getElementById('mat-type')?.value||'creation';
   const renRow=document.getElementById('mat-renouvellement-row');
@@ -1729,6 +1775,13 @@ function syncSC() {
   // Afficher/masquer section méta fils
   const metaRow=document.getElementById('mat-meta-row');
   if(metaRow) metaRow.style.display=isFilMC(mc)?'block':'none';
+  // Auto-détecter l'unité si pas encore modifiée manuellement
+  const uniteEl=document.getElementById('mat-unite');
+  if(uniteEl && !uniteEl.dataset.userSet) {
+    const sc=document.getElementById('mat-sc')?.value||'';
+    uniteEl.value=autoDetectUnite(mc,sc);
+    onUniteChange();
+  }
   genRef();
 }
 function genRef() {
@@ -1791,6 +1844,8 @@ function openMatModal(editId=null) {
     document.getElementById('mat-renouvellement').value=m.date_renouvellement||'';
     document.getElementById('mat-qty').value=m.qty||'';
     document.getElementById('mat-prix').value=m.prix||'';
+    const uniteEl=document.getElementById('mat-unite');
+    if(uniteEl){ uniteEl.value=m.unite||autoDetectUnite(m.mc,m.sc); onUniteChange(); }
     calcPU();
     // Méta fils/laines
     const metaRow=document.getElementById('mat-meta-row');
@@ -1834,6 +1889,7 @@ async function saveMat() {
   const matType=document.getElementById('mat-type')?.value||'creation';
   const dateRenouv=document.getElementById('mat-renouvellement')?.value||null;
   const mc=document.getElementById('mat-mc').value;
+  const unite=document.getElementById('mat-unite')?.value||'unite';
   // Méta fils/laines
   let meta=null;
   if(isFilMC(mc)) {
@@ -1857,6 +1913,7 @@ async function saveMat() {
     qty:+document.getElementById('mat-qty').value||null,
     prix:+document.getElementById('mat-prix').value||null,
     type:matType,
+    unite:unite,
     date_renouvellement:dateRenouv,
     meta:meta,
   };
@@ -2466,7 +2523,7 @@ function renderMat() {
             <td style="font-size:12px">${m.designation||m.des||'--'}${metaInfo}</td>
             <td><span class="badge bm">${m.variante||'--'}</span></td>
             <td class="dim">${m.fournisseur||'--'}</td>
-            <td>${sc2?n(sc2):'<span class="dim">--</span>'}</td>
+            <td>${sc2?(n(sc2)+' <span style="font-size:10px;color:var(--muted)">'+getUniteShort(m)+'</span>'):'<span class="dim">--</span>'}</td>
             <td class="${pu?'hi':'dim'}">${pu?eur(pu,4):'--'}</td>
             <td onclick="event.stopPropagation()" style="white-space:nowrap">
               <div style="display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap">
@@ -2932,11 +2989,12 @@ function renderStock() {
           const pct=totG?Math.min(100,(dG/totG)*100):0;
           const clr=pct>50?'#2E7D4F':pct>20?'#C05820':'#C0392B';
           const refs=g.items.map(m=>`<span class="badge bm" style="margin:1px 2px">${m.ref}${m.variante?' ('+m.variante+')':''}</span>`).join('');
+          const uniteShort=getUniteShort(g.items[0]);
           const firstMat=g.items[0];
           return `<tr>
             <td style="font-size:12px">${g.des}</td>
             <td style="line-height:1.8">${refs}</td>
-            <td>${totG?n(totG):'<span class="dim">--</span>'}</td>
+            <td>${totG?(n(totG)+' <span style="font-size:10px;color:var(--muted)">'+uniteShort+'</span>'):'<span class="dim">--</span>'}</td>
             <td class="dim">${n(cG)||'0'}</td>
             <td><b style="color:${clr}">${n(dG)}</b>
               <div class="sbar"><div class="sfill" style="width:${pct}%;background:${clr}"></div></div>
