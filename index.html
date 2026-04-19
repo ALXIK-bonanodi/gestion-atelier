@@ -884,6 +884,23 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
      <input id="mat-meta-coloris" placeholder="ex: Rouge 345, Ecru naturel"></div>
    </div>
   </div>
+  <!-- Section calibration unité ↔ poids (toutes unités non-pelote) -->
+  <div id="mat-calib-row" style="display:none">
+   <div style="padding:10px 12px;background:#FFF8E7;border-radius:var(--rs);margin-bottom:10px;border:1px solid #E8D9B0">
+    <div style="font-size:11px;font-weight:700;color:var(--gold2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">⚖ Calibration pièce ↔ poids (optionnel)</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Pesez un échantillon pour calculer le poids par pièce. Permet de convertir les quantités en pièces ↔ grammes dans les fiches produit.</div>
+    <div class="r3">
+     <div class="fg"><label>Nb pièces pesées</label>
+      <input id="mat-calib-nb" type="number" placeholder="ex: 100" oninput="calcCalibration()"></div>
+     <div class="fg"><label>Poids mesuré (g)</label>
+      <input id="mat-calib-g" type="number" step="0.01" placeholder="ex: 3.5" oninput="calcCalibration()"></div>
+     <div class="fg"><label>→ g / pièce</label>
+      <div id="mat-calib-result" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--rs);font-weight:700;color:var(--green);background:var(--greenP);font-size:13px">--</div>
+     </div>
+    </div>
+    <div id="mat-calib-hint" style="font-size:11px;color:var(--muted);margin-top:4px"></div>
+   </div>
+  </div>
   <div id="mat-renouvellement-row" style="display:none">
    <div class="fg"><label>Date de renouvellement (optionnel)</label>
     <input id="mat-renouvellement" type="date">
@@ -1521,7 +1538,27 @@ function matsConsumedByBij(bij, qtyProd, depth=0) {
   for(const m of (bij.mats||[])) {
     const mat=getMat(m.ref);
     if(mat) {
-      result[m.ref]=(result[m.ref]||0)+(+m.qty||0)*qtyProd;
+      // Convertir la quantité selon l'unité saisie dans la composition
+      let qtyInMatUnite = +m.qty||0;
+      const saisieUnite = m.qty_unite||'native';
+      const matUnite = mat.unite||'unite';
+      if(saisieUnite!=='native' && saisieUnite!==matUnite) {
+        // pcs → grammes : utiliser calibration si dispo, sinon ratio estimé
+        if(saisieUnite==='unite' && (matUnite==='gramme'||matUnite==='kilo')) {
+          const gpp = mat.meta?.calib_g_per_piece;
+          qtyInMatUnite = gpp ? qtyInMatUnite * gpp : qtyInMatUnite * 0.1; // 0.1g estimé si pas de calib
+        }
+        // grammes → pelotes
+        else if(saisieUnite==='gramme' && matUnite==='pelote') {
+          const poidsPelote = mat.meta?.poids||100;
+          qtyInMatUnite = qtyInMatUnite / poidsPelote;
+        }
+        // cm → mètres
+        else if(saisieUnite==='centimetre' && matUnite==='metre') {
+          qtyInMatUnite = qtyInMatUnite / 100;
+        }
+      }
+      result[m.ref]=(result[m.ref]||0)+qtyInMatUnite*qtyProd;
     } else {
       // Bijou composant — descendre récursivement
       const comp=BIJS.find(b=>b.ref===m.ref);
@@ -1590,6 +1627,22 @@ function getUniteShort(mat) {
   return UNITE_LABELS[mat.unite||'unite']?.short||'pcs';
 }
 
+function calcCalibration() {
+  const nb = +document.getElementById('mat-calib-nb')?.value||0;
+  const g  = +document.getElementById('mat-calib-g')?.value||0;
+  const res = document.getElementById('mat-calib-result');
+  const hint = document.getElementById('mat-calib-hint');
+  if(nb && g) {
+    const gPerPiece = g/nb;
+    const piecesPerG = nb/g;
+    if(res) res.textContent = gPerPiece.toFixed(4)+' g/pi\u00e8ce';
+    if(hint) hint.textContent = '\u2248 '+Math.round(piecesPerG*10)/10+' pi\u00e8ces/g \u00b7 estim\u00e9 sur '+nb+' pi\u00e8ces';
+  } else {
+    if(res) res.textContent = '--';
+    if(hint) hint.textContent = '';
+  }
+}
+
 function onUniteChange() {
   const unite = document.getElementById('mat-unite')?.value||'unite';
   const info = UNITE_LABELS[unite]||UNITE_LABELS.unite;
@@ -1600,6 +1653,9 @@ function onUniteChange() {
   if(puLbl) puLbl.textContent = info.pu;
   if(qtyInp) qtyInp.step = info.step;
   // Détecter auto l'unité selon la catégorie si pas encore modifiée
+  // Afficher calibration si unité = gramme ou kilo
+  const calibRow = document.getElementById('mat-calib-row');
+  if(calibRow) calibRow.style.display = (unite==='gramme'||unite==='kilo') ? 'block' : 'none';
 }
 
 function autoDetectUnite(mc, sc) {
@@ -1857,6 +1913,14 @@ function openMatModal(editId=null) {
         if(el) el.value=meta[k]||'';
       });
     }
+    // Calibration
+    if(m.meta?.calib_nb_echantillon) {
+      const nbEl=document.getElementById('mat-calib-nb');
+      const gEl=document.getElementById('mat-calib-g');
+      if(nbEl) nbEl.value=m.meta.calib_nb_echantillon;
+      if(gEl) gEl.value=Math.round(m.meta.calib_g_per_piece*m.meta.calib_nb_echantillon*100)/100;
+      calcCalibration();
+    }
   } else {
     document.getElementById('mat-modal-title').textContent='Nouveau matériau';
     ['mat-edit-id','mat-des','mat-var','mat-fournisseur','mat-qty','mat-prix'].forEach(i=>document.getElementById(i).value='');
@@ -1902,9 +1966,17 @@ async function saveMat() {
       aiguilles:+document.getElementById('mat-meta-aiguilles')?.value||null,
       coloris:document.getElementById('mat-meta-coloris')?.value||null,
     };
-    // Supprimer les nulls
     Object.keys(meta).forEach(k=>{ if(!meta[k]) delete meta[k]; });
     if(!Object.keys(meta).length) meta=null;
+  }
+  // Calibration pièce↔poids (pour toutes les unités gramme/kilo)
+  const calibNb = +document.getElementById('mat-calib-nb')?.value||0;
+  const calibG  = +document.getElementById('mat-calib-g')?.value||0;
+  if(calibNb && calibG) {
+    if(!meta) meta={};
+    meta.calib_g_per_piece = calibG/calibNb;
+    meta.calib_pieces_per_g = calibNb/calibG;
+    meta.calib_nb_echantillon = calibNb;
   }
   const obj={
     id:editId||uid(), mc,
@@ -2655,7 +2727,7 @@ function openBijModal(editId=null) {
     const noSellRow=document.getElementById('no-sell-toggle');
     if(noSellEl){noSellEl.checked=b.no_sell||false; if(noSellRow) noSellRow.className='toggle-row '+(b.no_sell?'on':'off');}
     document.getElementById('bij-mats-list').innerHTML='';
-    (b.mats||[]).forEach(m=>addMatRow(m.sc,m.ref,m.qty));
+    (b.mats||[]).forEach(m=>addMatRow(m.sc,m.ref,m.qty,m.qty_unite||'native'));
   } else {
     ['bij-coll','bij-nom','bij-var','bij-pv'].forEach(i=>document.getElementById(i).value='');
     const autoRef=autoRefBij(null, false);
@@ -2699,7 +2771,7 @@ function buildSCOptions(selectedMC, selectedSC) {
   return opts;
 }
 
-function addMatRow(sc='',ref='',qty='') {
+function addMatRow(sc='',ref='',qty='',qty_unite='native') {
   const c=document.getElementById('bij-mats-list');
   // mc peut être passé séparément, ou déduit depuis MATS
   let initMC = '', initSC = sc;
@@ -2714,14 +2786,25 @@ function addMatRow(sc='',ref='',qty='') {
   div.innerHTML=`
     <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:6px;margin-bottom:6px">
       <select class="bij-sc" onchange="filterBijRefs(this)" style="font-size:13px;padding:10px 8px">${scOpts}</select>
-      <select class="bij-ref" style="font-size:13px;padding:10px 8px"><option value="">-- Réf --</option></select>
+      <select class="bij-ref" onchange="onBijRefChange(this)" style="font-size:13px;padding:10px 8px"><option value="">-- Réf --</option></select>
     </div>
-    <div style="display:flex;gap:6px;align-items:center">
-      <input class="bij-qty" type="number" placeholder="Quantité" value="${qty||''}" style="padding:10px;font-size:13px;flex:1">
-      <button class="btn btn-red btn-sm" onclick="this.closest('.mat-row-item').remove()" style="flex-shrink:0">✕ Supprimer</button>
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+      <input class="bij-qty" type="number" placeholder="Quantité" value="${qty||''}" step="any" style="padding:10px;font-size:13px;flex:1;min-width:80px">
+      <select class="bij-qty-unite" onchange="onBijQtyUniteChange(this)" style="font-size:12px;padding:8px;border-radius:var(--rs);border:1.5px solid var(--border)">
+        <option value="native">— unité —</option>
+      </select>
+      <span class="bij-calib-hint" style="font-size:10px;color:var(--muted);width:100%;margin-top:2px"></span>
+      <button class="btn btn-red btn-sm" onclick="this.closest('.mat-row-item').remove()" style="flex-shrink:0">✕</button>
     </div>`;
   c.appendChild(div);
   filterBijRefs(div.querySelector('.bij-sc'),ref);
+  // Après avoir peuplé les refs, sélectionner l'unité sauvegardée
+  if(qty_unite&&qty_unite!=='native') {
+    setTimeout(()=>{
+      const uniteEl=div.querySelector('.bij-qty-unite');
+      if(uniteEl) { uniteEl.value=qty_unite; onBijQtyUniteChange(uniteEl); }
+    },50);
+  }
 }
 
 function filterBijRefs(sel,preselectRef='') {
@@ -2743,6 +2826,79 @@ function filterBijRefs(sel,preselectRef='') {
     });
   }
   refSel.innerHTML=opts;
+  // Mettre à jour le select d'unité selon le matériau sélectionné
+  if(opts.length > 50) { // au moins une option valide
+    const row=sel.closest('.mat-row-item');
+    if(row) {
+      const firstRef=MATS.find(m2=>m2.sc===sc&&(!mc||m2.mc===mc))?.ref||
+                     BIJS.filter(b=>b.is_mat)[0]?.ref;
+      if(firstRef) updateBijQtyUniteOpts(row, firstRef);
+    }
+  }
+}
+
+function onBijRefChange(sel) {
+  const row=sel.closest('.mat-row-item');
+  updateBijQtyUniteOpts(row, sel.value);
+}
+
+function updateBijQtyUniteOpts(row, ref) {
+  const mat=getMat(ref);
+  const uniteEl=row.querySelector('.bij-qty-unite');
+  const hintEl=row.querySelector('.bij-calib-hint');
+  if(!uniteEl) return;
+  if(!mat) {
+    // Bijou composant — unité = unités
+    uniteEl.innerHTML='<option value="native">unité(s)</option>';
+    if(hintEl) hintEl.textContent='';
+    return;
+  }
+  const matUnite=mat.unite||'unite';
+  const info=UNITE_LABELS[matUnite]||UNITE_LABELS.unite;
+  const hasCalib=mat.meta?.calib_g_per_piece>0;
+  // Options disponibles selon l'unité du matériau
+  let opts=`<option value="native">${info.short}</option>`;
+  if(matUnite==='gramme'||matUnite==='kilo') {
+    opts+=`<option value="unite">pcs (→ g)</option>`;
+  }
+  if(matUnite==='pelote') {
+    opts+=`<option value="gramme">g (→ pelotes)</option>`;
+  }
+  if(matUnite==='metre') {
+    opts+=`<option value="centimetre">cm (→ m)</option>`;
+  }
+  uniteEl.innerHTML=opts;
+  // Hint calibration
+  if(hintEl) {
+    if((matUnite==='gramme'||matUnite==='kilo') && !hasCalib) {
+      hintEl.textContent='⚠ Pas de calibration — saisir directement en '+info.short;
+      hintEl.style.color='var(--orange)';
+    } else if(hasCalib) {
+      hintEl.textContent='✓ Calibration : '+mat.meta.calib_g_per_piece.toFixed(4)+' g/pièce ('+Math.round(mat.meta.calib_pieces_per_g*10)/10+' pcs/g)';
+      hintEl.style.color='var(--green)';
+    } else {
+      hintEl.textContent='';
+    }
+  }
+}
+
+function onBijQtyUniteChange(sel) {
+  const row=sel.closest('.mat-row-item');
+  const hintEl=row.querySelector('.bij-calib-hint');
+  const refVal=row.querySelector('.bij-ref')?.value;
+  const mat=getMat(refVal);
+  if(!mat||!hintEl) return;
+  const matUnite=mat.unite||'unite';
+  const saisieUnite=sel.value;
+  if(saisieUnite==='unite' && (matUnite==='gramme'||matUnite==='kilo')) {
+    if(mat.meta?.calib_g_per_piece) {
+      hintEl.textContent='✓ Converti : 1 pcs = '+mat.meta.calib_g_per_piece.toFixed(4)+'g';
+      hintEl.style.color='var(--green)';
+    } else {
+      hintEl.textContent='\u26a0 Calibration manquante \u2014 saisir directement en '+info.short;
+      hintEl.style.color='var(--orange)';
+    }
+  }
 }
 
 async function saveBij() {
@@ -2756,7 +2912,8 @@ async function saveBij() {
     const sc=row.querySelector('.bij-sc')?.value;
     const ref=row.querySelector('.bij-ref')?.value;
     const qty=+row.querySelector('.bij-qty')?.value||null;
-    if(ref) mats.push({ref,qty,sc:sc||''});
+    const qty_unite=row.querySelector('.bij-qty-unite')?.value||'native';
+    if(ref) mats.push({ref,qty,qty_unite,sc:sc||''});
   });
   const isMat=document.getElementById('bij-is-mat').checked;
   const obj={
