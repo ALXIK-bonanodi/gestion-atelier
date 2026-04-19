@@ -805,11 +805,6 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
     <select id="mat-sc" onchange="genRef()"></select>
    </div>
   </div>
-  <div id="mat-renouvellement-row" style="display:none">
-   <div class="fg"><label>Date de renouvellement (optionnel)</label>
-    <input id="mat-renouvellement" type="date">
-   </div>
-  </div>
   <div class="fg">
    <label>Désignation principale *
     <span style="font-weight:400;color:var(--muted)">(ex: "Anneaux acier inox." — commun à plusieurs variantes)</span>
@@ -847,6 +842,42 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
     <div id="mat-pu" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--rs);color:var(--green);font-weight:700;background:var(--greenP)">—</div>
    </div>
   </div>
+  <!-- Section méta fils/laines — visible uniquement pour mc=Laines -->
+  <div id="mat-meta-row" style="display:none">
+   <div style="padding:10px 12px;background:var(--purpleP);border-radius:var(--rs);margin-bottom:10px">
+    <div style="font-size:11px;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">🧶 Infos fil / laine</div>
+    <div class="r2">
+     <div class="fg"><label>Poids de la pelote (g)</label>
+      <input id="mat-meta-poids" type="number" placeholder="100"></div>
+     <div class="fg"><label>Longueur (m)</label>
+      <input id="mat-meta-longueur" type="number" placeholder="200"></div>
+    </div>
+    <div class="r2">
+     <div class="fg"><label>Matière fibre</label>
+      <select id="mat-meta-matiere">
+       <option value="">-- Choisir --</option>
+       <option>Acrylique</option><option>Polyester</option><option>Laine</option>
+       <option>Coton</option><option>Alpaga</option><option>Bambou</option>
+       <option>Mixte</option><option>Autre</option>
+      </select></div>
+     <div class="fg"><label>Grosseur fil (mm ou titre)</label>
+      <input id="mat-meta-grosseur" placeholder="ex: 3mm, DK, Aran"></div>
+    </div>
+    <div class="r2">
+     <div class="fg"><label>Crochet recommandé (mm)</label>
+      <input id="mat-meta-crochet" type="number" step="0.5" placeholder="4.5"></div>
+     <div class="fg"><label>Aiguilles recommandées (mm)</label>
+      <input id="mat-meta-aiguilles" type="number" step="0.5" placeholder="5"></div>
+    </div>
+    <div class="fg"><label>Coloris / numéro couleur fournisseur</label>
+     <input id="mat-meta-coloris" placeholder="ex: Rouge 345, Ecru naturel"></div>
+   </div>
+  </div>
+  <div id="mat-renouvellement-row" style="display:none">
+   <div class="fg"><label>Date de renouvellement (optionnel)</label>
+    <input id="mat-renouvellement" type="date">
+   </div>
+  </div>
   <div class="mfoot">
    <button class="btn btn-ghost" onclick="closeModal('m-mat')">Annuler</button>
    <button class="btn btn-p" onclick="saveMat()">Enregistrer</button>
@@ -869,6 +900,29 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
   <div class="mfoot">
    <button class="btn btn-ghost" onclick="closeModal('m-dep-select')">Annuler</button>
    <button class="btn btn-p" onclick="onDepMatConfirm()">Suivant →</button>
+  </div>
+ </div>
+</div>
+
+<!-- SIMULATEUR FILS/LAINES -->
+<div id="m-simulateur" class="overlay" onclick="bgClose(event,this)">
+ <div class="modal" style="max-width:520px">
+  <div class="drag"></div>
+  <div class="modal-title" id="sim-title">🧶 Simulateur — pelotes disponibles</div>
+  <div id="sim-info" style="padding:10px 12px;background:var(--purpleP);border-radius:var(--rs);margin-bottom:12px;font-size:13px"></div>
+  <div class="r2">
+   <div class="fg">
+    <label>Nombre de pelotes disponibles</label>
+    <input id="sim-nb-pelotes" type="number" min="1" value="1" step="0.5" oninput="calcSimulateur()" style="font-size:16px;font-weight:700;text-align:center">
+   </div>
+   <div class="fg">
+    <label>Ou en grammes</label>
+    <input id="sim-grammes" type="number" min="1" oninput="calcSimulateurG()" placeholder="ex: 250g">
+   </div>
+  </div>
+  <div id="sim-result" style="margin-top:10px"></div>
+  <div class="mfoot">
+   <button class="btn btn-ghost" onclick="closeModal('m-simulateur')">Fermer</button>
   </div>
  </div>
 </div>
@@ -1505,6 +1559,12 @@ function isDraft(bij){return bij.draft||((bij.mats||[]).some(m=>!m.qty));}
 function venteTot(bijId){return VENTES.filter(v=>v.bij_id===bijId).reduce((a,v)=>({qty:a.qty+(+v.qty||0),ca:a.ca+(+v.qty||0)*(+v.prix||0)}),{qty:0,ca:0});}
 function prodTot(bijId){return PRODS.filter(p=>p.bij_id===bijId).reduce((s,p)=>s+(+p.qty||0),0);}
 
+function isFilMC(mc) {
+  if(!mc) return false;
+  const mcL=mc.toLowerCase();
+  return mcL.includes('laine') || mcL.includes('fil') || mcL.includes('pelote') || mcL.includes('wool') || mcL.includes('yarn');
+}
+
 function onMatTypeChange() {
   const type=document.getElementById('mat-type')?.value||'creation';
   const renRow=document.getElementById('mat-renouvellement-row');
@@ -1664,8 +1724,11 @@ function exportJSON() {
 function syncSC() {
   const mc=document.getElementById('mat-mc').value;
   const type=document.getElementById('mat-type')?.value||CUR_MAT_TYPE||'creation';
-  const cats=CATS_BY_TYPE[type]||CATS_BY_TYPE.creation;
+  const cats=getCatsForType(type);
   document.getElementById('mat-sc').innerHTML=(cats[mc]||[]).map(s=>`<option>${s}</option>`).join('');
+  // Afficher/masquer section méta fils
+  const metaRow=document.getElementById('mat-meta-row');
+  if(metaRow) metaRow.style.display=isFilMC(mc)?'block':'none';
   genRef();
 }
 function genRef() {
@@ -1729,6 +1792,16 @@ function openMatModal(editId=null) {
     document.getElementById('mat-qty').value=m.qty||'';
     document.getElementById('mat-prix').value=m.prix||'';
     calcPU();
+    // Méta fils/laines
+    const metaRow=document.getElementById('mat-meta-row');
+    if(metaRow) metaRow.style.display=isFilMC(m.mc)?'block':'none';
+    if(m.meta && isFilMC(m.mc)) {
+      const meta=m.meta;
+      ['poids','longueur','matiere','grosseur','crochet','aiguilles','coloris'].forEach(k=>{
+        const el=document.getElementById('mat-meta-'+k);
+        if(el) el.value=meta[k]||'';
+      });
+    }
   } else {
     document.getElementById('mat-modal-title').textContent='Nouveau matériau';
     ['mat-edit-id','mat-des','mat-var','mat-fournisseur','mat-qty','mat-prix'].forEach(i=>document.getElementById(i).value='');
@@ -1760,14 +1833,32 @@ async function saveMat() {
   if(!editId && MATS.find(m=>m.ref===ref)) return toast('Référence déjà existante : '+ref,'err');
   const matType=document.getElementById('mat-type')?.value||'creation';
   const dateRenouv=document.getElementById('mat-renouvellement')?.value||null;
+  const mc=document.getElementById('mat-mc').value;
+  // Méta fils/laines
+  let meta=null;
+  if(isFilMC(mc)) {
+    meta={
+      poids:+document.getElementById('mat-meta-poids')?.value||null,
+      longueur:+document.getElementById('mat-meta-longueur')?.value||null,
+      matiere:document.getElementById('mat-meta-matiere')?.value||null,
+      grosseur:document.getElementById('mat-meta-grosseur')?.value||null,
+      crochet:+document.getElementById('mat-meta-crochet')?.value||null,
+      aiguilles:+document.getElementById('mat-meta-aiguilles')?.value||null,
+      coloris:document.getElementById('mat-meta-coloris')?.value||null,
+    };
+    // Supprimer les nulls
+    Object.keys(meta).forEach(k=>{ if(!meta[k]) delete meta[k]; });
+    if(!Object.keys(meta).length) meta=null;
+  }
   const obj={
-    id:editId||uid(), mc:document.getElementById('mat-mc').value,
+    id:editId||uid(), mc,
     sc:document.getElementById('mat-sc').value, ref, designation, variante:varV,
     fournisseur:document.getElementById('mat-fournisseur').value.trim(),
     qty:+document.getElementById('mat-qty').value||null,
     prix:+document.getElementById('mat-prix').value||null,
     type:matType,
     date_renouvellement:dateRenouv,
+    meta:meta,
   };
   let ok;
   if(editId){ok=await sbUpdate('materiaux',editId,obj);if(ok){const i=MATS.findIndex(m=>m.id===editId);MATS[i]=obj;}}
@@ -2361,15 +2452,25 @@ function renderMat() {
           const pu=puMoyen(m), sc2=stockCumul(m);
           const typeLabels={creation:'🪡',envoi:'📬',consommable:'🧪',outil:'🔧'};
           const typeBadge=CUR_MAT_TYPE==='tout'?`<span style="font-size:9px;opacity:.6">${typeLabels[m.type||'creation']||''}</span>`:'';
+          const metaInfo=m.meta&&isFilMC(m.mc)?
+            `<div style="font-size:10px;color:var(--muted);margin-top:2px">
+              ${m.meta.poids?'⚖ '+m.meta.poids+'g':''}
+              ${m.meta.longueur?' · '+m.meta.longueur+'m':''}
+              ${m.meta.crochet?' · 🪝'+m.meta.crochet+'mm':''}
+              ${m.meta.matiere?' · '+m.meta.matiere:''}
+              ${m.meta.coloris?' · '+m.meta.coloris:''}
+            </div>`:''
+          ;
           return `<tr onclick="openMatModal('${m.id}')" style="cursor:pointer" title="Cliquer pour modifier">
             <td class="ref">${typeBadge} ${m.ref}</td>
-            <td style="font-size:12px">${m.designation||m.des||'--'}</td>
+            <td style="font-size:12px">${m.designation||m.des||'--'}${metaInfo}</td>
             <td><span class="badge bm">${m.variante||'--'}</span></td>
             <td class="dim">${m.fournisseur||'--'}</td>
             <td>${sc2?n(sc2):'<span class="dim">--</span>'}</td>
             <td class="${pu?'hi':'dim'}">${pu?eur(pu,4):'--'}</td>
             <td onclick="event.stopPropagation()" style="white-space:nowrap">
-              <div style="display:flex;gap:5px;justify-content:flex-end">
+              <div style="display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap">
+                ${isFilMC(m.mc)?`<button class="btn btn-sm btn-ghost" onclick="openSimulateur('${m.id}')" style="padding:6px 11px">🧶 Simuler</button>`:''}
                 <button class="btn btn-sm btn-ghost" onclick="openReappro('${m.id}')" style="padding:6px 11px">↑ Réappro</button>
                 <button class="btn btn-sm btn-red" onclick="delMat('${m.id}')" style="padding:6px 11px">✕</button>
               </div>
@@ -3447,6 +3548,117 @@ async function saveTVA() {
 
 // Proxy pour renderRent (compat)
 function renderRent() { renderCompta(); }
+
+
+// ═══════════════════════════════════════════════════════
+// SIMULATEUR FILS/LAINES
+// ═══════════════════════════════════════════════════════
+let SIM_MAT_ID = null;
+
+function openSimulateur(matId) {
+  SIM_MAT_ID = matId;
+  const m = MATS.find(x=>x.id===matId); if(!m) return;
+  const pu = puMoyen(m);
+  const meta = m.meta||{};
+  const stockActuel = stockCumul(m) - stockConsome(m.ref);
+
+  document.getElementById('sim-title').textContent = '🧶 Simulateur — ' + (m.designation||m.des||m.ref);
+  document.getElementById('sim-info').innerHTML = `
+    <div style="font-weight:700;color:var(--purple);margin-bottom:4px">${m.ref} · ${m.designation||m.des||''} ${m.variante||''}</div>
+    <div style="font-size:12px;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap">
+      <span>Stock : <b>${n(stockActuel)} pelotes</b></span>
+      ${meta.poids?`<span>⚖ ${meta.poids}g/pelote</span>`:''}
+      ${meta.longueur?`<span>📏 ${meta.longueur}m/pelote</span>`:''}
+      ${meta.crochet?`<span>🪝 Crochet ${meta.crochet}mm</span>`:''}
+      ${meta.matiere?`<span>${meta.matiere}</span>`:''}
+      ${pu?`<span>💰 ${eur(pu,3)}/pelote</span>`:''}
+    </div>`;
+
+  document.getElementById('sim-nb-pelotes').value = stockActuel||1;
+  document.getElementById('sim-grammes').value = '';
+  calcSimulateur();
+  openModal('m-simulateur');
+}
+
+function calcSimulateurG() {
+  const m = MATS.find(x=>x.id===SIM_MAT_ID); if(!m) return;
+  const g = +document.getElementById('sim-grammes').value||0;
+  const poidsP = m.meta?.poids||0;
+  if(g && poidsP) {
+    const nb = g / poidsP;
+    document.getElementById('sim-nb-pelotes').value = Math.round(nb*100)/100;
+    calcSimulateur();
+  }
+}
+
+function calcSimulateur() {
+  const m = MATS.find(x=>x.id===SIM_MAT_ID); if(!m) return;
+  const nbPelotes = +document.getElementById('sim-nb-pelotes').value||1;
+  const pu = puMoyen(m);
+  const poidsPelote = m.meta?.poids||null;
+
+  // Mettre à jour le champ grammes
+  if(poidsPelote) {
+    const gEl = document.getElementById('sim-grammes');
+    if(!document.activeElement||document.activeElement.id!=='sim-grammes') {
+      gEl.value = Math.round(nbPelotes * poidsPelote);
+    }
+  }
+
+  // Trouver toutes les compositions (bijoux) qui utilisent ce matériau
+  const compositionsUtilisant = BIJS.filter(b =>
+    (b.mats||[]).some(bm => bm.ref === m.ref)
+  );
+
+  let html = '';
+  if(!compositionsUtilisant.length) {
+    html = '<div class="info-box">Aucune composition n\u0027utilise encore ce mat\u00e9riau.<br>Ajoutez ce fil dans une composition pour voir les estimations.</div>';
+  } else {
+    html = '<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:8px">Compositions possibles avec ' + nbPelotes + ' pelote(s)</div>';
+    compositionsUtilisant.forEach(b => {
+      const ligne = (b.mats||[]).find(bm => bm.ref === m.ref);
+      if(!ligne||!ligne.qty) {
+        html += `<div style="padding:8px 10px;background:var(--bg);border-radius:var(--rs);margin-bottom:6px;border:1px solid var(--border)">
+          <div style="font-weight:600">${b.nom}${b.variante?' · '+b.variante:''} <span class="ref">${b.ref||''}</span></div>
+          <div style="font-size:11px;color:var(--orange)">⚠ Quantité non définie dans la composition</div>
+        </div>`;
+        return;
+      }
+      const qtyParComp = +ligne.qty; // pelotes par composition
+      const nbPossible = Math.floor(nbPelotes / qtyParComp);
+      const coutMat = pu ? pu * qtyParComp : null;
+      const coutTotal = pu ? pu * qtyParComp * nbPossible : null;
+      const pctPelote = Math.round(qtyParComp * 100);
+      const grammesParComp = poidsPelote ? Math.round(qtyParComp * poidsPelote) : null;
+      const clr = nbPossible > 5 ? 'var(--green)' : nbPossible > 0 ? 'var(--orange)' : 'var(--red)';
+
+      html += `<div style="padding:10px 12px;background:var(--bg);border-radius:var(--rs);margin-bottom:8px;border:1.5px solid ${clr}30">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <div>
+            <span style="font-weight:700">${b.nom}${b.variante?' · '+b.variante:''}</span>
+            <span class="ref" style="margin-left:4px">${b.ref||''}</span>
+          </div>
+          <span style="font-size:20px;font-weight:700;color:${clr}">${nbPossible}</span>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--muted)">
+          <span>🧶 ${pctPelote}% d'une pelote / pièce</span>
+          ${grammesParComp?`<span>⚖ ~${grammesParComp}g / pièce</span>`:''}
+          ${coutMat?`<span>💰 ${eur(coutMat)} mat. / pièce</span>`:''}
+          ${coutTotal&&nbPossible?`<span style="color:var(--purple);font-weight:600">Total : ${eur(coutTotal)} mat.</span>`:''}
+        </div>
+        ${nbPossible===0?'<div style="font-size:11px;color:var(--red);margin-top:4px">⚠ Pas assez de stock</div>':''}
+      </div>`;
+    });
+    // Total matière utilisée
+    if(pu) {
+      html += `<div style="padding:8px 12px;background:var(--purpleP);border-radius:var(--rs);font-size:12px;font-weight:600;color:var(--purple)">
+        Valeur totale disponible : ${eur(pu * nbPelotes)}
+        ${poidsPelote?` · ${Math.round(nbPelotes*poidsPelote)}g au total`:''}
+      </div>`;
+    }
+  }
+  document.getElementById('sim-result').innerHTML = html;
+}
 
 // ═══════════════════════════════════════════════════════
 // PRODUCTION
