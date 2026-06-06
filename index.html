@@ -955,6 +955,61 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
  </div>
 </div>
 
+<!-- AJUSTEMENT STOCK -->
+<div id="m-ajust" class="overlay" onclick="bgClose(event,this)">
+ <div class="modal">
+  <div class="drag"></div>
+  <div class="modal-title" id="ajust-title">✏ Ajustement de stock</div>
+  <div id="ajust-info" style="padding:10px 12px;background:var(--purpleP);border-radius:var(--rs);margin-bottom:12px;font-size:13px"></div>
+  <div class="r2">
+   <div class="fg">
+    <label id="ajust-qty-label">Quantité (+ ajout / − déduction)</label>
+    <input id="ajust-qty" type="number" step="any" placeholder="ex: -0.5 ou +2">
+   </div>
+   <div class="fg"><label>Date</label>
+    <input id="ajust-date" type="date">
+   </div>
+  </div>
+  <div class="fg">
+   <label>Raison / note *</label>
+   <input id="ajust-note" placeholder="ex: Utilisé pour sac test couleur bleue, chute de fil…">
+  </div>
+  <div id="ajust-preview" style="margin-top:8px"></div>
+  <div class="mfoot">
+   <button class="btn btn-ghost" onclick="closeModal('m-ajust')">Annuler</button>
+   <button class="btn btn-p" onclick="saveAjust()">Enregistrer</button>
+  </div>
+ </div>
+</div>
+
+<!-- VARIANTE BIJOU -->
+<div id="m-variante" class="overlay" onclick="bgClose(event,this)">
+ <div class="modal" style="max-width:540px">
+  <div class="drag"></div>
+  <div class="modal-title" id="var-modal-title">🎨 Nouvelle variante</div>
+  <div class="r2">
+   <div class="fg"><label>Désignation *</label>
+    <input id="var-nom" placeholder="Nom du produit"></div>
+   <div class="fg"><label>Nom de la variante *</label>
+    <input id="var-variante" placeholder="ex: Bleu marine, Taille M…"></div>
+  </div>
+  <div class="r2">
+   <div class="fg"><label>Référence (auto si vide)</label>
+    <input id="var-ref" placeholder="auto"></div>
+   <div class="fg"><label>Prix de vente (€)</label>
+    <input id="var-pv" type="number" step="0.01"></div>
+  </div>
+  <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin:10px 0 6px">
+   Matériaux du parent — cochez pour remplacer
+  </div>
+  <div id="var-mats-list" style="max-height:280px;overflow-y:auto"></div>
+  <div class="mfoot">
+   <button class="btn btn-ghost" onclick="closeModal('m-variante')">Annuler</button>
+   <button class="btn btn-p" onclick="saveVariante()">Créer la variante</button>
+  </div>
+ </div>
+</div>
+
 <!-- RÉAPPRO -->
 <div id="m-reappro" class="overlay" onclick="bgClose(event,this)">
  <div class="modal">
@@ -1451,7 +1506,7 @@ const SC_PREFIX = {
 };
 
 async function loadAll() {
-  const [mats, bijs, ventes, prods, reappros, cfg, kits, charges, tva_entries, commandes] = await Promise.all([
+  const [mats, bijs, ventes, prods, reappros, cfg, kits, charges, tva_entries, commandes, ajustements] = await Promise.all([
     sbGet('materiaux', {order:'ref'}),
     sbGet('bijoux', {order:'collection'}),
     sbGet('ventes', {order:'date'}),
@@ -1462,8 +1517,9 @@ async function loadAll() {
     sbGet('charges').catch(()=>[]),
     sbGet('tva_entries').catch(()=>[]),
     sbGet('commandes').catch(()=>[]),
+    sbGet('stock_ajustements').catch(()=>[]),
   ]);
-  MATS=mats; BIJS=bijs; VENTES=ventes; PRODS=prods; REAPPROS=reappros; KITS=kits||[]; CHARGES=charges||[]; TVA_ENTRIES=tva_entries||[]; COMMANDES=commandes||[];
+  MATS=mats; BIJS=bijs; VENTES=ventes; PRODS=prods; REAPPROS=reappros; KITS=kits||[]; CHARGES=charges||[]; TVA_ENTRIES=tva_entries||[]; COMMANDES=commandes||[]; AJUSTEMENTS=ajustements||[];
   const mainCatsCfg = cfg.find(c=>c.key==='main_cats');
   const fourCfg     = cfg.find(c=>c.key==='fournisseurs');
   const hdrCfg      = cfg.find(c=>c.key==='header');
@@ -1522,7 +1578,10 @@ function toast(msg, type='', dur=2800) {
 }
 
 function stockCumul(mat) {
-  return (+(mat.qty||0)) + REAPPROS.filter(r=>r.mat_id===mat.id&&(!r.statut||r.statut==='valide')).reduce((s,r)=>s+(+r.qty||0),0);
+  const base = (+(mat.qty||0)) + REAPPROS.filter(r=>r.mat_id===mat.id&&(!r.statut||r.statut==='valide')).reduce((s,r)=>s+(+r.qty||0),0);
+  // Ajustements manuels (positifs = ajout, négatifs = déduction)
+  const adj = AJUSTEMENTS.filter(a=>a.mat_id===mat.id).reduce((s,a)=>s+(+a.qty||0),0);
+  return base + adj;
 }
 function puMoyen(mat) {
   const qB=+(mat.qty||0), pB=+(mat.prix||0);
@@ -1580,9 +1639,31 @@ function stockConsome(ref) {
 }
 function stockDispo(mat) { return stockCumul(mat)-stockConsome(mat.ref); }
 
+function getMatsEffectifs(bij) {
+  // Si c'est une variante, fusionner mats parent avec les overrides
+  if(bij.parent_id) {
+    const parent=BIJS.find(b=>b.id===bij.parent_id);
+    if(parent) {
+      const overrides=bij.variante_overrides||[];
+      const mats=[...(parent.mats||[])];
+      overrides.forEach(ov=>{
+        const idx=mats.findIndex(m=>m.ref===ov.ref_parent);
+        if(idx>=0) mats[idx]={...mats[idx], ref:ov.ref_variante, qty:ov.qty||mats[idx].qty};
+        else mats.push({ref:ov.ref_variante, qty:ov.qty, sc:ov.sc||''});
+      });
+      // Matériaux spécifiques à la variante (sans ref_parent = ajout pur)
+      (bij.mats||[]).forEach(m=>{
+        if(!mats.find(x=>x.ref===m.ref)) mats.push(m);
+      });
+      return mats;
+    }
+  }
+  return bij.mats||[];
+}
+
 function coutBijou(bij, depth=0) {
   if(depth>4) return 0;
-  return (bij.mats||[]).reduce((s,m)=>{
+  return getMatsEffectifs(bij).reduce((s,m)=>{
     // Matériau simple
     const mat=getMat(m.ref);
     if(mat){
@@ -3016,7 +3097,13 @@ function renderBij() {
   );
   if(!bijs.length){document.getElementById('bij-body').innerHTML=`<div class="empty"><div class="empty-icon">💎</div><p>Aucun bijou</p></div>`;return;}
   const byC={};
-  bijs.forEach(b=>{if(!byC[b.collection])byC[b.collection]=[];byC[b.collection].push(b);});
+  // Séparer parents et variantes
+  const parents=bijs.filter(b=>!b.parent_id);
+  const variantes=bijs.filter(b=>b.parent_id);
+  parents.forEach(b=>{if(!byC[b.collection])byC[b.collection]=[];byC[b.collection].push(b);
+    // Insérer les variantes juste après leur parent
+    variantes.filter(v=>v.parent_id===b.id).forEach(v=>{byC[b.collection].push(v);});
+  });
   const isGrid=BIJ_VIEW==='grid';
   document.getElementById('bij-body').innerHTML=Object.entries(byC).map(([coll,bs])=>`
     <div class="main-ban" style="background:var(--dark)">◆ ${coll.toUpperCase()}</div>
@@ -3031,11 +3118,13 @@ function renderBij() {
               ${b.variante?`<span class="badge bp">${b.variante}</span>`:''}
               ${draft?'<span class="draft-pill">brouillon</span>':''}
               ${b.is_mat?`<span class="badge bgn" style="font-size:8px">💎 composant</span>`:''}
+              ${b.parent_id?`<span class="badge" style="background:var(--gold);color:#fff;font-size:8px">🎨 variante</span>`:''}
             </div>
             ${b.ref?`<div style="font-size:11px;color:var(--gold2);margin-top:4px;letter-spacing:.3px;opacity:.8">${b.ref}</div>`:''}
           </div>
           <div style="display:flex;gap:4px">
             <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();quickProd('${b.id}')" title="Enregistrer une production">🏭 Prod.</button>
+            ${!b.parent_id?`<button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();openVarianteModal('${b.id}')" title="Créer une variante">🎨 Variante</button>`:''}
             <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();dupBij('${b.id}')" title="Dupliquer">⎘ Dupliquer</button>
             <button class="btn btn-red btn-xs" onclick="event.stopPropagation();delBij('${b.id}')">✕</button>
           </div>
@@ -3156,7 +3245,10 @@ function renderStock() {
             <td><b style="color:${clr}">${n(dG)}</b>
               <div class="sbar"><div class="sfill" style="width:${pct}%;background:${clr}"></div></div>
             </td>
-            <td><button class="btn btn-xs btn-ghost" onclick="openReappro('${firstMat.id}')" style="padding:4px 8px">↑ Réappro</button></td>
+            <td style="white-space:nowrap">
+              <button class="btn btn-xs btn-ghost" onclick="openReappro('${firstMat.id}')" style="padding:4px 8px">↑ Réappro</button>
+              <button class="btn btn-xs btn-ghost" onclick="openAjustModal('${firstMat.id}')" style="padding:4px 8px;margin-left:3px" title="Ajustement manuel">✏ Ajust.</button>
+            </td>
           </tr>`;
         }).join('')}</tbody>
       </table></div>`;
@@ -3223,7 +3315,17 @@ function renderDep() {
           <span style="font-weight:600;color:var(--red)">${eur(m.prix)}</span>
           <span class="badge bgn">✅ Validé</span>
         </div>`:''}
-        ${ras.map(r=>{
+        ${AJUSTEMENTS.filter(a=>a.mat_id===m.id).map(a=>{
+        const isPos=(+a.qty)>=0;
+        return `<div style="display:flex;gap:5px;padding:4px 8px;border-radius:var(--rx);margin-bottom:3px;flex-wrap:wrap;align-items:center;border:1px solid ${isPos?'var(--green)':'var(--orange)'}20;background:${isPos?'var(--greenP)':'var(--goldP)'}">
+          <span class="badge" style="background:${isPos?'var(--green)':'var(--orange)'}">✏ Ajust.</span>
+          <span style="font-size:11px;color:var(--muted)">${a.date||'--'}</span>
+          <span style="font-size:12px;font-weight:600;color:${isPos?'var(--green)':'var(--orange)'}">${isPos?'+':''}${a.qty} ${getUniteShort(m)}</span>
+          ${a.note?`<span style="font-size:11px;color:var(--muted)">${a.note}</span>`:''}
+          <button class="btn btn-xs btn-red" onclick="delAjust('${a.id}')">✕</button>
+        </div>`;
+      }).join('')}
+      ${ras.map(r=>{
           const s=r.statut||'valide';
           const clr=STATUT_COLORS[s]||'var(--muted)';
           return `<div style="display:flex;gap:5px;padding:4px 8px;border-radius:var(--rx);margin-bottom:3px;flex-wrap:wrap;align-items:center;border:1px solid ${clr}20;background:${clr}10">
@@ -3252,7 +3354,7 @@ function renderDep() {
 // ═══════════════════════════════════════════════════════
 // COMPTABILITÉ — données
 // ═══════════════════════════════════════════════════════
-let CHARGES=[], TVA_ENTRIES=[], COMMANDES=[];
+let CHARGES=[], TVA_ENTRIES=[], COMMANDES=[], AJUSTEMENTS=[];
 // ── Utilitaire : catégories fusionnées config + MATS pour un type donné
 function getCatsForType(type) {
   const result = {};
@@ -3873,6 +3975,176 @@ function calcSimulateur() {
     }
   }
   document.getElementById('sim-result').innerHTML = html;
+}
+
+
+// ═══════════════════════════════════════════════════════
+// AJUSTEMENTS DE STOCK
+// ═══════════════════════════════════════════════════════
+let AJUST_MAT_ID=null;
+
+function openAjustModal(matId) {
+  AJUST_MAT_ID=matId;
+  const m=MATS.find(x=>x.id===matId); if(!m) return;
+  const stockAct=stockCumul(m)-stockConsome(m.ref);
+  const unite=getUniteShort(m);
+  const pu=puMoyen(m);
+  document.getElementById('ajust-title').textContent='✏ Ajustement — '+(m.designation||m.des||m.ref);
+  document.getElementById('ajust-info').innerHTML=`
+    <div style="font-weight:700;color:var(--purple)">${m.ref} · ${m.designation||m.des||''} ${m.variante||''}</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:3px">
+      Stock disponible : <b>${stockAct} ${unite}</b>
+      ${pu?` · PU moyen : ${eur(pu,3)}/${unite}`:''}
+    </div>`;
+  document.getElementById('ajust-qty-label').textContent=
+    `Quantité en ${unite} (+ ajout / − déduction)`;
+  document.getElementById('ajust-qty').value='';
+  document.getElementById('ajust-note').value='';
+  document.getElementById('ajust-date').value=today();
+  document.getElementById('ajust-preview').innerHTML='';
+  // Listener preview
+  const qtyEl=document.getElementById('ajust-qty');
+  qtyEl.oninput=()=>{
+    const qty=+qtyEl.value||0;
+    const nvStock=stockAct+qty;
+    const cout=pu?Math.abs(qty)*pu:null;
+    const el=document.getElementById('ajust-preview');
+    el.innerHTML=`<div style="padding:8px 12px;border-radius:var(--rs);background:${qty>=0?'var(--greenP)':'var(--goldP)'};font-size:12px">
+      Stock après ajustement : <b>${nvStock} ${unite}</b>
+      ${cout?` · Impact coût estimé : <b>${eur(cout)}</b>`:''}
+    </div>`;
+  };
+  openModal('m-ajust');
+}
+
+async function saveAjust() {
+  const qty=+document.getElementById('ajust-qty').value;
+  const note=document.getElementById('ajust-note').value.trim();
+  if(!qty) return toast('Quantité obligatoire','err');
+  if(!note) return toast('Raison obligatoire pour tracer l\u0027ajustement','err');
+  const obj={
+    id:uid(), mat_id:AJUST_MAT_ID, qty,
+    note, date:document.getElementById('ajust-date').value
+  };
+  const ok=await sbInsert('stock_ajustements',obj);
+  if(ok){
+    AJUSTEMENTS.push(obj);
+    closeModal('m-ajust');
+    renderStock();
+    renderDep();
+    toast(`Ajustement enregistré (${qty>0?'+':''}${qty}) ✓`,'ok');
+  }
+}
+
+async function delAjust(id) {
+  if(!confirm('Supprimer cet ajustement ?')) return;
+  const ok=await sbDelete('stock_ajustements',id);
+  if(ok){
+    AJUSTEMENTS=AJUSTEMENTS.filter(a=>a.id!==id);
+    renderStock(); renderDep();
+    toast('Ajustement supprimé','ok');
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// VARIANTES BIJOUX
+// ═══════════════════════════════════════════════════════
+let VARIANTE_PARENT_ID=null;
+
+function openVarianteModal(parentId) {
+  VARIANTE_PARENT_ID=parentId;
+  const parent=BIJS.find(b=>b.id===parentId); if(!parent) return;
+  // Pré-remplir le titre
+  document.getElementById('var-modal-title').textContent=
+    '🎨 Nouvelle variante — '+parent.nom;
+  // Afficher les matériaux du parent
+  const matsHtml=(parent.mats||[]).map((m,i)=>{
+    const mat=getMat(m.ref);
+    const label=mat?(mat.designation||mat.des||m.ref):m.ref;
+    return `<div class="var-mat-row" data-idx="${i}" style="padding:8px;background:var(--bg);border-radius:var(--rs);margin-bottom:6px;border:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span class="ref">${m.ref}</span>
+        <span style="flex:1;font-size:12px">${label}</span>
+        <span class="dim">× ${m.qty||'?'}</span>
+        <label style="font-size:11px;display:flex;align-items:center;gap:4px;cursor:pointer">
+          <input type="checkbox" class="var-override-chk" data-ref="${m.ref}" onchange="toggleVarOverride(this)">
+          Remplacer
+        </label>
+      </div>
+      <div class="var-override-row" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr 80px;gap:6px">
+          <select class="var-new-sc" onchange="filterVarRefs(this)" style="font-size:12px;padding:8px">${buildSCOptions('','')}</select>
+          <select class="var-new-ref" style="font-size:12px;padding:8px"><option value="">-- Nouvelle réf --</option></select>
+          <input class="var-new-qty" type="number" placeholder="Qté" value="${m.qty||''}" style="padding:8px;font-size:12px">
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('var-mats-list').innerHTML=matsHtml||'<div class="dim">Aucun matériau dans le parent</div>';
+  // Champs variante
+  document.getElementById('var-nom').value=parent.nom;
+  document.getElementById('var-variante').value='';
+  document.getElementById('var-pv').value=parent.pv||'';
+  document.getElementById('var-ref').value='';
+  openModal('m-variante');
+}
+
+function toggleVarOverride(chk) {
+  const row=chk.closest('.var-mat-row');
+  const overrideRow=row.querySelector('.var-override-row');
+  if(overrideRow) overrideRow.style.display=chk.checked?'block':'none';
+}
+
+function filterVarRefs(sel) {
+  const row=sel.closest('.var-mat-row');
+  const refSel=row.querySelector('.var-new-ref');
+  const val=sel.value;
+  const parts=val.split('|||');
+  const mc=parts[0]||'', sc=parts[1]||'';
+  let opts='<option value="">-- Nouvelle réf --</option>';
+  MATS.filter(m=>m.sc===sc&&(!mc||m.mc===mc)).forEach(m=>{
+    opts+=`<option value="${m.ref}">${m.ref} · ${m.designation||m.des||''}</option>`;
+  });
+  refSel.innerHTML=opts;
+}
+
+async function saveVariante() {
+  const parent=BIJS.find(b=>b.id===VARIANTE_PARENT_ID); if(!parent) return;
+  const nom=document.getElementById('var-nom').value.trim();
+  const variante=document.getElementById('var-variante').value.trim();
+  const pv=+document.getElementById('var-pv').value||null;
+  const ref=document.getElementById('var-ref').value.trim();
+  if(!variante) return toast('Le nom de variante est obligatoire','err');
+  // Collecter les overrides
+  const overrides=[];
+  document.querySelectorAll('.var-override-chk:checked').forEach(chk=>{
+    const row=chk.closest('.var-mat-row');
+    const refParent=chk.dataset.ref;
+    const newRef=row.querySelector('.var-new-ref')?.value;
+    const newQty=+row.querySelector('.var-new-qty')?.value||null;
+    const newSC=row.querySelector('.var-new-sc')?.value?.split('|||')[1]||'';
+    if(newRef) overrides.push({ref_parent:refParent, ref_variante:newRef, qty:newQty, sc:newSC});
+  });
+  const obj={
+    id:uid(),
+    parent_id:VARIANTE_PARENT_ID,
+    collection:parent.collection,
+    nom, variante,
+    ref:ref||autoRefBij(),
+    pv, draft:false,
+    is_mat:parent.is_mat||false,
+    no_sell:parent.no_sell||false,
+    mats:[], // mats additionnels spécifiques (pas les overrides)
+    variante_overrides:overrides,
+    created_at:new Date().toISOString()
+  };
+  const ok=await sbInsert('bijoux',obj);
+  if(ok){
+    BIJS.push(obj);
+    closeModal('m-variante');
+    renderBij();
+    toast('Variante créée ✓','ok');
+  }
 }
 
 // ═══════════════════════════════════════════════════════
