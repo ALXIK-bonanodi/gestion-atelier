@@ -1238,6 +1238,22 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
    <div id="p-bij-list" style="max-height:200px;overflow-y:auto;border:1.5px solid var(--border);border-radius:var(--rs);background:#fff"></div>
    <input type="hidden" id="p-bij">
   </div>
+  <div id="p-variation-toggle" style="margin-bottom:10px">
+   <button class="btn btn-ghost btn-sm" onclick="toggleVariationPanel()" id="p-var-btn" type="button">🎨 Cette production est une nouvelle variation</button>
+  </div>
+  <div id="p-variation-panel" style="display:none;padding:10px;background:var(--goldP);border-radius:var(--rs);margin-bottom:10px;border:1px solid #E8D9B0">
+   <div style="font-size:11px;font-weight:700;color:var(--gold2);text-transform:uppercase;margin-bottom:8px">🎨 Détails de la variation</div>
+   <div class="r2">
+    <div class="fg"><label>Nom de la variation *</label>
+     <input id="pv-variante" placeholder="ex: Bleu marine, Taille M…"></div>
+    <div class="fg"><label>Référence (auto si vide)</label>
+     <input id="pv-ref" placeholder="auto"></div>
+   </div>
+   <div class="fg"><label>Prix de vente (€, optionnel)</label>
+    <input id="pv-pv" type="number" step="0.01" placeholder="hérite du produit de base si vide"></div>
+   <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin:10px 0 6px">Matériaux à remplacer</div>
+   <div id="pv-mats-list" style="max-height:240px;overflow-y:auto"></div>
+  </div>
   <div class="r2">
    <div class="fg"><label>Quantité</label>
     <input id="p-qty" type="number" value="1" oninput="renderProdPrev()">
@@ -3124,7 +3140,6 @@ function renderBij() {
           </div>
           <div style="display:flex;gap:4px">
             <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();quickProd('${b.id}')" title="Enregistrer une production">🏭 Prod.</button>
-            ${!b.parent_id?`<button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();openVarianteModal('${b.id}')" title="Créer une variante">🎨 Variante</button>`:''}
             <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();dupBij('${b.id}')" title="Dupliquer">⎘ Dupliquer</button>
             <button class="btn btn-red btn-xs" onclick="event.stopPropagation();delBij('${b.id}')">✕</button>
           </div>
@@ -4170,6 +4185,9 @@ function selectPBij(bijId) {
     el.style.fontWeight = el.dataset.id === bijId ? '700' : '';
   });
   renderProdPrev();
+  // Si le panneau variation est ouvert, reconstruire la liste de matériaux pour ce nouveau bijou
+  const varPanel=document.getElementById('p-variation-panel');
+  if(varPanel && varPanel.style.display!=='none') buildVariationMatsList();
 }
 
 function quickProd(bijId) {
@@ -4212,9 +4230,108 @@ async function openProdModal(preselectBijId) {
   document.getElementById('p-date').value = today();
   document.getElementById('p-qty').value = '1';
   setPStatut('produit');
+  // Réinitialiser le panneau variation à chaque ouverture
+  const varPanel=document.getElementById('p-variation-panel');
+  const varBtn=document.getElementById('p-var-btn');
+  if(varPanel) varPanel.style.display='none';
+  if(varBtn) varBtn.className='btn btn-ghost btn-sm';
   renderProdPrev();
   openModal('m-prod');
 }
+
+function toggleVariationPanel() {
+  const panel=document.getElementById('p-variation-panel');
+  const btn=document.getElementById('p-var-btn');
+  const isOpen=panel.style.display!=='none';
+  panel.style.display=isOpen?'none':'block';
+  btn.className=isOpen?'btn btn-ghost btn-sm':'btn btn-p btn-sm';
+  if(!isOpen) buildVariationMatsList();
+}
+
+function buildVariationMatsList() {
+  const bijId=document.getElementById('p-bij').value;
+  const b=getBij(bijId); if(!b) return;
+  const mats=getMatsEffectifs(b);
+  const html=mats.map((m,i)=>{
+    const mat=getMat(m.ref);
+    const label=mat?(mat.designation||mat.des||m.ref):m.ref;
+    return `<div class="pv-mat-row" data-idx="${i}" style="padding:8px;background:#fff;border-radius:var(--rs);margin-bottom:6px;border:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span class="ref">${m.ref}</span>
+        <span style="flex:1;font-size:12px">${label}</span>
+        <span class="dim">× ${m.qty||'?'}</span>
+        <label style="font-size:11px;display:flex;align-items:center;gap:4px;cursor:pointer">
+          <input type="checkbox" class="pv-override-chk" data-ref="${m.ref}" data-sc="${m.sc||''}" data-qty="${m.qty||''}" onchange="togglePVOverride(this)">
+          Remplacer
+        </label>
+      </div>
+      <div class="pv-override-row" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr 70px;gap:6px">
+          <select class="pv-new-sc" onchange="filterPVRefs(this)" style="font-size:12px;padding:8px">${buildSCOptions('','')}</select>
+          <select class="pv-new-ref" style="font-size:12px;padding:8px"><option value="">-- Nouvelle réf --</option></select>
+          <input class="pv-new-qty" type="number" placeholder="Qté" value="${m.qty||''}" style="padding:8px;font-size:12px">
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('pv-mats-list').innerHTML=html||'<div class="dim">Aucun matériau dans ce produit</div>';
+  document.getElementById('pv-pv').value='';
+  document.getElementById('pv-variante').value='';
+  document.getElementById('pv-ref').value='';
+}
+
+function togglePVOverride(chk) {
+  const row=chk.closest('.pv-mat-row');
+  const overrideRow=row.querySelector('.pv-override-row');
+  if(overrideRow) overrideRow.style.display=chk.checked?'block':'none';
+}
+
+function filterPVRefs(sel) {
+  const row=sel.closest('.pv-mat-row');
+  const refSel=row.querySelector('.pv-new-ref');
+  const val=sel.value;
+  const parts=val.split('|||');
+  const mc=parts[0]||'', sc=parts[1]||'';
+  let opts='<option value="">-- Nouvelle réf --</option>';
+  MATS.filter(m=>m.sc===sc&&(!mc||m.mc===mc)).forEach(m=>{
+    opts+=`<option value="${m.ref}">${m.ref} · ${m.designation||m.des||''}</option>`;
+  });
+  refSel.innerHTML=opts;
+}
+
+async function createVariationAndProd(baseBijId, qty, date, statut) {
+  const base=getBij(baseBijId); if(!base) return null;
+  const variante=document.getElementById('pv-variante').value.trim();
+  if(!variante) { toast('Le nom de la variation est obligatoire','err'); return null; }
+  const overrides=[];
+  document.querySelectorAll('.pv-override-chk:checked').forEach(chk=>{
+    const row=chk.closest('.pv-mat-row');
+    const refParent=chk.dataset.ref;
+    const newRef=row.querySelector('.pv-new-ref')?.value;
+    const newQty=+row.querySelector('.pv-new-qty')?.value||+chk.dataset.qty||null;
+    const newSC=row.querySelector('.pv-new-sc')?.value?.split('|||')[1]||chk.dataset.sc||'';
+    if(newRef) overrides.push({ref_parent:refParent, ref_variante:newRef, qty:newQty, sc:newSC});
+  });
+  const pv=+document.getElementById('pv-pv').value||base.pv||null;
+  const ref=document.getElementById('pv-ref').value.trim()||autoRefBij();
+  const newBij={
+    id:uid(),
+    parent_id: base.parent_id || base.id, // si base est déjà une variante, rattacher au vrai parent
+    collection:base.collection,
+    nom:base.nom, variante,
+    ref, pv, draft:false,
+    is_mat:base.is_mat||false,
+    no_sell:base.no_sell||false,
+    mats:[],
+    variante_overrides:overrides,
+    created_at:new Date().toISOString()
+  };
+  const ok=await sbInsert('bijoux',newBij);
+  if(!ok) { toast('Erreur création variation','err'); return null; }
+  BIJS.push(newBij);
+  return newBij.id;
+}
+
 // Calcule le stock "produisable" d'un bijou composant no_sell
 // = min(stockDispo(mat) / qty_mat) pour chaque matériau → combien on peut en faire
 function stockProduisableComp(bijComp) {
@@ -4304,10 +4421,18 @@ function renderProdPrev() {
   document.getElementById('prod-prev').innerHTML=`<div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:5px">Matériaux nécessaires</div>${rows}${!ok?'<div class="warn-box" style="margin-top:5px">⚠ Stock insuffisant pour certains composants</div>':'<div style="margin-top:5px;padding:5px 8px;background:var(--greenP);border-radius:var(--rx);font-size:11px;color:var(--green)">✓ Stock suffisant</div>'}`;
 }
 async function saveProd() {
-  const bijId=document.getElementById('p-bij').value;
+  let bijId=document.getElementById('p-bij').value;
   const qty=+document.getElementById('p-qty').value||1;
   const statut=document.getElementById('p-statut-val')?.value||'produit';
   const date=document.getElementById('p-date').value;
+
+  // Si le panneau variation est ouvert, créer la fiche variante d'abord
+  const varPanel=document.getElementById('p-variation-panel');
+  if(varPanel && varPanel.style.display!=='none') {
+    const newId=await createVariationAndProd(bijId, qty, date, statut);
+    if(!newId) return; // erreur déjà affichée
+    bijId=newId; // la production sera enregistrée sur la nouvelle variation
+  }
 
   // Enregistrer la production principale
   const obj={id:uid(),bij_id:bijId,qty,date,statut};
@@ -4330,8 +4455,9 @@ async function saveProd() {
   }
 
   closeModal('m-prod');
+  renderBij();
   renderRent();
-  toast(statut==='produit'?'Production enregistrée ✓':'Mise en production enregistrée ✓','ok');
+  toast(statut==='produit'?'Variation et production enregistrées ✓':'Mise en production enregistrée ✓','ok');
 }
 
 // ═══════════════════════════════════════════════════════
