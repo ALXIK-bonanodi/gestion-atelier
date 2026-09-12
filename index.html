@@ -653,6 +653,8 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
  </div>
 </div>
 
+<!-- GESTION CONFIGURATEUR (dans p-cfg) -->
+
 <!-- ═══ PARAMÈTRES ═══ -->
 <div id="p-cfg" class="page">
 
@@ -760,6 +762,19 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
       <button class="btn btn-p btn-sm" onclick="runDiag()">Actualiser</button>
       <div id="rename-result" style="margin-top:6px;font-size:12px"></div>
       <div id="diag-result" style="margin-top:10px"></div>
+    </div>
+  </div>
+
+  <!-- Configurateur -->
+  <div class="card">
+    <div class="card-hd"><h2>🐟 Zones configurateur</h2></div>
+    <div class="card-bd">
+      <div class="info-box" style="margin-bottom:10px">
+        Gérez les zones personnalisables du configurateur client (dos, ventre, queue, étoile…).
+        Activez/désactivez les zones et ajoutez-en de nouvelles.
+        Les calques PNG s'uploadent depuis la fiche matériau.
+      </div>
+      <div id="cfg-configurateur-section"></div>
     </div>
   </div>
 
@@ -905,6 +920,23 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
    <div class="fg"><label>Date de renouvellement (optionnel)</label>
     <input id="mat-renouvellement" type="date">
    </div>
+  </div>
+  <!-- Image couleur (swatch) -->
+  <div class="fg" style="margin-top:8px">
+   <label>Image couleur / référence</label>
+   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <div id="mat-img-preview" style="width:60px;height:60px;border-radius:50%;border:2px solid var(--border);background:var(--bg);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:20px">🖼</div>
+    <div style="flex:1">
+     <input type="file" id="mat-img-file" accept="image/*" onchange="previewMatImg(this)" style="font-size:12px;margin-bottom:4px;width:100%">
+     <div id="mat-img-url" style="font-size:10px;color:var(--muted);word-break:break-all"></div>
+    </div>
+   </div>
+  </div>
+  <!-- Zones configurateur -->
+  <div id="mat-cfg-row" style="display:none;margin-top:8px;padding:10px 12px;background:var(--purpleP);border-radius:var(--rs)">
+   <div style="font-size:11px;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">🐟 Calques configurateur</div>
+   <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Pour chaque zone, uploadez le PNG fond transparent correspondant à cette couleur.</div>
+   <div id="mat-cfg-zones"></div>
   </div>
   <div class="mfoot">
    <button class="btn btn-ghost" onclick="closeModal('m-mat')">Annuler</button>
@@ -1522,7 +1554,7 @@ const SC_PREFIX = {
 };
 
 async function loadAll() {
-  const [mats, bijs, ventes, prods, reappros, cfg, kits, charges, tva_entries, commandes, ajustements] = await Promise.all([
+  const [mats, bijs, ventes, prods, reappros, cfg, kits, charges, tva_entries, commandes, ajustements, cfg_zones, cfg_calques] = await Promise.all([
     sbGet('materiaux', {order:'ref'}),
     sbGet('bijoux', {order:'collection'}),
     sbGet('ventes', {order:'date'}),
@@ -1534,8 +1566,10 @@ async function loadAll() {
     sbGet('tva_entries').catch(()=>[]),
     sbGet('commandes').catch(()=>[]),
     sbGet('stock_ajustements').catch(()=>[]),
+    sbGet('cfg_zones',{order:'ordre'}).catch(()=>[]),
+    sbGet('cfg_calques').catch(()=>[]),
   ]);
-  MATS=mats; BIJS=bijs; VENTES=ventes; PRODS=prods; REAPPROS=reappros; KITS=kits||[]; CHARGES=charges||[]; TVA_ENTRIES=tva_entries||[]; COMMANDES=commandes||[]; AJUSTEMENTS=ajustements||[];
+  MATS=mats; BIJS=bijs; VENTES=ventes; PRODS=prods; REAPPROS=reappros; KITS=kits||[]; CHARGES=charges||[]; TVA_ENTRIES=tva_entries||[]; COMMANDES=commandes||[]; AJUSTEMENTS=ajustements||[]; CFG_ZONES=cfg_zones||[]; CFG_CALQUES=cfg_calques||[];
   const mainCatsCfg = cfg.find(c=>c.key==='main_cats');
   const fourCfg     = cfg.find(c=>c.key==='fournisseurs');
   const hdrCfg      = cfg.find(c=>c.key==='header');
@@ -2000,6 +2034,11 @@ function openMatModal(editId=null) {
     const uniteEl=document.getElementById('mat-unite');
     if(uniteEl){ uniteEl.value=m.unite||autoDetectUnite(m.mc,m.sc); onUniteChange(); }
     calcPU();
+    // Charger image existante
+    MAT_IMG_PENDING = null;
+    loadMatImgFromUrl(m.image_url || null);
+    // Charger zones configurateur
+    renderMatCfgZones(m.id);
     // Méta fils/laines
     const metaRow=document.getElementById('mat-meta-row');
     if(metaRow) metaRow.style.display=isFilMC(m.mc)?'block':'none';
@@ -3369,7 +3408,7 @@ function renderDep() {
 // ═══════════════════════════════════════════════════════
 // COMPTABILITÉ — données
 // ═══════════════════════════════════════════════════════
-let CHARGES=[], TVA_ENTRIES=[], COMMANDES=[], AJUSTEMENTS=[];
+let CHARGES=[], TVA_ENTRIES=[], COMMANDES=[], AJUSTEMENTS=[], CFG_ZONES=[], CFG_CALQUES=[];
 // ── Utilitaire : catégories fusionnées config + MATS pour un type donné
 function getCatsForType(type) {
   const result = {};
@@ -3992,6 +4031,140 @@ function calcSimulateur() {
   document.getElementById('sim-result').innerHTML = html;
 }
 
+
+
+// ═══════════════════════════════════════════════════════
+// SUPABASE STORAGE — Upload images
+// ═══════════════════════════════════════════════════════
+const SB_STORAGE_URL = () => document.getElementById('s-url')?.value?.trim() || localStorage.getItem('sb_url') || '';
+
+async function uploadToStorage(bucket, path, file) {
+  const url = SB_STORAGE_URL();
+  const key = localStorage.getItem('sb_key') || document.getElementById('s-key')?.value || '';
+  const resp = await fetch(`${url}/storage/v1/object/${bucket}/${path}`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': file.type, 'x-upsert': 'true' },
+    body: file
+  });
+  if (!resp.ok) { const e = await resp.text(); toast('Erreur upload: ' + e, 'err'); return null; }
+  return `${url}/storage/v1/object/public/${bucket}/${path}`;
+}
+
+let MAT_IMG_PENDING = null; // file en attente d'upload
+let MAT_IMG_CURRENT_URL = null; // URL existante
+
+function previewMatImg(input) {
+  const file = input.files[0]; if (!file) return;
+  MAT_IMG_PENDING = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const prev = document.getElementById('mat-img-preview');
+    if (prev) prev.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover">`;
+  };
+  reader.readAsDataURL(file);
+}
+
+function loadMatImgFromUrl(url) {
+  MAT_IMG_CURRENT_URL = url || null;
+  const prev = document.getElementById('mat-img-preview');
+  const urlEl = document.getElementById('mat-img-url');
+  if (prev) prev.innerHTML = url ? `<img src="${url}" style="width:100%;height:100%;object-fit:cover">` : '🖼';
+  if (urlEl) urlEl.textContent = url ? url.split('/').pop() : '';
+}
+
+async function uploadMatImg(matRef) {
+  if (!MAT_IMG_PENDING) return MAT_IMG_CURRENT_URL;
+  const ext = MAT_IMG_PENDING.name.split('.').pop();
+  const path = `${matRef}_${Date.now()}.${ext}`;
+  const url = await uploadToStorage('materiaux-images', path, MAT_IMG_PENDING);
+  MAT_IMG_PENDING = null;
+  return url;
+}
+
+// ── Affichage zones configurateur dans la fiche mat ──
+function renderMatCfgZones(matId) {
+  const zones = CFG_ZONES.filter(z => z.actif);
+  const el = document.getElementById('mat-cfg-zones');
+  const cfgRow = document.getElementById('mat-cfg-row');
+  if (!el) return;
+  if (!zones.length) { if (cfgRow) cfgRow.style.display = 'none'; return; }
+  if (cfgRow) cfgRow.style.display = 'block';
+  el.innerHTML = zones.map(z => {
+    const calque = matId ? CFG_CALQUES.find(cl => cl.zone_id === z.id && cl.mat_id === matId) : null;
+    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:6px 8px;background:#fff;border-radius:var(--rs)">
+      <span style="flex:1;font-size:12px;font-weight:600">${z.label}</span>
+      ${calque ? `<img src="${calque.image_url}" style="width:40px;height:40px;object-fit:contain;border:1px solid var(--border);border-radius:4px">` : '<span style="width:40px;height:40px;border:1px dashed var(--border);border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:18px">+</span>'}
+      <input type="file" accept="image/png" data-zone="${z.id}" data-mat="${matId||''}"
+        onchange="uploadCalque(this)" style="font-size:10px;width:130px">
+    </div>`;
+  }).join('');
+}
+
+async function uploadCalque(input) {
+  const file = input.files[0]; if (!file) return;
+  const zoneId = input.dataset.zone;
+  const matId = input.dataset.mat;
+  if (!matId) { toast('Sauvegardez le mat\u00e9riau d\u0027abord', 'err'); return; }
+  const path = `${zoneId}_${matId}_${Date.now()}.png`;
+  toast('Upload en cours…');
+  const url = await uploadToStorage('cfg-calques', path, file);
+  if (!url) return;
+  // Chercher calque existant
+  const existing = CFG_CALQUES.find(cl => cl.zone_id === zoneId && cl.mat_id === matId);
+  let ok;
+  if (existing) {
+    ok = await sbUpdate('cfg_calques', existing.id, { image_url: url });
+    if (ok) { const i = CFG_CALQUES.findIndex(cl => cl.id === existing.id); if (i >= 0) CFG_CALQUES[i].image_url = url; }
+  } else {
+    const obj = { id: uid(), zone_id: zoneId, mat_id: matId, image_url: url, ordre: 0, actif: true };
+    ok = await sbInsert('cfg_calques', obj);
+    if (ok) CFG_CALQUES.push(obj);
+  }
+  if (ok) { toast('Calque uploadé ✓', 'ok'); renderMatCfgZones(matId); }
+}
+
+// ── renderCfgConfigurateur : section zones dans Paramètres ──
+function renderCfgConfigurateur() {
+  let el = document.getElementById('cfg-configurateur-section');
+  if (!el) return;
+  el.innerHTML = `
+    <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px">Zones actives</div>
+      <button class="btn btn-p btn-sm" onclick="openAddZone()">＋ Nouvelle zone</button>
+    </div>
+    ${CFG_ZONES.map(z=>`
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg);border-radius:var(--rs);margin-bottom:6px">
+        <div style="flex:1">
+          <span style="font-weight:600">${z.label}</span>
+          <span class="dim" style="font-size:11px;margin-left:6px">${z.multi?'multi':'unique'}</span>
+          <span class="dim" style="font-size:11px;margin-left:4px">ordre ${z.ordre}</span>
+        </div>
+        <label style="font-size:11px;display:flex;align-items:center;gap:4px;cursor:pointer">
+          <input type="checkbox" ${z.actif?'checked':''} onchange="toggleZone('${z.id}',this.checked)">
+          Actif
+        </label>
+      </div>`).join('')}`;
+}
+
+async function toggleZone(id, actif) {
+  const ok = await sbUpdate('cfg_zones', id, { actif });
+  if (ok) { const z = CFG_ZONES.find(z => z.id === id); if (z) z.actif = actif; toast(actif ? 'Zone activée' : 'Zone désactivée', 'ok'); }
+}
+
+function openAddZone() {
+  const nom = prompt('Nom de la nouvelle zone (ex: etoile, fermoir, œil…) :');
+  if (!nom) return;
+  const label = prompt('Label affiché (ex: Étoile, Fermoir, Œil) :', nom.charAt(0).toUpperCase() + nom.slice(1));
+  if (!label) return;
+  addZone(nom.toLowerCase().replace(/ /g, '_'), label);
+}
+
+async function addZone(nom, label) {
+  const maxOrdre = CFG_ZONES.reduce((m, z) => Math.max(m, z.ordre), 0);
+  const obj = { id: nom, nom, label, ordre: maxOrdre + 1, multi: false, actif: true };
+  const ok = await sbInsert('cfg_zones', obj);
+  if (ok) { CFG_ZONES.push(obj); renderCfgConfigurateur(); toast('Zone ajoutée ✓', 'ok'); }
+}
 
 // ═══════════════════════════════════════════════════════
 // AJUSTEMENTS DE STOCK
@@ -4802,6 +4975,7 @@ function renderCfg() {
   renderFourList();
   populateRenameSelect();
   runDiag();
+  renderCfgConfigurateur();
 }
 
 function syncColor(type) {
