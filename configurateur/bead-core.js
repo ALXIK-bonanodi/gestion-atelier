@@ -431,6 +431,10 @@ export function completerCatalogue(catalogue, bijoux = []) {
   else if (!base.some(c => c.finition === 'chainmail')) base = [...base, ...CHAINMAIL_DEMO];
   if (!base.some(c => /culture/i.test(c.categorie || ''))) base = [...base, ...CULTURE_DEMO];
   if (!base.some(c => c.double)) base = [...base, ...CATALOGUE_DEMO.filter(c => c.double)];             // heishi d'exemple
+  // perles plates noire et blanche des yeux : toujours proposées (exemples tant que ta base n'en a pas sous un nom « plat… noir/blanc »)
+  const plate = (c, coul) => /\bplat/.test(texteCatalogue(c)) && new RegExp(coul).test(norm(c.nom)) && c.perle !== 'plate-4' && !c.double;
+  if (!base.some(c => plate(c, 'noir'))) base = [...base, ...CATALOGUE_DEMO.filter(c => c.ref === '#PV-ex01')];
+  if (!base.some(c => plate(c, 'blanc'))) base = [...base, ...CATALOGUE_DEMO.filter(c => c.ref === '#PV-ex03')];
   if (!base.some(c => /plate/.test(norm(c.nom)) && /blanc/.test(norm(c.nom)) && c.perle === 'plate-4'))
     base = [...base, ...CATALOGUE_DEMO.filter(c => c.ref === '#PV-ex04')];                             // petite blanche de l'œil double
   return base;
@@ -671,6 +675,8 @@ export function couleursProposees(zone, catalogue, parties = null) {
     const noms = new Set(zone.choixNoms.map(norm)), petite = norm(zone.double?.kNom || '');
     dispo = dispo.filter(c => (noms.has(norm(c.nom)) || c.double || /\bplat/.test(texteCatalogue(c)))
       && c.perle !== 'plate-4' && (!petite || norm(c.nom) !== petite));
+    const rang = c => c.double ? 3 : /noir/.test(norm(c.nom)) ? 0 : /blanc/.test(norm(c.nom)) ? 1 : 2;   // noire, blanche, autres plates, heishi
+    dispo = [...dispo].sort((a, b) => rang(a) - rang(b));
     if (zone.choix?.length) { const set = new Set(zone.choix); return dispo.filter(c => set.has(c.ref)); }
     return dispo;                                                       // pas de restriction de l'ancien configurateur
   }

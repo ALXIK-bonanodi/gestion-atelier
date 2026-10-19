@@ -222,6 +222,11 @@ label.champ input:focus, label.champ textarea:focus { border-color: var(--prune)
 .pastille.sans { background: var(--creme-clair); display: grid; place-items: center; font: 600 11px var(--f-titre); color: var(--prune-doux); }
 @media (max-width: 520px) { .parcours { grid-template-columns: 1fr; } }
 
+/* Ordinateur : l'aperçu 3D reste visible pendant qu'on fait défiler les choix */
+@media (min-width: 821px) {
+  .scene { position: sticky; top: 16px; max-height: calc(100vh - 32px); }
+}
+
 @media (max-width: 820px) {
   .perso { grid-template-columns: 1fr; gap: 22px; padding-top: 14px; }
   .scene { aspect-ratio: 1 / 1; max-width: 460px; justify-self: center; }
@@ -378,7 +383,7 @@ import {
   notePersonnalisation, chargerPersonnalisation, modeleArgileDemo, completerCatalogue, apercuArgile, estArgile,
   modeleChainmailDemo, estChainmail, chargerBijouxBoutique, bijouBreloque, modelePerleCultureDemo, estPerleCulture, apercuChainmail,
   correspondCategorie, texteCatalogue, ordreModeles,
-} from './bead-core.js?v=83bed377';
+} from './bead-core.js?v=3035ce26';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER } from './perles-config.js?v=e1bf13ba';
 
 const $ = s => document.querySelector(s);
