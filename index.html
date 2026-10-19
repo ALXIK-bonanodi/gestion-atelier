@@ -340,6 +340,8 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
     <div id="debug-log" style="margin-top:12px;font-size:10px;color:#555;background:#f5f5f5;border-radius:6px;padding:8px;display:none;white-space:pre-line;word-break:break-all;max-height:200px;overflow-y:auto"></div>
   </div>
 </div>
+<script>/* identifiants déjà mémorisés : l'écran de connexion ne s'affiche que si la session a expiré */
+try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key')) document.getElementById('setup-screen').style.display = 'none'; } catch (e) {}</script>
 
 <!-- ════════════════ APP ════════════════ -->
 <div class="hdr">
@@ -5130,6 +5132,8 @@ function applyHdrConfig() {
   if(url&&key) {
     document.getElementById('cfg-url').value=url;
     document.getElementById('cfg-key').value=key;
+    // session déjà ouverte : on n'affiche pas l'écran de connexion pendant la vérification (pas de flash)
+    document.getElementById('setup-screen').style.display='none';
     try {
       SB=supabase.createClient(url,key);
       document.getElementById('cfg-email').value = localStorage.getItem('atl_email') || '';
