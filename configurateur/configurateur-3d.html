@@ -187,6 +187,7 @@ label.champ input:focus, label.champ textarea:focus { border-color: var(--prune)
 .mes-perso h3 { margin: 0; font: 600 15px var(--f-titre); }
 .mes-perso .ligne-perso { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 8px 12px; border-radius: 12px; border: 1px solid var(--ligne); background: var(--creme-clair); font-size: 14px; }
 .mes-perso .ligne-perso span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.segment:disabled { opacity: .4; cursor: not-allowed; text-decoration: line-through; }
 /* ---- offre bundle ---- */
 .offre { display: flex; gap: 10px; align-items: center; padding: 10px 14px; border-radius: 14px; background: var(--prune); color: var(--creme); font: 500 15px var(--f-titre); }
 .offre svg { width: 28px; height: 28px; flex: none; }
@@ -382,8 +383,8 @@ import {
   composerBundle, lignesCommandeBundle, accrochesProposees, construireLettres, verifierTexte, estLettres, offreApplicable,
   notePersonnalisation, chargerPersonnalisation, modeleArgileDemo, completerCatalogue, apercuArgile, estArgile,
   modeleChainmailDemo, estChainmail, chargerBijouxBoutique, bijouBreloque, modelePerleCultureDemo, estPerleCulture, apercuChainmail,
-  correspondCategorie, texteCatalogue, ordreModeles,
-} from './bead-core.js?v=3035ce26';
+  correspondCategorie, texteCatalogue, ordreModeles, chargerRuptures, appliquerRuptures,
+} from './bead-core.js?v=8f8a5bd3';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER } from './perles-config.js?v=e1bf13ba';
 
 const $ = s => document.querySelector(s);
@@ -414,13 +415,15 @@ const avecDelai = (promesse, ms = 12000) => Promise.race([promesse,
   new Promise((_, non) => setTimeout(() => non(new Error('la base ne répond pas (délai dépassé)')), ms))]);
 let alerteBase = '';
 window.__etape = 'lecture de la base (modèles, couleurs, bijoux)';
-let modeles = [], catalogue = completerCatalogue(CATALOGUE_DEMO), fermoirs = FERMOIRS_DEMO, parties = null, bijoux = [];
+let modeles = [], catalogue = completerCatalogue(CATALOGUE_DEMO), fermoirs = FERMOIRS_DEMO, parties = null, bijoux = [], ruptures = [];
 if (sb) {
   const res = await Promise.allSettled([
     listerModelesPublies(sb), chargerCatalogueBoutique(sb), chargerFermoirsBoutique(sb), chargerPartiesConfigurateur(sb), chargerBijouxBoutique(sb),
+    chargerRuptures(sb),
   ].map(x => avecDelai(x)));
-  const [m, c, f, p, bj] = res;
-  const noms = ['modèles', 'couleurs', 'fermoirs', 'parties', 'bijoux'];
+  const [m, c, f, p, bj, rup] = res;
+  if (rup.value?.length) ruptures = rup.value;
+  const noms = ['modèles', 'couleurs', 'fermoirs', 'parties', 'bijoux', 'ruptures'];
   const echecs = res.map((r, i) => r.status === 'rejected' ? noms[i] + ' : ' + (r.reason?.message || 'erreur') : null).filter(Boolean);
   if (echecs.length) { alerteBase = echecs.join(' · '); console.warn('Lecture de la base :', alerteBase); }
   if (m.value?.length) modeles = m.value;
@@ -431,6 +434,9 @@ if (sb) {
   if (p.value?.length) parties = p.value;
 }
 if (!modeles.length) modeles = [modeleDemo(), modeleAreteDemo(), modeleLettresDemo(), modeleArgileDemo(), modeleChainmailDemo(), modelePerleCultureDemo()];
+// ruptures de stock cochées dans l'app de gestion : éléments épuisés, breloques retirées
+const breloqueDispo = appliquerRuptures(ruptures, catalogue, fermoirs);
+if (modeles.some(breloqueDispo)) modeles = modeles.filter(breloqueDispo);
 const aDesEtoiles = catalogue.some(c => texteCatalogue(c).includes('etoile'));
 modeles.sort(ordreModeles);                                    // le petit poisson en premier
 modeles = modeles.map(m0 => {
@@ -448,6 +454,7 @@ const prixVariantes = m => estLettres(m) ? [1, 2].map(mode => bijouBreloque(m, {
 const prixModele = m => bijouBreloque(m, { couleurs: {}, texte: { mode: 1 }, bijoux }).prix;
 const parRef = Object.fromEntries(catalogue.map(c => [c.ref, c]));
 const fermParRef = Object.fromEntries(fermoirs.map(f => [f.ref, f]));
+const nomFermoir = ref => fermParRef[ref]?.nomClient || fermParRef[ref]?.nom || 'fermoir rond';   // sans la variante de gestion
 const modeleDe = slug => modeles.find(m => m.slug === slug) || modeles[0];
 const nomCourt = m => (m.nom || 'Breloque').replace(/\s*\(exemple\)\s*$/i, '').replace(/\s*Bona Nodi\s*$/i, '').replace(/\s*«.*$/, '');
 const typeIcone = m => estLettres(m) ? 'lettres' : estArgile(m) ? 'argile' : estChainmail(m) ? 'croix' : estPerleCulture(m) ? 'perle' : m.groupes?.some(g => g.technique === 'arete') ? 'arete' : 'poisson';
@@ -460,6 +467,7 @@ if (new URLSearchParams(location.search).get('diag')) {
     ['Connexion à la base', sb ? (alerteBase ? 'PROBLÈMES → ' + alerteBase : 'oui') : 'NON (aperçu avec données d\'exemple)'],
     ['Matériaux chargés', catalogue.length],
     ['Fiches bijoux chargées', bijoux.length],
+    ['Ruptures (app de gestion)', ruptures.join(', ') || 'aucune'],
     ['Modèles (ordre)', modeles.map(m => m.slug + ' — ' + euros(prixModele(m))).join('\n')],
     ...modeles.flatMap(m => (m.zones || []).map(z => [`${nomCourt(m)} › ${z.nom} (défaut ${z.defaut})`, couleursProposees(z, catalogue, parties).map(ligne).join('\n') || 'AUCUN CHOIX'])),
     ['Perles étoile', catalogue.filter(c => texteCatalogue(c).includes('etoile')).map(ligne).join('\n') || 'AUCUNE'],
@@ -609,7 +617,7 @@ function rendreCadre() {
   $('#edition').hidden = p !== 'bundle';
   if (p === 'bundle') $('#edition').innerHTML = `Personnalise la breloque ${etat.actif + 1} · ${esc(nomCourt(modeleActif()))}`;
   $('#suite').hidden = p !== 'breloque' || !accroches;
-  if (offre) $('#suiteTexte').textContent = `Garde cette breloque et ajoutes-en d'autres sur un porte-clés. Offre : le ${fermParRef[offre.piece]?.nom?.toLowerCase() || 'fermoir rond'} est offert dès ${offre.min} breloques à ${euros(offre.prixMin)}.`;
+  if (offre) $('#suiteTexte').textContent = `Garde cette breloque et ajoutes-en d'autres sur un porte-clés. Offre : le ${nomFermoir(offre.piece).toLowerCase()} est offert dès ${offre.min} breloques à ${euros(offre.prixMin)}.`;
   $('#etapeCommande').hidden = !p;
 }
 
@@ -620,11 +628,12 @@ function rendreAccroches() {
     const eff = supplementEffectif(c), remise = offreActive(c);
     const prixTxt = remise ? (eff ? `<s>+${euros(c.supplement)}</s> +${euros(eff)}` : `<s>+${euros(c.supplement)}</s> <span class="cadeau">offert</span>`)
       : (c.supplement ? '+' + euros(c.supplement) : 'inclus');
-    return `<button class="segment" type="button" data-acc="${esc(c.id)}" aria-pressed="${etat.accroche === c.id}">
+    const epuise = c.pieces.some(r => fermParRef[r]?.enStock === false);
+    return `<button class="segment" type="button" data-acc="${esc(c.id)}" aria-pressed="${etat.accroche === c.id}" ${epuise ? 'disabled title="Épuisé"' : ''}>
       <b>${esc(c.libelle)}</b><span>${prixTxt}</span></button>`;
   }).join('');
   // bandeau d'offre : acquise, ou ce qu'il manque pour en profiter
-  const nom = fermParRef[offre?.piece]?.nom?.toLowerCase() || 'fermoir rond';
+  const nom = nomFermoir(offre?.piece).toLowerCase();
   const manque = offre ? Math.max(0, (offre.min ?? 2) - nbQualifiees()) : 0;
   $('#offre').hidden = !offre;
   if (offre) {
@@ -786,7 +795,7 @@ function rendreRecap() {
   if (!etat.parcours) return;
   const { total } = calcul(), lignes = [];
   const acc = enBundle() ? accrocheChoisie() : null;
-  if (acc) lignes.push([acc.libelle, acc.pieces.map(r => fermParRef[r]?.nom).filter(Boolean).join(' + ') + (offreActive(acc) ? ' · rond offert' : '')]);
+  if (acc) lignes.push([acc.libelle, acc.pieces.map(nomFermoir).filter(Boolean).join(' + ') + (offreActive(acc) ? ' · rond offert' : '')]);
   etat.breloques.forEach((b, i) => {
     const m = modeleDe(b.slug);
     lignes.push([(enBundle() ? (i + 1) + ' · ' : '') + nomCourt(m), resumeBreloque(b)]);

@@ -401,7 +401,10 @@ CATALOGUE_DEMO.push(...ARGILE_DEMO);
    (ref = ref du bijou, donc la note atelier et la production pointent sur la bonne fiche).
    Sans fiche argile dans la base : motifs d'exemple. */
 export function catalogueArgileDepuisBijoux(bijoux = []) {
-  return bijoux.filter(b => /argile/i.test([b.nom, b.variante].join(' ')) && !b.is_mat).map(b => {
+  const vus = new Set();                                   // une seule entrée par motif
+  return bijoux.filter(b => /argile/i.test([b.nom, b.variante].join(' ')) && !b.is_mat)
+    .filter(b => { const k = motifArgile([b.nom, b.variante].join(' ')) || norm(b.variante || b.nom); return !vus.has(k) && vus.add(k); })
+    .map(b => {
     const texte = [b.nom, b.variante].filter(Boolean).join(' '), motif = motifArgile(texte);
     const nom = motif || String(b.variante || b.nom).replace(/breloque|argile/gi, '').trim() || texte;
     return { ref: b.ref, bij_id: b.id, nom, hex: (motif && MOTIFS_ARGILE[motif].hex) || couleurParNom(nom), finition: 'argile', motif,
@@ -418,7 +421,16 @@ export const CHAINMAIL_DEMO = [
   { ref: '#CM-ex01', nom: 'croix', hex: '#b4b6ba', finition: 'chainmail', forme: 'croix', categorie: 'Breloques chainmail' },
 ];
 export function catalogueChainmailDepuisBijoux(bijoux = []) {
-  return bijoux.map(b => ({ b, forme: formeChainmail([b.nom, b.variante].join(' ')) })).filter(x => x.forme).map(({ b, forme }) => ({
+  // une seule entrée par forme : plusieurs fiches peuvent contenir « croix » (composition, variations…) ;
+  // on garde la fiche composition, sinon la première
+  const parForme = new Map();
+  for (const b of bijoux) {
+    const forme = formeChainmail([b.nom, b.variante].join(' '));
+    if (!forme) continue;
+    const deja = parForme.get(forme);
+    if (!deja || (b.is_mat && !deja.b.is_mat)) parForme.set(forme, { b, forme });
+  }
+  return [...parForme.values()].map(({ b, forme }) => ({
     ref: b.ref, bij_id: b.id, nom: FORMES_CHAINMAIL[forme].nom, hex: '#b4b6ba', finition: 'chainmail', forme,
     categorie: 'Breloques chainmail', bijou: true, pv: b.pv, enStock: true, ordre: 1001 }));
 }
@@ -542,6 +554,8 @@ export function fermoirDepuisMateriau(l) {
   return {
     ref: l.ref || String(l.id), mat_id: l.id,
     nom: [l.designation, l.variante].filter(Boolean).join(' – ') || l.ref,
+    // nom montré au client : la désignation seule (la variante, ex. « moyen a », sert à ta gestion)
+    nomClient: String(l.designation || l.variante || l.ref).replace(/\s*\d+([.,]\d+)?\s*mm\b/i, '').trim(),
     type,
     taille: mm ? parseFloat(mm[1].replace(',', '.')) : TAILLES_CONNUES[l.ref] ?? tailleDefaut(type, t), metal,
     prix: l.prix != null ? parseFloat(l.prix) : null, stock: l.qty ?? null,
@@ -2410,6 +2424,31 @@ export async function listerModelesPublies(sb) {
   if (error) throw error;
   return (data || []).map(r => ({ ...r.donnees, slug: r.slug, nom: r.donnees?.nom || r.nom })).sort(ordreModeles);
 }
+/* --------------------------------------------------------------------------
+   RUPTURES DE STOCK gérées depuis l'app de gestion (onglet 📦 Ruptures) :
+   table config, clé « configurateur_ruptures » = liste de refs (matériaux, fiches bijoux,
+   fermoirs) et de « modele:<slug> » pour retirer une breloque entière.
+   S'ajoute au stock à 0 (qty), qui rend déjà un élément épuisé.
+   -------------------------------------------------------------------------- */
+export const CLE_RUPTURES = 'configurateur_ruptures';
+export async function chargerRuptures(sb) {
+  const { data, error } = await sb.from('config').select('value').eq('key', CLE_RUPTURES).maybeSingle();
+  if (error) throw error;
+  let v = data?.value;
+  if (typeof v === 'string') { try { v = JSON.parse(v); } catch { v = []; } }
+  return Array.isArray(v) ? v.map(String) : [];
+}
+export async function enregistrerRuptures(sb, liste) {
+  const { error } = await sb.from('config').upsert({ key: CLE_RUPTURES, value: [...new Set(liste)] });
+  if (error) throw error;
+}
+export function appliquerRuptures(liste, catalogue, fermoirs) {
+  const r = new Set(liste);
+  for (const c of catalogue) if (r.has(c.ref)) c.enStock = false;
+  for (const f of fermoirs) if (r.has(f.ref)) f.enStock = false;
+  return m => !r.has('modele:' + m.slug);                 // filtre des breloques encore proposées
+}
+
 /* Ordre d'affichage : le petit poisson d'abord (champ « ordre » du modèle, sinon cette liste) */
 export const ORDRE_MODELES = ['poisson-sardine', 'arete', 'lettres', 'argile', 'chainmail', 'perle-culture'];
 export function ordreModeles(a, b) {

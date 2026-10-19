@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bona Nodi · Ruptures du configurateur</title>
+<style>
+:root { --bg: #f6f3f8; --carte: #fff; --texte: #1a1228; --doux: #6b6478; --ligne: #e3dce8; --prune: #6b4e8e; --rouge: #a1272d; --vert: #2f7a46; }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--texte); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 960px; margin: 0 auto; padding: 14px 16px 90px; }
+h1 { font-size: 18px; margin: 4px 0 2px; }
+.aide { color: var(--doux); margin: 0 0 14px; }
+.groupe { background: var(--carte); border: 1px solid var(--ligne); border-radius: 12px; margin-bottom: 12px; overflow: hidden; }
+.groupe h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--prune); margin: 0; padding: 10px 14px; border-bottom: 1px solid var(--ligne); display: flex; justify-content: space-between; }
+.ligne { display: grid; grid-template-columns: 26px 1fr auto auto; gap: 10px; align-items: center; padding: 8px 14px; border-bottom: 1px solid var(--ligne); }
+.ligne:last-child { border-bottom: 0; }
+.ligne.off { background: #fbf0f0; }
+.ligne.off .nom { text-decoration: line-through; color: var(--doux); }
+.pastille { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--ligne); background-size: cover; background-position: center; }
+.ref { font: 11px ui-monospace, monospace; color: var(--doux); }
+.stock { font-size: 12px; color: var(--doux); white-space: nowrap; }
+.stock.zero { color: var(--rouge); font-weight: 600; }
+.bascule { display: flex; gap: 6px; align-items: center; font-size: 12px; cursor: pointer; white-space: nowrap; }
+.bascule input { width: 18px; height: 18px; accent-color: var(--vert); }
+.barre { position: fixed; left: 0; right: 0; bottom: 0; background: #fff; border-top: 1px solid var(--ligne); padding: 10px 16px; display: flex; gap: 12px; align-items: center; justify-content: flex-end; }
+.barre span { color: var(--doux); flex: 1; }
+button { font: inherit; border: 0; border-radius: 10px; padding: 9px 16px; background: var(--prune); color: #fff; cursor: pointer; font-weight: 600; }
+button:disabled { opacity: .5; cursor: default; }
+.alerte { background: #fbf0f0; color: var(--rouge); border-radius: 10px; padding: 10px 14px; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<main>
+  <h1>📦 Ruptures du configurateur</h1>
+  <p class="aide">Décoche un élément pour qu'il apparaisse <b>épuisé</b> dans le configurateur (il reste visible mais ne peut plus être choisi).
+    Une breloque décochée disparaît du configurateur. Un matériau dont le stock est à 0 est déjà épuisé automatiquement.</p>
+  <div id="contenu"><p class="aide">Chargement…</p></div>
+</main>
+<div class="barre"><span id="etat"></span><button id="btEnregistrer" disabled>Enregistrer</button></div>
+
+<script type="module">
+import {
+  CATALOGUE_DEMO, FERMOIRS_DEMO, modeleDemo, modeleAreteDemo, modeleLettresDemo, modeleArgileDemo, modeleChainmailDemo, modelePerleCultureDemo,
+  listerModelesPublies, chargerCatalogueBoutique, chargerFermoirsBoutique, chargerPartiesConfigurateur, chargerBijouxBoutique,
+  completerCatalogue, resoudreDefauts, couleursProposees, correspondCategorie, texteCatalogue, ordreModeles, bijouBreloque,
+  chargerRuptures, enregistrerRuptures, apercuArgile, apercuChainmail, estLettres, accrochesProposees,
+} from './bead-core.js?v=8f8a5bd3';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './perles-config.js?v=e1bf13ba';
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const euros = n => (+n || 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);   // même session que l'app de gestion
+
+const { data: sess } = await sb.auth.getSession();
+if (!sess.session) {
+  $('#contenu').innerHTML = '<p class="alerte">Connecte-toi d\'abord dans ton app de gestion (e-mail + mot de passe), puis recharge cet onglet.</p>';
+  throw new Error('non connectée');
+}
+
+const [m, c, f, p, bj, r] = await Promise.allSettled([listerModelesPublies(sb), chargerCatalogueBoutique(sb), chargerFermoirsBoutique(sb),
+  chargerPartiesConfigurateur(sb), chargerBijouxBoutique(sb), chargerRuptures(sb)]);
+const bijoux = bj.value || [];
+const catalogue = completerCatalogue(c.value?.length ? c.value : CATALOGUE_DEMO, bijoux);
+const fermoirs = f.value?.length ? f.value : FERMOIRS_DEMO;
+const parties = p.value?.length ? p.value : null;
+let modeles = m.value?.length ? m.value : [modeleDemo(), modeleAreteDemo(), modeleLettresDemo(), modeleArgileDemo(), modeleChainmailDemo(), modelePerleCultureDemo()];
+modeles = modeles.sort(ordreModeles).map(x => resoudreDefauts(x, catalogue, fermoirs));
+const ruptures = new Set(r.value || []);
+const parRef = new Map(catalogue.map(x => [x.ref, x]));
+const fermParRef = new Map(fermoirs.map(x => [x.ref, x]));
+const nomCourt = x => (x.nom || 'Breloque').replace(/\s*\(exemple\)\s*$/i, '').replace(/\s*«.*$/, '');
+
+/* tout ce que le configurateur peut proposer, rangé par famille */
+const groupes = new Map();
+const ajouter = (famille, cle, el) => {
+  if (!groupes.has(famille)) groupes.set(famille, new Map());
+  if (!groupes.get(famille).has(cle)) groupes.get(famille).set(cle, el);
+};
+const famille = x => x.finition === 'argile' ? 'Motifs argile' : x.finition === 'chainmail' ? 'Formes chainmail'
+  : x.double || /\bplat/.test(texteCatalogue(x)) ? 'Yeux · perles plates et heishi' : /culture/.test(texteCatalogue(x)) ? 'Perles de culture'
+  : /etoile/.test(texteCatalogue(x)) ? 'Perles étoile' : /lettre/.test(texteCatalogue(x)) ? 'Perles lettre' : (x.categorie || 'Perles');
+const fond = x => x.finition === 'argile' ? `url('${apercuArgile(x.motif, x.hex)}')` : x.finition === 'chainmail' ? `url('${apercuChainmail(x.forme)}')`
+  : x.swatch ? `url('${x.swatch}')` : x.hex || '#ccc';
+const matiere = x => x && ajouter(famille(x), x.ref, { cle: x.ref, nom: x.nom, ref: x.ref, fond: fond(x), stock: x.stock });
+const fermoir = (fam, ref) => { const x = fermParRef.get(ref); if (x) ajouter(fam, ref, { cle: ref, nom: x.nom, ref, fond: '#cfd0d4', stock: x.stock }); };
+
+for (const mo of modeles) {
+  ajouter('Breloques', 'modele:' + mo.slug, { cle: 'modele:' + mo.slug, nom: nomCourt(mo), ref: euros(bijouBreloque(mo, { bijoux }).prix), fond: '#ede6f3' });
+  for (const z of mo.zones || []) couleursProposees(z, catalogue, parties).forEach(matiere);
+  for (const o of mo.options || []) {
+    if (o.type === 'perle') catalogue.filter(x => !o.categorie || correspondCategorie(x, o.categorie)).forEach(matiere);
+    if (o.type === 'fermoir') (o.choix || []).forEach(ch => fermoir('Fermoirs breloque', ch.ref));
+    if (o.type === 'accroche') (accrochesProposees(mo, fermoirs)?.choix || []).forEach(ch => (ch.pieces || []).forEach(ref => fermoir('Porte-clés du bundle', ref)));
+  }
+  if (estLettres(mo)) {
+    const L = mo.lettres || {};
+    [L.ref, ...(L.haut || []).map(h => h.k), ...(L.bas || []).map(h => h.k)].forEach(ref => matiere(parRef.get(ref)));
+  }
+}
+
+function rendre() {
+  const ordre = ['Breloques', 'Fermoirs breloque', 'Porte-clés du bundle'];
+  const familles = [...groupes.keys()].sort((a, b) => (ordre.indexOf(a) + 1 || 99) - (ordre.indexOf(b) + 1 || 99) || a.localeCompare(b, 'fr'));
+  $('#contenu').innerHTML = familles.map(fa => {
+    const els = [...groupes.get(fa).values()];
+    const off = els.filter(e => ruptures.has(e.cle)).length;
+    return `<section class="groupe"><h2><span>${esc(fa)}</span><span>${off ? off + ' en rupture' : ''}</span></h2>
+      ${els.map(e => `<div class="ligne ${ruptures.has(e.cle) ? 'off' : ''}">
+        <span class="pastille" style="background:${e.fond.startsWith('url') ? e.fond + ' center/cover' : esc(e.fond)}"></span>
+        <span><span class="nom">${esc(e.nom)}</span> <span class="ref">${esc(e.ref)}${/-ex\d/.test(e.ref) ? ' · exemple' : ''}</span></span>
+        <span class="stock ${e.stock === 0 || (e.stock != null && e.stock <= 0) ? 'zero' : ''}">${e.stock == null ? '' : 'stock ' + e.stock}</span>
+        <label class="bascule"><input type="checkbox" data-cle="${esc(e.cle)}" ${ruptures.has(e.cle) ? '' : 'checked'}> disponible</label>
+      </div>`).join('')}</section>`;
+  }).join('') || '<p class="aide">Rien à afficher.</p>';
+  $('#contenu').querySelectorAll('[data-cle]').forEach(cb => cb.addEventListener('change', () => {
+    cb.checked ? ruptures.delete(cb.dataset.cle) : ruptures.add(cb.dataset.cle);
+    $('#btEnregistrer').disabled = false; $('#etat').textContent = 'Modifications non enregistrées';
+    rendre();
+  }));
+}
+rendre();
+$('#etat').textContent = ruptures.size ? ruptures.size + ' élément(s) en rupture' : 'Tout est disponible';
+$('#btEnregistrer').addEventListener('click', async () => {
+  $('#btEnregistrer').disabled = true; $('#etat').textContent = 'Enregistrement…';
+  try { await enregistrerRuptures(sb, [...ruptures]); $('#etat').textContent = 'Enregistré ✓ — le configurateur en tient compte au prochain chargement'; }
+  catch (e) { $('#etat').textContent = 'Erreur : ' + e.message; $('#btEnregistrer').disabled = false; }
+});
+</script>
+</body>
+</html>
