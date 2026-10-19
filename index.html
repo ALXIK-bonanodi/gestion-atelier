@@ -427,6 +427,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
       <div id="ctab-prod" onclick="switchCreatTab('prod')" class="gtab">🏭 Productions</div>
       <div id="ctab-perso" onclick="switchCreatTab('perso')" class="gtab">✨ Sur mesure</div>
       <div id="ctab-m3d" onclick="switchCreatTab('m3d')" class="gtab">🧊 Modèles 3D</div>
+      <div id="ctab-cfg" onclick="switchCreatTab('cfg')" class="gtab">👁 Configurateur</div>
     </div>
   </div>
 
@@ -472,6 +473,17 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
   <!-- Panel Sur mesure : personnalisations du configurateur 3D (fiches atelier, bons, factures) -->
   <div id="cpanel-perso" style="display:none">
     <iframe id="frame-perso" title="Personnalisations sur mesure" style="display:block;width:100%;height:calc(100vh - 56px);border:0"></iframe>
+  </div>
+  <!-- Panel Configurateur : la page client (celle qui ira dans Wix), en aperçu -->
+  <div id="cpanel-cfg" style="display:none">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:8px 12px;font-size:12px">
+      <span style="color:var(--muted)">Aperçu de la page client (comme dans Wix)</span>
+      <span style="flex:1"></span>
+      <a class="btn btn-xs btn-ghost" href="configurateur/configurateur-3d.html" target="_blank">↗ Ouvrir dans un onglet</a>
+      <a class="btn btn-xs btn-ghost" href="configurateur/configurateur-3d.html?diag=1" target="_blank">🔎 Diagnostic</a>
+      <button class="btn btn-xs btn-ghost" onclick="document.getElementById('frame-cfg').src='configurateur/configurateur-3d.html?apercu=1&t='+Date.now()">↻ Recharger</button>
+    </div>
+    <iframe id="frame-cfg" title="Configurateur 3D" style="display:block;width:100%;height:calc(100vh - 100px);border:0"></iframe>
   </div>
   <!-- Panel Modèles 3D : éditeur des modèles du configurateur -->
   <div id="cpanel-m3d" style="display:none">
@@ -2608,7 +2620,7 @@ let CUR_MAT_TYPE = 'tout';
 let CUR_STOCK_FLT = 'all';
 
 function switchCreatTab(tab, numeroPerso) {
-  ['bij','prod','perso','m3d'].forEach(t => {
+  ['bij','prod','perso','m3d','cfg'].forEach(t => {
     document.getElementById('cpanel-'+t).style.display = t===tab ? 'block' : 'none';
     document.getElementById('ctab-'+t).className = 'gtab'+(t===tab?' gtab-on':'');
   });
@@ -2618,6 +2630,10 @@ function switchCreatTab(tab, numeroPerso) {
     const f = document.getElementById('frame-perso');
     const url = 'configurateur/commandes-perso.html' + (numeroPerso ? '?numero=' + encodeURIComponent(numeroPerso) : '');
     if(numeroPerso || !f.getAttribute('src')) f.setAttribute('src', url);
+  }
+  if(tab==='cfg') {
+    const f = document.getElementById('frame-cfg');
+    if(!f.getAttribute('src')) f.setAttribute('src', 'configurateur/configurateur-3d.html?apercu=1');
   }
   if(tab==='m3d') {
     const f = document.getElementById('frame-m3d');
