@@ -303,8 +303,8 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
   <div class="setup-card">
     <div class="setup-title">✦ Configuration</div>
     <div class="setup-sub">
-      Entrez vos identifiants Supabase.<br>
-      Supabase → <b>Settings → API</b> → URL du projet + clé <b>anon public</b>.
+      Connecte-toi avec ton e-mail et ton mot de passe.<br>
+      URL et clé anon : Supabase → <b>Settings → API</b> (mémorisées après la première fois).
     </div>
     <div class="fg"><label>URL du projet Supabase</label>
       <input id="cfg-url" placeholder="https://XXXXXX.supabase.co" type="url"
@@ -312,7 +312,16 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
     </div>
     <div class="fg"><label>Clé anon publique</label>
       <input id="cfg-key" placeholder="eyJhbGci…" type="text"
-             autocomplete="off" onkeydown="if(event.key==='Enter')connect()">
+             autocomplete="off" onkeydown="if(event.key==='Enter')document.getElementById('cfg-email').focus()">
+    </div>
+    <!-- Connexion sécurisée : ton compte Supabase (la clé anon seule ne donne plus accès aux données) -->
+    <div class="fg"><label>E-mail</label>
+      <input id="cfg-email" type="email" autocomplete="username" placeholder="ton e-mail"
+             onkeydown="if(event.key==='Enter')document.getElementById('cfg-mdp').focus()">
+    </div>
+    <div class="fg"><label>Mot de passe</label>
+      <input id="cfg-mdp" type="password" autocomplete="current-password"
+             onkeydown="if(event.key==='Enter')connect()">
     </div>
     <input type="checkbox" id="cfg-remember" checked style="display:none">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer" onclick="toggleRemember()">
@@ -1384,6 +1393,7 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
   <div class="fg"><label>URL Supabase</label><input id="s-url" type="url"></div>
   <div class="fg"><label>Clé anon publique</label><input id="s-key"></div>
   <div class="mfoot">
+   <button class="btn btn-ghost" onclick="deconnexion()">Se déconnecter</button>
    <button class="btn btn-ghost" onclick="closeModal('m-settings')">Annuler</button>
    <button class="btn btn-p" onclick="saveSettings()">Reconnecter</button>
   </div>
@@ -1431,6 +1441,18 @@ async function connect() {
   try {
     dbg('Création client...');
     SB = supabase.createClient(cleanUrl, key);
+    // connexion avec ton compte : sans elle, la base ne renvoie plus rien (sécurisation RLS)
+    const { data: sess } = await SB.auth.getSession();
+    if (!sess.session) {
+      const email = document.getElementById('cfg-email').value.trim();
+      const mdp = document.getElementById('cfg-mdp').value;
+      if (!email || !mdp) throw new Error('E-mail et mot de passe obligatoires');
+      dbg('Connexion du compte ' + email + '...');
+      const { error: eAuth } = await SB.auth.signInWithPassword({ email, password: mdp });
+      if (eAuth) throw eAuth;
+      localStorage.setItem('atl_email', email);
+    }
+    document.getElementById('cfg-mdp').value = '';
     dbg('Test requête config...');
     const { data, error } = await SB.from('config').select('key').limit(1);
     clearTimeout(timer);
@@ -1454,6 +1476,10 @@ async function connect() {
     if (!msg || msg === 'undefined') msg = 'Erreur inconnue.';
     if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('fetch')) {
       msg = '❌ Impossible de joindre Supabase.\nVérifiez URL (https://xxx.supabase.co) et connexion.';
+    } else if (/invalid login/i.test(msg)) {
+      msg = '❌ E-mail ou mot de passe incorrect.';
+    } else if (/not confirmed/i.test(msg)) {
+      msg = '❌ Adresse e-mail pas encore confirmée (Supabase → Authentication → Users).';
     } else if (msg.includes('Invalid API key') || msg.includes('JWT') || msg.includes('apikey')) {
       msg = '❌ Clé invalide — utilisez la clé anon public.';
     }
@@ -1478,6 +1504,10 @@ function toggleRemember() {
   btn.style.background = on ? '#3D1F6E' : 'var(--purple)';
 }
 
+async function deconnexion() {
+  try { await SB?.auth.signOut(); } catch(e) {}
+  location.reload();
+}
 function resetCredentials() {
   localStorage.removeItem(SBURL_KEY);
   localStorage.removeItem(SBKEY_KEY);
@@ -5102,11 +5132,18 @@ function applyHdrConfig() {
     document.getElementById('cfg-key').value=key;
     try {
       SB=supabase.createClient(url,key);
-      const {error}=await SB.from('config').select('key').limit(1);
-      if(error) throw error;
-      document.getElementById('setup-screen').style.display='none';
-      await loadAll();
-      setSyncOk();
+      document.getElementById('cfg-email').value = localStorage.getItem('atl_email') || '';
+      const { data: sess } = await SB.auth.getSession();
+      if (!sess.session) {                       // session expirée ou jamais ouverte : on demande l'e-mail et le mot de passe
+        document.getElementById('setup-screen').style.display = 'flex';
+        document.getElementById('cfg-' + (localStorage.getItem('atl_email') ? 'mdp' : 'email')).focus();
+      } else {
+        const {error}=await SB.from('config').select('key').limit(1);
+        if(error) throw error;
+        document.getElementById('setup-screen').style.display='none';
+        await loadAll();
+        setSyncOk();
+      }
     } catch(e) {
       setSyncErr();
       // Show setup screen with error so user can re-enter credentials
