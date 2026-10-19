@@ -137,7 +137,8 @@ details summary { cursor: pointer; font-weight: 700; font-size: 13.5px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<!-- même bibliothèque que l'app de gestion : la session de connexion est partagée sans conflit de versions -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",

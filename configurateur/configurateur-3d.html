@@ -243,6 +243,9 @@ label.champ input:focus, label.champ textarea:focus { border-color: var(--prune)
     };
     addEventListener('error', e => montrer(e.message || e.error || 'erreur de chargement'));
     addEventListener('unhandledrejection', e => montrer(e.reason?.message || e.reason));
+    // chien de garde : après 20 s, on affiche l'étape où le chargement s'est arrêté
+    window.__etape = 'chargement des fichiers 3D (three.js / bead-core.js)';
+    setTimeout(() => montrer('Bloqué à l\'étape : ' + window.__etape), 20000);
   })();
 </script>
 <script type="importmap">
@@ -387,16 +390,32 @@ const ICONES = {
 };
 
 /* ---------- données ---------- */
-const sb = supabaseConfigure() && window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+// Page publique : le configurateur ignore toute session ouverte sur le site (app de gestion, éditeur).
+// Sinon le client Supabase tente de restaurer/rafraîchir cette session, se bloque sur le verrou partagé
+// avec les autres onglets, et plus aucune requête ne répond. Il travaille donc toujours comme un client.
+window.__etape = 'connexion à la base';
+const sb = supabaseConfigure() && window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false,
+          storageKey: 'bn-configurateur-public', lock: async (_nom, _delai, fn) => fn() },
+}) : null;
+// garde-fou : une requête qui ne répond pas au bout de 12 s est abandonnée (données d'exemple à la place)
+const avecDelai = (promesse, ms = 12000) => Promise.race([promesse,
+  new Promise((_, non) => setTimeout(() => non(new Error('la base ne répond pas (délai dépassé)')), ms))]);
+let alerteBase = '';
+window.__etape = 'lecture de la base (modèles, couleurs, bijoux)';
 let modeles = [], catalogue = completerCatalogue(CATALOGUE_DEMO), fermoirs = FERMOIRS_DEMO, parties = null, bijoux = [];
 if (sb) {
-  const [m, c, f, p, bj] = await Promise.allSettled([
+  const res = await Promise.allSettled([
     listerModelesPublies(sb), chargerCatalogueBoutique(sb), chargerFermoirsBoutique(sb), chargerPartiesConfigurateur(sb), chargerBijouxBoutique(sb),
-  ]);
+  ].map(x => avecDelai(x)));
+  const [m, c, f, p, bj] = res;
+  const noms = ['modèles', 'couleurs', 'fermoirs', 'parties', 'bijoux'];
+  const echecs = res.map((r, i) => r.status === 'rejected' ? noms[i] + ' : ' + (r.reason?.message || 'erreur') : null).filter(Boolean);
+  if (echecs.length) { alerteBase = echecs.join(' · '); console.warn('Lecture de la base :', alerteBase); }
   if (m.value?.length) modeles = m.value;
   if (bj.value?.length) bijoux = bj.value;
   // motifs argile = tes fiches bijoux argile (citron, tomate…) ; motifs d'exemple tant qu'il n'y en a pas
-  catalogue = completerCatalogue(c.value?.length ? await affinerCouleursDepuisPhotos(c.value) : CATALOGUE_DEMO, bijoux);
+  catalogue = completerCatalogue(c.value?.length ? await avecDelai(affinerCouleursDepuisPhotos(c.value), 8000).catch(() => c.value) : CATALOGUE_DEMO, bijoux);
   if (f.value?.length) fermoirs = f.value;
   if (p.value?.length) parties = p.value;
 }
@@ -427,7 +446,7 @@ const TEXTE_INDICATIF = INFOS_ATELIER.indicatif
 if (new URLSearchParams(location.search).get('diag')) {
   const ligne = c => `${c.ref} · ${c.nom}${c.designation ? ' · ' + c.designation : ''} · ${c.categorie || '—'}${/-ex\d/.test(c.ref) ? ' · EXEMPLE' : ''}`;
   const blocs = [
-    ['Connexion à la base', sb ? 'oui' : 'NON (aperçu avec données d\'exemple)'],
+    ['Connexion à la base', sb ? (alerteBase ? 'PROBLÈMES → ' + alerteBase : 'oui') : 'NON (aperçu avec données d\'exemple)'],
     ['Matériaux chargés', catalogue.length],
     ['Fiches bijoux chargées', bijoux.length],
     ['Modèles (ordre)', modeles.map(m => m.slug + ' — ' + euros(prixModele(m))).join('\n')],
@@ -481,6 +500,7 @@ const choixOffre = () => offre && accroches.choix.find(c => c.pieces.length === 
 const supplementEffectif = c => Math.max(0, (+c.supplement || 0) - (offreActive(c) ? Math.min(+offre.remise || 0, +c.supplement || 0) : 0));
 
 /* ---------- 3D (visualisation seulement) ---------- */
+window.__etape = 'création de la vue 3D';
 const scene = new ScenePerles($('#vue3d'), { catalogue, autoRotation: true });
 scene.controls.enableZoom = false;                     // la molette fait défiler la page Wix
 scene.controls.enablePan = false;
@@ -908,7 +928,7 @@ window.addEventListener('message', async e => {
 async function reprendre(cle) {
   if (!sb || !/^[0-9a-f-]{36}$/i.test(cle)) return false;
   try {
-    const p = await chargerPersonnalisation(sb, cle);
+    const p = await avecDelai(chargerPersonnalisation(sb, cle));
     if (p?.choix && restaurer(p.choix)) {
       $('#reprise').hidden = false;
       $('#reprise').innerHTML = `<span>Personnalisation ${esc(p.numero)} retrouvée.</span><button type="button" id="btNeuf">Recommencer</button>`;
@@ -929,6 +949,7 @@ const depart = params.get('parcours') || (params.get('modele') ? 'breloque' : nu
 if (depart === 'bundle' || depart === 'breloque') etat.parcours = depart;
 if (etat.parcours === 'bundle' && !etat.accroche) etat.accroche = (choixOffre() || accroches?.choix[0])?.id || null;
 rendre3D({ cadrer: true });
+window.__etape = 'terminé';
 $('#charge').remove();
 toutRendre();
 rendreMesPerso();

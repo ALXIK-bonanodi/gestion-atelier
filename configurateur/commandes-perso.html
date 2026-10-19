@@ -77,7 +77,8 @@ td.ref { font: 600 9.5pt var(--f-titre); white-space: nowrap; }
   .doc.sans-fiche .fiche { display: none; }
 }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<!-- même bibliothèque que l'app de gestion : la session de connexion est partagée sans conflit de versions -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
