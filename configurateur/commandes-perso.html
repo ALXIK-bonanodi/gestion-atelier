@@ -114,6 +114,9 @@ td.ref { font: 600 9.5pt var(--f-titre); white-space: nowrap; }
 import { lignesCommande, lignesCommandeBundle, construireLettres, estLettres, listerDemandes, majDemande, chargerModeleBoutique, chargerCatalogueBoutique,
          chargerFermoirsBoutique, resoudreDefauts, modeleDemo, chargerBijouxBoutique, bijouBreloque, completerCatalogue } from './bead-core.js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, INFOS_ATELIER } from './perles-config.js';
+const raisonConnexion = e => /invalid login/i.test(e.message) ? 'e-mail ou mot de passe incorrect'
+  : /not confirmed/i.test(e.message) ? 'adresse e-mail pas encore confirmée (Supabase › Authentication › Users)'
+  : e.message;
 
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -144,7 +147,7 @@ $('#connexion').addEventListener('submit', async e => {
   e.preventDefault();
   const { error } = await sb.auth.signInWithPassword({ email: $('#email').value.trim(), password: $('#mdp').value });
   $('#mdp').value = '';
-  $('#errCnx').hidden = !error; if (error) { $('#errCnx').textContent = 'Connexion refusée : vérifie l\'e-mail et le mot de passe.'; return; }
+  $('#errCnx').hidden = !error; if (error) { $('#errCnx').textContent = 'Connexion refusée : ' + raisonConnexion(error) + '.'; return; }
   demarrer();
 });
 $('#btSortie').addEventListener('click', async () => { await sb.auth.signOut(); location.reload(); });

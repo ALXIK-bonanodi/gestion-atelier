@@ -518,6 +518,9 @@ import {
   FERMOIRS_DEMO, chargerFermoirsBoutique, prixConfiguration,
   genArete, PATRON_TETE_ARETE, estAccroche, modeleAreteDemo, modeleLettresDemo, modeleArgileDemo, modeleChainmailDemo, modelePerleCultureDemo, chargerModeleBoutique, listerModelesBoutique, enregistrerModeleBoutique,
 } from './bead-core.js';
+const raisonConnexion = e => /invalid login/i.test(e.message) ? 'e-mail ou mot de passe incorrect'
+  : /not confirmed/i.test(e.message) ? 'adresse e-mail pas encore confirmée (Supabase › Authentication › Users)'
+  : e.message;
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure } from './perles-config.js';
 const sb = supabaseConfigure() && window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
@@ -1372,7 +1375,7 @@ async function enregistrerBoutique(publie) {
 $('#btConnexion').addEventListener('click', async () => {
   const { error } = await sb.auth.signInWithPassword({ email: $('#sbEmail').value.trim(), password: $('#sbMdp').value });
   $('#sbMdp').value = '';
-  if (error) return toast('Connexion refusée : vérifie l\'e-mail et le mot de passe');
+  if (error) return toast('Connexion refusée : ' + raisonConnexion(error));
   majBoutique();
 });
 $('#btDeconnexion').addEventListener('click', async () => { await sb.auth.signOut(); majBoutique(); });
