@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bona Nodi — Commandes sur mesure</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pinyon+Script&family=Fredoka:wght@400;500;600&family=Figtree:wght@400;600&display=swap">
+<style>
+/* Page admin : liste des demandes à gauche, document imprimable (bon de commande / facture) à droite.
+   À l'impression, seul le document A4 sort. */
+:root {
+  --creme: #fff7c6; --creme-clair: #fffbe2; --prune: #3c114b; --prune-doux: #6b4a73;
+  --ligne: rgba(60, 17, 75, 0.18); --ligne-forte: rgba(60, 17, 75, 0.45); --alerte: #a3262f;
+  --f-script: 'Pinyon Script', cursive; --f-titre: 'Fredoka', system-ui, sans-serif; --f-texte: 'Figtree', system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: #f4efd6; color: var(--prune); font: 15px/1.45 var(--f-texte); }
+button, input, select, textarea { font: inherit; color: inherit; }
+.barre { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 12px max(16px, env(safe-area-inset-left, 0px)); background: var(--prune); color: var(--creme); }
+.barre h1 { margin: 0; font: 500 18px var(--f-titre); flex: 1; }
+.barre button { border: 1px solid var(--creme); background: none; color: var(--creme); padding: 6px 12px; border-radius: 999px; cursor: pointer; }
+.app { display: grid; grid-template-columns: 340px minmax(0, 1fr); min-height: calc(100vh - 52px); }
+.liste { border-right: 1px solid var(--ligne); background: var(--creme-clair); overflow: auto; }
+.filtre { display: flex; gap: 6px; flex-wrap: wrap; padding: 12px; border-bottom: 1px solid var(--ligne); }
+.filtre button { border: 1px solid var(--ligne-forte); background: none; border-radius: 999px; padding: 4px 10px; cursor: pointer; font-size: 13px; }
+.filtre button[aria-pressed="true"] { background: var(--prune); color: var(--creme); }
+.dem { display: grid; gap: 2px; padding: 12px 14px; border-bottom: 1px solid var(--ligne); cursor: pointer; }
+.dem:hover { background: var(--creme); }
+.dem.actif { background: var(--creme); box-shadow: inset 4px 0 0 var(--prune); }
+.dem b { font: 600 14px var(--f-titre); }
+.dem span { font-size: 13px; color: var(--prune-doux); display: flex; justify-content: space-between; gap: 8px; }
+.statut { font: 500 11px var(--f-titre); text-transform: uppercase; letter-spacing: .06em; padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; }
+.vue { padding: 20px; overflow: auto; display: grid; gap: 14px; align-content: start; justify-items: center; }
+.outils { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; width: 100%; max-width: 210mm; }
+.outils label { display: grid; gap: 3px; font: 500 12px var(--f-titre); color: var(--prune-doux); }
+.outils select, .outils input { padding: 6px 8px; border: 1px solid var(--ligne-forte); border-radius: 8px; background: var(--creme-clair); }
+.outils .btn { padding: 8px 14px; border-radius: 999px; border: 0; background: var(--prune); color: var(--creme); cursor: pointer; font: 500 14px var(--f-titre); }
+.alerte { width: 100%; max-width: 210mm; padding: 10px 14px; border-radius: 10px; background: #f9dede; color: var(--alerte); font-size: 14px; }
+.connexion { max-width: 360px; margin: 60px auto; display: grid; gap: 10px; padding: 24px; border-radius: 18px; background: var(--creme-clair); border: 1px solid var(--ligne); }
+.connexion input { padding: 9px 12px; border-radius: 10px; border: 1px solid var(--ligne-forte); background: #fff; }
+.connexion button { padding: 10px; border-radius: 999px; border: 0; background: var(--prune); color: var(--creme); cursor: pointer; font: 500 15px var(--f-titre); }
+
+/* ---- document A4 ---- */
+.doc { width: 210mm; max-width: 100%; min-height: 297mm; background: #fff; color: var(--prune); padding: 16mm 15mm; box-shadow: 0 2px 16px rgba(60,17,75,.12); display: grid; gap: 8mm; align-content: start; font-size: 10.5pt; }
+.doc-tete { display: grid; grid-template-columns: auto 1fr auto; gap: 6mm; align-items: center; }
+.doc-tete img { width: 26mm; height: 26mm; }
+.doc-tete .atelier { font-size: 9pt; color: var(--prune-doux); line-height: 1.5; }
+.doc-tete .atelier b { color: var(--prune); font: 600 11pt var(--f-titre); }
+.doc-type { text-align: right; }
+.doc-type h2 { margin: 0; font: 400 26pt/1 var(--f-script); }
+.doc-type div { font: 500 10pt var(--f-titre); margin-top: 2mm; }
+.doc-parties { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }
+.bloc h3 { margin: 0 0 2mm; font: 600 8.5pt var(--f-titre); text-transform: uppercase; letter-spacing: .08em; color: var(--prune-doux); }
+.bloc p { margin: 0; white-space: pre-line; }
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; font: 600 8.5pt var(--f-titre); text-transform: uppercase; letter-spacing: .06em; color: var(--prune-doux); padding: 2mm 2mm; border-bottom: 1.5px solid var(--prune); }
+td { padding: 2mm; border-bottom: 1px solid var(--ligne); vertical-align: top; }
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.ref { font: 600 9.5pt var(--f-titre); white-space: nowrap; }
+.totaux { justify-self: end; min-width: 70mm; display: grid; gap: 1.5mm; }
+.totaux div { display: flex; justify-content: space-between; gap: 8mm; }
+.totaux .grand { font: 600 14pt var(--f-titre); border-top: 1.5px solid var(--prune); padding-top: 2mm; }
+.fiche { border: 1.5px dashed var(--ligne-forte); border-radius: 4mm; padding: 4mm 5mm; display: grid; gap: 3mm; }
+.fiche h3 { margin: 0; font: 600 11pt var(--f-titre); }
+.mentions { font-size: 8.5pt; color: var(--prune-doux); line-height: 1.5; border-top: 1px solid var(--ligne); padding-top: 3mm; }
+
+@media (max-width: 900px) { .app { grid-template-columns: 1fr; } .liste { max-height: 40vh; border-right: 0; border-bottom: 1px solid var(--ligne); } }
+@media print {
+  @page { size: A4; margin: 0; }
+  body { background: #fff; }
+  .barre, .liste, .outils, .alerte, .connexion { display: none !important; }
+  .app { display: block; } .vue { padding: 0; display: block; }
+  .doc { box-shadow: none; width: 210mm; min-height: 0; }
+  .doc.sans-fiche .fiche { display: none; }
+}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<header class="barre">
+  <h1>Commandes sur mesure</h1>
+  <span id="compte"></span>
+  <button id="btSortie" hidden>Se déconnecter</button>
+</header>
+
+<form class="connexion" id="connexion" hidden>
+  <b style="font:500 18px var(--f-titre)">Connexion atelier</b>
+  <input id="email" type="text" placeholder="E-mail" autocomplete="username">
+  <input id="mdp" type="password" placeholder="Mot de passe" autocomplete="current-password">
+  <button type="submit">Se connecter</button>
+  <p id="errCnx" style="color:var(--alerte);margin:0" hidden></p>
+</form>
+
+<div class="app" id="app" hidden>
+  <aside class="liste">
+    <div class="filtre" id="filtre"></div>
+    <div id="demandes"></div>
+  </aside>
+  <section class="vue" id="vue">
+    <p style="color:var(--prune-doux)">Choisis une demande dans la liste.</p>
+  </section>
+</div>
+
+<script type="module">
+import { lignesCommande, lignesCommandeBundle, construireLettres, estLettres, listerDemandes, majDemande, chargerModeleBoutique, chargerCatalogueBoutique,
+         chargerFermoirsBoutique, resoudreDefauts, modeleDemo, chargerBijouxBoutique, bijouBreloque, completerCatalogue } from './bead-core.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, INFOS_ATELIER } from './perles-config.js';
+
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const euros = n => (+n || 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+const date = d => new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+const STATUTS = { nouvelle: 'Nouvelle', validee: 'Validée', en_creation: 'En création', envoyee: 'Envoyée', annulee: 'Annulée' };
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let demandes = [], filtre = 'tout', courante = null, catalogue = null, fermoirs = null, bijoux = [];
+
+async function demarrer() {
+  const { data } = await sb.auth.getSession();
+  const ok = !!data.session;
+  $('#connexion').hidden = ok; $('#app').hidden = !ok; $('#btSortie').hidden = !ok;
+  $('#compte').textContent = ok ? data.session.user.email : '';
+  if (!ok) return;
+  try { demandes = await listerDemandes(sb); }
+  catch (e) { $('#vue').innerHTML = `<p class="alerte">Lecture impossible : ${esc(e.message)}. As-tu lancé la partie 4 de sql-modeles-3d.sql avec ton identifiant ?</p>`; return; }
+  [catalogue, fermoirs, bijoux] = await Promise.all([chargerCatalogueBoutique(sb).catch(() => []), chargerFermoirsBoutique(sb).catch(() => []),
+    chargerBijouxBoutique(sb).catch(() => [])]);
+  catalogue = completerCatalogue(catalogue, bijoux);
+  rendreListe();
+  // ouverture directe depuis l'app de gestion : commandes-perso.html?numero=BN-P-2026-0042
+  const voulu = new URLSearchParams(location.search).get('numero');
+  const d0 = (voulu && demandes.find(d => d.numero === voulu)) || demandes[0];
+  if (d0) ouvrir(d0.id);
+}
+$('#connexion').addEventListener('submit', async e => {
+  e.preventDefault();
+  const { error } = await sb.auth.signInWithPassword({ email: $('#email').value.trim(), password: $('#mdp').value });
+  $('#mdp').value = '';
+  $('#errCnx').hidden = !error; if (error) { $('#errCnx').textContent = 'Connexion refusée : vérifie l\'e-mail et le mot de passe.'; return; }
+  demarrer();
+});
+$('#btSortie').addEventListener('click', async () => { await sb.auth.signOut(); location.reload(); });
+
+function rendreListe() {
+  $('#filtre').innerHTML = ['tout', ...Object.keys(STATUTS)].map(k => {
+    const n = k === 'tout' ? demandes.length : demandes.filter(d => d.statut === k).length;
+    return `<button data-f="${k}" aria-pressed="${filtre === k}">${k === 'tout' ? 'Toutes' : STATUTS[k]} · ${n}</button>`;
+  }).join('');
+  $$('#filtre button').forEach(b => b.addEventListener('click', () => { filtre = b.dataset.f; rendreListe(); }));
+  const vis = demandes.filter(d => filtre === 'tout' || d.statut === filtre);
+  $('#demandes').innerHTML = vis.map(d => `
+    <div class="dem ${courante?.id === d.id ? 'actif' : ''}" data-id="${d.id}">
+      <b>${esc(d.numero)}${d.client?.nom ? ' · ' + esc(d.client.nom) : ''}</b>
+      <span><span>${date(d.created_at)}</span><span>${euros(d.total)}</span></span>
+      <span><span>${esc(d.modele_slug || '')}</span><span class="statut">${STATUTS[d.statut] || d.statut}</span></span>
+    </div>`).join('') || '<p style="padding:14px;color:var(--prune-doux)">Aucune demande.</p>';
+  $$('#demandes .dem').forEach(el => el.addEventListener('click', () => ouvrir(el.dataset.id)));
+}
+
+async function ouvrir(id) {
+  courante = demandes.find(d => d.id === id); rendreListe();
+  const d = courante, L = d.lignes || {};
+  // contrôle : on recalcule le prix avec le modèle et les suppléments actuels
+  let alerte = '';
+  try {
+    const charger = async slug => {
+      const m = await chargerModeleBoutique(sb, slug, { brouillon: true });
+      if (!m) throw new Error('modèle ' + slug + ' introuvable');
+      const r = resoudreDefauts(m, catalogue || [], fermoirs || []);
+      return { modele: r };
+    };
+    const fiche = (x, couleurs, texte) => { const bj = bijouBreloque(x.modele, { couleurs, texte, bijoux }); return { prixBase: bj.prix, bijRef: bj.ref }; };
+    let r;
+    if (d.choix?.breloques) {                         // breloque(s) + accroche éventuelle (bundle)
+      const brs = [];
+      for (const b of d.choix.breloques) {
+        const x = await charger(b.modele);
+        if (estLettres(x.modele)) x.modele = construireLettres(x.modele, b.texte, b.options || {}, catalogue || []);
+        brs.push({ ...x, ...fiche(x, b.couleurs || {}, b.texte), couleurs: b.couleurs || {}, options: b.options || {} });
+      }
+      r = lignesCommandeBundle({ breloques: brs, accroche: d.choix.accroche, catalogue: catalogue || [], fermoirs: fermoirs || [] });
+    } else {
+      const x = await charger(d.modele_slug);
+      r = lignesCommande(x.modele, { catalogue: catalogue || [], fermoirs: fermoirs || [], couleurs: d.choix?.couleurs || {}, options: d.choix?.options || {}, ...fiche(x, d.choix?.couleurs || {}, null) });
+    }
+    if (Math.abs(r.total - (+d.total || 0)) > 0.009) alerte = `Le total envoyé (${euros(d.total)}) ne correspond pas au calcul actuel (${euros(r.total)}). Vérifie avant de facturer.`;
+  } catch { /* modèle introuvable : pas de contrôle */ }
+  const c = d.client || {};
+  $('#vue').innerHTML = `
+    <div class="outils">
+      <label>Document<select id="type"><option value="bon">Bon de commande</option><option value="facture">Facture</option></select></label>
+      <label>N° de facture<input id="numFact" value="${esc(d.numero.replace('BN-P-', 'F-'))}" size="14"></label>
+      <label>Statut<select id="statut">${Object.entries(STATUTS).map(([k, v]) => `<option value="${k}" ${k === d.statut ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+      <label style="display:flex;gap:6px;align-items:center;flex-direction:row"><input type="checkbox" id="avecFiche" checked> Imprimer la fiche atelier</label>
+      <button class="btn" id="btImprimer" type="button">Imprimer / PDF</button>
+    </div>
+    ${alerte ? `<div class="alerte">${esc(alerte)}</div>` : ''}
+    <article class="doc" id="doc">
+      <div class="doc-tete">
+        <img src="logo-bona-nodi.png" alt="Bona Nodi">
+        <div class="atelier"><b>${esc(INFOS_ATELIER.nom)}</b><br>${esc(INFOS_ATELIER.activite)}<br>${esc(INFOS_ATELIER.adresse)}<br>${esc(INFOS_ATELIER.email)}<br>SIRET ${esc(INFOS_ATELIER.siret)}</div>
+        <div class="doc-type"><h2 id="titreDoc">Bon de commande</h2><div id="numDoc">${esc(d.numero)}</div><div style="font-weight:400">${date(d.created_at)}</div></div>
+      </div>
+      <div class="doc-parties">
+        <div class="bloc"><h3>Client</h3><p>${c.nom ? `${esc(c.nom)}\n${esc(c.adresse)}${c.ville ? '\n' + esc(c.ville) : ''}\n${esc(c.email)}${c.telephone ? '\n' + esc(c.telephone) : ''}`
+          : 'Voir la commande Wix contenant\n« Personnalisation sur mesure ' + esc(d.numero) + ' »'}</p></div>
+        <div class="bloc"><h3>Commande</h3><p>Réf. demande ${esc(d.numero)}\nModèle ${esc(d.modele_slug || '')}${c.message ? '\nMessage : « ' + esc(c.message) + ' »' : ''}</p></div>
+      </div>
+      <table>
+        <thead><tr><th>Désignation</th><th>Réf.</th><th class="n">Qté</th><th class="n">Prix unit.</th><th class="n">Total</th></tr></thead>
+        <tbody>${(L.prestation || []).map(l => `<tr><td>${esc(l.designation)}</td><td class="ref">${esc(l.ref)}</td><td class="n">${l.qte}</td><td class="n">${l.pu ? euros(l.pu) : 'inclus'}</td><td class="n">${euros(l.total)}</td></tr>`).join('')}</tbody>
+      </table>
+      <div class="totaux">
+        <div class="grand"><span>Total TTC</span><span>${euros(d.total)}</span></div>
+        <div style="font-size:9pt;color:var(--prune-doux)">${esc(INFOS_ATELIER.mentionTva)}</div>
+      </div>
+      <section class="fiche">
+        <h3>Fiche atelier · perles à préparer</h3>
+        <table>
+          <thead><tr><th>Partie</th><th>Couleur</th><th>Réf.</th><th>Perle</th><th class="n">Qté</th></tr></thead>
+          <tbody>${(L.creation || []).map(l => `<tr><td>${esc(l.partie)}</td><td>${esc(l.couleur)}</td><td class="ref">${esc(l.ref)}</td><td>${esc(l.perle)}</td><td class="n">${l.quantite}</td></tr>`).join('')}</tbody>
+        </table>
+      </section>
+      ${L.note ? `<section class="fiche"><h3>Note envoyée avec la commande</h3><p style="margin:0;white-space:pre-line">${esc(L.note)}</p></section>` : ''}
+      <div class="mentions">${esc(INFOS_ATELIER.conditions)}</div>
+    </article>`;
+  const majType = () => {
+    const f = $('#type').value === 'facture';
+    $('#titreDoc').textContent = f ? 'Facture' : 'Bon de commande';
+    $('#numDoc').textContent = f ? $('#numFact').value : d.numero;
+  };
+  $('#type').addEventListener('change', majType); $('#numFact').addEventListener('input', majType);
+  $('#avecFiche').addEventListener('change', e => $('#doc').classList.toggle('sans-fiche', !e.target.checked));
+  $('#btImprimer').addEventListener('click', () => window.print());
+  $('#statut').addEventListener('change', async e => {
+    try { await majDemande(sb, d.id, { statut: e.target.value }); d.statut = e.target.value; rendreListe(); }
+    catch (x) { alert('Statut non enregistré : ' + x.message); }
+  });
+}
+demarrer();
+</script>
+</body>
+</html>

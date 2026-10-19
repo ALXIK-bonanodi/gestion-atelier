@@ -1,0 +1,1409 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Atelier Perles 3D</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Mise en page : établi plein écran — vue 3D à gauche, panneau d'outils à droite (empilés sur téléphone) */
+:root {
+  --bg: #eef1f4;
+  --surface: #ffffff;
+  --sunk: #e3e8ee;
+  --fg: #17202b;
+  --muted: #5d6877;
+  --line: #cfd6df;
+  --accent: #2c5d93;
+  --accent-fg: #ffffff;
+  --accent-soft: #dbe7f4;
+  --danger: #b3363a;
+  --stage: radial-gradient(120% 90% at 50% 35%, #ffffff 0%, #e4e9ef 70%, #d8dee6 100%);
+  --f-display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --f-body: "Atkinson Hyperlegible", system-ui, -apple-system, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #11161c; --surface: #19212a; --sunk: #0d1217; --fg: #e6ebf1; --muted: #93a0b0;
+  --line: #2c3743; --accent: #7fb0e6; --accent-fg: #0d1520; --accent-soft: #1f3247; --danger: #f08a8c;
+  --stage: radial-gradient(120% 90% at 50% 35%, #24303c 0%, #151c24 70%, #10151b 100%);
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #11161c; --surface: #19212a; --sunk: #0d1217; --fg: #e6ebf1; --muted: #93a0b0;
+  --line: #2c3743; --accent: #7fb0e6; --accent-fg: #0d1520; --accent-soft: #1f3247; --danger: #f08a8c;
+  --stage: radial-gradient(120% 90% at 50% 35%, #24303c 0%, #151c24 70%, #10151b 100%);
+  color-scheme: dark; }
+
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.45 var(--f-body); }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.app { height: 100%; display: grid; grid-template-rows: auto 1fr; }
+header.barre {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  border-bottom: 1px solid var(--line); background: var(--surface);
+}
+.marque { font: 700 19px/1.1 var(--f-display); letter-spacing: -0.01em; }
+.marque small { display: block; font: 400 12px var(--f-body); color: var(--muted); letter-spacing: 0; }
+#nomModele { flex: 1 1 160px; min-width: 0; border: 1px solid transparent; background: transparent; padding: 6px 8px; border-radius: 6px; font-weight: 700; }
+#nomModele:hover, #nomModele:focus { border-color: var(--line); background: var(--bg); }
+.compteur { font: 600 13px var(--f-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+
+main { display: grid; grid-template-columns: minmax(0, 1fr) 380px; min-height: 0; }
+.scene { position: relative; min-height: 0; background: var(--stage); }
+#vue { position: absolute; inset: 0; touch-action: none; }
+.outils {
+  position: absolute; top: 12px; left: 12px; right: 12px; display: flex; flex-wrap: wrap; gap: 6px; pointer-events: none;
+}
+.outils > * { pointer-events: auto; }
+.puce {
+  display: inline-flex; align-items: center; gap: 6px; padding: 7px 11px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-size: 13.5px; white-space: nowrap;
+}
+.puce[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.puce .pastille { width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(0,0,0,.25); }
+.sep { width: 1px; background: var(--line); margin: 4px 2px; }
+.info-bas {
+  position: absolute; left: 12px; bottom: 12px; right: 12px; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap;
+  font-size: 12.5px; color: var(--muted); pointer-events: none;
+}
+.info-bas span { background: var(--surface); border: 1px solid var(--line); padding: 4px 9px; border-radius: 6px; }
+
+aside.panneau { border-left: 1px solid var(--line); background: var(--surface); display: grid; grid-template-rows: auto 1fr; min-height: 0; }
+.onglets { display: grid; grid-template-columns: repeat(5, 1fr); border-bottom: 1px solid var(--line); }
+.onglets button { border: 0; background: none; padding: 12px 4px; cursor: pointer; font-weight: 700; color: var(--muted); border-bottom: 2px solid transparent; }
+.onglets button[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); }
+.contenu { overflow: auto; padding: 16px; display: grid; gap: 22px; align-content: start; }
+section h2 { font: 700 15px/1.2 var(--f-display); margin: 0 0 10px; letter-spacing: .01em; }
+section h2 .aide { font: 400 12.5px var(--f-body); color: var(--muted); display: block; margin-top: 3px; letter-spacing: 0; }
+.pile { display: grid; gap: 8px; }
+.ligne { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.ligne > label { flex: 1 1 100px; }
+label { display: grid; gap: 4px; font-size: 12.5px; color: var(--muted); }
+input[type=text], input[type=number], input[type=url], select, textarea {
+  width: 100%; min-width: 0; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg);
+}
+textarea { font: 12px/1.4 var(--f-mono); min-height: 90px; resize: vertical; }
+.btn { padding: 8px 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-weight: 700; font-size: 13.5px; }
+.btn.prim { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.btn.danger { color: var(--danger); }
+.btn.danger.arme { background: var(--danger); color: var(--surface); border-color: var(--danger); }
+.liste { display: grid; gap: 6px; }
+.item {
+  display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center;
+  padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; background: var(--surface);
+}
+.item.actif { border-color: var(--accent); background: var(--accent-soft); }
+.item .titre { font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item .meta { font: 12px var(--f-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.oeil { border: 0; background: none; cursor: pointer; font-size: 13px; color: var(--muted); padding: 2px 4px; }
+.zone-carte { border: 1px solid var(--line); border-radius: 8px; padding: 10px; display: grid; gap: 8px; }
+.zone-carte.actif { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.zone-tete { display: flex; gap: 8px; align-items: center; }
+.zone-tete input[type=color] { width: 28px; height: 28px; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: none; cursor: pointer; flex: none; }
+.zone-tete input[type=text] { font-weight: 700; }
+.mono { font: 12px var(--f-mono); color: var(--muted); }
+.grille-coul { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.coul { display: grid; grid-template-columns: 26px 1fr; gap: 8px; align-items: center; padding: 6px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; text-align: left; background: var(--surface); }
+.coul.actif { border-color: var(--accent); background: var(--accent-soft); }
+.coul b { display: block; font-size: 12.5px; line-height: 1.2; }
+.coul span { font: 11px var(--f-mono); color: var(--muted); }
+.perle-ech { width: 26px; height: 26px; border-radius: 50%; position: relative; border: 1px solid rgba(0,0,0,.2); }
+.perle-ech::after { content: ""; position: absolute; inset: 9px; border-radius: 50%; background: var(--surface); opacity: .85; }
+.grille-choix { display: grid; grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 6px; }
+.choix { display: grid; justify-items: center; gap: 2px; padding: 4px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+.choix:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.choix input { position: absolute; opacity: 0; pointer-events: none; }
+.choix span { font: 10.5px var(--f-mono); color: var(--muted); }
+.choix .perle-ech { width: 24px; height: 24px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+td, th { padding: 5px 6px; border-bottom: 1px solid var(--line); text-align: left; }
+td.n { text-align: right; font: 12.5px var(--f-mono); font-variant-numeric: tabular-nums; }
+.note { font-size: 12.5px; color: var(--muted); }
+.toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: 13.5px; z-index: 20; }
+details summary { cursor: pointer; font-weight: 700; font-size: 13.5px; }
+
+@media (max-width: 820px) {
+  main { grid-template-columns: 1fr; grid-template-rows: 52vh auto; overflow: auto; }
+  .app { height: auto; min-height: 100%; }
+  aside.panneau { border-left: 0; border-top: 1px solid var(--line); }
+  .contenu { overflow: visible; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div class="app">
+  <header class="barre">
+    <div class="marque">Atelier perles 3D<small>Bona Nodi · éditeur de modèles</small></div>
+    <input id="nomModele" type="text" aria-label="Nom du modèle">
+    <span class="compteur" id="compteur">0 perles</span>
+  </header>
+
+  <main>
+    <div class="scene">
+      <div id="vue"></div>
+      <div class="outils" role="toolbar" aria-label="Outils">
+        <button class="puce" data-outil="orbite" aria-pressed="true">Tourner</button>
+        <button class="puce" data-outil="zone" aria-pressed="false"><i class="pastille" id="pastilleZone"></i><span id="libZone">Peindre zone</span></button>
+        <button class="puce" data-outil="fixe" aria-pressed="false"><i class="pastille" id="pastilleFixe"></i>Couleur fixe</button>
+        <button class="puce" data-outil="type" aria-pressed="false">Type de perle</button>
+        <button class="puce" data-outil="libre" aria-pressed="false">Sans zone</button>
+        <button class="puce" data-outil="gomme" aria-pressed="false">Gomme</button>
+        <span class="sep"></span>
+        <button class="puce" id="btVueZones" aria-pressed="false">Vue zones</button>
+        <button class="puce" id="btAnnuler">Annuler</button>
+        <button class="puce" id="btCadrer">Recadrer</button>
+      </div>
+      <div class="info-bas"><span id="survol">Survole une perle</span><span id="aideOutil">Glisse pour tourner · pince pour zoomer</span></div>
+    </div>
+
+    <aside class="panneau">
+      <div class="onglets" role="tablist">
+        <button role="tab" data-onglet="groupes" aria-selected="true">Groupes</button>
+        <button role="tab" data-onglet="zones" aria-selected="false">Zones</button>
+        <button role="tab" data-onglet="couleurs" aria-selected="false">Couleurs</button>
+        <button role="tab" data-onglet="client" aria-selected="false">Client</button>
+        <button role="tab" data-onglet="fichier" aria-selected="false">Fichier</button>
+      </div>
+      <div class="contenu">
+
+        <!-- GROUPES -->
+        <div data-panneau="groupes" class="pile" style="gap:22px">
+          <section>
+            <h2>Groupes de perles<span class="aide">Un groupe = un morceau du modèle construit par rangées. Touche une perle en mode « Tourner » pour activer son groupe.</span></h2>
+            <div class="liste" id="listeGroupes"></div>
+          </section>
+
+          <section id="secTransfo">
+            <h2>Placement du groupe actif</h2>
+            <div class="pile">
+              <label>Nom<input type="text" id="gNom"></label>
+              <div class="ligne">
+                <label>Position X<input type="number" step="0.5" id="gPx"></label>
+                <label>Y<input type="number" step="0.5" id="gPy"></label>
+                <label>Z<input type="number" step="0.5" id="gPz"></label>
+              </div>
+              <div class="ligne">
+                <label>Rotation X°<input type="number" step="5" id="gRx"></label>
+                <label>Y°<input type="number" step="5" id="gRy"></label>
+                <label>Z°<input type="number" step="5" id="gRz"></label>
+              </div>
+              <div class="pile" style="border-top:1px solid var(--line);padding-top:10px">
+                <div class="ligne">
+                  <label>Fermoir (listing matériaux)<select id="fRef"></select></label>
+                  <label>Métal du fil<select id="fMetal">
+                    <option value="argent">Argenté</option><option value="or">Doré</option>
+                    <option value="bronze">Bronze</option><option value="cuivre">Cuivré</option><option value="noir">Noir</option>
+                  </select></label>
+                </div>
+                <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="fFil"> Fil métallique visible (V de queue), même métal</label>
+                <div class="ligne" id="ligneFermoirPos">
+                  <label>Fermoir X<input type="number" step="0.25" id="fPx"></label>
+                  <label>Y<input type="number" step="0.25" id="fPy"></label>
+                  <label>Z<input type="number" step="0.25" id="fPz"></label>
+                </div>
+              </div>
+              <div class="ligne">
+                <button class="btn" id="btDupliquer">Dupliquer</button>
+                <button class="btn" id="btMiroir">Miroir X</button>
+                <button class="btn" id="btBiblioSave">Vers bibliothèque</button>
+                <button class="btn danger" id="btSupprGroupe">Supprimer</button>
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <h2>Nouveau groupe<span class="aide" id="aideRangs"></span></h2>
+            <div class="pile">
+              <div class="ligne">
+                <label>Forme<select id="nForme">
+                  <option value="poisson">Poisson (flancs doublés)</option>
+                  <option value="arete">Arête (tête de poisson + squelette)</option>
+                  <option value="dd">Dessus-dessous (3D double épaisseur)</option>
+                  <option value="tube">Tube (rangées en anneau)</option>
+                  <option value="nappe">Nappe plate</option>
+                  <option value="rangee">Rangée droite</option>
+                </select></label>
+                <label>Perle<select id="nType"></select></label>
+              </div>
+              <label id="libRangs">Perles par rang<textarea id="nRangs" rows="3" style="min-height:64px"></textarea></label>
+              <div class="pile" id="champsPoisson">
+                <div class="ligne">
+                  <label>Perles de bouche<input type="number" id="pBouche" value="2" min="0" max="6"></label>
+                  <label>Tiges de queue<input type="number" id="pTiges" value="2" min="0" max="5"></label>
+                  <label>Perles par tige<input type="number" id="pPerlesTige" value="5" min="1" max="20"></label>
+                </div>
+                <div class="ligne">
+                  <label>Ouverture des tiges°<input type="number" id="pAngle" value="30" step="5" min="0" max="80"></label>
+                  <label>Galbe des flancs<input type="number" id="pGalbe" value="0.07" step="0.02" min="0" max="0.5"></label>
+                </div>
+                <div class="ligne">
+                  <label>Zone dos<select id="pZDos"></select></label>
+                  <label>Zone queue (ligne)<select id="pZLigne"></select></label>
+                  <label>Zone ventre<select id="pZVentre"></select></label>
+                </div>
+                <div class="ligne">
+                  <label>Zone bouche<select id="pZBouche"></select></label>
+                  <label>Zone yeux (perle plate)<select id="pZYeux"></select></label>
+                  <label>Zone yeux (rocaille)<select id="pZPupille"></select></label>
+                </div>
+                <div class="ligne">
+                  <label>Perle plate des yeux<select id="pTypeOeil">
+                    <option value="plate-6">Plate 6 mm</option>
+                    <option value="plate-4">Plate 4 mm</option>
+                    <option value="plate-8">Plate 8 mm</option>
+                    <option value="">Aucune (rocaille seule)</option>
+                  </select></label>
+                  <label>Rocaille de fermeture<select id="pTypePupille"></select></label>
+                  <label>Écart entre flancs<input type="number" id="pEcart" value="0.62" step="0.04" min="0.3" max="1.2"></label>
+                </div>
+                <div class="ligne">
+                  <label style="display:flex;gap:6px;align-items:center;flex:0 0 auto"><input type="checkbox" id="pFermoir" checked> Mousqueton à la bouche</label>
+                  <label style="display:flex;gap:6px;align-items:center;flex:0 0 auto"><input type="checkbox" id="pFil" checked> Fil métallique en V à la queue</label>
+                </div>
+              </div>
+              <div class="pile" id="champsArete" hidden>
+                <div class="ligne">
+                  <label>Arêtes (perles par côté)<input type="text" id="aAretes" value="2, 2, 2"></label>
+                  <label>Zone arête<select id="pZArete"></select></label>
+                </div>
+                <div class="ligne">
+                  <label>Colonne avant<input type="number" id="aAvant" value="1" min="0" max="6"></label>
+                  <label>entre arêtes<input type="number" id="aEntre" value="1" min="0" max="6"></label>
+                  <label>après<input type="number" id="aApres" value="2" min="0" max="8"></label>
+                </div>
+              </div>
+              <div class="ligne" id="ligneZonesDD">
+                <label>Zone du dessus<select id="nZoneD"></select></label>
+                <label>Zone du dessous<select id="nZoneS"></select></label>
+              </div>
+              <div class="ligne">
+                <label id="libTrou">Sens du trou<select id="nTrou"></select></label>
+                <label>Serrage<input type="number" id="nSerrage" value="1" step="0.02" min="0.6" max="1.6"></label>
+              </div>
+              <div class="ligne">
+                <label style="display:flex;gap:6px;align-items:center;flex:0 0 auto"><input type="checkbox" id="nDecalage" checked> Rangées décalées (peyote)</label>
+                <label id="libZone1">Zone de départ<select id="nZone"></select></label>
+              </div>
+              <div class="ligne">
+                <button class="btn prim" id="btAjouterGroupe">Ajouter le groupe</button>
+                <button class="btn" id="btRemplacer">Remplacer le groupe actif</button>
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <h2>Bibliothèque de groupes<span class="aide">Groupes enregistrés pour les réutiliser dans d'autres modèles (sur cet appareil).</span></h2>
+            <div class="ligne">
+              <label><select id="biblio"></select></label>
+              <button class="btn" id="btBiblioInserer">Insérer</button>
+              <button class="btn danger" id="btBiblioSuppr">Retirer</button>
+            </div>
+          </section>
+        </div>
+
+        <!-- ZONES -->
+        <div data-panneau="zones" class="pile" style="gap:22px" hidden>
+          <section>
+            <h2>Zones personnalisables<span class="aide">Choisis la zone active, puis peins les perles avec l'outil « Peindre zone ». La couleur par défaut sert d'aperçu et de choix initial côté boutique.</span></h2>
+            <div class="liste" id="listeZones"></div>
+            <div class="ligne" style="margin-top:10px">
+              <label><input type="text" id="nouvelleZone" placeholder="Nom de la zone, ex. Nageoire"></label>
+              <button class="btn prim" id="btAjouterZone">Ajouter</button>
+            </div>
+          </section>
+          <section>
+            <h2>Attribution par rangs<span class="aide">Dans le groupe actif. Les rangs et les perles se comptent à partir de 1, comme sur ton schéma. Poisson : rang 1 = bouche, la queue est le dernier rang.</span></h2>
+            <div class="pile">
+              <div class="ligne">
+                <label>Du rang<input type="number" id="rDe" value="1" min="1"></label>
+                <label>au rang<input type="number" id="rA" value="99" min="1"></label>
+              </div>
+              <div class="ligne">
+                <label>Couche<select id="rCouche">
+                  <option value="">Toutes</option>
+                  <option value="gauche">Flanc gauche</option><option value="droite">Flanc droit</option>
+                  <option value="bouche">Bouche</option><option value="tige">Tiges de queue</option>
+                  <option value="dessus">Dessus</option><option value="dessous">Dessous</option><option value="bord">Bords</option>
+                </select></label>
+                <label>Partie<select id="rPartie">
+                  <option value="">Toutes</option><option value="dos">Dos</option>
+                  <option value="ligne">Ligne</option><option value="ventre">Ventre</option>
+                </select></label>
+                <label>Perles n°<input type="text" id="rPos" placeholder="toutes, ou 1-2"></label>
+                <label>Comptées depuis<select id="rSens"><option value="g">la gauche</option><option value="d">la droite</option><option value="b">les deux bords</option></select></label>
+              </div>
+              <details>
+                <summary>Pour les tubes : secteur d'angle</summary>
+                <div class="ligne" style="margin-top:8px">
+                  <label>Angle de<input type="number" id="aDe" value="-180" step="5"></label>
+                  <label>à<input type="number" id="aA" value="180" step="5"></label>
+                </div>
+                <p class="note">0° = dessus du tube, ±180° = dessous.</p>
+              </details>
+              <div class="ligne">
+                <button class="btn prim" id="btRegle">Appliquer à la zone active</button>
+                <button class="btn" id="btToutGroupe">Tout le groupe</button>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- COULEURS -->
+        <div data-panneau="couleurs" class="pile" style="gap:22px" hidden>
+          <section>
+            <h2>Catalogue de perles<span class="aide">Touche une couleur pour la prendre comme « couleur fixe » (yeux, détails non personnalisables).</span></h2>
+            <div class="grille-coul" id="grilleCoul"></div>
+          </section>
+          <section>
+            <h2>Type pour l'outil « Type de perle »</h2>
+            <label><select id="typePinceau"></select></label>
+          </section>
+          <section>
+            <h2>Charger ton catalogue</h2>
+            <div class="pile">
+              <details>
+                <summary>Depuis Supabase (table materiaux)</summary>
+                <div class="pile" style="margin-top:8px">
+                  <label>URL du projet<input type="url" id="sbUrl" placeholder="https://xxxx.supabase.co"></label>
+                  <label>Clé anon<input type="text" id="sbCle"></label>
+                  <label>Filtre type (colonne type)<input type="text" id="sbType" value="perle"></label>
+                  <button class="btn prim" id="btSupabase">Charger</button>
+                  <p class="note">Lit <code>meta.hex</code>, <code>meta.finition</code> et <code>meta.texture</code> de chaque ligne. Les lignes sans couleur sont ignorées.</p>
+                </div>
+              </details>
+              <details>
+                <summary>Coller un catalogue JSON</summary>
+                <div class="pile" style="margin-top:8px">
+                  <textarea id="catJson" placeholder='[{"ref":"MIY-401","nom":"Noir","hex":"#111","finition":"opaque"}]'></textarea>
+                  <button class="btn" id="btCatJson">Utiliser ce catalogue</button>
+                </div>
+              </details>
+            </div>
+          </section>
+        </div>
+
+        <!-- CLIENT -->
+        <div data-panneau="client" class="pile" style="gap:22px" hidden>
+          <section>
+            <h2>Prix<span class="aide">Le prix de base vient du bijou (colonne pv) si tu indiques sa référence ; sinon du prix saisi ici. Les options ajoutent leur supplément.</span></h2>
+            <div class="ligne">
+              <label>Réf. du bijou<input type="text" id="cBijRef" placeholder="ex. BIJ-SARDINE"></label>
+              <label>Prix de base (€)<input type="number" id="cPrix" step="0.5" min="0"></label>
+            </div>
+          </section>
+          <section>
+            <h2>Parties proposées au client<span class="aide">Décoche une partie pour la figer à sa couleur par défaut. Les parties d'un même groupe (ex. « Yeux ») s'affichent ensemble sous un seul bouton.</span></h2>
+            <div class="liste" id="cZones"></div>
+          </section>
+          <section>
+            <h2>Fermoir au choix<span class="aide">Coche les fermoirs de ton listing que le client peut choisir. Le libellé court s'affiche sur le bouton (ex. Petit, Grand).</span></h2>
+            <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="cFermoirOn"> Proposer le choix du fermoir</label>
+            <div class="liste" id="cFermoirs" style="margin-top:8px"></div>
+          </section>
+          <section>
+            <h2>Porte-clés &amp; bundle<span class="aide">Ce que le client peut choisir pour accrocher sa breloque, et en ajouter d'autres (bundle). Pièce 1 = celle qui porte les breloques ; pièce 2 = au-dessus (ex. mousqueton porte-clés accroché au fermoir rond). Le choix vaut pour le modèle de départ du client.</span></h2>
+            <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="cAccOn"> Proposer porte-clés et bundle</label>
+            <div class="pile" id="cAccBloc" style="margin-top:8px">
+              <label style="max-width:200px">Breloques maximum (vide = sans limite)<input type="number" id="cAccMax" min="1" placeholder="sans limite"></label>
+              <div class="liste" id="cAccroches"></div>
+              <button class="btn" id="btAjoutAcc">Ajouter un choix d'accroche</button>
+              <div class="zone-carte" id="cOffre">
+                <label style="display:flex;gap:6px;align-items:center;color:var(--fg);font-weight:700"><input type="checkbox" id="oActive"> Offre : pièce offerte</label>
+                <div class="ligne">
+                  <label>Libellé<input type="text" id="oLib" placeholder="Fermoir rond offert"></label>
+                  <label>Pièce offerte<select id="oPiece"></select></label>
+                </div>
+                <div class="ligne">
+                  <label>Dès (breloques)<input type="number" id="oMin" min="1" max="6" value="2"></label>
+                  <label>Prix mini d'une breloque (€)<input type="number" id="oPrixMin" step="0.5" min="0" value="15"></label>
+                  <label>Remise (€)<input type="number" id="oRemise" step="0.5" min="0" value="1.5"></label>
+                </div>
+                <p class="note">Le client garde le choix : s'il prend un porte-clés sans cette pièce, l'offre ne s'applique pas.</p>
+              </div>
+            </div>
+          </section>
+          <section>
+            <h2>Perles en option<span class="aide">Une perle ajoutée sur l'anneau, devant le fermoir (ex. perle étoile). Le client l'active d'un geste puis choisit sa couleur.</span></h2>
+            <div class="liste" id="cPerles"></div>
+            <button class="btn" id="btAjoutOptPerle" style="margin-top:8px">Ajouter une option perle</button>
+          </section>
+          <section>
+            <h2>Aperçu<span class="aide">Pour voir le rendu des options ici. Ne change pas le modèle.</span></h2>
+            <div class="ligne" id="cApercu"></div>
+            <p class="note" id="cPrixApercu"></p>
+          </section>
+        </div>
+
+        <!-- FICHIER -->
+        <div data-panneau="fichier" class="pile" style="gap:22px" hidden>
+          <section>
+            <h2>Boutique<span class="aide">Le modèle n'apparaît en boutique qu'une fois publié. Seul ton compte administrateur peut enregistrer ; les clients ne peuvent que choisir les couleurs.</span></h2>
+            <div class="pile">
+              <p class="note" id="etatBoutique">Connexion à la boutique…</p>
+              <div class="pile" id="blocConnexion" hidden>
+                <div class="ligne">
+                  <label>E-mail admin<input type="text" id="sbEmail" autocomplete="username"></label>
+                  <label>Mot de passe<input type="password" id="sbMdp" autocomplete="current-password" style="width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg)"></label>
+                </div>
+                <button class="btn prim" id="btConnexion">Se connecter</button>
+              </div>
+              <div class="pile" id="blocPublier" hidden>
+                <div class="ligne">
+                  <label>Identifiant du modèle (dans l'URL)<input type="text" id="sbSlug" placeholder="poisson-sardine"></label>
+                  <label>Bijou lié (id, option)<input type="text" id="sbBijou" placeholder="uuid du bijou"></label>
+                </div>
+                <div class="ligne">
+                  <button class="btn" id="btBrouillon">Enregistrer en brouillon</button>
+                  <button class="btn prim" id="btPublier">Publier en boutique</button>
+                  <button class="btn" id="btDeconnexion">Se déconnecter</button>
+                </div>
+                <div class="liste" id="listeBoutique"></div>
+              </div>
+            </div>
+          </section>
+          <section>
+            <h2>Modèle JSON<span class="aide">C'est ce fichier que lit le visualiseur boutique. Il est aussi enregistré automatiquement sur cet appareil.</span></h2>
+            <div class="pile">
+              <div class="ligne">
+                <button class="btn prim" id="btCopier">Copier le JSON</button>
+                <button class="btn" id="btTelecharger">Télécharger</button>
+                <label class="btn" style="display:inline-flex;color:inherit">Ouvrir un fichier<input type="file" id="fichier" accept=".json,application/json" hidden></label>
+              </div>
+              <textarea id="jsonModele" spellcheck="false"></textarea>
+              <div class="ligne">
+                <button class="btn" id="btImporterTexte">Charger le JSON collé</button>
+                <button class="btn" id="btExemple">Exemple petit poisson</button>
+                <button class="btn" id="btExempleArete">Exemple arête</button>
+                <button class="btn" id="btExempleLettres">Exemple breloque lettre</button>
+                <button class="btn" id="btExempleArgile">Exemple breloque argile</button>
+                <button class="btn" id="btExempleCroix">Exemple breloque chainmail</button>
+                <button class="btn" id="btExempleCulture">Exemple perle de culture</button>
+                <button class="btn danger" id="btVide">Modèle vide</button>
+              </div>
+            </div>
+          </section>
+          <section>
+            <h2>Comptage des perles<span class="aide">Avec les couleurs par défaut des zones.</span></h2>
+            <div style="overflow-x:auto"><table id="tableCompte"></table></div>
+          </section>
+        </div>
+
+      </div>
+    </aside>
+  </main>
+</div>
+
+<script type="module">
+import {
+  ScenePerles, TYPES_PERLES, FINITIONS, CATALOGUE_DEMO, catalogueDepuisMateriaux, completerCatalogue,
+  genTube, genNappe, genRangee, lireRangs, modeleDemo, compterPerles, nouvelId,
+  genDessusDessous, lireRangsDD, ecrireRangsDD, estAncienneDemo,
+  genPoisson, lireRangsPoisson, ecrireRangsPoisson, zonerPoisson, METAUX, TYPES_ACCESSOIRES,
+  couleursProposees, chargerCatalogueBoutique, affinerCouleursDepuisPhotos, resoudreDefauts, TAILLES_MOUSQUETON,
+  FERMOIRS_DEMO, chargerFermoirsBoutique, prixConfiguration,
+  genArete, PATRON_TETE_ARETE, estAccroche, modeleAreteDemo, modeleLettresDemo, modeleArgileDemo, modeleChainmailDemo, modelePerleCultureDemo, chargerModeleBoutique, listerModelesBoutique, enregistrerModeleBoutique,
+} from './bead-core.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure } from './perles-config.js';
+const sb = supabaseConfigure() && window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+/* ---------- état ---------- */
+const CLE_MODELE = 'bn-perles-modele', CLE_CAT = 'bn-perles-catalogue', CLE_BIBLIO = 'bn-perles-biblio';
+const lire = (k, def) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch { return def; } };
+const ecrire = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+
+let catalogue = completerCatalogue(lire(CLE_CAT, null) || CATALOGUE_DEMO);
+let modele = lire(CLE_MODELE, null);
+if (!modele || estAncienneDemo(modele)) modele = modeleDemo();
+let gActif = 0;
+let zoneActive = modele.zones[0]?.id || null;
+let outil = 'orbite';
+let refFixe = catalogue[0]?.ref;
+let typePinceau = 'rocaille-11';
+const histo = [];
+
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const parRef = () => Object.fromEntries(catalogue.map(c => [c.ref, c]));
+const REPERES = ['#3b82c4', '#e0a43a', '#c4467a', '#3aa776', '#8a5cd1', '#d4572e', '#2fa3b5', '#7d8b2e'];
+
+const scene = new ScenePerles($('#vue'), { catalogue });
+scene.definirModele(modele, { cadrer: true });
+
+/* ---------- utilitaires ---------- */
+function toast(msg) {
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
+  document.body.appendChild(t); setTimeout(() => t.remove(), 1800);
+}
+function memoriser() { histo.push(JSON.stringify(modele)); if (histo.length > 40) histo.shift(); }
+function enregistrer({ geometrie = false } = {}) {
+  ecrire(CLE_MODELE, modele);
+  geometrie ? scene.rafraichir() : scene.reconstruire();
+  majCompteur();
+}
+function majCompteur() {
+  const n = modele.groupes.reduce((s, g) => s + g.perles.length, 0);
+  $('#compteur').textContent = n + ' perle' + (n > 1 ? 's' : '');
+}
+function fondEchantillon(c) {
+  if (!c) return '#bbb';
+  if (c.texture || c.swatch) return `center/cover url("${c.texture || c.swatch}")`;
+  switch (c.finition) {
+    case 'metallique': return `linear-gradient(135deg, #fff8 0%, ${c.hex} 35%, ${c.hex} 60%, #0004 100%)`;
+    case 'irise': return `conic-gradient(from 40deg, ${c.hex}, #7fd6c9, ${c.hex}, #d68fd0, ${c.hex})`;
+    case 'transparent': return `radial-gradient(circle at 35% 30%, #fff9, ${c.hex}aa 60%)`;
+    case 'argente': return `radial-gradient(circle at 35% 30%, #fff, ${c.hex} 45%, #000a 100%)`;
+    case 'nacre': return `radial-gradient(circle at 35% 30%, #fff, ${c.hex} 70%)`;
+    default: return c.hex;
+  }
+}
+const slug = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'zone';
+const groupe = () => modele.groupes[gActif];
+
+/* ---------- onglets ---------- */
+$$('.onglets button').forEach(b => b.addEventListener('click', () => {
+  $$('.onglets button').forEach(x => x.setAttribute('aria-selected', x === b));
+  $$('[data-panneau]').forEach(p => p.hidden = p.dataset.panneau !== b.dataset.onglet);
+  if (b.dataset.onglet === 'fichier') majFichier();
+  if (b.dataset.onglet === 'client') { afficherClient(); afficherAccroches(); }
+}));
+
+/* ---------- outils ---------- */
+const AIDES = {
+  orbite: 'Glisse pour tourner · touche une perle pour activer son groupe',
+  zone: 'Glisse sur les perles pour les mettre dans la zone active',
+  fixe: 'Glisse pour poser une couleur fixe (non personnalisable)',
+  type: 'Glisse pour changer le type des perles',
+  libre: 'Glisse pour retirer les perles de toute zone',
+  gomme: 'Glisse pour supprimer des perles',
+};
+function choisirOutil(o) {
+  outil = o;
+  $$('[data-outil]').forEach(b => b.setAttribute('aria-pressed', b.dataset.outil === o));
+  $('#aideOutil').textContent = AIDES[o];
+}
+$$('[data-outil]').forEach(b => b.addEventListener('click', () => choisirOutil(b.dataset.outil)));
+$('#btVueZones').addEventListener('click', e => {
+  scene.vueZones = !scene.vueZones;
+  e.currentTarget.setAttribute('aria-pressed', scene.vueZones);
+  scene.reconstruire();
+});
+$('#btCadrer').addEventListener('click', () => scene.cadrer());
+$('#btAnnuler').addEventListener('click', annuler);
+document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); annuler(); } });
+function annuler() {
+  if (!histo.length) return toast('Rien à annuler');
+  modele = JSON.parse(histo.pop());
+  gActif = Math.min(gActif, modele.groupes.length - 1);
+  scene.definirModele(modele);
+  ecrire(CLE_MODELE, modele); toutAfficher();
+}
+
+/* ---------- peinture à la souris / au doigt ---------- */
+const vue = $('#vue');
+let peint = false, depart = null;
+function appliquer(idx) {
+  const e = scene.plates[idx]; if (!e || e.gi < 0) return false;
+  const b = e.b;
+  switch (outil) {
+    case 'zone':
+      if (!zoneActive) { toast('Crée d\'abord une zone'); return false; }
+      if (b.z === zoneActive && !b.k) return false;
+      b.z = zoneActive; delete b.k; return 'couleur';
+    case 'fixe':
+      if (b.k === refFixe) return false;
+      b.k = refFixe; return 'couleur';
+    case 'libre':
+      if (!b.z && !b.k) return false;
+      b.z = null; delete b.k; return 'couleur';
+    case 'type':
+      if (b.t === typePinceau) return false;
+      b.t = typePinceau; return 'geo';
+    case 'gomme':
+      modele.groupes[e.gi].perles.splice(e.bi, 1); return 'geo';
+  }
+  return false;
+}
+function peindreA(x, y) {
+  const idx = scene.pointer(x, y);
+  if (idx < 0) return;
+  const r = appliquer(idx);
+  if (r) { r === 'geo' ? scene.rafraichir() : scene.reconstruire(); }
+}
+vue.addEventListener('pointerdown', e => {
+  depart = { x: e.clientX, y: e.clientY };
+  if (outil === 'orbite') return;
+  const idx = scene.pointer(e.clientX, e.clientY);
+  if (idx < 0) return;                     // hors perle : on laisse tourner la vue
+  e.stopPropagation();                     // empêche OrbitControls de démarrer
+  memoriser(); peint = true;
+  vue.setPointerCapture(e.pointerId);
+  peindreA(e.clientX, e.clientY);
+}, { capture: true });
+vue.addEventListener('pointermove', e => {
+  if (peint) { peindreA(e.clientX, e.clientY); return; }
+  if (e.pointerType !== 'mouse' || e.buttons) return;
+  const idx = scene.pointer(e.clientX, e.clientY);
+  scene.surligner(idx >= 0 ? [idx] : []);
+  if (idx >= 0) {
+    const b = scene.plates[idx].b, g = modele.groupes[scene.plates[idx].gi];
+    const z = modele.zones.find(z => z.id === b.z);
+    const ou = b.l ? ` · ${b.l}${b.s ? ' ' + b.s : ''} ${b.c + 1}/${b.n}` : (b.a != null ? ' · ' + b.a + '°' : '');
+    const numRang = g.technique === 'poisson' ? b.r : (b.r ?? 0) + 1;
+    $('#survol').textContent = `${g.nom} · rang ${numRang}${ou} · ${b.k ? 'fixe ' + b.k : (z ? z.nom : 'sans zone')} · ${TYPES_PERLES[b.t]?.nom || b.t}`;
+  } else $('#survol').textContent = 'Survole une perle';
+});
+vue.addEventListener('pointerup', e => {
+  if (peint) { peint = false; enregistrer({ geometrie: true }); afficherZones(); afficherGroupes(); return; }
+  if (outil === 'orbite' && depart && Math.hypot(e.clientX - depart.x, e.clientY - depart.y) < 5) {
+    const idx = scene.pointer(e.clientX, e.clientY);
+    if (idx >= 0) activerGroupe(scene.plates[idx].gi, true);
+  }
+  depart = null;
+});
+
+/* ---------- groupes ---------- */
+function activerGroupe(i, flash = false) {
+  gActif = i; afficherGroupes(); afficherTransfo();
+  if (flash) {
+    const ids = scene.plates.map((p, k) => p.gi === i ? k : -1).filter(k => k >= 0);
+    scene.surligner(ids); setTimeout(() => scene.surligner([]), 900);
+  }
+}
+function afficherGroupes() {
+  $('#listeGroupes').innerHTML = modele.groupes.map((g, i) => `
+    <div class="item ${i === gActif ? 'actif' : ''}" data-i="${i}">
+      <button class="oeil" data-cache="${i}" aria-label="Afficher ou masquer">${g.cache ? 'masqué' : 'visible'}</button>
+      <span class="titre">${esc(g.nom)}</span>
+      <span class="meta">${g.perles.length}</span>
+    </div>`).join('') || '<p class="note">Aucun groupe. Ajoute-en un ci-dessous.</p>';
+  $$('#listeGroupes .item').forEach(el => el.addEventListener('click', ev => {
+    const c = ev.target.closest('[data-cache]');
+    if (c) { const g = modele.groupes[+c.dataset.cache]; g.cache = !g.cache; enregistrer({ geometrie: true }); afficherGroupes(); return; }
+    activerGroupe(+el.dataset.i, true);
+  }));
+  $('#secTransfo').hidden = !groupe();
+}
+function afficherTransfo() {
+  const g = groupe(); if (!g) return;
+  if (['dessus-dessous', 'poisson', 'arete'].includes(g.technique) && g.patron) {
+    const f = g.technique === 'dessus-dessous' ? 'dd' : g.technique;
+    $('#nForme').value = f; formeAvant = f; majFormeNouv();
+    $('#nRangs').value = g.patron; if (g.type) $('#nType').value = g.type;
+    const o = g.options || {};
+    if (f === 'arete') {
+      $('#aAretes').value = (o.aretes || [2, 2, 2]).join(', ');
+      $('#aAvant').value = o.colonne?.avant ?? 1; $('#aEntre').value = o.colonne?.entre ?? 1; $('#aApres').value = o.colonne?.apres ?? 2;
+    }
+    if (f === 'poisson' || f === 'arete') {
+      $('#pBouche').value = o.bouche ?? 2; $('#pTiges').value = o.tiges ?? 2; $('#pPerlesTige').value = o.perlesTige ?? 5;
+      $('#pAngle').value = o.angleTige ?? 35; $('#pGalbe').value = o.galbe ?? 0.15;
+      $('#pFermoir').checked = !!g.accessoires?.length;
+      $('#pFil').checked = g.fil?.actif !== false && !!g.fil;
+      $('#pTypeOeil').value = /^oeil-/.test(o.typeOeil || '') ? 'plate-6' : (o.typeOeil ?? '');
+      $('#pTypePupille').value = o.typePupille || 'rocaille-11';
+      $('#pEcart').value = o.ecart ?? 0.62;
+    }
+  }
+  const acc = g.accessoires?.[0];
+  $('#fRef').value = !acc ? '' : acc.type === 'anneau' && !acc.ref ? '@anneau' : (acc.ref || '');
+  if (acc?.ref && !fermoirs.some(f => f.ref === acc.ref)) $('#fRef').value = '';
+  ['x', 'y', 'z'].forEach((a, k) => $('#fP' + a).value = acc?.pos?.[k] ?? 0);
+  $('#ligneFermoirPos').hidden = !acc;
+  $('#fFil').checked = !!g.fil && g.fil.actif !== false;
+  $('#fMetal').value = g.fil?.metal || 'argent';
+  $('#gNom').value = g.nom;
+  ['x', 'y', 'z'].forEach((a, k) => {
+    $('#gP' + a).value = (g.pos || [0, 0, 0])[k];
+    $('#gR' + a).value = (g.rot || [0, 0, 0])[k];
+  });
+}
+['#gPx', '#gPy', '#gPz', '#gRx', '#gRy', '#gRz'].forEach(id => {
+  const el = $(id);
+  el.addEventListener('focus', memoriser);
+  el.addEventListener('input', () => {
+    const g = groupe(); if (!g) return;
+    g.pos = ['x', 'y', 'z'].map(a => +$('#gP' + a).value || 0);
+    g.rot = ['x', 'y', 'z'].map(a => +$('#gR' + a).value || 0);
+    enregistrer({ geometrie: true });
+  });
+});
+$('#gNom').addEventListener('change', () => { memoriser(); groupe().nom = $('#gNom').value.trim() || 'Groupe'; enregistrer(); afficherGroupes(); });
+$('#btDupliquer').addEventListener('click', () => {
+  const g = groupe(); if (!g) return; memoriser();
+  const c = JSON.parse(JSON.stringify(g)); c.id = nouvelId(); c.nom = g.nom + ' (copie)';
+  c.pos = [(g.pos?.[0] || 0) + 5, g.pos?.[1] || 0, g.pos?.[2] || 0];
+  modele.groupes.push(c); gActif = modele.groupes.length - 1;
+  enregistrer({ geometrie: true }); afficherGroupes(); afficherTransfo();
+});
+$('#btMiroir').addEventListener('click', () => {
+  const g = groupe(); if (!g) return; memoriser();
+  // symétrie gauche/droite : x -> -x, l'axe du trou suit
+  g.perles.forEach(b => {
+    b.p[0] = -b.p[0];
+    const [x, y, z, w] = b.q || [0, 0, 0, 1];
+    b.q = [x, -y, -z, w];
+    if (b.a != null) b.a = -b.a;
+  });
+  enregistrer({ geometrie: true });
+});
+armerSuppression($('#btSupprGroupe'), () => {
+  memoriser(); modele.groupes.splice(gActif, 1); gActif = Math.max(0, gActif - 1);
+  enregistrer({ geometrie: true }); afficherGroupes(); afficherTransfo();
+});
+function armerSuppression(bt, action) {
+  let arme = false, t;
+  const lib = bt.textContent;
+  bt.addEventListener('click', () => {
+    if (!arme) { arme = true; bt.classList.add('arme'); bt.textContent = 'Confirmer ?'; t = setTimeout(reset, 3000); return; }
+    reset(); action();
+  });
+  function reset() { arme = false; bt.classList.remove('arme'); bt.textContent = lib; clearTimeout(t); }
+}
+
+/* fermoir du groupe actif */
+let fermoirs = FERMOIRS_DEMO;
+scene.definirFermoirs(fermoirs);
+function remplirFermoirs() {
+  $('#fRef').innerHTML = '<option value="">Aucun</option>'
+    + fermoirs.filter(f => !estAccroche(f)).map(f => `<option value="${esc(f.ref)}">${esc(f.ref)} · ${esc(f.nom)} (${f.taille} mm)</option>`).join('')
+    + '<option value="@anneau">Anneau porte-clef (générique)</option>';
+}
+const accDepuisRef = (v, ancien) => {
+  const pos = ['x', 'y', 'z'].map(a => +$('#fP' + a).value || 0), rot = ancien?.rot || [0, 0, 0];
+  if (!v) return null;
+  if (v === '@anneau') return { type: 'anneau', metal: 'argent', taille: 15, pos, rot };
+  const f = fermoirs.find(x => x.ref === v);
+  return f ? { ref: f.ref, type: f.type, taille: f.taille, metal: f.metal, pos, rot } : null;
+};
+['#fRef', '#fPx', '#fPy', '#fPz'].forEach(id => {
+  $(id).addEventListener('focus', memoriser);
+  $(id).addEventListener(id === '#fRef' ? 'change' : 'input', () => {
+    const g = groupe(); if (!g) return;
+    if (id === '#fRef') memoriser();
+    const acc = accDepuisRef($('#fRef').value, g.accessoires?.[0]);
+    if (acc) g.accessoires = [acc]; else delete g.accessoires;
+    $('#ligneFermoirPos').hidden = !acc;
+    enregistrer({ geometrie: true });
+  });
+});
+$('#fMetal').addEventListener('change', () => {
+  const g = groupe(); if (!g) return; memoriser();
+  g.fil = { ...(g.fil || { actif: true }), metal: $('#fMetal').value };
+  enregistrer({ geometrie: true });
+});
+$('#fFil').addEventListener('change', e => {
+  const g = groupe(); if (!g) return; memoriser();
+  g.fil = { actif: e.target.checked, metal: $('#fMetal').value };
+  enregistrer({ geometrie: true });
+});
+
+/* nouveau groupe */
+const OPTIONS_TROU = {
+  poisson: [['long', 'Le long de la colonne']],
+  arete: [['long', 'Le long de la colonne']],
+  dd: [['long', 'Le long du rang']],
+  tube: [['tangent', 'Le long de la rangée (peyote)'], ['axe', 'Parallèle au tube (brick)']],
+  nappe: [['long', 'Le long de la rangée (peyote)'], ['travers', 'En travers (brick)']],
+  rangee: [['long', 'Le long de la rangée'], ['travers', 'En travers (échelle)']],
+};
+const AIDE_RANGS = {
+  arete: 'Patron de la tête, comme pour le poisson (jusqu\'au premier rang qui a une perle de ligne). Puis la colonne d\'une perle, les arêtes de chaque côté et la queue en tiges.',
+  poisson: 'Un rang par flanc, lu de haut en bas : dos / ligne / ventre. « (yeux) » au milieu = la perle d\'œil. « 2/1/3x2 » = deux rangs identiques. Le rang de bouche (non doublé) et la queue se règlent juste en dessous.',
+  dd: 'Un rang = perles du dessus / perles du dessous. « 5/4x3 » = trois rangs de 5 dessus et 4 dessous. « 5/4/1 » ajoute 1 perle de bord de chaque côté.',
+  tube: 'Nombre de perles par rangée en anneau. « 8x3 » = trois rangées de 8.',
+  nappe: 'Nombre de perles par rangée. « 8x3 » = trois rangées de 8.',
+  rangee: 'Nombre de perles de la rangée.',
+};
+const EXEMPLE_RANGS = { arete: PATRON_TETE_ARETE, poisson: '3/0/1, 2/0/2, 2/(yeux)/2, 3/0/2, 2/1/2, 2/1/3, 2/1/3, 2/1/2, 2/1/2, 1/1/2, 1/1/2, 1/1/1, 1/1/1, 1/1/0', dd: '1/1, 2/2, 3/2, 4/3, 5/4x3, 4/3, 3/3, 2/2', tube: '4,6,8,10x3,8,6', nappe: '2,3,4,5', rangee: '12' };
+let formeAvant = null;
+function majFormeNouv() {
+  const f = $('#nForme').value;
+  $('#nTrou').innerHTML = OPTIONS_TROU[f].map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+  $('#nDecalage').closest('label').hidden = f !== 'tube';
+  const poissonLike = f === 'poisson' || f === 'arete';
+  $('#libTrou').hidden = f === 'dd' || poissonLike;
+  $('#ligneZonesDD').hidden = f !== 'dd';
+  $('#champsPoisson').hidden = !poissonLike;
+  $('#champsArete').hidden = f !== 'arete';
+  $('#libZone1').hidden = f === 'dd' || poissonLike;
+  $('#aideRangs').textContent = AIDE_RANGS[f];
+  $('#libRangs').firstChild.textContent = f === 'arete' ? 'Patron de la tête (dos/ligne/ventre par rang)' : f === 'poisson' ? 'Patron (dos/ligne/ventre par rang)' : f === 'dd' ? 'Patron (dessus/dessous par rang)' : 'Perles par rangée';
+  if (formeAvant !== f && (!$('#nRangs').value.trim() || formeAvant)) $('#nRangs').value = EXEMPLE_RANGS[f];
+  formeAvant = f;
+}
+$('#nForme').addEventListener('change', majFormeNouv);
+function genererDepuisFormulaire() {
+  const f = $('#nForme').value, type = $('#nType').value, trou = $('#nTrou').value;
+  const rangs = lireRangs($('#nRangs').value), serrage = +$('#nSerrage').value || 1;
+  if (!['dd', 'poisson', 'arete'].includes(f) && !rangs.length) { toast('Indique le nombre de perles par rangée'); return null; }
+  if (f === 'poisson' || f === 'arete') {
+    const rangsP = lireRangsPoisson($('#nRangs').value);
+    if (!rangsP.length) { toast('Écris le patron, par exemple 3/0/1, 2/(yeux)/2, 2/1/3'); return null; }
+    const options = { bouche: +$('#pBouche').value || 0, tiges: +$('#pTiges').value || 0,
+      perlesTige: +$('#pPerlesTige').value || 1, angleTige: +$('#pAngle').value || 0, galbe: +$('#pGalbe').value || 0,
+      ecart: +$('#pEcart').value || 0.62, typeOeil: $('#pTypeOeil').value || null, typePupille: $('#pTypePupille').value || 'rocaille-11' };
+    if (f === 'arete') {
+      options.aretes = $('#aAretes').value.split(/[,;\s]+/).map(Number).filter(n => n > 0);
+      options.colonne = { avant: +$('#aAvant').value || 0, entre: +$('#aEntre').value || 0, apres: +$('#aApres').value || 0 };
+    }
+    const zLigne = $('#pZLigne').value || null;
+    const zArete = f === 'arete' ? ($('#pZArete').value || null) : undefined;
+    const brutes = f === 'arete' ? genArete({ type, rangs: rangsP, serrage, ...options }) : genPoisson({ type, rangs: rangsP, serrage, ...options });
+    const perles = zonerPoisson(brutes, {
+      dos: $('#pZDos').value || null, ligne: zLigne, ventre: $('#pZVentre').value || null, arete: zArete,
+      bouche: $('#pZBouche').value || undefined, yeux: $('#pZYeux').value || null, pupille: $('#pZPupille').value || undefined });
+    const extra = { technique: f, patron: ecrireRangsPoisson(rangsP), type, options };
+    if ($('#pFermoir').checked) {
+      const f = [...fermoirs].filter(x => x.type === 'mousqueton').sort((a, b) => Math.abs(a.taille - 12) - Math.abs(b.taille - 12))[0];
+      extra.accessoires = [f ? { ref: f.ref, type: f.type, taille: f.taille, metal: f.metal, pos: [0, 0, 0], rot: [0, 0, 0] }
+                             : { type: 'mousqueton', metal: 'argent', taille: 12, pos: [0, 0, 0], rot: [0, 0, 0] }];
+    }
+    extra.fil = { actif: $('#pFil').checked, metal: 'argent' };
+    return { perles, nom: (f === 'arete' ? 'Arête · ' : 'Poisson · ') + (rangsP.length + 1) + ' rangs', extra };
+  }
+  if (f === 'dd') {
+    const rangsDD = lireRangsDD($('#nRangs').value);
+    if (!rangsDD.length) { toast('Écris le patron, par exemple 2/2, 3/2, 4/3'); return null; }
+    const perles = genDessusDessous({ type, rangs: rangsDD, serrage });
+    const zd = $('#nZoneD').value || null, zs = $('#nZoneS').value || null;
+    perles.forEach(b => b.z = b.l === 'dessous' ? zs : zd);
+    return { perles, nom: 'Dessus-dessous · ' + rangsDD.length + ' rangs',
+             extra: { technique: 'dessus-dessous', patron: ecrireRangsDD(rangsDD), type } };
+  }
+  let perles;
+  if (f === 'tube') perles = genTube({ type, rangs, trou, decalage: $('#nDecalage').checked, serrage });
+  else if (f === 'nappe') perles = genNappe({ type, rangs, trou, serrage });
+  else perles = genRangee({ type, n: rangs[0], trou, serrage });
+  const z = $('#nZone').value || null;
+  perles.forEach(b => b.z = z);
+  const nom = { tube: 'Tube', nappe: 'Nappe', rangee: 'Rangée' }[f] + ' ' + rangs.join(',');
+  return { perles, nom };
+}
+$('#btAjouterGroupe').addEventListener('click', () => {
+  const r = genererDepuisFormulaire(); if (!r) return; memoriser();
+  modele.groupes.push({ id: nouvelId(), nom: r.nom, pos: [0, 0, 0], rot: [0, 0, 0], ...(r.extra || {}), perles: r.perles });
+  gActif = modele.groupes.length - 1;
+  enregistrer({ geometrie: true }); afficherGroupes(); afficherTransfo(); scene.cadrer();
+  toast('Groupe ajouté');
+});
+$('#btRemplacer').addEventListener('click', () => {
+  const g = groupe(); if (!g) return toast('Aucun groupe actif');
+  const r = genererDepuisFormulaire(); if (!r) return; memoriser();
+  // on garde les zones et couleurs fixes des perles qui existent toujours (même rang, couche, position)
+  const cle = b => `${b.r}|${b.l || ''}|${b.c}`;
+  const avant = new Map(g.perles.map(b => [cle(b), b]));
+  let gardees = 0;
+  r.perles.forEach(b => { const o = avant.get(cle(b)); if (o) { b.z = o.z; if (o.k) b.k = o.k; gardees++; } });
+  const accAvant = g.accessoires, filAvant = g.fil;
+  delete g.technique; delete g.patron; delete g.options;
+  Object.assign(g, r.extra || {});
+  if (accAvant?.length) g.accessoires = accAvant;
+  if (filAvant && g.fil) g.fil.metal = filAvant.metal;
+  g.perles = r.perles;
+  enregistrer({ geometrie: true }); afficherGroupes(); afficherTransfo(); afficherZones();
+  toast(`Groupe régénéré · zones gardées sur ${gardees} perles`);
+});
+
+/* bibliothèque */
+function afficherBiblio() {
+  const b = lire(CLE_BIBLIO, []);
+  $('#biblio').innerHTML = b.length ? b.map((g, i) => `<option value="${i}">${esc(g.nom)} · ${g.perles.length} perles</option>`).join('')
+    : '<option value="">Bibliothèque vide</option>';
+}
+$('#btBiblioSave').addEventListener('click', () => {
+  const g = groupe(); if (!g) return;
+  const b = lire(CLE_BIBLIO, []); b.push(JSON.parse(JSON.stringify(g))); ecrire(CLE_BIBLIO, b);
+  afficherBiblio(); toast('Enregistré dans la bibliothèque');
+});
+$('#btBiblioInserer').addEventListener('click', () => {
+  const b = lire(CLE_BIBLIO, []), g = b[+$('#biblio').value]; if (!g) return; memoriser();
+  const c = JSON.parse(JSON.stringify(g)); c.id = nouvelId();
+  // zones absentes du modèle : on les crée
+  new Set(c.perles.map(p => p.z).filter(Boolean)).forEach(z => {
+    if (!modele.zones.some(x => x.id === z)) modele.zones.push({ id: z, nom: z, defaut: catalogue[0]?.ref, repere: REPERES[modele.zones.length % REPERES.length] });
+  });
+  modele.groupes.push(c); gActif = modele.groupes.length - 1;
+  scene.definirModele(modele); enregistrer(); toutAfficher();
+});
+$('#btBiblioSuppr').addEventListener('click', () => {
+  const b = lire(CLE_BIBLIO, []); b.splice(+$('#biblio').value, 1); ecrire(CLE_BIBLIO, b); afficherBiblio();
+});
+
+/* ---------- zones ---------- */
+const zonesOuvertes = new Set();
+function optionsCatalogue(sel, zone = null) {
+  return (zone ? couleursProposees({ oeil: zone.oeil }, catalogue) : catalogue).map(c => `<option value="${esc(c.ref)}" ${c.ref === sel ? 'selected' : ''}>${esc(c.ref)} · ${esc(c.nom)}</option>`).join('');
+}
+function afficherZones() {
+  const comptes = {};
+  modele.groupes.forEach(g => g.perles.forEach(b => { if (b.z && !b.k) comptes[b.z] = (comptes[b.z] || 0) + 1; }));
+  $('#listeZones').innerHTML = modele.zones.map(z => `
+    <div class="zone-carte ${z.id === zoneActive ? 'actif' : ''}" data-z="${esc(z.id)}">
+      <div class="zone-tete">
+        <input type="color" value="${z.repere || '#888888'}" data-repere aria-label="Couleur repère">
+        <input type="text" value="${esc(z.nom)}" data-nom aria-label="Nom de la zone">
+        <button class="btn ${z.id === zoneActive ? 'prim' : ''}" data-activer>${z.id === zoneActive ? 'Active' : 'Activer'}</button>
+      </div>
+      <label>Couleur par défaut<select data-defaut>${optionsCatalogue(z.defaut, z)}</select></label>
+      <details data-choix-det>
+        <summary>Couleurs proposées au client · ${z.choix?.length ? z.choix.length + ' choisies' : 'comme le configurateur boutique'}</summary>
+        <div class="ligne" style="margin:8px 0">
+          <button class="btn" data-tout>Toutes</button>
+          <button class="btn" data-aucune>Aucune</button>
+          <label style="display:flex;gap:6px;align-items:center;flex:0 0 auto"><input type="checkbox" data-oeil ${z.oeil ? 'checked' : ''}> Zone d'yeux (perles œil)</label>
+        </div>
+        <div class="grille-choix">${couleursProposees({ oeil: z.oeil }, catalogue).map(c => `
+          <label class="choix" title="${esc(c.nom)}"><input type="checkbox" data-ref="${esc(c.ref)}" ${!z.choix?.length || z.choix.includes(c.ref) ? 'checked' : ''}>
+            <i class="perle-ech" style="background:${fondEchantillon(c)}"></i><span>${esc(c.nom)}</span><span>${esc(c.ref)}</span></label>`).join('')}</div>
+      </details>
+      <div class="ligne" style="justify-content:space-between">
+        <span class="mono">id « ${esc(z.id)} » · ${comptes[z.id] || 0} perles</span>
+        <button class="btn danger" data-suppr>Supprimer</button>
+      </div>
+    </div>`).join('') || '<p class="note">Aucune zone pour l\'instant.</p>';
+  $$('#listeZones .zone-carte').forEach(el => {
+    const z = modele.zones.find(x => x.id === el.dataset.z);
+    el.querySelector('[data-activer]').addEventListener('click', () => { zoneActive = z.id; afficherZones(); majPastilles(); choisirOutil('zone'); });
+    el.querySelector('[data-nom]').addEventListener('change', e => { z.nom = e.target.value.trim() || z.id; enregistrer(); majPastilles(); });
+    el.querySelector('[data-repere]').addEventListener('input', e => { z.repere = e.target.value; scene.definirCatalogue(catalogue); scene.definirModele(modele); ecrire(CLE_MODELE, modele); majPastilles(); });
+    el.querySelector('[data-defaut]').addEventListener('change', e => { memoriser(); z.defaut = e.target.value; enregistrer(); majPastilles(); });
+    const det = el.querySelector('[data-choix-det]');
+    if (zonesOuvertes.has(z.id)) det.open = true;
+    det.addEventListener('toggle', () => det.open ? zonesOuvertes.add(z.id) : zonesOuvertes.delete(z.id));
+    const majChoix = () => {
+      const refs = [...el.querySelectorAll('[data-ref]')].filter(i => i.checked).map(i => i.dataset.ref);
+      const total = el.querySelectorAll('[data-ref]').length;
+      z.choix = refs.length === total ? undefined : refs;          // tout coché = pas de restriction
+      if (!z.choix) delete z.choix;
+      ecrire(CLE_MODELE, modele);
+      el.querySelector('summary').textContent = 'Couleurs proposées au client · ' + (z.choix ? z.choix.length + ' choisies' : 'comme le configurateur boutique');
+    };
+    el.querySelectorAll('[data-ref]').forEach(i => i.addEventListener('change', majChoix));
+    el.querySelector('[data-tout]').addEventListener('click', () => { el.querySelectorAll('[data-ref]').forEach(i => i.checked = true); majChoix(); });
+    el.querySelector('[data-aucune]').addEventListener('click', () => { el.querySelectorAll('[data-ref]').forEach(i => i.checked = false); majChoix(); });
+    el.querySelector('[data-oeil]').addEventListener('change', e => {
+      memoriser(); z.oeil = e.target.checked || undefined; if (!z.oeil) delete z.oeil; delete z.choix;
+      const ok = couleursProposees(z, catalogue);
+      if (!ok.some(c => c.ref === z.defaut)) z.defaut = ok[0]?.ref;
+      enregistrer(); afficherZones();
+    });
+    armerSuppression(el.querySelector('[data-suppr]'), () => {
+      memoriser();
+      modele.zones = modele.zones.filter(x => x !== z);
+      modele.groupes.forEach(g => g.perles.forEach(b => { if (b.z === z.id) b.z = null; }));
+      if (zoneActive === z.id) zoneActive = modele.zones[0]?.id || null;
+      scene.definirModele(modele); enregistrer(); afficherZones(); majPastilles(); majSelectZone();
+    });
+  });
+  majSelectZone();
+}
+function majSelectZone() {
+  const opts = '<option value="">Aucune</option>' + modele.zones.map(z => `<option value="${esc(z.id)}">${esc(z.nom)}</option>`).join('');
+  const ok = v => modele.zones.some(z => z.id === v);
+  [['#nZone', ''], ['#nZoneD', 'dos'], ['#nZoneS', 'ventre'], ['#pZDos', 'dos'], ['#pZLigne', 'queue'], ['#pZVentre', 'ventre'],
+   ['#pZBouche', 'bouche'], ['#pZYeux', 'yeux'], ['#pZPupille', 'pupille'], ['#pZArete', 'arete']].forEach(([id, defaut]) => {
+    const v = $(id).value || defaut;
+    $(id).innerHTML = opts; $(id).value = ok(v) ? v : '';
+  });
+}
+$('#btAjouterZone').addEventListener('click', () => {
+  const nom = $('#nouvelleZone').value.trim(); if (!nom) return toast('Donne un nom à la zone');
+  let id = slug(nom), n = 2; while (modele.zones.some(z => z.id === id)) id = slug(nom) + '-' + n++;
+  memoriser();
+  modele.zones.push({ id, nom, defaut: catalogue[0]?.ref, repere: REPERES[modele.zones.length % REPERES.length] });
+  zoneActive = id; $('#nouvelleZone').value = '';
+  scene.definirModele(modele); enregistrer(); afficherZones(); majPastilles();
+});
+$('#btRegle').addEventListener('click', () => {
+  const g = groupe(); if (!g || !zoneActive) return toast('Choisis un groupe et une zone');
+  const base = g.technique === 'poisson' ? 0 : 1;   // les rangs poisson sont déjà numérotés depuis 1
+  const r0 = (+$('#rDe').value || 1) - base, r1 = (+$('#rA').value || 999) - base;
+  const a0 = +$('#aDe').value, a1 = +$('#aA').value;
+  const couche = $('#rCouche').value, sens = $('#rSens').value, partie = $('#rPartie').value;
+  const mpos = $('#rPos').value.trim().match(/^(\d+)(?:\s*-\s*(\d+))?$/);
+  const p0 = mpos ? +mpos[1] : 1, p1 = mpos ? +(mpos[2] || mpos[1]) : Infinity;
+  const dansAngle = a => a0 <= a1 ? (a >= a0 && a <= a1) : (a >= a0 || a <= a1);
+  const dansPos = b => {
+    if (!mpos) return true;
+    const n = b.n ?? g.perles.filter(x => x.r === b.r && x.l === b.l).length;
+    const g1 = b.c + 1, d1 = n - b.c;
+    const dedans = i => i >= p0 && i <= p1;
+    return sens === 'g' ? dedans(g1) : sens === 'd' ? dedans(d1) : (dedans(g1) || dedans(d1));
+  };
+  memoriser(); let n = 0;
+  g.perles.forEach(b => {
+    if ((b.r ?? 0) < r0 || (b.r ?? 0) > r1) return;
+    if (couche && !(couche === 'tige' ? /^tige/.test(b.l || '') : b.l === couche)) return;
+    if (partie && b.s !== partie) return;
+    if (b.a != null && !dansAngle(b.a)) return;
+    if (!dansPos(b)) return;
+    b.z = zoneActive; delete b.k; n++;
+  });
+  enregistrer(); afficherZones(); toast(n + ' perles attribuées');
+});
+$('#btToutGroupe').addEventListener('click', () => {
+  const g = groupe(); if (!g || !zoneActive) return; memoriser();
+  g.perles.forEach(b => { b.z = zoneActive; delete b.k; });
+  enregistrer(); afficherZones(); toast('Groupe entier attribué');
+});
+
+/* ---------- couleurs ---------- */
+function afficherCouleurs() {
+  $('#grilleCoul').innerHTML = catalogue.map(c => `
+    <button class="coul ${c.ref === refFixe ? 'actif' : ''}" data-ref="${esc(c.ref)}">
+      <i class="perle-ech" style="background:${fondEchantillon(c)}"></i>
+      <div><b>${esc(c.nom)}</b><span>${esc(c.ref)} · ${esc(FINITIONS[c.finition] || c.finition)}</span></div>
+    </button>`).join('');
+  $$('#grilleCoul .coul').forEach(b => b.addEventListener('click', () => {
+    refFixe = b.dataset.ref; afficherCouleurs(); majPastilles(); choisirOutil('fixe');
+  }));
+}
+function majPastilles() {
+  const pr = parRef();
+  const z = modele.zones.find(z => z.id === zoneActive);
+  $('#pastilleZone').style.background = z ? (z.repere || '#888') : 'transparent';
+  $('#libZone').textContent = z ? 'Zone : ' + z.nom : 'Peindre zone';
+  $('#pastilleFixe').style.background = fondEchantillon(pr[refFixe]);
+}
+function remplirTypes() {
+  const opts = Object.entries(TYPES_PERLES).map(([id, t]) => `<option value="${id}">${esc(t.nom)}</option>`).join('');
+  $('#nType').innerHTML = opts; $('#nType').value = 'rocaille-11';
+  $('#typePinceau').innerHTML = opts; $('#typePinceau').value = typePinceau;
+  $('#pTypePupille').innerHTML = Object.entries(TYPES_PERLES).filter(([id]) => /^rocaille|^delica/.test(id))
+    .map(([id, t]) => `<option value="${id}">${esc(t.nom)}</option>`).join('');
+  $('#pTypePupille').value = 'rocaille-11';
+}
+$('#typePinceau').addEventListener('change', e => { typePinceau = e.target.value; choisirOutil('type'); });
+function utiliserCatalogue(c, { silencieux = false } = {}) {
+  if (!c.length) return toast('Aucune couleur trouvée');
+  catalogue = completerCatalogue(c); ecrire(CLE_CAT, catalogue);
+  if (!c.some(x => x.ref === refFixe)) refFixe = c[0].ref;
+  scene.definirCatalogue(catalogue); afficherCouleurs(); afficherZones(); majPastilles();
+  if (!silencieux) toast(c.length + ' couleurs chargées');
+}
+$('#btCatJson').addEventListener('click', () => {
+  try { utiliserCatalogue(JSON.parse($('#catJson').value)); } catch { toast('JSON illisible : vérifie les crochets et guillemets'); }
+});
+$('#btSupabase').addEventListener('click', async () => {
+  const url = $('#sbUrl').value.replace(/\/$/, ''), cle = $('#sbCle').value.trim(), type = $('#sbType').value.trim();
+  if (!url || !cle) return toast('Renseigne l\'URL et la clé anon');
+  try {
+    const q = `${url}/rest/v1/materiaux?select=*${type ? '&type=eq.' + encodeURIComponent(type) : ''}`;
+    const r = await fetch(q, { headers: { apikey: cle, Authorization: 'Bearer ' + cle } });
+    if (!r.ok) throw new Error(r.status);
+    utiliserCatalogue(catalogueDepuisMateriaux(await r.json()));
+  } catch (e) { toast('Chargement impossible (' + e.message + '). Lance l\'éditeur depuis ton site.'); }
+});
+
+/* ---------- fichier ---------- */
+function majFichier() {
+  $('#jsonModele').value = JSON.stringify(modele);
+  const pr = parRef();
+  const lignes = compterPerles(modele).sort((a, b) => b.n - a.n);
+  $('#tableCompte').innerHTML = '<tr><th>Couleur</th><th>Perle</th><th class="n">Qté</th></tr>' +
+    lignes.map(l => `<tr><td>${esc(pr[l.ref]?.nom || l.ref)} <span class="mono">${esc(l.ref)}</span></td><td>${esc(TYPES_PERLES[l.type]?.nom || l.type)}</td><td class="n">${l.n}</td></tr>`).join('');
+}
+$('#btCopier').addEventListener('click', async () => {
+  const txt = JSON.stringify(modele);
+  try { await navigator.clipboard.writeText(txt); toast('JSON copié'); }
+  catch { $('#jsonModele').value = txt; $('#jsonModele').select(); toast('Texte sélectionné : copie-le'); }
+});
+$('#btTelecharger').addEventListener('click', () => {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(modele, null, 1)], { type: 'application/json' }));
+  a.download = slug(modele.nom || 'modele') + '.json'; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+});
+function chargerModele(m) {
+  if (!m || !Array.isArray(m.groupes) || !Array.isArray(m.zones)) return toast('Ce fichier n\'est pas un modèle de perles');
+  memoriser(); modele = m; gActif = 0; zoneActive = m.zones[0]?.id || null;
+  scene.definirModele(modele, { cadrer: true }); ecrire(CLE_MODELE, modele); toutAfficher(); toast('Modèle chargé');
+  // l'identifiant de publication suit le modèle chargé (sinon on écraserait le modèle précédent)
+  const champSlug = document.querySelector('#sbSlug');
+  if (champSlug) champSlug.value = m.slug || slug(m.nom || 'modele');
+}
+$('#fichier').addEventListener('change', async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try { chargerModele(JSON.parse(await f.text())); } catch { toast('Fichier illisible'); }
+  e.target.value = '';
+});
+$('#btImporterTexte').addEventListener('click', () => { try { chargerModele(JSON.parse($('#jsonModele').value)); } catch { toast('JSON illisible'); } });
+$('#btExemple').addEventListener('click', () => chargerModele(modeleDemo()));
+$('#btExempleArete').addEventListener('click', () => chargerModele(modeleAreteDemo()));
+$('#btExempleLettres').addEventListener('click', () => chargerModele(modeleLettresDemo()));
+$('#btExempleArgile').addEventListener('click', () => chargerModele(modeleArgileDemo()));
+$('#btExempleCroix').addEventListener('click', () => chargerModele(modeleChainmailDemo()));
+$('#btExempleCulture').addEventListener('click', () => chargerModele(modelePerleCultureDemo()));
+armerSuppression($('#btVide'), () => chargerModele({ version: 1, nom: 'Nouveau modèle', unite: 'mm', zones: [], groupes: [] }));
+$('#nomModele').addEventListener('change', e => { modele.nom = e.target.value.trim() || 'Sans nom'; ecrire(CLE_MODELE, modele); });
+
+/* ---------- onglet Client : prix, parties, options ---------- */
+let apercuOptions = {};
+const optFermoir = () => (modele.options ||= []).find(o => o.type === 'fermoir');
+const optsPerle = () => (modele.options ||= []).filter(o => o.type === 'perle');
+function sauverClient() { ecrire(CLE_MODELE, modele); scene.definirModele(modele); scene.definirOptions(apercuOptions); majPrixApercu(); }
+function majPrixApercu() {
+  $('#cPrixApercu').textContent = 'Prix affiché avec ces choix : ' +
+    prixConfiguration(modele, apercuOptions).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }) +
+    (modele.bij_ref ? ' (le pv du bijou ' + modele.bij_ref + ' remplacera le prix de base en boutique)' : '');
+}
+function afficherClient() {
+  $('#cBijRef').value = modele.bij_ref || '';
+  $('#cPrix').value = modele.prix ?? '';
+  $('#cZones').innerHTML = modele.zones.map(z => `
+    <div class="zone-carte" data-z="${esc(z.id)}">
+      <label style="display:flex;gap:6px;align-items:center;color:var(--fg);font-weight:700"><input type="checkbox" data-client ${z.client !== false ? 'checked' : ''}> ${esc(z.nom)}</label>
+      <div class="ligne">
+        <label>Groupe (option)<input type="text" data-groupe value="${esc(z.groupe || '')}" placeholder="ex. Yeux"></label>
+        <label>Libellé dans le groupe<input type="text" data-libelle value="${esc(z.libelle || '')}" placeholder="ex. Centre"></label>
+      </div>
+    </div>`).join('') || '<p class="note">Crée d\'abord des zones.</p>';
+  $$('#cZones [data-z]').forEach(el => {
+    const z = modele.zones.find(x => x.id === el.dataset.z);
+    el.querySelector('[data-client]').addEventListener('change', e => { z.client = e.target.checked ? undefined : false; if (z.client === undefined) delete z.client; sauverClient(); });
+    el.querySelector('[data-groupe]').addEventListener('change', e => { z.groupe = e.target.value.trim() || undefined; sauverClient(); });
+    el.querySelector('[data-libelle]').addEventListener('change', e => { z.libelle = e.target.value.trim() || undefined; sauverClient(); });
+  });
+  // fermoirs
+  const of = optFermoir();
+  $('#cFermoirOn').checked = !!of;
+  $('#cFermoirs').hidden = !of;
+  $('#cFermoirs').innerHTML = fermoirs.filter(f => !estAccroche(f)).map(f => {
+    const c = of?.choix?.find(x => x.ref === f.ref);
+    return `<div class="zone-carte" data-f="${esc(f.ref)}">
+      <label style="display:flex;gap:6px;align-items:center;color:var(--fg);font-weight:700"><input type="checkbox" data-propose ${c ? 'checked' : ''}> ${esc(f.nom)} <span class="mono">${esc(f.ref)} · ${f.taille} mm</span></label>
+      <div class="ligne">
+        <label>Libellé court<input type="text" data-libelle value="${esc(c?.libelle || '')}" placeholder="${f.taille} mm"></label>
+        <label>Supplément (€)<input type="number" data-supp step="0.5" min="0" value="${c?.supplement ?? 0}"></label>
+        <label style="display:flex;gap:6px;align-items:center;flex:0 0 auto"><input type="radio" name="fDefaut" data-defaut ${of?.defaut === f.ref ? 'checked' : ''}> Par défaut</label>
+      </div>
+    </div>`;
+  }).join('');
+  $$('#cFermoirs [data-f]').forEach(el => {
+    const ref = el.dataset.f;
+    const maj = () => {
+      const o = optFermoir(); if (!o) return;
+      const on = el.querySelector('[data-propose]').checked;
+      o.choix = (o.choix || []).filter(x => x.ref !== ref);
+      if (on) o.choix.push({ ref, libelle: el.querySelector('[data-libelle]').value.trim() || undefined, supplement: +el.querySelector('[data-supp]').value || 0 });
+      o.choix.sort((a, b) => fermoirs.findIndex(f => f.ref === a.ref) - fermoirs.findIndex(f => f.ref === b.ref));
+      if (el.querySelector('[data-defaut]').checked) o.defaut = ref;
+      if (!o.choix.some(x => x.ref === o.defaut)) o.defaut = o.choix[0]?.ref;
+      sauverClient();
+    };
+    el.querySelectorAll('input').forEach(i => i.addEventListener('change', maj));
+  });
+  // perles en option
+  const typesOpt = Object.entries(TYPES_PERLES).map(([id, t]) => [id, t.nom]);
+  $('#cPerles').innerHTML = optsPerle().map(o => `
+    <div class="zone-carte" data-o="${esc(o.id)}">
+      <div class="ligne">
+        <label>Nom affiché<input type="text" data-nom value="${esc(o.nom || '')}"></label>
+        <label>Perle<select data-perle>${typesOpt.map(([id, n]) => `<option value="${id}" ${id === o.perle ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label>
+      </div>
+      <div class="ligne">
+        <label>Catégorie du listing<input type="text" data-cat value="${esc(o.categorie || '')}" placeholder="ex. étoile"></label>
+        <label>Supplément (€)<input type="number" data-supp step="0.5" min="0" value="${o.supplement ?? 0}"></label>
+      </div>
+      <div class="ligne" style="justify-content:space-between">
+        <span class="mono">${catalogue.filter(c => !o.categorie || (c.categorie || '').toLowerCase().includes(o.categorie.toLowerCase())).length} couleurs trouvées</span>
+        <button class="btn danger" data-suppr>Retirer l'option</button>
+      </div>
+    </div>`).join('') || '<p class="note">Aucune perle en option.</p>';
+  $$('#cPerles [data-o]').forEach(el => {
+    const o = optsPerle().find(x => x.id === el.dataset.o);
+    el.querySelector('[data-nom]').addEventListener('change', e => { o.nom = e.target.value.trim() || 'Perle'; sauverClient(); });
+    el.querySelector('[data-perle]').addEventListener('change', e => { o.perle = e.target.value; sauverClient(); });
+    el.querySelector('[data-cat]').addEventListener('change', e => { o.categorie = e.target.value.trim() || undefined; sauverClient(); afficherClient(); });
+    el.querySelector('[data-supp]').addEventListener('change', e => { o.supplement = +e.target.value || 0; sauverClient(); });
+    armerSuppression(el.querySelector('[data-suppr]'), () => { modele.options = modele.options.filter(x => x !== o); delete apercuOptions[o.id]; sauverClient(); afficherClient(); });
+  });
+  // aperçu
+  const optsApercu = [];
+  if (of) optsApercu.push(`<label>Fermoir<select data-ap="${esc(of.id)}">${(of.choix || []).map(c => {
+    const f = fermoirs.find(x => x.ref === c.ref); return `<option value="${esc(c.ref)}" ${(apercuOptions[of.id] || of.defaut) === c.ref ? 'selected' : ''}>${esc(c.libelle || (f ? f.taille + ' mm' : c.ref))}</option>`; }).join('')}</select></label>`);
+  for (const o of optsPerle()) {
+    const cs = catalogue.filter(c => !o.categorie || (c.categorie || '').toLowerCase().includes(o.categorie.toLowerCase()));
+    optsApercu.push(`<label>${esc(o.nom)}<select data-ap="${esc(o.id)}"><option value="">Sans</option>${cs.map(c => `<option value="${esc(c.ref)}" ${apercuOptions[o.id] === c.ref ? 'selected' : ''}>${esc(c.nom)}</option>`).join('')}</select></label>`);
+  }
+  $('#cApercu').innerHTML = optsApercu.join('') || '<p class="note">Aucune option.</p>';
+  $$('#cApercu [data-ap]').forEach(sel => sel.addEventListener('change', () => {
+    apercuOptions[sel.dataset.ap] = sel.value || null; scene.definirOptions(apercuOptions); majPrixApercu();
+  }));
+  majPrixApercu();
+}
+$('#cBijRef').addEventListener('change', e => { modele.bij_ref = e.target.value.trim(); sauverClient(); });
+$('#cPrix').addEventListener('change', e => { modele.prix = e.target.value === '' ? undefined : +e.target.value; sauverClient(); });
+$('#cFermoirOn').addEventListener('change', e => {
+  modele.options ||= [];
+  if (e.target.checked && !optFermoir()) {
+    const base = groupe()?.accessoires?.[0]?.ref || fermoirs[0]?.ref;
+    modele.options.unshift({ id: 'fermoir', type: 'fermoir', nom: 'Fermoir', defaut: base,
+      choix: fermoirs.filter(f => f.type === 'mousqueton').map(f => ({ ref: f.ref, supplement: 0 })) });
+  } else if (!e.target.checked) { modele.options = modele.options.filter(o => o.type !== 'fermoir'); delete apercuOptions.fermoir; }
+  sauverClient(); afficherClient();
+});
+const optAccroche = () => (modele.options ||= []).find(o => o.type === 'accroche');
+function afficherAccroches() {
+  const oa = optAccroche();
+  $('#cAccOn').checked = !!oa; $('#cAccBloc').hidden = !oa;
+  if (!oa) return;
+  $('#cAccMax').value = oa.max ?? '';
+  const pieces = fermoirs.filter(estAccroche);
+  const opts = (sel, vide) => (vide ? '<option value="">Aucune</option>' : '') + pieces.map(f => `<option value="${esc(f.ref)}" ${f.ref === sel ? 'selected' : ''}>${esc(f.nom)} · ${f.taille} mm (${esc(f.ref)})</option>`).join('');
+  $('#cAccroches').innerHTML = (oa.choix || []).map((c, i) => `
+    <div class="zone-carte" data-a="${i}">
+      <div class="ligne">
+        <label>Libellé client<input type="text" data-lib value="${esc(c.libelle || '')}"></label>
+        <label>Supplément (€)<input type="number" data-supp step="0.5" min="0" value="${c.supplement ?? 0}"></label>
+      </div>
+      <div class="ligne">
+        <label>Pièce 1 (porte les breloques)<select data-p1>${opts(c.pieces?.[0])}</select></label>
+        <label>Pièce 2 (au-dessus)<select data-p2>${opts(c.pieces?.[1], true)}</select></label>
+      </div>
+      <button class="btn danger" data-suppr style="justify-self:start">Retirer ce choix</button>
+    </div>`).join('') || '<p class="note">Aucun choix pour l\'instant.</p>';
+  const of = oa.offre || {};
+  $('#oActive').checked = !!of.active;
+  $('#oLib').value = of.libelle || '';
+  $('#oPiece').innerHTML = opts(of.piece);
+  $('#oMin').value = of.min ?? 2; $('#oPrixMin').value = of.prixMin ?? 15; $('#oRemise').value = of.remise ?? 1.5;
+  $$('#cAccroches [data-a]').forEach(el => {
+    const c = oa.choix[+el.dataset.a];
+    const maj = () => {
+      c.libelle = el.querySelector('[data-lib]').value.trim() || 'Porte-clés';
+      c.supplement = +el.querySelector('[data-supp]').value || 0;
+      c.pieces = [el.querySelector('[data-p1]').value, el.querySelector('[data-p2]').value].filter(Boolean);
+      sauverClient();
+    };
+    el.querySelectorAll('input, select').forEach(i => i.addEventListener('change', maj));
+    armerSuppression(el.querySelector('[data-suppr]'), () => { oa.choix.splice(+el.dataset.a, 1); sauverClient(); afficherAccroches(); });
+  });
+}
+$('#cAccOn').addEventListener('change', e => {
+  modele.options ||= [];
+  if (e.target.checked && !optAccroche()) {
+    const p = fermoirs.filter(estAccroche);
+    modele.options.push({ id: 'accroche', type: 'accroche', nom: 'Porte-clés & bundle', max: 3,
+      choix: p.map(f => ({ id: nouvelId('acc'), libelle: f.nom, pieces: [f.ref], supplement: 0 })) });
+  } else if (!e.target.checked) modele.options = modele.options.filter(o => o.type !== 'accroche');
+  sauverClient(); afficherAccroches();
+});
+['#oActive', '#oLib', '#oPiece', '#oMin', '#oPrixMin', '#oRemise'].forEach(id => $(id).addEventListener('change', () => {
+  const oa = optAccroche(); if (!oa) return;
+  oa.offre = { active: $('#oActive').checked, libelle: $('#oLib').value.trim() || 'Fermoir rond offert', piece: $('#oPiece').value,
+    min: +$('#oMin').value || 2, prixMin: +$('#oPrixMin').value || 0, remise: +$('#oRemise').value || 0 };
+  sauverClient();
+}));
+$('#cAccMax').addEventListener('change', e => { const oa = optAccroche(); if (oa) { const v = +e.target.value; if (v >= 1) oa.max = v; else delete oa.max; sauverClient(); } });
+$('#btAjoutAcc').addEventListener('click', () => {
+  const oa = optAccroche(); if (!oa) return;
+  const f = fermoirs.find(estAccroche);
+  (oa.choix ||= []).push({ id: nouvelId('acc'), libelle: f?.nom || 'Porte-clés', pieces: f ? [f.ref] : [], supplement: 0 });
+  sauverClient(); afficherAccroches();
+});
+
+$('#btAjoutOptPerle').addEventListener('click', () => {
+  modele.options ||= [];
+  let id = 'etoile', n = 2; while (modele.options.some(o => o.id === id)) id = 'perle-' + n++;
+  modele.options.push({ id, type: 'perle', nom: id === 'etoile' ? 'Perle étoile' : 'Perle', perle: 'etoile-8', categorie: 'étoile', supplement: 0 });
+  sauverClient(); afficherClient();
+});
+
+/* ---------- boutique (Supabase) ---------- */
+let sbSession = null;
+async function majBoutique() {
+  if (!sb) {
+    $('#etatBoutique').textContent = 'Boutique non reliée : renseigne perles-config.js avec l\'URL et la clé de ton projet Supabase. En attendant, le modèle est gardé sur cet appareil.';
+    $('#blocConnexion').hidden = $('#blocPublier').hidden = true; return;
+  }
+  const { data } = await sb.auth.getSession();
+  sbSession = data.session;
+  $('#blocConnexion').hidden = !!sbSession;
+  $('#blocPublier').hidden = !sbSession;
+  $('#etatBoutique').textContent = sbSession ? 'Connectée : ' + sbSession.user.email : 'Connecte-toi avec ton compte administrateur pour enregistrer ou publier.';
+  if (!$('#sbSlug').value) $('#sbSlug').value = modele.slug || slug(modele.nom || 'modele');
+  if (sbSession) listerBoutique();
+}
+async function listerBoutique() {
+  try {
+    const l = await listerModelesBoutique(sb);
+    $('#listeBoutique').innerHTML = l.map(m => `
+      <div class="item" data-slug="${esc(m.slug)}">
+        <span class="mono">${m.publie ? 'publié' : 'brouillon'}</span>
+        <span class="titre">${esc(m.nom)} <span class="mono">${esc(m.slug)}</span></span>
+        <button class="btn" data-ouvrir>Ouvrir</button>
+      </div>`).join('') || '<p class="note">Aucun modèle enregistré pour l\'instant.</p>';
+    $$('#listeBoutique [data-ouvrir]').forEach(b => b.addEventListener('click', async () => {
+      const sl = b.closest('[data-slug]').dataset.slug;
+      try { const m = await chargerModeleBoutique(sb, sl, { brouillon: true }); m.slug = sl; chargerModele(m); $('#sbSlug').value = sl; }
+      catch (e) { toast('Ouverture impossible : ' + e.message); }
+    }));
+  } catch (e) { $('#listeBoutique').innerHTML = `<p class="note">Lecture impossible : ${esc(e.message)}. As-tu lancé sql-modeles-3d.sql ?</p>`; }
+}
+async function enregistrerBoutique(publie) {
+  const sl = slug($('#sbSlug').value || modele.nom || 'modele');
+  modele.slug = sl; $('#sbSlug').value = sl;
+  try {
+    await enregistrerModeleBoutique(sb, { slug: sl, modele, publie, bij_id: $('#sbBijou').value.trim() || null });
+    toast(publie ? 'Publié en boutique' : 'Brouillon enregistré'); listerBoutique();
+  } catch (e) {
+    toast(/row-level|permission|policy/i.test(e.message)
+      ? 'Refusé : ce compte n\'est pas l\'administrateur déclaré dans sql-modeles-3d.sql'
+      : 'Enregistrement impossible : ' + e.message);
+  }
+}
+$('#btConnexion').addEventListener('click', async () => {
+  const { error } = await sb.auth.signInWithPassword({ email: $('#sbEmail').value.trim(), password: $('#sbMdp').value });
+  $('#sbMdp').value = '';
+  if (error) return toast('Connexion refusée : vérifie l\'e-mail et le mot de passe');
+  majBoutique();
+});
+$('#btDeconnexion').addEventListener('click', async () => { await sb.auth.signOut(); majBoutique(); });
+$('#btBrouillon').addEventListener('click', () => enregistrerBoutique(false));
+$('#btPublier').addEventListener('click', () => enregistrerBoutique(true));
+async function catalogueDepuisBoutique() {
+  if (!sb) return;
+  try {
+    const c = await chargerCatalogueBoutique(sb);
+    if (!c.length) return;
+    await affinerCouleursDepuisPhotos(c);
+    try {
+      const f = await chargerFermoirsBoutique(sb);
+      if (f.length) { fermoirs = f; scene.definirFermoirs(f); remplirFermoirs(); }
+    } catch (e) { console.warn('Fermoirs indisponibles', e); }
+    modele = resoudreDefauts(modele, c, fermoirs);       // « bleu 2 » → sa vraie ref #PR…, fermoir → ref #FM…
+    scene.definirModele(modele); ecrire(CLE_MODELE, modele);
+    utiliserCatalogue(c, { silencieux: true });
+    $('#etatBoutique').insertAdjacentText('beforeend', ` · ${c.length} perles de ta base chargées`);
+  }
+  catch (e) { console.warn('Catalogue boutique indisponible', e); }
+}
+
+/* ---------- démarrage ---------- */
+function toutAfficher() {
+  $('#nomModele').value = modele.nom || '';
+  afficherGroupes(); afficherTransfo(); afficherZones(); afficherCouleurs(); afficherBiblio(); majPastilles(); majCompteur();
+}
+remplirTypes(); remplirFermoirs(); majFormeNouv(); toutAfficher(); choisirOutil('orbite');
+majBoutique(); catalogueDepuisBoutique();
+window.atelier = { scene, get modele() { return modele; } };   // pour la console
+</script>
+</body>
+</html>
