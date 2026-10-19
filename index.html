@@ -2577,7 +2577,7 @@ function switchCreatTab(tab) {
    Une commande Wix contenant une « Personnalisation sur mesure BN-P-… » crée ici une production
    « En cours » par breloque (fonction commander_personnalisation de sql-modeles-3d.sql),
    avec le n° de personnalisation (perso) et la note atelier (perso_note, avec les références). */
-const PERSO_FICHE_URL = 'https://alxik-bonanodi.github.io/boutique/commandes-perso.html';
+const PERSO_FICHE_URL = 'https://alxik-bonanodi.github.io/gestion-atelier/configurateur/commandes-perso.html';
 const escPerso = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 function renderPersoAFaire() {
   const aFaire = PRODS.filter(p => p.perso && p.statut === 'en_cours').sort((a, b) => String(a.date).localeCompare(String(b.date)));
