@@ -428,6 +428,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
       <div id="ctab-perso" onclick="switchCreatTab('perso')" class="gtab">✨ Sur mesure</div>
       <div id="ctab-m3d" onclick="switchCreatTab('m3d')" class="gtab">🧊 Modèles 3D</div>
       <div id="ctab-cfg" onclick="switchCreatTab('cfg')" class="gtab">👁 Configurateur</div>
+      <div id="ctab-rup" onclick="switchCreatTab('rup')" class="gtab">📦 Ruptures</div>
     </div>
   </div>
 
@@ -484,6 +485,10 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
       <button class="btn btn-xs btn-ghost" onclick="document.getElementById('frame-cfg').src='configurateur/configurateur-3d.html?apercu=1&t='+Date.now()">↻ Recharger</button>
     </div>
     <iframe id="frame-cfg" title="Configurateur 3D" style="display:block;width:100%;height:calc(100vh - 100px);border:0"></iframe>
+  </div>
+  <!-- Panel Ruptures : éléments du configurateur à marquer épuisés -->
+  <div id="cpanel-rup" style="display:none">
+    <iframe id="frame-rup" title="Ruptures du configurateur" style="display:block;width:100%;height:calc(100vh - 56px);border:0"></iframe>
   </div>
   <!-- Panel Modèles 3D : éditeur des modèles du configurateur -->
   <div id="cpanel-m3d" style="display:none">
@@ -2620,7 +2625,7 @@ let CUR_MAT_TYPE = 'tout';
 let CUR_STOCK_FLT = 'all';
 
 function switchCreatTab(tab, numeroPerso) {
-  ['bij','prod','perso','m3d','cfg'].forEach(t => {
+  ['bij','prod','perso','m3d','cfg','rup'].forEach(t => {
     document.getElementById('cpanel-'+t).style.display = t===tab ? 'block' : 'none';
     document.getElementById('ctab-'+t).className = 'gtab'+(t===tab?' gtab-on':'');
   });
@@ -2630,6 +2635,9 @@ function switchCreatTab(tab, numeroPerso) {
     const f = document.getElementById('frame-perso');
     const url = 'configurateur/commandes-perso.html' + (numeroPerso ? '?numero=' + encodeURIComponent(numeroPerso) : '');
     if(numeroPerso || !f.getAttribute('src')) f.setAttribute('src', url);
+  }
+  if(tab==='rup') {                                  // rechargé à chaque ouverture : stocks à jour
+    document.getElementById('frame-rup').setAttribute('src', 'configurateur/stock-configurateur.html?t=' + Date.now());
   }
   if(tab==='cfg') {
     const f = document.getElementById('frame-cfg');
