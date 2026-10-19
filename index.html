@@ -414,6 +414,8 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
     <div style="display:flex;border-bottom:2px solid var(--border)">
       <div id="ctab-bij" onclick="switchCreatTab('bij')" class="gtab gtab-on">💎 Bijoux</div>
       <div id="ctab-prod" onclick="switchCreatTab('prod')" class="gtab">🏭 Productions</div>
+      <div id="ctab-perso" onclick="switchCreatTab('perso')" class="gtab">✨ Sur mesure</div>
+      <div id="ctab-m3d" onclick="switchCreatTab('m3d')" class="gtab">🧊 Modèles 3D</div>
     </div>
   </div>
 
@@ -454,6 +456,15 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
         <div id="creat-prod-list-body"><div class="loading">Chargement…</div></div>
       </div>
     </div>
+  </div>
+
+  <!-- Panel Sur mesure : personnalisations du configurateur 3D (fiches atelier, bons, factures) -->
+  <div id="cpanel-perso" style="display:none">
+    <iframe id="frame-perso" title="Personnalisations sur mesure" style="display:block;width:100%;height:calc(100vh - 56px);border:0"></iframe>
+  </div>
+  <!-- Panel Modèles 3D : éditeur des modèles du configurateur -->
+  <div id="cpanel-m3d" style="display:none">
+    <iframe id="frame-m3d" title="Modèles 3D" style="display:block;width:100%;height:calc(100vh - 56px);border:0"></iframe>
   </div>
 </div>
   <button class="fab-top" id="fab-top-bij" onclick="document.getElementById('main-area').scrollTop=0" title="Haut de page">↑</button>
@@ -2564,20 +2575,29 @@ function runDiag() {
 let CUR_MAT_TYPE = 'tout';
 let CUR_STOCK_FLT = 'all';
 
-function switchCreatTab(tab) {
-  const isBij = tab==='bij';
-  document.getElementById('cpanel-bij').style.display = isBij?'block':'none';
-  document.getElementById('cpanel-prod').style.display = isBij?'none':'block';
-  document.getElementById('ctab-bij').className = 'gtab'+(isBij?' gtab-on':'');
-  document.getElementById('ctab-prod').className = 'gtab'+(!isBij?' gtab-on':'');
-  if(!isBij) renderCreatProd();
+function switchCreatTab(tab, numeroPerso) {
+  ['bij','prod','perso','m3d'].forEach(t => {
+    document.getElementById('cpanel-'+t).style.display = t===tab ? 'block' : 'none';
+    document.getElementById('ctab-'+t).className = 'gtab'+(t===tab?' gtab-on':'');
+  });
+  if(tab==='prod') renderCreatProd();
+  // pages du configurateur, chargées seulement à la première ouverture (ou pour ouvrir une personnalisation précise)
+  if(tab==='perso') {
+    const f = document.getElementById('frame-perso');
+    const url = 'configurateur/commandes-perso.html' + (numeroPerso ? '?numero=' + encodeURIComponent(numeroPerso) : '');
+    if(numeroPerso || !f.getAttribute('src')) f.setAttribute('src', url);
+  }
+  if(tab==='m3d') {
+    const f = document.getElementById('frame-m3d');
+    if(!f.getAttribute('src')) f.setAttribute('src', 'configurateur/editeur-perles.html');
+  }
 }
 
 /* ── Personnalisations sur mesure (configurateur 3D) ──
    Une commande Wix contenant une « Personnalisation sur mesure BN-P-… » crée ici une production
    « En cours » par breloque (fonction commander_personnalisation de sql-modeles-3d.sql),
    avec le n° de personnalisation (perso) et la note atelier (perso_note, avec les références). */
-const PERSO_FICHE_URL = 'https://alxik-bonanodi.github.io/gestion-atelier/configurateur/commandes-perso.html';
+const ouvrirPerso = numero => switchCreatTab('perso', numero);   // fiche atelier dans l'onglet « Sur mesure »
 const escPerso = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 function renderPersoAFaire() {
   const aFaire = PRODS.filter(p => p.perso && p.statut === 'en_cours').sort((a, b) => String(a.date).localeCompare(String(b.date)));
@@ -2592,7 +2612,7 @@ function renderPersoAFaire() {
           <span>${b ? escPerso(b.nom + (b.variante ? ' · ' + b.variante : '')) : ''}</span>
           ${p.perso_commande ? `<span class="badge bp">Commande Wix ${escPerso(p.perso_commande)}</span>` : ''}
           <span style="flex:1"></span>
-          <a class="btn btn-xs btn-ghost" href="${PERSO_FICHE_URL}?numero=${encodeURIComponent(p.perso)}" target="_blank">Fiche atelier</a>
+          <button class="btn btn-xs btn-ghost" onclick="ouvrirPerso('${escPerso(p.perso)}')">Fiche atelier</button>
           <button class="btn btn-xs btn-p" onclick="persoProduite('${p.id}')">✅ Produite</button>
         </div>
         <div style="white-space:pre-wrap;color:var(--muted)">${escPerso(p.perso_note || '')}</div>
@@ -4945,7 +4965,7 @@ function renderRent() {
                 <span class="badge bm">${p.date||'--'}</span>
                 <span><b>${n(p.qty)}</b> pcs</span>
                 <span class="badge ${(!p.statut||p.statut==='produit')?'bgn':'bp'}">${(!p.statut||p.statut==='produit')?'✅ Produit':'🔧 En cours'}</span>
-                ${p.perso?`<a class="badge bm" href="${PERSO_FICHE_URL}?numero=${encodeURIComponent(p.perso)}" target="_blank" onclick="event.stopPropagation()" title="${escPerso(p.perso_note||'')}">✨ ${escPerso(p.perso)}</a>`:''}
+                ${p.perso?`<span class="badge bm" style="cursor:pointer" onclick="event.stopPropagation();ouvrirPerso('${escPerso(p.perso)}')" title="${escPerso(p.perso_note||'')}">✨ ${escPerso(p.perso)}</span>`:''}
                 <button class="btn btn-xs btn-ghost" onclick="event.stopPropagation();openEditProd('${p.id}')">✎ Modifier</button>
                 <button class="btn btn-xs btn-red" onclick="event.stopPropagation();delProd('${p.id}')">✕</button>
               </div>`).join('')}
