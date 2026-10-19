@@ -2573,6 +2573,37 @@ function switchCreatTab(tab) {
   if(!isBij) renderCreatProd();
 }
 
+/* ── Personnalisations sur mesure (configurateur 3D) ──
+   Une commande Wix contenant une « Personnalisation sur mesure BN-P-… » crée ici une production
+   « En cours » par breloque (fonction commander_personnalisation de sql-modeles-3d.sql),
+   avec le n° de personnalisation (perso) et la note atelier (perso_note, avec les références). */
+const PERSO_FICHE_URL = 'https://alxik-bonanodi.github.io/boutique/commandes-perso.html';
+const escPerso = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function renderPersoAFaire() {
+  const aFaire = PRODS.filter(p => p.perso && p.statut === 'en_cours').sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  if (!aFaire.length) return '';
+  return `<div class="card" style="margin-bottom:14px;padding:12px 14px;border:1.5px solid var(--purple)">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--purple);margin-bottom:8px">✨ Personnalisations à faire · ${aFaire.length}</div>
+    ${aFaire.map(p => { const b = getBij(p.bij_id);
+      return `<div style="display:grid;gap:4px;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <span class="badge bm">${escPerso(p.date || '--')}</span>
+          <b>${escPerso(p.perso)}</b>
+          <span>${b ? escPerso(b.nom + (b.variante ? ' · ' + b.variante : '')) : ''}</span>
+          ${p.perso_commande ? `<span class="badge bp">Commande Wix ${escPerso(p.perso_commande)}</span>` : ''}
+          <span style="flex:1"></span>
+          <a class="btn btn-xs btn-ghost" href="${PERSO_FICHE_URL}?numero=${encodeURIComponent(p.perso)}" target="_blank">Fiche atelier</a>
+          <button class="btn btn-xs btn-p" onclick="persoProduite('${p.id}')">✅ Produite</button>
+        </div>
+        <div style="white-space:pre-wrap;color:var(--muted)">${escPerso(p.perso_note || '')}</div>
+      </div>`; }).join('')}
+  </div>`;
+}
+async function persoProduite(id) {
+  const ok = await sbUpdate('productions', id, { statut: 'produit' });
+  if (ok) { const p = PRODS.find(x => x.id === id); if (p) p.statut = 'produit'; renderRent(); toast('Personnalisation produite ✓', 'ok'); }
+}
+
 function renderCreatProd() {
   renderRent();
 }
@@ -4914,6 +4945,7 @@ function renderRent() {
                 <span class="badge bm">${p.date||'--'}</span>
                 <span><b>${n(p.qty)}</b> pcs</span>
                 <span class="badge ${(!p.statut||p.statut==='produit')?'bgn':'bp'}">${(!p.statut||p.statut==='produit')?'✅ Produit':'🔧 En cours'}</span>
+                ${p.perso?`<a class="badge bm" href="${PERSO_FICHE_URL}?numero=${encodeURIComponent(p.perso)}" target="_blank" onclick="event.stopPropagation()" title="${escPerso(p.perso_note||'')}">✨ ${escPerso(p.perso)}</a>`:''}
                 <button class="btn btn-xs btn-ghost" onclick="event.stopPropagation();openEditProd('${p.id}')">✎ Modifier</button>
                 <button class="btn btn-xs btn-red" onclick="event.stopPropagation();delProd('${p.id}')">✕</button>
               </div>`).join('')}
@@ -4923,6 +4955,7 @@ function renderRent() {
     });
     prodHtml+='</tbody></table></div>';
   }
+  prodHtml = renderPersoAFaire() + prodHtml;
   // Écrire dans les deux containers (prod-list-body peut ne pas exister)
   ['prod-list-body','creat-prod-list-body'].forEach(id=>{
     const el=document.getElementById(id);
