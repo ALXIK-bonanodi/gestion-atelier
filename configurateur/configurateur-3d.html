@@ -233,6 +233,18 @@ label.champ input:focus, label.champ textarea:focus { border-color: var(--prune)
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+  /* Si le configurateur ne se charge pas, la raison s'affiche à la place de « Préparation des perles… » */
+  (function () {
+    const montrer = m => {
+      const el = document.getElementById('charge');
+      if (el && !el.hidden) el.innerHTML = '<span style="max-width:34ch;text-align:center;color:#a1272d">Le configurateur n\'a pas pu se charger.<br><small>' +
+        String(m).replace(/[<>&]/g, '') + '</small><br><small>Recharge la page avec Cmd+Maj+R.</small></span>';
+    };
+    addEventListener('error', e => montrer(e.message || e.error || 'erreur de chargement'));
+    addEventListener('unhandledrejection', e => montrer(e.reason?.message || e.reason));
+  })();
+</script>
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
@@ -357,8 +369,8 @@ import {
   notePersonnalisation, chargerPersonnalisation, modeleArgileDemo, completerCatalogue, apercuArgile, estArgile,
   modeleChainmailDemo, estChainmail, chargerBijouxBoutique, bijouBreloque, modelePerleCultureDemo, estPerleCulture, apercuChainmail,
   correspondCategorie, texteCatalogue, ordreModeles,
-} from './bead-core.js';
-import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER } from './perles-config.js';
+} from './bead-core.js?v=83bed377';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER } from './perles-config.js?v=e1bf13ba';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
