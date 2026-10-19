@@ -236,15 +236,21 @@ label.champ input:focus, label.champ textarea:focus { border-color: var(--prune)
 <script>
   /* Si le configurateur ne se charge pas, la raison s'affiche à la place de « Préparation des perles… » */
   (function () {
-    const montrer = m => {
+    const montrer = (m, conseil = true) => {
       const el = document.getElementById('charge');
       if (el && !el.hidden) el.innerHTML = '<span style="max-width:34ch;text-align:center;color:#a1272d">Le configurateur n\'a pas pu se charger.<br><small>' +
-        String(m).replace(/[<>&]/g, '') + '</small><br><small>Recharge la page avec Cmd+Maj+R.</small></span>';
+        String(m).replace(/[<>&]/g, '') + '</small>' + (conseil ? '<br><small>Recharge la page avec Cmd+Maj+R.</small>' : '') + '</span>';
     };
     addEventListener('error', e => montrer(e.message || e.error || 'erreur de chargement'));
     addEventListener('unhandledrejection', e => montrer(e.reason?.message || e.reason));
     // chien de garde : après 20 s, on affiche l'étape où le chargement s'est arrêté
     window.__etape = 'chargement des fichiers 3D (three.js / bead-core.js)';
+    // ouvert en glissant le fichier dans le navigateur : les modules JavaScript sont interdits en local
+    if (location.protocol === 'file:') {
+      addEventListener('DOMContentLoaded', () => montrer('Cette page a été ouverte comme fichier sur ton ordinateur : le navigateur bloque alors ses fichiers JavaScript. '
+        + 'Ouvre-la depuis son adresse : alxik-bonanodi.github.io/gestion-atelier/configurateur/configurateur-3d.html (ou depuis ton app : Création › 👁 Configurateur).', false));
+      return;
+    }
     setTimeout(() => montrer('Bloqué à l\'étape : ' + window.__etape), 20000);
   })();
 </script>
@@ -799,7 +805,7 @@ function toutRendre() {
 }
 
 /* ---------- note « Personnalisation sur mesure », enregistrement, panier Wix ---------- */
-const DANS_WIX = window.parent !== window;
+const DANS_WIX = window.parent !== window && !new URLSearchParams(location.search).has('apercu');   // ?apercu : affiché dans l'app de gestion, pas dans Wix
 let pageWix = null;                                  // adresse de la page Wix (envoyée par le code de la page)
 function entreesNote() {
   const acc = enBundle() ? accrocheChoisie() : null;
