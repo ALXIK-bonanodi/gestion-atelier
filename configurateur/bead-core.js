@@ -430,6 +430,9 @@ export function completerCatalogue(catalogue, bijoux = []) {
   if (maille.length) base = [...base.filter(c => c.finition !== 'chainmail'), ...maille];
   else if (!base.some(c => c.finition === 'chainmail')) base = [...base, ...CHAINMAIL_DEMO];
   if (!base.some(c => /culture/i.test(c.categorie || ''))) base = [...base, ...CULTURE_DEMO];
+  if (!base.some(c => c.double)) base = [...base, ...CATALOGUE_DEMO.filter(c => c.double)];             // heishi d'exemple
+  if (!base.some(c => /plate/.test(norm(c.nom)) && /blanc/.test(norm(c.nom)) && c.perle === 'plate-4'))
+    base = [...base, ...CATALOGUE_DEMO.filter(c => c.ref === '#PV-ex04')];                             // petite blanche de l'œil double
   return base;
 }
 
@@ -480,7 +483,7 @@ export function apercuChainmail(forme) {
    Le prix vient du pv de la fiche ; sans pv, du prix du modèle.
    -------------------------------------------------------------------------- */
 export async function chargerBijouxBoutique(sb) {
-  const { data, error } = await sb.from('bijoux').select('*');
+  const { data, error } = await sb.from('bijoux').select('id,ref,nom,variante,pv,is_mat');   // colonnes autorisées à la clé publique
   if (error) throw error;
   return (data || []).map(b => ({ id: b.id, ref: b.ref, nom: b.nom || '', variante: b.variante || '', pv: b.pv, is_mat: !!b.is_mat }));
 }
@@ -560,7 +563,7 @@ export function catalogueDepuisMateriaux(lignes, perlesImages = {}) {
       categorie: l.sc || 'Breloques argile', stock: l.qty ?? null, enStock: l.qty == null ? true : l.qty > 0, teinteFixe: true,
     };
     return {
-      ref: l.ref || String(l.id), mat_id: l.id, nom,
+      ref: l.ref || String(l.id), mat_id: l.id, nom, designation: l.designation || '',
       hex: meta.hex || meta.couleur || null,
       hexNom: couleurParNom(nom),
       finition: meta.finition || PLANCHE.get(norm(nom))?.finition || (/[ée]toile/i.test([l.sc, l.designation].join(' ')) ? (/p[ée]trole|iris/i.test(nom) ? 'petrole' : /nacr/i.test(nom) ? 'nacre' : /m[ée]tal|argent|h[ée]matite/i.test(nom) ? 'hematite' : null) : null)
@@ -568,7 +571,7 @@ export function catalogueDepuisMateriaux(lignes, perlesImages = {}) {
       ordre: PLANCHE.get(norm(nom))?.ordre ?? 999,
       texture: meta.texture || null,
       swatch: img.swatch || l.image_url || null,
-      perle: meta.perle || (/[ée]toile/i.test([l.sc, l.designation].join(' ')) ? (/nacr/i.test(nom + ' ' + (l.designation || '')) ? 'etoile-nacre-6' : 'etoile-8') : undefined),
+      perle: meta.perle || (/[ée]toile/i.test([l.sc, l.designation, l.variante].join(' ')) ? (/nacr/i.test(nom + ' ' + (l.designation || '')) ? 'etoile-nacre-6' : 'etoile-8') : undefined),
       double: meta.double ?? /heishi/i.test([l.sc, l.designation, l.variante].join(' ')),
       visible: img.visible !== false,
       categorie: l.sc || l.mc || null,
@@ -613,7 +616,14 @@ export function resoudreDefauts(modele, catalogue, fermoirs = null) {
   const parNom = new Map(catalogue.map(c => [norm(c.nom), c.ref]));
   const fix = (ref, nom) => parRef.has(ref) ? ref : (nom && parNom.get(norm(nom))) || ref;
   const m = JSON.parse(JSON.stringify(modele));
-  for (const z of m.zones || []) { z.defaut = fix(z.defaut, z.defautNom); if (z.double) z.double.k = fix(z.double.k, z.double.kNom); }
+  for (const z of m.zones || []) {
+    z.defaut = fix(z.defaut, z.defautNom);
+    if (z.double) z.double.k = fix(z.double.k, z.double.kNom);
+    if (!parRef.has(z.defaut) && z.choixNoms?.length) {                // yeux : la perle plate noire par défaut
+      const l = couleursProposees(z, catalogue);
+      z.defaut = (l.find(c => /noir/.test(norm(c.nom))) || l.find(c => /noir/.test(texteCatalogue(c))) || l[0])?.ref || z.defaut;
+    }
+  }
   for (const g of m.groupes || []) for (const b of g.perles) if (b.k && !parRef.has(b.k) && b.kNom) b.k = fix(b.k, b.kNom);
   if (fermoirs?.length) {
     // fermoir d'exemple -> fermoir réel de même type et de taille la plus proche
@@ -646,18 +656,25 @@ export function resoudreDefauts(modele, catalogue, fermoirs = null) {
 
 /* Couleurs proposées pour une zone : celles choisies dans l'éditeur (zone.choix),
    sinon tout le catalogue. Les perles œil ne sont proposées que pour les zones d'yeux. */
+/* Texte d'une entrée du catalogue, sans accents ni majuscules : sous-catégorie, désignation, nom */
+export const texteCatalogue = c => norm([c.categorie, c.designation, c.nom].filter(Boolean).join(' '));
+/* « étoile », « verre|heishi »… trouvé dans la sous-catégorie, la désignation ou le nom (accents ignorés) */
+export const correspondCategorie = (c, cats) => norm(cats).split('|').some(k => texteCatalogue(c).includes(k));
+
 export function couleursProposees(zone, catalogue, parties = null) {
   let dispo = catalogue.filter(c => (c.finition === 'oeil') === !!zone.oeil)
     .filter(c => (c.finition === 'argile') === /argile/i.test(zone.categorie || ''))
     .filter(c => (c.finition === 'chainmail') === /chainmail/i.test(zone.categorie || ''));
-  if (zone.categorie) {
-    const ks = zone.categorie.toLowerCase().split('|');                 // ex. 'verre|heishi'
-    dispo = dispo.filter(c => !c.categorie || ks.some(k => c.categorie.toLowerCase().includes(k)));
+  if (zone.choixNoms?.length) {
+    // yeux : toutes les perles plates (nom, désignation ou sous-catégorie contenant « plat ») et toutes les heishi,
+    // quelle que soit leur sous-catégorie ; la petite blanche de l'œil double n'est pas proposée seule
+    const noms = new Set(zone.choixNoms.map(norm)), petite = norm(zone.double?.kNom || '');
+    dispo = dispo.filter(c => (noms.has(norm(c.nom)) || c.double || /\bplat/.test(texteCatalogue(c)))
+      && c.perle !== 'plate-4' && (!petite || norm(c.nom) !== petite));
+    if (zone.choix?.length) { const set = new Set(zone.choix); return dispo.filter(c => set.has(c.ref)); }
+    return dispo;                                                       // pas de restriction de l'ancien configurateur
   }
-  if (zone.choixNoms?.length) {                                         // yeux : noms retenus + toutes les heishi
-    const noms = new Set(zone.choixNoms.map(norm));
-    dispo = dispo.filter(c => noms.has(norm(c.nom)) || c.double);
-  }
+  if (zone.categorie) dispo = dispo.filter(c => !c.categorie || correspondCategorie(c, zone.categorie));
   if (zone.choix?.length) { const set = new Set(zone.choix); return dispo.filter(c => set.has(c.ref)); }
   // sinon : mêmes perles que la partie du configurateur boutique (enabled_mats)
   const partie = parties?.find(p => p.id === zone.id);
@@ -2106,7 +2123,7 @@ export async function chargerCatalogueBoutique(sb) {
   return catalogueDepuisMateriaux(mats.data, imgs.data?.value || {});
 }
 export async function chargerFermoirsBoutique(sb) {
-  const { data, error } = await sb.from('materiaux').select('id,ref,mc,sc,designation,variante,prix,qty')
+  const { data, error } = await sb.from('materiaux').select('id,ref,mc,sc,designation,variante,qty')   // sans prix d'achat (non lisibles avec la clé publique)
     .or('sc.ilike.%fermoir%,sc.ilike.%breloque%,designation.ilike.%fermoir%,designation.ilike.%mousqueton%,variante.ilike.%mousqueton%')
     .order('ref');
   if (error) throw error;
@@ -2385,7 +2402,13 @@ export function accrochesProposees(modele, fermoirs) {
 export async function listerModelesPublies(sb) {
   const { data, error } = await sb.from('modeles_3d').select('slug, nom, donnees').eq('publie', true).order('nom');
   if (error) throw error;
-  return (data || []).map(r => ({ ...r.donnees, slug: r.slug, nom: r.donnees?.nom || r.nom }));
+  return (data || []).map(r => ({ ...r.donnees, slug: r.slug, nom: r.donnees?.nom || r.nom })).sort(ordreModeles);
+}
+/* Ordre d'affichage : le petit poisson d'abord (champ « ordre » du modèle, sinon cette liste) */
+export const ORDRE_MODELES = ['poisson-sardine', 'arete', 'lettres', 'argile', 'chainmail', 'perle-culture'];
+export function ordreModeles(a, b) {
+  const rang = m => m.ordre ?? (ORDRE_MODELES.includes(m.slug) ? ORDRE_MODELES.indexOf(m.slug) + 1 : 100);
+  return rang(a) - rang(b) || String(a.nom).localeCompare(String(b.nom), 'fr');
 }
 
 /* --------------------------------------------------------------------------

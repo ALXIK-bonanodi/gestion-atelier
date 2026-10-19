@@ -356,6 +356,7 @@ import {
   composerBundle, lignesCommandeBundle, accrochesProposees, construireLettres, verifierTexte, estLettres, offreApplicable,
   notePersonnalisation, chargerPersonnalisation, modeleArgileDemo, completerCatalogue, apercuArgile, estArgile,
   modeleChainmailDemo, estChainmail, chargerBijouxBoutique, bijouBreloque, modelePerleCultureDemo, estPerleCulture, apercuChainmail,
+  correspondCategorie, texteCatalogue, ordreModeles,
 } from './bead-core.js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER } from './perles-config.js';
 
@@ -388,7 +389,8 @@ if (sb) {
   if (p.value?.length) parties = p.value;
 }
 if (!modeles.length) modeles = [modeleDemo(), modeleAreteDemo(), modeleLettresDemo(), modeleArgileDemo(), modeleChainmailDemo(), modelePerleCultureDemo()];
-const aDesEtoiles = catalogue.some(c => /[ée]toile/i.test(c.categorie || ''));
+const aDesEtoiles = catalogue.some(c => texteCatalogue(c).includes('etoile'));
+modeles.sort(ordreModeles);                                    // le petit poisson en premier
 modeles = modeles.map(m0 => {
   const m = resoudreDefauts(m0, catalogue, fermoirs);
   // étoile dans la bouche proposée par défaut si le modèle publié ne la prévoit pas
@@ -409,13 +411,30 @@ const nomCourt = m => (m.nom || 'Breloque').replace(/\s*\(exemple\)\s*$/i, '').r
 const typeIcone = m => estLettres(m) ? 'lettres' : estArgile(m) ? 'argile' : estChainmail(m) ? 'croix' : estPerleCulture(m) ? 'perle' : m.groupes?.some(g => g.technique === 'arete') ? 'arete' : 'poisson';
 const TEXTE_INDICATIF = INFOS_ATELIER.indicatif
   || 'Le rendu 3D est indicatif : chaque bijou étant fait main, le modèle et les couleurs peuvent légèrement varier.';
+/* Diagnostic : configurateur-3d.html?diag=1 montre ce que le configurateur a trouvé dans ta base */
+if (new URLSearchParams(location.search).get('diag')) {
+  const ligne = c => `${c.ref} · ${c.nom}${c.designation ? ' · ' + c.designation : ''} · ${c.categorie || '—'}${/-ex\d/.test(c.ref) ? ' · EXEMPLE' : ''}`;
+  const blocs = [
+    ['Connexion à la base', sb ? 'oui' : 'NON (aperçu avec données d\'exemple)'],
+    ['Matériaux chargés', catalogue.length],
+    ['Fiches bijoux chargées', bijoux.length],
+    ['Modèles (ordre)', modeles.map(m => m.slug + ' — ' + euros(prixModele(m))).join('\n')],
+    ...modeles.flatMap(m => (m.zones || []).map(z => [`${nomCourt(m)} › ${z.nom} (défaut ${z.defaut})`, couleursProposees(z, catalogue, parties).map(ligne).join('\n') || 'AUCUN CHOIX'])),
+    ['Perles étoile', catalogue.filter(c => texteCatalogue(c).includes('etoile')).map(ligne).join('\n') || 'AUCUNE'],
+    ['Parties de l\'ancien configurateur (restrictions)', (parties || []).map(p => p.id + ' : ' + (p.enabled_mats?.length || 0) + ' matériaux').join('\n') || 'aucune'],
+  ];
+  const d = document.createElement('pre');
+  d.style.cssText = 'position:fixed;inset:12px;z-index:99;overflow:auto;background:#fff;color:#222;border:2px solid #3c114b;border-radius:12px;padding:14px;font:12px/1.45 ui-monospace,monospace;white-space:pre-wrap';
+  d.textContent = 'DIAGNOSTIC — fais une capture et envoie-la\n\n' + blocs.map(([t, v]) => '■ ' + t + '\n' + v).join('\n\n');
+  document.body.appendChild(d);
+}
 $('#delai').textContent = (INFOS_ATELIER.delai
   || 'Les créations sur mesure sont réalisées à la commande : le délai de fabrication peut être plus ou moins long en fonction de la demande.')
   + ' ' + TEXTE_INDICATIF;
 $('#indicatif').textContent = TEXTE_INDICATIF;
 const accroches = accrochesProposees(modeles.find(m => (m.options || []).some(o => o.type === 'accroche')) || modeles[0], fermoirs);
 const optEtoileTexte = m => (m.options || []).find(o => o.type === 'perle' && o.place === 'texte');
-const etoilesDe = o => catalogue.filter(c => !o?.categorie || (c.categorie || '').toLowerCase().includes(o.categorie.toLowerCase()))
+const etoilesDe = o => catalogue.filter(c => !o?.categorie || correspondCategorie(c, o.categorie))   // accents et majuscules ignorés
   .filter(c => !o?.choix?.length || o.choix.some(x => x.ref === c.ref));
 const optionsEffectives = b => {                     // pas d'étoile au milieu pour un seul mot
   const m = modeleDe(b.slug), oe = optEtoileTexte(m);
