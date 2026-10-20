@@ -126,10 +126,16 @@ export function geometriePerle(id, detail = 1) {
     const b = T.arrondi ?? 1.5, R = T.D / 2, c = new THREE.Shape(); c.absarc(0, 0, R - b, 0, Math.PI * 2, false);
     const g = new THREE.ExtrudeGeometry(c, { depth: T.H - 2 * b, bevelEnabled: true, bevelThickness: b, bevelSize: b, bevelSegments: 6, curveSegments: 72 });
     g.translate(0, 0, -(T.H - 2 * b) / 2);
+    // Seule la face avant (z < 0, celle que voit la caméra) est peinte ; le verso est de la
+    // couleur de la tranche (le contour du motif), comme sur tes breloques.
     const pos = g.attributes.position, uv = g.attributes.uv;
+    let zMax = -Infinity; for (let i = 0; i < pos.count; i++) zMax = Math.max(zMax, pos.getZ(i));
+    const rTranche = 0.485;                                   // rayon (en UV) où le dessin a la couleur du contour
     for (let i = 0; i < pos.count; i++) {
-      const x = pos.getX(i), y = pos.getY(i), r = Math.hypot(x, y), k = r > R * 0.985 ? 0.985 * R / r : 1;
-      uv.setXY(i, 0.5 + x * k / T.D, 0.5 + y * k / T.D);
+      const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i), r = Math.hypot(x, y), k = r > R * 0.985 ? 0.985 * R / r : 1;
+      if (z >= zMax - 1e-4) uv.setXY(i, 0.5 + rTranche, 0.5);                       // verso : uni, couleur du contour
+      else if (z > 1e-4) { const a = Math.atan2(y, x); uv.setXY(i, 0.5 + rTranche * Math.cos(a), 0.5 + rTranche * Math.sin(a)); }
+      else uv.setXY(i, 0.5 + x * k / T.D, 0.5 + y * k / T.D);
     }
     g.computeVertexNormals(); g.computeBoundingSphere();
     cacheGeo.set(cle, g);
@@ -219,6 +225,7 @@ export const FINITIONS = {
 export const MOTIFS_ARGILE = {
   citron: { nom: 'citron', hex: '#e8c11c' },
   tomate: { nom: 'tomate', hex: '#c42318' },
+  myrtille: { nom: 'myrtille', hex: '#3a62a0' },
 };
 export function motifArgile(texte) {
   const t = norm(texte);
@@ -229,7 +236,7 @@ function hasard(graine) {                                   // pseudo-aléatoire
   return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
 export function dessinerArgile(x, motif, hex = '#d9c9b0', S = 512) {
-  const C = S / 2, rnd = hasard(motif === 'tomate' ? 7 : motif === 'citron' ? 3 : 11);
+  const C = S / 2, rnd = hasard(motif === 'tomate' ? 7 : motif === 'citron' ? 3 : motif === 'myrtille' ? 5 : 11);
   const rond = (r, col, cx = C, cy = C) => { x.fillStyle = col; x.beginPath(); x.arc(cx, cy, r, 0, Math.PI * 2); x.fill(); };
   const coups = (n, r0, r1, cols, l = 0.05, w = 0.012, alpha = 0.22) => {   // coups de pinceau : peinture à la main
     x.save(); x.lineCap = 'round';
@@ -296,6 +303,30 @@ export function dessinerArgile(x, motif, hex = '#d9c9b0', S = 512) {
     }
     rond(C * 0.2, '#e4614c');                               // cœur clair
     coups(30, 0, 0.2, ['#f08a72', '#d84a3a'], 0.03, 0.01, 0.3);
+  } else if (motif === 'myrtille') {
+    // myrtille vue de dessus : bleu marbré, pruine blanchâtre au pinceau sec, couronne à 6 pétales bleu nuit
+    rond(C, '#335d9c');
+    coups(260, 0, 1, ['#4b7bbb', '#2b4d86', '#6190cb'], 0.06, 0.02, 0.35);
+    for (let i = 0; i < 14; i++) {                          // taches de pruine claire
+      const a = rnd() * Math.PI * 2, r = C * (0.3 + rnd() * 0.6);
+      x.save(); x.globalAlpha = 0.18 + rnd() * 0.12; x.fillStyle = '#c4d6ec';
+      x.beginPath(); x.ellipse(C + r * Math.cos(a), C + r * Math.sin(a), C * (0.08 + rnd() * 0.12), C * (0.05 + rnd() * 0.06), rnd() * 3, 0, Math.PI * 2); x.fill(); x.restore();
+    }
+    coups(220, 0, 1, ['#c9daee', '#e0eaf5', '#a6bfe0'], 0.07, 0.006, 0.35);     // traits secs clairs
+    coups(70, 0.86, 1, ['#1f3a6c', '#26467e'], 0.05, 0.02, 0.45);                 // bord plus sombre
+    const couronne = (k, col) => {                          // étoile à 6 branches, pointes arrondies
+      x.fillStyle = x.strokeStyle = col; x.lineJoin = 'round'; x.lineWidth = C * 0.11 * k; x.beginPath();
+      for (let i = 0; i < 12; i++) {
+        const a = -Math.PI / 2 + i * Math.PI / 6, r = C * k * (i % 2 ? 0.3 : 0.46) * (0.97 + rnd() * 0.06);
+        i ? x.lineTo(C + r * Math.cos(a), C + r * Math.sin(a)) : x.moveTo(C + r * Math.cos(a), C + r * Math.sin(a));
+      }
+      x.closePath(); x.stroke(); x.fill();
+    };
+    couronne(1.12, '#a9c3e4');                              // rebord clair (relief modelé)
+    couronne(1, '#162a58');                                 // couronne bleu nuit
+    rond(C * 0.27, '#3a67aa');                              // creux central
+    coups(50, 0, 0.27, ['#5f8dca', '#2c5292', '#a9c3e4'], 0.03, 0.008, 0.35);
+    rond(C * 0.05, '#0f1b3a');                              // point au centre
   } else {
     rond(C, hex);
     const c = new THREE.Color(hex);
@@ -373,8 +404,8 @@ export const CATALOGUE_DEMO = [
   { ref: '#PV-ex04', nom: 'plate blanche 4 mm', hex: '#f4f2ec', finition: 'opaque', categorie: 'Perles verre', perle: 'plate-4' },
   // perles heishi (plates colorées) : refs à créer ; double = la petite blanche s'ajoute automatiquement
   { ref: '#PH-ex01', nom: 'heishi marron', hex: '#6a3a22', finition: 'opaque', categorie: 'Perles heishi', perle: 'plate-6', double: true },
-  { ref: '#PH-ex02', nom: 'heishi bleu',   hex: '#1d5aa8', finition: 'opaque', categorie: 'Perles heishi', perle: 'plate-6', double: true },
-  { ref: '#PH-ex03', nom: 'heishi vert',   hex: '#2f7a46', finition: 'opaque', categorie: 'Perles heishi', perle: 'plate-6', double: true },
+  { ref: '#PH-ex02', nom: 'heishi bleu',   hex: '#9fcde3', finition: 'opaque', categorie: 'Perles heishi', perle: 'plate-6', double: true },
+  { ref: '#PH-ex03', nom: 'heishi vert',   hex: '#7d8a3a', finition: 'opaque', categorie: 'Perles heishi', perle: 'plate-6', double: true },
   // perles étoile relevées sur tes photos (refs #PE à confirmer)
   // les 3 perles étoile du listing ; la métal pétrole a des reflets rose doré qui changent selon l'angle
   { ref: '#PE-ex01', nom: 'étoile nacre',        hex: '#ece7da', finition: 'nacre',    categorie: 'Perles étoile', perle: 'etoile-nacre-6' },
@@ -395,6 +426,7 @@ CATALOGUE_DEMO.push(...CULTURE_DEMO);
 export const ARGILE_DEMO = [
   { ref: '#AG-ex01', nom: 'citron', hex: MOTIFS_ARGILE.citron.hex, finition: 'argile', motif: 'citron', categorie: 'Breloques argile', perle: 'argile-30' },
   { ref: '#AG-ex02', nom: 'tomate', hex: MOTIFS_ARGILE.tomate.hex, finition: 'argile', motif: 'tomate', categorie: 'Breloques argile', perle: 'argile-30' },
+  { ref: '#AG-ex03', nom: 'myrtille', hex: MOTIFS_ARGILE.myrtille.hex, finition: 'argile', motif: 'myrtille', categorie: 'Breloques argile', perle: 'argile-30' },
 ];
 CATALOGUE_DEMO.push(...ARGILE_DEMO);
 /* Motifs argile : tes fiches bijoux « argile citron », « argile tomate »… deviennent les choix du client
@@ -437,7 +469,9 @@ export function catalogueChainmailDepuisBijoux(bijoux = []) {
 export function completerCatalogue(catalogue, bijoux = []) {
   let base = catalogue.filter(c => !['argile', 'chainmail'].includes(c.finition) || !/-ex\d/.test(c.ref));
   const argile = catalogueArgileDepuisBijoux(bijoux), maille = catalogueChainmailDepuisBijoux(bijoux);
-  if (argile.length) base = [...base.filter(c => c.finition !== 'argile'), ...argile];
+  // motifs de tes fiches bijoux argile, + les motifs d'exemple qui n'ont pas encore de fiche (ex. myrtille)
+  if (argile.length) base = [...base.filter(c => c.finition !== 'argile'), ...argile,
+    ...ARGILE_DEMO.filter(d => !argile.some(a => a.motif === d.motif) && !base.some(c => c.finition === 'argile' && c.motif === d.motif && !/-ex\d/.test(c.ref)))];
   else if (!base.some(c => c.finition === 'argile')) base = [...base, ...ARGILE_DEMO];
   if (maille.length) base = [...base.filter(c => c.finition !== 'chainmail'), ...maille];
   else if (!base.some(c => c.finition === 'chainmail')) base = [...base, ...CHAINMAIL_DEMO];
@@ -562,6 +596,32 @@ export function fermoirDepuisMateriau(l) {
     enStock: l.qty == null ? true : l.qty > 0,
   };
 }
+
+/* Variantes d'une même référence (#AI001, #AI001b…) : même stock, seuls la quantité
+   achetée, le prix ou le fournisseur changent (comme dans ton listing matériaux).
+   Le configurateur n'en garde qu'une, stock additionné ; les autres refs y renvoient. */
+export const baseRef = ref => String(ref || '').replace(/[a-z]+$/i, '');
+export const ALIAS_VARIANTES = new Map();               // ref variante -> ref gardée
+export function regrouperVariantes(liste) {
+  const groupes = new Map();
+  for (const x of liste || []) {
+    const b = /-ex\d/.test(x.ref) ? x.ref : baseRef(x.ref);
+    if (!groupes.has(b)) groupes.set(b, []);
+    groupes.get(b).push(x);
+  }
+  const out = [];
+  for (const [b, xs] of groupes) {
+    if (xs.length === 1) { out.push(xs[0]); continue; }
+    const garde = xs.find(x => x.ref === b) || [...xs].sort((u, v) => String(u.ref).localeCompare(String(v.ref)))[0];
+    const stocks = xs.map(x => x.stock);
+    const stock = stocks.some(v => v == null) ? null : stocks.reduce((t, v) => t + (+v || 0), 0);
+    const nomClient = garde.nomClient && String(garde.nomClient).replace(/\s*[–-]?\s*moyen\s+[a-z]\b/i, '').trim();
+    out.push({ ...garde, ...(nomClient ? { nomClient } : {}), stock, enStock: stock == null ? true : stock > 0, variantes: xs.map(x => x.ref) });
+    xs.forEach(x => x.ref !== garde.ref && ALIAS_VARIANTES.set(x.ref, garde.ref));
+  }
+  return out;
+}
+const refGardee = r => ALIAS_VARIANTES.get(r) || r;
 
 /* Adaptateur pour ta table `materiaux` (+ réglage boutique `perles_images`).
    ref = #PR001…, nom = variante. Couleur : meta.hex si renseigné, sinon la
@@ -1732,6 +1792,7 @@ export class ScenePerles {
 
     const boucle = () => {
       this._raf = requestAnimationFrame(boucle);
+      if (this.enPause) return;                            // studio réseaux : il pilote lui-même le rendu
       this.controls.update();
       r.render(this.scene, this.camera);
     };
@@ -2109,6 +2170,45 @@ export class ScenePerles {
     this.camera.updateProjectionMatrix();
   }
 
+  /* Rendu hors écran à une taille donnée (studio réseaux : story, post, vidéo qui tourne).
+     angle = rotation (radians) autour de l'axe vertical, à partir de la vue actuelle.
+     Avec restaurer:false la vue reste à cette taille (enchaîner les images d'une vidéo),
+     puis restaurerVue(). Renvoie le canvas WebGL (fond transparent). */
+  rendreVue({ largeur = 1080, hauteur = 1080, angle = 0, marge = 1.12, restaurer = true } = {}) {
+    const r = this.renderer, cam = this.camera, ctl = this.controls;
+    if (!this._vueSauvee) this._vueSauvee = { taille: r.getSize(new THREE.Vector2()), ratio: r.getPixelRatio(), pos: cam.position.clone(),
+      cible: ctl.target.clone(), aspect: cam.aspect, near: cam.near, far: cam.far, halo: this.halo?.visible, pause: this.enPause };
+    const v = this._vueSauvee;
+    this.enPause = true;
+    try {
+    if (this.halo) this.halo.visible = false;
+    const box = new THREE.Box3().setFromObject(this.racine);
+    const c = box.isEmpty() ? v.cible.clone() : box.getCenter(new THREE.Vector3());
+    const rayon = box.isEmpty() ? 20 : box.getBoundingSphere(new THREE.Sphere()).radius;
+    const dir = v.pos.clone().sub(v.cible).applyAxisAngle(new THREE.Vector3(0, 1, 0), angle).normalize();
+    cam.aspect = largeur / hauteur;
+    const demiV = cam.fov * DEG / 2, demiH = Math.atan(Math.tan(demiV) * cam.aspect);
+    const dist = rayon * marge / Math.sin(Math.min(demiV, demiH));
+    cam.position.copy(c).add(dir.multiplyScalar(dist)); cam.lookAt(c);
+    cam.near = dist / 100; cam.far = dist * 20; cam.updateProjectionMatrix();
+    const t = r.getSize(new THREE.Vector2());
+    if (r.getPixelRatio() !== 1) r.setPixelRatio(1);
+    if (t.x !== largeur || t.y !== hauteur) r.setSize(largeur, hauteur, false);
+    r.render(this.scene, cam);
+    if (restaurer) { const el = document.createElement('canvas'); el.width = largeur; el.height = hauteur; el.getContext('2d').drawImage(r.domElement, 0, 0); this.restaurerVue(); return el; }
+    return r.domElement;
+    } catch (e) { this.restaurerVue(); throw e; }          // jamais de vue 3D figée
+  }
+  restaurerVue() {
+    const v = this._vueSauvee; if (!v) return;
+    const r = this.renderer, cam = this.camera;
+    r.setPixelRatio(v.ratio); r.setSize(v.taille.x, v.taille.y, false);
+    cam.position.copy(v.pos); cam.aspect = v.aspect; cam.near = v.near; cam.far = v.far; cam.lookAt(v.cible); cam.updateProjectionMatrix();
+    if (this.halo) this.halo.visible = v.halo;
+    this.enPause = v.pause; this._vueSauvee = null;
+    this.redimensionner();
+  }
+
   /* Image PNG du rendu actuel (miniature panier, aperçu commande…) */
   capture() {
     this.renderer.render(this.scene, this.camera);
@@ -2141,14 +2241,14 @@ export async function chargerCatalogueBoutique(sb) {
     sb.from('boutique_settings').select('value').eq('key', 'perles_images').maybeSingle(),
   ]);
   if (mats.error) throw mats.error;
-  return catalogueDepuisMateriaux(mats.data, imgs.data?.value || {});
+  return regrouperVariantes(catalogueDepuisMateriaux(mats.data, imgs.data?.value || {}));
 }
 export async function chargerFermoirsBoutique(sb) {
   const { data, error } = await sb.from('materiaux').select('id,ref,mc,sc,designation,variante,qty')   // sans prix d'achat (non lisibles avec la clé publique)
     .or('sc.ilike.%fermoir%,sc.ilike.%breloque%,designation.ilike.%fermoir%,designation.ilike.%mousqueton%,variante.ilike.%mousqueton%')
     .order('ref');
   if (error) throw error;
-  return (data || []).map(fermoirDepuisMateriau);
+  return regrouperVariantes((data || []).map(fermoirDepuisMateriau));
 }
 export async function chargerPrixBijou(sb, ref) {
   if (!ref) return null;
@@ -2481,19 +2581,22 @@ export async function chargerMateriauxParRefs(sb, refs) {
 }
 /* Remplace les refs d'exemple liées dans un modèle (zones, options, fermoirs, lettres, pampille…) */
 export function relierModele(modele, liens = {}) {
-  if (!Object.keys(liens).length) return modele;
-  return JSON.parse(JSON.stringify(modele), (k, v) => (typeof v === 'string' && liens[v]) ? liens[v] : v);
+  if (!Object.keys(liens).length && !ALIAS_VARIANTES.size) return modele;
+  return JSON.parse(JSON.stringify(modele), (k, v) => typeof v === 'string' && (liens[v] || ALIAS_VARIANTES.has(v)) ? refGardee(liens[v] || v) : v);
 }
 /* La vraie référence reprend le rôle de l'exemple ; l'entrée d'exemple disparaît */
 export function appliquerLiens(liens = {}, { catalogue, fermoirs, bijoux = [], lignesEnPlus = [] }) {
   const ex = exemplesParRef();
   let cat = [...catalogue], ferm = [...fermoirs];
-  for (const [refEx, refVraie] of Object.entries(liens)) {
-    const d = ex.get(refEx); if (!d || !refVraie) continue;
+  for (const [refEx, refLien] of Object.entries(liens)) {
+    const d = ex.get(refEx); if (!d || !refLien) continue;
+    const refVraie = refGardee(refLien);                    // une variante (#…b) renvoie à la ref gardée
     if (FERMOIRS_DEMO.includes(d)) {                       // fermoir / porte-clés
       if (!ferm.some(f => f.ref === refVraie)) {
-        const l = lignesEnPlus.find(x => x.ref === refVraie);
+        const l = lignesEnPlus.find(x => x.ref === refVraie), b = bijoux.find(x => x.ref === refVraie);
         if (l) ferm.push({ ...fermoirDepuisMateriau(l), type: d.type, taille: fermoirDepuisMateriau(l).taille || d.taille });
+        else if (b) ferm.push({ ...d, ref: b.ref, bij_id: b.id, nom: [b.nom, b.variante].filter(Boolean).join(' – '),   // composition (fiche bijou)
+          nomClient: b.nom || d.nom, prix: b.pv != null ? +b.pv : null, bijou: true, stock: null, enStock: true });
       } else ferm = ferm.map(f => f.ref === refVraie ? { ...f, type: d.type } : f);
       ferm = ferm.filter(f => f.ref !== refEx);
       continue;

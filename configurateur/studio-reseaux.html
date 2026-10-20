@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bona Nodi · Studio réseaux</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pinyon+Script&family=Fredoka:wght@400;500;600&family=Figtree:ital,wght@0,400;0,600;1,400&display=swap">
+<style>
+/* Studio réseaux : tu composes la breloque dans le configurateur (à gauche),
+   le studio en fait une image ou une vidéo qui tourne aux formats story / TikTok / post. */
+:root { --bg: #f6f3f8; --carte: #fff; --texte: #1a1228; --doux: #6b6478; --ligne: #e3dce8; --prune: #6b4e8e; --encre: #3c114b; --creme: #fff7c6; }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--texte); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.studio { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 0; height: 100vh; }
+.config { border-right: 1px solid var(--ligne); min-width: 0; display: flex; flex-direction: column; }
+.config .bandeau { padding: 8px 12px; font-size: 12px; color: var(--doux); background: #fff; border-bottom: 1px solid var(--ligne); }
+.config iframe { flex: 1; width: 100%; border: 0; background: var(--creme); }
+.panneau { overflow-y: auto; padding: 14px 16px 30px; background: #fff; }
+h1 { font-size: 17px; margin: 0 0 2px; }
+.aide { color: var(--doux); margin: 0 0 12px; font-size: 12px; }
+.formats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 12px; }
+.formats button { background: #f3eef7; color: var(--prune); border: 1.5px solid transparent; border-radius: 10px; padding: 7px 4px; font: 600 12px system-ui; cursor: pointer; line-height: 1.2; }
+.formats button small { display: block; font-weight: 400; color: var(--doux); font-size: 10px; }
+.formats button.on { border-color: var(--prune); background: #fff; }
+.apercu { background: #ece6f0; border-radius: 12px; padding: 10px; display: grid; place-items: center; margin-bottom: 12px; position: relative; }
+.apercu canvas { max-width: 100%; max-height: 52vh; box-shadow: 0 4px 18px rgba(26, 18, 40, .18); border-radius: 6px; background: var(--creme); }
+.apercu .attente { position: absolute; inset: 0; display: grid; place-items: center; color: var(--doux); font-size: 13px; text-align: center; padding: 20px; }
+label.champ { display: grid; gap: 3px; font-size: 11px; color: var(--doux); margin-bottom: 8px; }
+input[type=text], select { font: inherit; font-size: 13px; padding: 7px 9px; border: 1px solid var(--ligne); border-radius: 8px; width: 100%; color: var(--texte); }
+.cases { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 4px 0 12px; font-size: 12px; }
+.cases label { display: flex; gap: 5px; align-items: center; cursor: pointer; }
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.actions button { font: 600 13px system-ui; border: 0; border-radius: 10px; padding: 11px 10px; background: var(--prune); color: #fff; cursor: pointer; }
+.actions button.second { background: #ede6f3; color: var(--prune); }
+.actions button:disabled { opacity: .5; cursor: default; }
+.ligne2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+#etat { font-size: 12px; color: var(--doux); margin-top: 8px; min-height: 18px; }
+.progression { height: 5px; background: #eee; border-radius: 3px; overflow: hidden; margin-top: 6px; }
+.progression span { display: block; height: 100%; width: 0; background: var(--prune); }
+@media (max-width: 900px) {
+  .studio { grid-template-columns: 1fr; height: auto; }
+  .config { height: 75vh; border-right: 0; border-bottom: 1px solid var(--ligne); }
+}
+</style>
+</head>
+<body>
+<div class="studio">
+  <section class="config">
+    <div class="bandeau">① Compose la breloque ou le bundle comme un client (couleurs, options, angle de vue en faisant glisser le modèle).</div>
+    <iframe id="cfg" title="Configurateur" src="configurateur-3d.html?apercu=1&studio=1"></iframe>
+  </section>
+  <aside class="panneau">
+    <h1>📱 Studio réseaux</h1>
+    <p class="aide">② Choisis le format, ajuste les textes, puis télécharge l'image ou la vidéo qui tourne, prête à publier.</p>
+
+    <div class="formats" id="formats">
+      <button data-f="story" class="on">Story<small>Instagram 9:16</small></button>
+      <button data-f="tiktok">TikTok<small>Reels 9:16</small></button>
+      <button data-f="post">Post<small>Instagram 4:5</small></button>
+      <button data-f="carre">Carré<small>1:1</small></button>
+    </div>
+
+    <div class="apercu"><canvas id="apercu"></canvas><div class="attente" id="attente">Chargement du configurateur…</div></div>
+
+    <label class="champ">Signature<input type="text" id="tSignature" value="Bona Nodi"></label>
+    <label class="champ">Titre<input type="text" id="tTitre" value="Crée ta breloque"></label>
+    <label class="champ">Sous-titre (vide = nom du modèle choisi)<input type="text" id="tSous" value="" placeholder="ex. Petit poisson"></label>
+    <label class="champ">Texte du bas<input type="text" id="tBas" value="Sur mesure · fait main à l'atelier"></label>
+    <div class="cases">
+      <label><input type="checkbox" id="cPrix" checked> prix</label>
+      <label><input type="checkbox" id="cIndicatif" checked> « rendu 3D indicatif »</label>
+      <label><input type="checkbox" id="cLogo" checked> logo en fond</label>
+      <label><input type="checkbox" id="cZones"> zones masquées par l'appli</label>
+    </div>
+    <div class="ligne2">
+      <label class="champ">Durée de la vidéo<select id="duree"><option value="6">6 s · un tour</option><option value="10" selected>10 s · un tour lent</option><option value="12">12 s · deux tours</option></select></label>
+      <label class="champ">Taille du modèle<select id="taille"><option value="1.0">grand</option><option value="1.12" selected>normal</option><option value="1.35">petit</option></select></label>
+    </div>
+    <div class="actions">
+      <button id="btImage" disabled>📷 Image PNG</button>
+      <button id="btVideo" disabled>🎬 Vidéo qui tourne</button>
+    </div>
+    <div id="etat"></div>
+    <div class="progression" id="prog" hidden><span></span></div>
+  </aside>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const euros = n => (+n || 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+
+/* Formats : taille de sortie et zones que l'appli recouvre (barre du haut, légende/boutons du bas) */
+const FORMATS = {
+  story:  { W: 1080, H: 1920, nom: 'story',  haut: 250, bas: 340 },
+  tiktok: { W: 1080, H: 1920, nom: 'tiktok', haut: 160, bas: 480, droite: 140 },
+  post:   { W: 1080, H: 1350, nom: 'post',   haut: 0, bas: 0 },
+  carre:  { W: 1080, H: 1080, nom: 'carre',  haut: 0, bas: 0 },
+};
+let format = FORMATS.story;
+const COUL = { creme: '#fff7c6', encre: '#3c114b', doux: '#6b4a73', pastille: '#fffbe2' };
+
+const logo = new Image(); logo.src = './logo-fond.png';
+const studio = () => { try { return $('#cfg').contentWindow.__bnStudio || null; } catch { return null; } };
+
+/* Mise en page selon le format : zone du modèle et position des textes */
+function plan(F) {
+  const { W, H } = F;
+  if (H / W > 1.6) {                                   // 9:16 : textes hors des zones recouvertes
+    const haut = F.haut + 40, bas = H - F.bas - 30;
+    const cote = Math.min(W * 0.92, bas - haut - 300);    // le modèle ne remplit jamais les coins de son carré
+    return { haut, bas, cote, cy: (haut + 240 + bas - 190) / 2, titre: 1 };
+  }
+  if (H > W) return { haut: 70, bas: H - 60, cote: 940, cy: H * 0.53, titre: 0.85 };
+  return { haut: 56, bas: H - 46, cote: 760, cy: H * 0.53, titre: 0.72 };
+}
+
+function composer(ctx, F, vue3d) {
+  const { W, H } = F, P = plan(F), st = studio();
+  ctx.save();
+  ctx.fillStyle = COUL.creme; ctx.fillRect(0, 0, W, H);
+  if ($('#cLogo').checked && logo.complete && logo.naturalWidth) {
+    const t = Math.min(W * 0.9, P.cote * 1.0);
+    ctx.globalAlpha = 0.3; ctx.drawImage(logo, (W - t) / 2, P.cy - t / 2, t, t); ctx.globalAlpha = 1;
+  }
+  if (vue3d) ctx.drawImage(vue3d, (W - P.cote) / 2, P.cy - P.cote / 2, P.cote, P.cote);
+
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = COUL.encre;
+  const k = P.titre;
+  let y = P.haut;
+  const sig = $('#tSignature').value.trim();
+  if (sig) { ctx.font = `${Math.round(84 * k)}px "Pinyon Script", cursive`; y += 80 * k; ctx.fillText(sig, W / 2, y); }
+  const titre = $('#tTitre').value.trim();
+  if (titre) { ctx.font = `600 ${Math.round(78 * k)}px Fredoka, system-ui, sans-serif`; y += 92 * k; ajuster(ctx, titre, W - 120); ctx.fillText(titre, W / 2, y); }
+  const sous = $('#tSous').value.trim() || st?.titre || '';
+  if (sous) { ctx.font = `500 ${Math.round(42 * k)}px Fredoka, system-ui, sans-serif`; ctx.fillStyle = COUL.doux; y += 62 * k; ajuster(ctx, sous, W - 140); ctx.fillText(sous, W / 2, y); }
+
+  // bas : prix en pastille, texte, mention
+  let yb = P.bas;
+  ctx.fillStyle = COUL.doux;
+  if ($('#cIndicatif').checked) { ctx.font = `italic 400 ${Math.round(26 * Math.max(k, .8))}px Figtree, system-ui, sans-serif`; ctx.fillText('Rendu 3D indicatif', W / 2, yb); yb -= 50 * Math.max(k, .8); }
+  const bas = $('#tBas').value.trim();
+  if (bas) { ctx.font = `400 ${Math.round(36 * Math.max(k, .8))}px Figtree, system-ui, sans-serif`; ctx.fillStyle = COUL.encre; ajuster(ctx, bas, W - 140); ctx.fillText(bas, W / 2, yb); yb -= 70 * Math.max(k, .8); }
+  if ($('#cPrix').checked && st?.total) {
+    const txt = euros(st.total);
+    ctx.font = `600 ${Math.round(46 * Math.max(k, .8))}px Fredoka, system-ui, sans-serif`;
+    const w = ctx.measureText(txt).width + 64, h = 78 * Math.max(k, .8);
+    ctx.fillStyle = COUL.encre; arrondi(ctx, W / 2 - w / 2, yb - h * 0.72, w, h, h / 2); ctx.fill();
+    ctx.fillStyle = COUL.creme; ctx.fillText(txt, W / 2, yb - h * 0.72 + h * 0.68);
+  }
+  ctx.restore();
+}
+function ajuster(ctx, txt, max) {                       // réduit la police si le texte déborde
+  let w = ctx.measureText(txt).width;
+  while (w > max) { const m = ctx.font.match(/(\d+)px/); const n = Math.floor(+m[1] * 0.94); ctx.font = ctx.font.replace(/\d+px/, n + 'px'); w = ctx.measureText(txt).width; if (n < 14) break; }
+}
+function arrondi(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+
+function zonesMasquees(ctx, F) {                         // aperçu seulement : ce que l'appli recouvre
+  if (!$('#cZones').checked) return;
+  ctx.save(); ctx.fillStyle = 'rgba(200, 30, 60, .16)';
+  if (F.haut) ctx.fillRect(0, 0, F.W, F.haut);
+  if (F.bas) ctx.fillRect(0, F.H - F.bas, F.W, F.bas);
+  if (F.droite) ctx.fillRect(F.W - F.droite, F.haut, F.droite, F.H - F.haut - F.bas);
+  ctx.restore();
+}
+
+/* rendu 3D carré du modèle, à la taille voulue */
+function vue(angle = 0, cote = 1080, restaurer = true) {
+  const st = studio(); if (!st) return null;
+  return st.scene.rendreVue({ largeur: cote, hauteur: cote, angle, marge: +$('#taille').value, restaurer });
+}
+
+/* ---------- aperçu ---------- */
+const cv = $('#apercu');
+let prevu = null;
+function apercu() {
+  clearTimeout(prevu);
+  prevu = setTimeout(() => {
+    const F = format, ech = 0.4;
+    cv.width = F.W * ech; cv.height = F.H * ech;
+    const ctx = cv.getContext('2d'); ctx.setTransform(ech, 0, 0, ech, 0, 0);
+    composer(ctx, F, vue(0, 720));
+    zonesMasquees(ctx, F);
+  }, 120);
+}
+
+/* ---------- export image ---------- */
+function telecharger(blob, ext) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `bona-nodi-${format.nom}-${new Date().toISOString().slice(0, 10)}.${ext}`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+$('#btImage').addEventListener('click', () => {
+  const F = format, sortie = document.createElement('canvas'); sortie.width = F.W; sortie.height = F.H;
+  composer(sortie.getContext('2d'), F, vue(0, 1600));
+  sortie.toBlob(b => { telecharger(b, 'png'); $('#etat').textContent = 'Image ' + F.W + '×' + F.H + ' téléchargée ✓'; }, 'image/png');
+});
+
+/* ---------- export vidéo (le modèle fait un tour complet) ---------- */
+function typeVideo() {
+  if (!window.MediaRecorder) return null;
+  return ['video/mp4;codecs=avc1.640028', 'video/mp4;codecs=avc1.4D401F', 'video/mp4;codecs=avc1.42E01E', 'video/mp4;codecs=avc1', 'video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm']
+    .find(t => MediaRecorder.isTypeSupported(t)) || null;
+}
+$('#btVideo').addEventListener('click', async () => {
+  const type = typeVideo();
+  if (!type) { $('#etat').textContent = 'Ce navigateur ne sait pas enregistrer de vidéo : essaie avec Chrome, Edge ou Safari récent.'; return; }
+  const st = studio(); if (!st) return;
+  const F = format, duree = +$('#duree').value, tours = duree === 12 ? 2 : 1;
+  const sortie = document.createElement('canvas'); sortie.width = F.W; sortie.height = F.H;
+  const ctx = sortie.getContext('2d');
+  composer(ctx, F, vue(0, 960, false));
+  const flux = sortie.captureStream(30);
+  const rec = new MediaRecorder(flux, { mimeType: type, videoBitsPerSecond: 10_000_000 });
+  const morceaux = [];
+  rec.ondataavailable = e => e.data.size && morceaux.push(e.data);
+  const fini = new Promise(ok => rec.onstop = ok);
+  $('#btVideo').disabled = $('#btImage').disabled = true;
+  $('#prog').hidden = false; $('#etat').textContent = 'Enregistrement de la vidéo… (garde cet onglet ouvert)';
+  rec.start(500);
+  const t0 = performance.now();
+  await new Promise(ok => {
+    const image = () => {
+      const p = Math.min(1, (performance.now() - t0) / (duree * 1000));
+      composer(ctx, F, vue(p * Math.PI * 2 * tours, 960, false));
+      $('#prog span').style.width = (p * 100).toFixed(1) + '%';
+      p < 1 ? requestAnimationFrame(image) : ok();
+    };
+    requestAnimationFrame(image);
+  });
+  rec.stop(); await fini;
+  st.scene.restaurerVue();
+  const ext = type.startsWith('video/mp4') ? 'mp4' : 'webm';
+  telecharger(new Blob(morceaux, { type: type.split(';')[0] }), ext);
+  $('#prog').hidden = true; $('#btVideo').disabled = $('#btImage').disabled = false;
+  $('#etat').innerHTML = `Vidéo ${F.W}×${F.H} (${duree} s, .${ext}) téléchargée ✓`
+    + (ext === 'webm' ? '<br>Ce navigateur enregistre en .webm : TikTok l\'accepte ; pour Instagram, ouvre plutôt le studio dans Safari ou un Chrome à jour (.mp4), ou convertis le fichier.' : '');
+  apercu();
+});
+
+/* ---------- branchements ---------- */
+$('#formats').addEventListener('click', e => {
+  const b = e.target.closest('[data-f]'); if (!b) return;
+  format = FORMATS[b.dataset.f];
+  $('#formats').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+  apercu();
+});
+document.querySelectorAll('.panneau input, .panneau select').forEach(el => el.addEventListener('input', apercu));
+logo.onload = apercu;
+
+let branche = null, attenteBranche = null;
+function brancher() {
+  clearTimeout(attenteBranche);
+  const st = studio();
+  if (!st) { attenteBranche = setTimeout(brancher, 400); return; }
+  const w = $('#cfg').contentWindow;
+  if (branche === w) return apercu();                   // déjà branché sur cette page
+  $('#attente').hidden = true;
+  $('#btImage').disabled = $('#btVideo').disabled = false;
+  branche = w;
+  w.addEventListener('bn:maj', apercu);
+  // l'angle choisi en faisant glisser le modèle : on suit la fin du geste
+  w.addEventListener('pointerup', () => setTimeout(apercu, 300));
+  w.addEventListener('wheel', () => setTimeout(apercu, 300));
+  apercu();
+}
+$('#cfg').addEventListener('load', () => { if (!studio()) $('#attente').hidden = false; brancher(); });
+brancher();
+document.fonts?.ready.then(apercu);
+['Pinyon Script', 'Fredoka', 'Figtree'].forEach(f => document.fonts?.load(`40px "${f}"`).then(apercu).catch(() => {}));
+</script>
+</body>
+</html>

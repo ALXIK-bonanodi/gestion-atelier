@@ -41,8 +41,10 @@ button, input, textarea { font: inherit; color: inherit; }
 
 /* ---- scène ---- */
 .scene { position: relative; aspect-ratio: 4 / 5; width: 100%; border-radius: 50% 50% 28px 28px / 36% 36% 28px 28px;
-  background: radial-gradient(70% 55% at 50% 45%, var(--creme-clair) 0%, var(--creme) 70%, var(--creme-fonce) 100%);
+  background: var(--creme);
   border: 1.5px solid var(--prune); overflow: hidden; }
+/* logotype en fond, à 30 % d'opacité, derrière le modèle 3D */
+.scene::before { content: ""; position: absolute; inset: 12%; background: url('./logo-fond.png') center / contain no-repeat; opacity: .3; pointer-events: none; }
 #vue3d { position: absolute; inset: 0; }
 .scene-aide { position: absolute; left: 0; right: 0; bottom: 46px; text-align: center; font: 500 13px var(--f-titre); color: var(--prune-doux); pointer-events: none; }
 .scene-charge { position: absolute; inset: 0; display: grid; place-items: center; font: 500 15px var(--f-titre); color: var(--prune-doux); }
@@ -385,7 +387,7 @@ import {
   modeleChainmailDemo, estChainmail, chargerBijouxBoutique, bijouBreloque, modelePerleCultureDemo, estPerleCulture, apercuChainmail,
   correspondCategorie, texteCatalogue, ordreModeles, chargerRuptures, appliquerRuptures,
   chargerLiens, appliquerLiens, relierModele, chargerMateriauxParRefs,
-} from './bead-core.js?v=706d302e';
+} from './bead-core.js?v=6d43fad2';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER } from './perles-config.js?v=e1bf13ba';
 
 const $ = s => document.querySelector(s);
@@ -532,6 +534,7 @@ scene.controls.enableZoom = false;                     // la molette fait défil
 scene.controls.enablePan = false;
 scene.definirFermoirs(fermoirs);
 scene.controls.addEventListener('start', () => scene.controls.autoRotate = false);
+window.__bnStudio = { scene, total: 0, titre: '', detail: [] };   // studio réseaux (app de gestion)
 const enBundle = () => etat.parcours === 'bundle';
 function rendre3D({ cadrer = false } = {}) {
   if (!enBundle()) {
@@ -815,6 +818,10 @@ function rendreRecap() {
   if (valide) { valide = null; $('#merci').hidden = true; delete $('#merci').dataset.ok; }
   $('#note').textContent = construireNote().texte;
   sauverBrouillon();
+  // studio réseaux (app de gestion) : il lit la vue 3D et le résumé de la personnalisation
+  window.__bnStudio = Object.assign(window.__bnStudio || {}, { total, titre: etat.breloques.map(b => nomCourt(modeleDe(b.slug))).filter((x, i, t) => t.indexOf(x) === i).join(' + '),
+    detail: lignes.map(([a, b]) => a + ' : ' + b) });
+  window.dispatchEvent(new Event('bn:maj'));
 }
 function toutRendre() {
   const mA = modeleActif();

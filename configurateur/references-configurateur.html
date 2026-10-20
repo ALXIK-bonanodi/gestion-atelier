@@ -28,6 +28,8 @@ button:disabled { opacity: .5; cursor: default; }
 .barre span { color: var(--doux); flex: 1; }
 .alerte { background: #fbf0f0; color: var(--rouge); border-radius: 10px; padding: 10px 14px; }
 .ok { color: var(--vert); font-weight: 600; }
+.doublon { grid-column: 1 / -1; background: #fff6e6; border: 1px solid #f0d49b; border-radius: 8px; padding: 8px 10px; font-size: 12px; }
+.doublon button { margin: 6px 6px 0 0; }
 @media (max-width: 700px) { .ligne { grid-template-columns: 26px 1fr; } .ligne > :nth-child(3), .ligne > :nth-child(4) { grid-column: 2; } .creer { grid-template-columns: 1fr 1fr; } }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -41,8 +43,9 @@ button:disabled { opacity: .5; cursor: default; }
 <body>
 <main>
   <h1>🔗 Références du configurateur</h1>
-  <p class="aide">Les éléments ci-dessous utilisent encore une <b>référence d'exemple</b> (#…-ex…). Pour chacun, choisis la vraie référence de ta base,
-    ou crée-la. La vraie référence prend alors sa place partout : choix proposés au client, note atelier, fiche de fabrication.</p>
+  <p class="aide">Les éléments ci-dessous utilisent encore une <b>référence d'exemple</b> (#…-ex…). Pour chacun, choisis la vraie référence de ta base
+    (un matériau ou une <b>composition</b> de tes fiches bijoux), ou crée-la. La vraie référence prend alors sa place partout : choix proposés au client, note atelier, fiche de fabrication.<br>
+    Les variantes d'une même référence (ex. <b>#AI001</b> moyen A et <b>#AI001b</b> moyen B) ne sont qu'<b>un seul stock</b> : elles apparaissent sur une seule ligne.</p>
   <div id="contenu"><p class="aide">Chargement…</p></div>
 </main>
 <div class="barre"><span id="etat"></span><button id="btEnregistrer" disabled>Enregistrer les liens</button></div>
@@ -52,8 +55,8 @@ import {
   CATALOGUE_DEMO, FERMOIRS_DEMO, modeleDemo, modeleAreteDemo, modeleLettresDemo, modeleArgileDemo, modeleChainmailDemo, modelePerleCultureDemo,
   listerModelesPublies, chargerCatalogueBoutique, chargerFermoirsBoutique, chargerPartiesConfigurateur, chargerBijouxBoutique,
   completerCatalogue, resoudreDefauts, couleursProposees, correspondCategorie, ordreModeles, estLettres, accrochesProposees,
-  chargerLiens, enregistrerLiens, estExemple, exemplesParRef, apercuArgile, apercuChainmail,
-} from './bead-core.js?v=706d302e';
+  chargerLiens, enregistrerLiens, estExemple, exemplesParRef, apercuArgile, apercuChainmail, baseRef,
+} from './bead-core.js?v=6d43fad2';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './perles-config.js?v=e1bf13ba';
 
 const $ = s => document.querySelector(s);
@@ -115,12 +118,27 @@ const scPropose = d => estFermoir(d) ? 'Fermoir' : (d.categorie || 'Perles de ro
 const motsCles = d => estFermoir(d) ? ['fermoir', 'mousqueton', 'anneau'] : norm(d.categorie || '').replace(/^perles? (de )?/, '').split(/\s+/).filter(w => w.length > 2);
 const fond = d => d.finition === 'argile' ? `url('${apercuArgile(d.motif, d.hex)}') center/cover` : d.finition === 'chainmail' ? `url('${apercuChainmail(d.forme)}') center/cover` : (d.hex || '#cfd0d4');
 
-function options(d, choisi) {
+/* matériaux regroupés par référence de base : #AI001, #AI001b… = un seul stock */
+function groupesMats() {
+  const g = new Map();
+  for (const x of mats) { const b = baseRef(x.ref); if (!g.has(b)) g.set(b, []); g.get(b).push(x); }
+  return [...g].map(([b, xs]) => {
+    const garde = xs.find(x => x.ref === b) || xs[0];
+    const vars = [...new Set(xs.map(x => x.variante).filter(Boolean))];
+    return { ref: garde.ref, refs: xs.map(x => x.ref), sc: garde.sc, designation: garde.designation,
+      variante: xs.length > 1 ? vars.join(' / ') + ' — même stock' : garde.variante };
+  });
+}
+const compositions = () => bijoux.filter(b => b.is_mat);
+const optBijou = (b, choisi) => `<option value="${esc(b.ref)}" ${b.ref === choisi ? 'selected' : ''}>${esc(b.ref)} · ${esc([b.nom, b.variante].filter(Boolean).join(' · '))}</option>`;
+function options(d, choisiBrut) {
+  const choisi = choisiBrut && (groupesMats().find(g => g.refs.includes(choisiBrut))?.ref || choisiBrut);
   if (estBijou(d)) {
     const cle = norm(d.motif || d.forme || d.nom);
     const tri = [...bijoux].sort((a, b) => (norm([b.nom, b.variante].join(' ')).includes(cle) - norm([a.nom, a.variante].join(' ')).includes(cle)) || String(a.ref).localeCompare(b.ref));
-    return `<option value="">— exemple, non lié —</option>` + tri.map(b => `<option value="${esc(b.ref)}" ${b.ref === choisi ? 'selected' : ''}>${esc(b.ref)} · ${esc([b.nom, b.variante].filter(Boolean).join(' · '))}</option>`).join('');
+    return `<option value="">— exemple, non lié —</option>` + tri.map(b => optBijou(b, choisi)).join('');
   }
+  const mats = groupesMats();
   const mc = motsCles(d);
   const pertinent = x => mc.some(k => norm([x.sc, x.designation, x.variante].join(' ')).includes(k));
   const lib = x => `${x.ref} · ${[x.designation, x.variante].filter(Boolean).join(' · ')} (${x.sc || '—'})`;
@@ -128,8 +146,22 @@ function options(d, choisi) {
   const opt = x => `<option value="${esc(x.ref)}" ${x.ref === choisi ? 'selected' : ''}>${esc(lib(x))}</option>`;
   return `<option value="">— exemple, non lié —</option>`
     + (sugg.length ? `<optgroup label="Suggestions">${sugg.map(opt).join('')}</optgroup>` : '')
+    + (compositions().length ? `<optgroup label="Compositions (fiches bijoux)">${compositions().map(b => optBijou(b, choisi)).join('')}</optgroup>` : '')
     + `<optgroup label="Toutes les références">${autres.map(opt).join('')}</optgroup>`;
 }
+
+/* références déjà existantes qui ressemblent à celle qu'on va créer (évite un doublon de stock) */
+const mots = t => norm(t).replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 1 && !/^(de|du|la|le|les|des|mm|perle|perles)$/.test(w));
+function ressemblantes(sc, designation, variante) {
+  const cible = mots([designation, variante].join(' '));
+  if (!cible.length) return [];
+  return groupesMats().map(g => {
+    const m = mots([g.designation, g.variante].join(' '));
+    const communs = cible.filter(w => m.includes(w)).length;
+    return { g, score: communs / cible.length + (g.sc === sc ? .25 : 0) };
+  }).filter(x => x.score > .75).sort((a, b) => b.score - a.score).slice(0, 4).map(x => x.g);
+}
+let doublons = null;                                 // { refEx, liste } : proposition affichée avant de créer
 
 let ouvert = null;                                   // exemple dont le formulaire « créer » est ouvert
 function rendre() {
@@ -153,6 +185,9 @@ function rendre() {
         <label>Désignation<input name="designation" value="${esc(estFermoir(d) ? d.nom + (d.taille ? ' ' + d.taille + ' mm' : '') : d.nom)}"></label>
         <label>Variante<input name="variante" value=""></label>
         <button data-valider="${esc(d.ref)}">Créer et lier</button>
+        ${doublons?.refEx === d.ref ? `<div class="doublon">⚠ Ces références existent déjà et lui ressemblent. Si c'est <b>le même stock</b>, lie l'exemple à l'une d'elles au lieu de créer une nouvelle référence :<br>
+          ${doublons.liste.map(g => `<button class="leger" data-lier="${esc(d.ref)}" data-vers="${esc(g.ref)}">${esc(g.ref)} · ${esc([g.designation, g.variante].filter(Boolean).join(' · '))}</button>`).join('')}
+          <br><button data-valider="${esc(d.ref)}" data-forcer="1">Non, c'est une autre référence : créer quand même</button></div>` : ''}
       </div>` : ''}
     </div>`;
   }).join('')}</section>`).join('');
@@ -162,16 +197,30 @@ function rendre() {
     modifie(); rendre();
   }));
   $('#contenu').querySelectorAll('[data-creer]').forEach(b => b.addEventListener('click', () => { ouvert = ouvert === b.dataset.creer ? null : b.dataset.creer; rendre(); }));
-  $('#contenu').querySelectorAll('[data-valider]').forEach(b => b.addEventListener('click', () => creer(b.dataset.valider)));
+  $('#contenu').querySelectorAll('[data-valider]').forEach(b => b.addEventListener('click', () => creer(b.dataset.valider, !!b.dataset.forcer)));
+  $('#contenu').querySelectorAll('[data-lier]').forEach(b => b.addEventListener('click', () => {
+    liens[b.dataset.lier] = b.dataset.vers; ouvert = null; doublons = null; modifie(); rendre();
+  }));
 }
 function modifie() { $('#btEnregistrer').disabled = false; $('#etat').textContent = 'Modifications non enregistrées'; }
 
 /* création d'un matériau, avec la référence suivante de sa sous-catégorie (comme ton app) */
-async function creer(refEx) {
+async function creer(refEx, forcer = false) {
   const d = EX.get(refEx), form = document.querySelector(`[data-form="${CSS.escape(refEx)}"]`);
   const val = n => form.querySelector(`[name="${n}"]`).value.trim();
   const sc = val('sc'), mc = val('mc'), designation = val('designation'), variante = val('variante');
   if (!designation) return alert('Indique au moins une désignation.');
+  if (!forcer) {
+    const liste = ressemblantes(sc, designation, variante);
+    if (liste.length) {
+      // garder ce qui a été tapé pendant le nouveau rendu
+      doublons = { refEx, liste }; rendre();
+      const f2 = document.querySelector(`[data-form="${CSS.escape(refEx)}"]`);
+      Object.entries({ sc, mc, designation, variante }).forEach(([k, v]) => { const el = f2.querySelector(`[name="${k}"]`); if (el) el.value = v; });
+      return;
+    }
+  }
+  doublons = null;
   const pfx = SC_PREFIX[sc] || sc.replace(/[^A-Z]/gi, '').slice(0, 2).toUpperCase();
   const nums = mats.filter(x => String(x.ref || '').startsWith('#' + pfx)).map(x => parseInt(String(x.ref).replace(/\D/g, '')) || 0);
   const ref = '#' + pfx + String((nums.length ? Math.max(...nums) + 1 : 1)).padStart(3, '0');
