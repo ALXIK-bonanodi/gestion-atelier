@@ -401,7 +401,10 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
           <select id="flt-sc" onchange="renderMat()" style="width:auto;flex:1;max-width:180px;font-size:12px;padding:8px 26px 8px 10px"></select>
         </div>
         <div style="margin-bottom:10px">
-          <input id="mat-search" type="search" placeholder="🔍 Rechercher…" oninput="renderMat()" style="font-size:13px;padding:10px 14px;border-radius:20px">
+          <div style="display:flex;gap:8px;align-items:center">
+            <input id="mat-search" type="search" placeholder="🔍 Rechercher…" oninput="renderMat()" style="font-size:13px;padding:10px 14px;border-radius:20px;flex:1">
+            <button id="bt-a-completer" class="btn btn-sm btn-ghost" onclick="toggleACompleter()" style="white-space:nowrap;display:none" title="Références dont il manque la désignation, la sous-catégorie, le fournisseur, le prix ou la quantité">⚠ À compléter</button>
+          </div>
         </div>
         <div id="mat-body"><div class="loading">Chargement…</div></div>
       </div>
@@ -413,7 +416,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
     <div class="card">
       <div class="card-hd"><h2>📊 Stock global</h2></div>
       <div class="card-bd">
-        <div class="info-box" style="margin-bottom:10px">Stock = quantité initiale + réappros − consommation productions</div>
+        <div class="info-box" style="margin-bottom:10px">Disponible = quantité initiale + réappros − <b>utilisé</b> (productions terminées) − <b>réservé</b> 🔧 (productions en cours et commandes sur mesure, d’après la composition de leur fiche bijou). Les variantes d’une même réf (#AI001, #AI001b…) forment un seul stock.</div>
         <div id="stock-body"><div class="loading">Chargement…</div></div>
       </div>
     </div>
@@ -428,6 +431,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
       <div id="c3tab-m3d" onclick="switchC3dTab('m3d')" class="gtab">🧊 Modèles</div>
       <div id="c3tab-ref" onclick="switchC3dTab('ref')" class="gtab">🔗 Références</div>
       <div id="c3tab-rup" onclick="switchC3dTab('rup')" class="gtab">📦 Ruptures</div>
+      <div id="c3tab-soc" onclick="switchC3dTab('soc')" class="gtab">📱 Réseaux</div>
     </div>
   </div>
   <div id="c3panel-cfg">
@@ -443,6 +447,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
   <div id="c3panel-m3d" style="display:none"><iframe id="c3frame-m3d" title="Modèles 3D" style="display:block;width:100%;height:calc(100vh - 56px);border:0"></iframe></div>
   <div id="c3panel-ref" style="display:none"><iframe id="c3frame-ref" title="Références du configurateur" style="display:block;width:100%;height:calc(100vh - 56px);border:0"></iframe></div>
   <div id="c3panel-rup" style="display:none"><iframe id="c3frame-rup" title="Ruptures du configurateur" style="display:block;width:100%;height:calc(100vh - 56px);border:0"></iframe></div>
+  <div id="c3panel-soc" style="display:none"><iframe id="c3frame-soc" title="Studio réseaux sociaux" style="display:block;width:100%;height:calc(100vh - 56px);border:0" allow="fullscreen"></iframe></div>
 </div>
 
 <div id="p-bij" class="page" style="padding:0">
@@ -1750,13 +1755,20 @@ function matsConsumedByBij(bij, qtyProd, depth=0) {
   return result;
 }
 
-function stockConsome(ref) {
-  return PRODS.reduce((s,p)=>{
+// Matériaux pris par les productions, d'après la composition de la fiche bijou.
+// « produit » = déduit du stock ; « en cours » (dont les commandes sur mesure) = réservé / pré-compté.
+// Le disponible retire les deux : ce qui est réservé n'est plus utilisable ailleurs.
+function stockPris(ref, filtre) {
+  return PRODS.filter(filtre).reduce((s,p)=>{
     const b=getBij(p.bij_id); if(!b) return s;
     const consumed=matsConsumedByBij(b,+p.qty||0);
     return s+(consumed[ref]||0);
   },0);
 }
+const estProduite = p => !p.statut || p.statut==='produit';
+function stockUtilise(ref) { return stockPris(ref, estProduite); }          // déjà fabriqué : déduit
+function stockReserve(ref) { return stockPris(ref, p => !estProduite(p)); }  // en cours / sur mesure : pré-compté
+function stockConsome(ref) { return stockUtilise(ref)+stockReserve(ref); }
 function stockDispo(mat) { return stockCumul(mat)-stockConsome(mat.ref); }
 
 function getMatsEffectifs(bij) {
@@ -2654,7 +2666,7 @@ function switchCreatTab(tab, numeroPerso) {
    avec le n° de personnalisation (perso) et la note atelier (perso_note, avec les références). */
 const ouvrirPerso = numero => switchCreatTab('perso', numero);
 /* ── Conception 3D : configurateur, modèles, références, ruptures (pages du dossier configurateur/) ── */
-const C3D_PAGES = { cfg: 'configurateur-3d.html?apercu=1', m3d: 'editeur-perles.html', ref: 'references-configurateur.html', rup: 'stock-configurateur.html' };
+const C3D_PAGES = { cfg: 'configurateur-3d.html?apercu=1', m3d: 'editeur-perles.html', ref: 'references-configurateur.html', rup: 'stock-configurateur.html', soc: 'studio-reseaux.html' };
 function switchC3dTab(tab, recharger) {
   Object.keys(C3D_PAGES).forEach(t => {
     document.getElementById('c3panel-'+t).style.display = t===tab ? 'block' : 'none';
@@ -2805,13 +2817,29 @@ function switchStockFlt(flt) {
   renderStock();
 }
 
+// Références pas encore complétées (créées depuis le configurateur, saisies rapides…)
+let MAT_A_COMPLETER=false;
+function champsManquants(m) {
+  const manque=[];
+  if(!(m.designation||m.des)) manque.push('désignation');
+  if(!m.sc) manque.push('sous-catégorie');
+  if(!m.fournisseur) manque.push('fournisseur');
+  if(m.prix==null||m.prix==='') manque.push('prix');
+  if(m.qty==null||m.qty==='') manque.push('quantité');
+  return manque;
+}
+function toggleACompleter() { MAT_A_COMPLETER=!MAT_A_COMPLETER; renderMat(); }
 function renderMat() {
   buildCatBar();
+  const btAC=document.getElementById('bt-a-completer');
+  if(btAC){ const nb=MATS.filter(m=>champsManquants(m).length).length;
+    btAC.textContent=(MAT_A_COMPLETER?'✕ ':'⚠ ')+'À compléter ('+nb+')'; btAC.className='btn btn-sm '+(MAT_A_COMPLETER?'btn-p':'btn-ghost'); btAC.style.display=nb||MAT_A_COMPLETER?'':'none'; }
   const filter=document.getElementById('flt-sc').value;
   const search=(document.getElementById('mat-search')?.value||'').toLowerCase().trim();
   // Filtrer par type courant (tout = pas de filtre type)
   let mats=CUR_MAT_TYPE==='tout'?[...MATS]:MATS.filter(m=>(m.type||'creation')===CUR_MAT_TYPE);
   if(filter && filter.startsWith('__mc__')) { const mc=filter.slice(6); mats=mats.filter(m=>m.mc===mc); } else if(filter) { mats=mats.filter(m=>m.sc===filter); }
+  if(MAT_A_COMPLETER) mats=mats.filter(m=>champsManquants(m).length);
   if(search) mats=mats.filter(m=>
     (m.ref||'').toLowerCase().includes(search)||
     (m.designation||m.des||'').toLowerCase().includes(search)||
@@ -2830,9 +2858,13 @@ function renderMat() {
     Object.entries(subs).forEach(([sc,mats])=>{
       html+=`<div id="anc-${esc(sc)}" class="sub-ban" style="background:${SC_CLR[sc]||'#888'}">${sc}</div>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>Réf.</th><th>Désignation</th><th>Variante</th><th>Fournisseur</th><th>Stock</th><th>PU moy.</th><th></th></tr></thead>
+        <thead><tr><th>Réf.</th><th>Désignation</th><th>Variante</th><th>Fournisseur</th><th>Disponible</th><th>PU moy.</th><th></th></tr></thead>
         <tbody>${mats.map(m=>{
-          const pu=puMoyen(m), sc2=stockCumul(m);
+          const pu=puMoyen(m);
+          // variantes d'une même réf (#AI001, #AI001b…) : un seul stock, affiché sur chaque ligne
+          const grp=MATS.filter(x=>baseRef(x.ref)===baseRef(m.ref));
+          const tot=grp.reduce((s,x)=>s+stockCumul(x),0), util=grp.reduce((s,x)=>s+stockUtilise(x.ref),0), res=grp.reduce((s,x)=>s+stockReserve(x.ref),0), sc2=tot-util-res;
+          const manque=champsManquants(m);
           const typeLabels={creation:'🪡',envoi:'📬',consommable:'🧪',outil:'🔧'};
           const typeBadge=CUR_MAT_TYPE==='tout'?`<span style="font-size:9px;opacity:.6">${typeLabels[m.type||'creation']||''}</span>`:'';
           const metaInfo=m.meta&&isFilMC(m.mc)?
@@ -2845,11 +2877,13 @@ function renderMat() {
             </div>`:''
           ;
           return `<tr onclick="openMatModal('${m.id}')" style="cursor:pointer" title="Cliquer pour modifier">
-            <td class="ref">${typeBadge} ${m.ref}</td>
+            <td class="ref">${typeBadge} ${m.ref}${manque.length?`<div title="À compléter : ${manque.join(', ')}" style="font-size:10px;color:var(--orange);font-weight:700">⚠ ${manque.length}</div>`:''}</td>
             <td style="font-size:12px">${m.designation||m.des||'--'}${metaInfo}</td>
             <td><span class="badge bm">${m.variante||'--'}</span></td>
             <td class="dim">${m.fournisseur||'--'}</td>
-            <td>${sc2?(n(sc2)+' <span style="font-size:10px;color:var(--muted)">'+getUniteShort(m)+'</span>'):'<span class="dim">--</span>'}</td>
+            <td title="Stock ${n(tot)} − utilisé ${n(util)} − réservé ${n(res)}">${(tot||util||res)?('<b style="color:'+(sc2<=0?'var(--red)':'inherit')+'">'+n(Math.round(sc2*100)/100)+'</b> <span style="font-size:10px;color:var(--muted)">'+getUniteShort(m)+'</span>'
+              +(res?'<div style="font-size:10px;color:var(--orange)">🔧 '+n(Math.round(res*100)/100)+' réservé</div>':'')
+              +(grp.length>1?'<div style="font-size:10px;color:var(--muted)">stock commun '+grp.map(x=>x.ref).join(' + ')+'</div>':'')):'<span class="dim">--</span>'}</td>
             <td class="${pu?'hi':'dim'}">${pu?eur(pu,4):'--'}</td>
             <td onclick="event.stopPropagation()" style="white-space:nowrap">
               <div style="display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap">
@@ -3399,10 +3433,12 @@ function renderStock() {
       });
       html+=`<div class="sub-ban" style="background:${SC_CLR[sc]||'#888'}">${sc}</div>
       <div class="tbl-wrap"><table>
-        <thead><tr><th>Désignation</th><th>Références</th><th>Stock total</th><th>Consommé</th><th>Disponible</th><th></th></tr></thead>
+        <thead><tr><th>Désignation</th><th>Références</th><th>Stock total</th><th>Utilisé</th><th>Réservé</th><th>Disponible</th><th></th></tr></thead>
         <tbody>${Object.entries(groups).map(([base,g])=>{
           const totG=g.items.reduce((s,m)=>s+stockCumul(m),0);
-          const cG=g.items.reduce((s,m)=>s+stockConsome(m.ref),0);
+          const uG=g.items.reduce((s,m)=>s+stockUtilise(m.ref),0);
+          const rG=g.items.reduce((s,m)=>s+stockReserve(m.ref),0);
+          const cG=uG+rG;
           const dG=totG-cG;
           const pct=totG?Math.min(100,(dG/totG)*100):0;
           const clr=pct>50?'#2E7D4F':pct>20?'#C05820':'#C0392B';
@@ -3413,7 +3449,8 @@ function renderStock() {
             <td style="font-size:12px">${g.des}</td>
             <td style="line-height:1.8">${refs}</td>
             <td>${totG?(n(totG)+' <span style="font-size:10px;color:var(--muted)">'+uniteShort+'</span>'):'<span class="dim">--</span>'}</td>
-            <td class="dim">${n(cG)||'0'}</td>
+            <td class="dim" title="Productions terminées">${n(Math.round(uG*100)/100)||'0'}</td>
+            <td style="color:${rG?'var(--orange)':'var(--muted)'}" title="Productions en cours et commandes sur mesure : pré-compté">${rG?'🔧 '+n(Math.round(rG*100)/100):'0'}</td>
             <td><b style="color:${clr}">${n(dG)}</b>
               <div class="sbar"><div class="sfill" style="width:${pct}%;background:${clr}"></div></div>
             </td>
