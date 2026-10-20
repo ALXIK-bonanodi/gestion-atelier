@@ -687,9 +687,10 @@ export function couleursProposees(zone, catalogue, parties = null) {
     // yeux : toutes les perles plates (nom, désignation ou sous-catégorie contenant « plat ») et toutes les heishi,
     // quelle que soit leur sous-catégorie ; la petite blanche de l'œil double n'est pas proposée seule
     const noms = new Set(zone.choixNoms.map(norm)), petite = norm(zone.double?.kNom || '');
-    dispo = dispo.filter(c => (noms.has(norm(c.nom)) || c.double || /\bplat/.test(texteCatalogue(c)))
+    const roleYeux = c => { const d = c.lienDe && exemplesParRef().get(c.lienDe); return !!d && (d.double || /\bplat/.test(texteCatalogue(d))); };
+    dispo = dispo.filter(c => (noms.has(norm(c.nom)) || c.double || /\bplat/.test(texteCatalogue(c)) || roleYeux(c))
       && c.perle !== 'plate-4' && (!petite || norm(c.nom) !== petite));
-    const rang = c => c.double ? 3 : /noir/.test(norm(c.nom)) ? 0 : /blanc/.test(norm(c.nom)) ? 1 : 2;   // noire, blanche, autres plates, heishi
+    const rang = c => c.double ? 3 : c.lienDe === '#PV-ex01' || /noir/.test(norm(c.nom)) ? 0 : c.lienDe === '#PV-ex03' || /blanc/.test(norm(c.nom)) ? 1 : 2;   // noire, blanche, autres plates, heishi
     dispo = [...dispo].sort((a, b) => rang(a) - rang(b));
     if (zone.choix?.length) { const set = new Set(zone.choix); return dispo.filter(c => set.has(c.ref)); }
     return dispo;                                                       // pas de restriction de l'ancien configurateur
@@ -2447,6 +2448,72 @@ export function appliquerRuptures(liste, catalogue, fermoirs) {
   for (const c of catalogue) if (r.has(c.ref)) c.enStock = false;
   for (const f of fermoirs) if (r.has(f.ref)) f.enStock = false;
   return m => !r.has('modele:' + m.slug);                 // filtre des breloques encore proposées
+}
+
+/* --------------------------------------------------------------------------
+   LIENS DES RÉFÉRENCES D'EXEMPLE (onglet 🔗 Références de l'app de gestion)
+   config « configurateur_liens » = { '#PV-ex01': '#PV004', '#AG-ex01': '#BIJ-030', … }
+   La vraie référence prend la place de l'exemple partout : choix proposés, couleurs
+   par défaut des modèles, fermoirs, note atelier, fiche de fabrication.
+   -------------------------------------------------------------------------- */
+export const CLE_LIENS = 'configurateur_liens';
+export async function chargerLiens(sb) {
+  const { data, error } = await sb.from('config').select('value').eq('key', CLE_LIENS).maybeSingle();
+  if (error) throw error;
+  let v = data?.value;
+  if (typeof v === 'string') { try { v = JSON.parse(v); } catch { v = {}; } }
+  return v && typeof v === 'object' && !Array.isArray(v) ? v : {};
+}
+export async function enregistrerLiens(sb, liens) {
+  const propre = Object.fromEntries(Object.entries(liens).filter(([k, v]) => k && v));
+  const { error } = await sb.from('config').upsert({ key: CLE_LIENS, value: propre });
+  if (error) throw error;
+}
+export const estExemple = ref => /-ex\d/.test(String(ref || ''));
+/* toutes les entrées d'exemple (catalogue + fermoirs), pour savoir quel rôle reprend la vraie référence */
+export const exemplesParRef = () => new Map([...CATALOGUE_DEMO, ...ARGILE_DEMO, ...CHAINMAIL_DEMO, ...CULTURE_DEMO, ...FERMOIRS_DEMO].map(x => [x.ref, x]));
+/* Matériaux liés qui ne sont pas dans la sélection habituelle (autre sous-catégorie) */
+export async function chargerMateriauxParRefs(sb, refs) {
+  if (!refs.length) return [];
+  const { data, error } = await sb.from('materiaux').select('id,ref,mc,sc,designation,variante,qty,meta').in('ref', refs);
+  if (error) throw error;
+  return data || [];
+}
+/* Remplace les refs d'exemple liées dans un modèle (zones, options, fermoirs, lettres, pampille…) */
+export function relierModele(modele, liens = {}) {
+  if (!Object.keys(liens).length) return modele;
+  return JSON.parse(JSON.stringify(modele), (k, v) => (typeof v === 'string' && liens[v]) ? liens[v] : v);
+}
+/* La vraie référence reprend le rôle de l'exemple ; l'entrée d'exemple disparaît */
+export function appliquerLiens(liens = {}, { catalogue, fermoirs, bijoux = [], lignesEnPlus = [] }) {
+  const ex = exemplesParRef();
+  let cat = [...catalogue], ferm = [...fermoirs];
+  for (const [refEx, refVraie] of Object.entries(liens)) {
+    const d = ex.get(refEx); if (!d || !refVraie) continue;
+    if (FERMOIRS_DEMO.includes(d)) {                       // fermoir / porte-clés
+      if (!ferm.some(f => f.ref === refVraie)) {
+        const l = lignesEnPlus.find(x => x.ref === refVraie);
+        if (l) ferm.push({ ...fermoirDepuisMateriau(l), type: d.type, taille: fermoirDepuisMateriau(l).taille || d.taille });
+      } else ferm = ferm.map(f => f.ref === refVraie ? { ...f, type: d.type } : f);
+      ferm = ferm.filter(f => f.ref !== refEx);
+      continue;
+    }
+    let r = cat.find(c => c.ref === refVraie);
+    if (!r) {
+      const b = bijoux.find(x => x.ref === refVraie), l = lignesEnPlus.find(x => x.ref === refVraie);
+      if (b) r = { ...d, ref: b.ref, bij_id: b.id, pv: b.pv, bijou: true, enStock: true };
+      else if (l) r = catalogueDepuisMateriaux([l])[0] || null;
+      if (r) cat.push(r);
+    }
+    if (!r) continue;
+    // rôle de l'exemple : forme de la perle, œil double, motif argile, forme chainmail, finition spéciale
+    r.lienDe = refEx;                                       // garde le rôle de l'exemple (ex. perle plate des yeux)
+    for (const k of ['double', 'perle', 'motif', 'forme']) if (d[k] !== undefined) r[k] = d[k];
+    if (['argile', 'chainmail', 'petrole', 'nacre', 'hematite', 'irise-metal'].includes(d.finition)) r.finition = d.finition;
+    if (d.finition === 'argile' || d.finition === 'chainmail') r.categorie = d.categorie;
+    cat = cat.filter(c => c.ref !== refEx);
+  }
+  return { catalogue: cat, fermoirs: ferm };
 }
 
 /* Ordre d'affichage : le petit poisson d'abord (champ « ordre » du modèle, sinon cette liste) */

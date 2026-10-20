@@ -384,7 +384,8 @@ import {
   notePersonnalisation, chargerPersonnalisation, modeleArgileDemo, completerCatalogue, apercuArgile, estArgile,
   modeleChainmailDemo, estChainmail, chargerBijouxBoutique, bijouBreloque, modelePerleCultureDemo, estPerleCulture, apercuChainmail,
   correspondCategorie, texteCatalogue, ordreModeles, chargerRuptures, appliquerRuptures,
-} from './bead-core.js?v=8f8a5bd3';
+  chargerLiens, appliquerLiens, relierModele, chargerMateriauxParRefs,
+} from './bead-core.js?v=706d302e';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER } from './perles-config.js?v=e1bf13ba';
 
 const $ = s => document.querySelector(s);
@@ -415,15 +416,16 @@ const avecDelai = (promesse, ms = 12000) => Promise.race([promesse,
   new Promise((_, non) => setTimeout(() => non(new Error('la base ne répond pas (délai dépassé)')), ms))]);
 let alerteBase = '';
 window.__etape = 'lecture de la base (modèles, couleurs, bijoux)';
-let modeles = [], catalogue = completerCatalogue(CATALOGUE_DEMO), fermoirs = FERMOIRS_DEMO, parties = null, bijoux = [], ruptures = [];
+let modeles = [], catalogue = completerCatalogue(CATALOGUE_DEMO), fermoirs = FERMOIRS_DEMO, parties = null, bijoux = [], ruptures = [], liens = {};
 if (sb) {
   const res = await Promise.allSettled([
     listerModelesPublies(sb), chargerCatalogueBoutique(sb), chargerFermoirsBoutique(sb), chargerPartiesConfigurateur(sb), chargerBijouxBoutique(sb),
-    chargerRuptures(sb),
+    chargerRuptures(sb), chargerLiens(sb),
   ].map(x => avecDelai(x)));
-  const [m, c, f, p, bj, rup] = res;
+  const [m, c, f, p, bj, rup, li] = res;
   if (rup.value?.length) ruptures = rup.value;
-  const noms = ['modèles', 'couleurs', 'fermoirs', 'parties', 'bijoux', 'ruptures'];
+  if (li.value) liens = li.value;
+  const noms = ['modèles', 'couleurs', 'fermoirs', 'parties', 'bijoux', 'ruptures', 'références'];
   const echecs = res.map((r, i) => r.status === 'rejected' ? noms[i] + ' : ' + (r.reason?.message || 'erreur') : null).filter(Boolean);
   if (echecs.length) { alerteBase = echecs.join(' · '); console.warn('Lecture de la base :', alerteBase); }
   if (m.value?.length) modeles = m.value;
@@ -432,6 +434,10 @@ if (sb) {
   catalogue = completerCatalogue(c.value?.length ? await avecDelai(affinerCouleursDepuisPhotos(c.value), 8000).catch(() => c.value) : CATALOGUE_DEMO, bijoux);
   if (f.value?.length) fermoirs = f.value;
   if (p.value?.length) parties = p.value;
+  // références d'exemple liées à tes vraies références (onglet 🔗 Références de l'app)
+  const manquantes = Object.values(liens).filter(r => !catalogue.some(c => c.ref === r) && !fermoirs.some(x => x.ref === r) && !bijoux.some(b => b.ref === r));
+  const enPlus = manquantes.length ? await avecDelai(chargerMateriauxParRefs(sb, manquantes)).catch(() => []) : [];
+  ({ catalogue, fermoirs } = appliquerLiens(liens, { catalogue, fermoirs, bijoux, lignesEnPlus: enPlus }));
 }
 if (!modeles.length) modeles = [modeleDemo(), modeleAreteDemo(), modeleLettresDemo(), modeleArgileDemo(), modeleChainmailDemo(), modelePerleCultureDemo()];
 // ruptures de stock cochées dans l'app de gestion : éléments épuisés, breloques retirées
@@ -440,7 +446,7 @@ if (modeles.some(breloqueDispo)) modeles = modeles.filter(breloqueDispo);
 const aDesEtoiles = catalogue.some(c => texteCatalogue(c).includes('etoile'));
 modeles.sort(ordreModeles);                                    // le petit poisson en premier
 modeles = modeles.map(m0 => {
-  const m = resoudreDefauts(m0, catalogue, fermoirs);
+  const m = resoudreDefauts(relierModele(m0, liens), catalogue, fermoirs);
   // étoile dans la bouche proposée par défaut si le modèle publié ne la prévoit pas
   if (m.groupes?.some(g => ['poisson', 'arete'].includes(g.technique)) && aDesEtoiles && !(m.options || []).some(o => o.type === 'perle'))
     (m.options ||= []).push({ id: 'etoile', type: 'perle', nom: 'Perle étoile', perle: 'etoile-8', categorie: 'étoile', supplement: 0.5 });
@@ -468,6 +474,7 @@ if (new URLSearchParams(location.search).get('diag')) {
     ['Matériaux chargés', catalogue.length],
     ['Fiches bijoux chargées', bijoux.length],
     ['Ruptures (app de gestion)', ruptures.join(', ') || 'aucune'],
+    ['Références liées', Object.entries(liens).map(([a, b]) => a + ' → ' + b).join('\n') || 'aucune'],
     ['Modèles (ordre)', modeles.map(m => m.slug + ' — ' + euros(prixModele(m))).join('\n')],
     ...modeles.flatMap(m => (m.zones || []).map(z => [`${nomCourt(m)} › ${z.nom} (défaut ${z.defaut})`, couleursProposees(z, catalogue, parties).map(ligne).join('\n') || 'AUCUN CHOIX'])),
     ['Perles étoile', catalogue.filter(c => texteCatalogue(c).includes('etoile')).map(ligne).join('\n') || 'AUCUNE'],

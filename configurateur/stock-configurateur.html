@@ -52,7 +52,8 @@ import {
   listerModelesPublies, chargerCatalogueBoutique, chargerFermoirsBoutique, chargerPartiesConfigurateur, chargerBijouxBoutique,
   completerCatalogue, resoudreDefauts, couleursProposees, correspondCategorie, texteCatalogue, ordreModeles, bijouBreloque,
   chargerRuptures, enregistrerRuptures, apercuArgile, apercuChainmail, estLettres, accrochesProposees,
-} from './bead-core.js?v=8f8a5bd3';
+  chargerLiens, appliquerLiens, relierModele, chargerMateriauxParRefs,
+} from './bead-core.js?v=706d302e';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './perles-config.js?v=e1bf13ba';
 
 const $ = s => document.querySelector(s);
@@ -66,14 +67,18 @@ if (!sess.session) {
   throw new Error('non connectée');
 }
 
-const [m, c, f, p, bj, r] = await Promise.allSettled([listerModelesPublies(sb), chargerCatalogueBoutique(sb), chargerFermoirsBoutique(sb),
-  chargerPartiesConfigurateur(sb), chargerBijouxBoutique(sb), chargerRuptures(sb)]);
+const [m, c, f, p, bj, r, li] = await Promise.allSettled([listerModelesPublies(sb), chargerCatalogueBoutique(sb), chargerFermoirsBoutique(sb),
+  chargerPartiesConfigurateur(sb), chargerBijouxBoutique(sb), chargerRuptures(sb), chargerLiens(sb)]);
 const bijoux = bj.value || [];
-const catalogue = completerCatalogue(c.value?.length ? c.value : CATALOGUE_DEMO, bijoux);
-const fermoirs = f.value?.length ? f.value : FERMOIRS_DEMO;
+const liens = li.value || {};
+let catalogue = completerCatalogue(c.value?.length ? c.value : CATALOGUE_DEMO, bijoux);
+let fermoirs = f.value?.length ? f.value : FERMOIRS_DEMO;
+// références d'exemple liées (onglet 🔗 Références) : on montre les vraies
+const manquantes = Object.values(liens).filter(x => !catalogue.some(y => y.ref === x) && !fermoirs.some(y => y.ref === x) && !bijoux.some(y => y.ref === x));
+({ catalogue, fermoirs } = appliquerLiens(liens, { catalogue, fermoirs, bijoux, lignesEnPlus: await chargerMateriauxParRefs(sb, manquantes).catch(() => []) }));
 const parties = p.value?.length ? p.value : null;
 let modeles = m.value?.length ? m.value : [modeleDemo(), modeleAreteDemo(), modeleLettresDemo(), modeleArgileDemo(), modeleChainmailDemo(), modelePerleCultureDemo()];
-modeles = modeles.sort(ordreModeles).map(x => resoudreDefauts(x, catalogue, fermoirs));
+modeles = modeles.sort(ordreModeles).map(x => resoudreDefauts(relierModele(x, liens), catalogue, fermoirs));
 const ruptures = new Set(r.value || []);
 const parRef = new Map(catalogue.map(x => [x.ref, x]));
 const fermParRef = new Map(fermoirs.map(x => [x.ref, x]));

@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bona Nodi · Références du configurateur</title>
+<style>
+:root { --bg: #f6f3f8; --carte: #fff; --texte: #1a1228; --doux: #6b6478; --ligne: #e3dce8; --prune: #6b4e8e; --rouge: #a1272d; --vert: #2f7a46; }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--texte); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 980px; margin: 0 auto; padding: 14px 16px 90px; }
+h1 { font-size: 18px; margin: 4px 0 2px; }
+.aide { color: var(--doux); margin: 0 0 14px; }
+.groupe { background: var(--carte); border: 1px solid var(--ligne); border-radius: 12px; margin-bottom: 12px; overflow: hidden; }
+.groupe h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--prune); margin: 0; padding: 10px 14px; border-bottom: 1px solid var(--ligne); }
+.ligne { display: grid; grid-template-columns: 26px minmax(150px, 1fr) minmax(220px, 1.4fr) auto; gap: 10px; align-items: center; padding: 9px 14px; border-bottom: 1px solid var(--ligne); }
+.ligne:last-child { border-bottom: 0; }
+.ligne.liee { background: #f1f8f3; }
+.pastille { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--ligne); }
+.ref { font: 11px ui-monospace, monospace; color: var(--doux); }
+select, input { font: inherit; font-size: 13px; padding: 6px 8px; border: 1px solid var(--ligne); border-radius: 8px; background: #fff; width: 100%; min-width: 0; }
+button { font: inherit; border: 0; border-radius: 10px; padding: 8px 14px; background: var(--prune); color: #fff; cursor: pointer; font-weight: 600; white-space: nowrap; }
+button.leger { background: #ede6f3; color: var(--prune); padding: 6px 10px; font-size: 12px; }
+button:disabled { opacity: .5; cursor: default; }
+.creer { grid-column: 2 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) auto; gap: 8px; align-items: end; background: #faf8fc; border: 1px dashed var(--ligne); border-radius: 10px; padding: 10px; }
+.creer label { font-size: 11px; color: var(--doux); display: grid; gap: 3px; }
+.barre { position: fixed; left: 0; right: 0; bottom: 0; background: #fff; border-top: 1px solid var(--ligne); padding: 10px 16px; display: flex; gap: 12px; align-items: center; }
+.barre span { color: var(--doux); flex: 1; }
+.alerte { background: #fbf0f0; color: var(--rouge); border-radius: 10px; padding: 10px 14px; }
+.ok { color: var(--vert); font-weight: 600; }
+@media (max-width: 700px) { .ligne { grid-template-columns: 26px 1fr; } .ligne > :nth-child(3), .ligne > :nth-child(4) { grid-column: 2; } .creer { grid-template-columns: 1fr 1fr; } }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<main>
+  <h1>🔗 Références du configurateur</h1>
+  <p class="aide">Les éléments ci-dessous utilisent encore une <b>référence d'exemple</b> (#…-ex…). Pour chacun, choisis la vraie référence de ta base,
+    ou crée-la. La vraie référence prend alors sa place partout : choix proposés au client, note atelier, fiche de fabrication.</p>
+  <div id="contenu"><p class="aide">Chargement…</p></div>
+</main>
+<div class="barre"><span id="etat"></span><button id="btEnregistrer" disabled>Enregistrer les liens</button></div>
+
+<script type="module">
+import {
+  CATALOGUE_DEMO, FERMOIRS_DEMO, modeleDemo, modeleAreteDemo, modeleLettresDemo, modeleArgileDemo, modeleChainmailDemo, modelePerleCultureDemo,
+  listerModelesPublies, chargerCatalogueBoutique, chargerFermoirsBoutique, chargerPartiesConfigurateur, chargerBijouxBoutique,
+  completerCatalogue, resoudreDefauts, couleursProposees, correspondCategorie, ordreModeles, estLettres, accrochesProposees,
+  chargerLiens, enregistrerLiens, estExemple, exemplesParRef, apercuArgile, apercuChainmail,
+} from './bead-core.js?v=706d302e';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './perles-config.js?v=e1bf13ba';
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);    // même session que l'app de gestion
+
+const { data: sess } = await sb.auth.getSession();
+if (!sess.session) {
+  $('#contenu').innerHTML = '<p class="alerte">Connecte-toi d\'abord dans ton app de gestion (e-mail + mot de passe), puis recharge cet onglet.</p>';
+  throw new Error('non connectée');
+}
+
+// mêmes préfixes de référence que ton app de gestion
+const SC_PREFIX = { 'Perles de rocailles': 'PR', 'Perles heishi': 'PH', 'Perles étoile': 'PE', 'Perles fruit/food': 'PF', 'Perles verre': 'PV',
+  'Perles lettre': 'PL', 'Perles de culture': 'PC', 'Perles métal': 'PM', 'Perles agate': 'PA', 'Anneau': 'AI', 'Fermoir': 'FM',
+  'Fil & Chaîne': 'FC', 'Tiges & Boucles': 'TB', 'Emballage': 'EB', 'Autre': 'AU' };
+
+let mats = [];
+async function chargerMats() {
+  const { data, error } = await sb.from('materiaux').select('id,ref,mc,sc,designation,variante,qty').order('ref');
+  if (error) throw error;
+  mats = data || [];
+}
+const [m, c, f, p, bj, li] = await Promise.allSettled([listerModelesPublies(sb), chargerCatalogueBoutique(sb), chargerFermoirsBoutique(sb),
+  chargerPartiesConfigurateur(sb), chargerBijouxBoutique(sb), chargerLiens(sb), chargerMats()]);
+const bijoux = bj.value || [];
+const liens = { ...(li.value || {}) };
+// catalogue SANS les liens : on veut voir quels exemples le configurateur utilise
+const catalogue = completerCatalogue(c.value?.length ? c.value : CATALOGUE_DEMO, bijoux);
+const fermoirs = f.value?.length ? f.value : FERMOIRS_DEMO;
+const parties = p.value?.length ? p.value : null;
+const modeles = (m.value?.length ? m.value : [modeleDemo(), modeleAreteDemo(), modeleLettresDemo(), modeleArgileDemo(), modeleChainmailDemo(), modelePerleCultureDemo()])
+  .sort(ordreModeles).map(x => resoudreDefauts(x, catalogue, fermoirs));
+const EX = exemplesParRef();
+
+/* exemples réellement utilisés par le configurateur */
+const utilises = new Map();
+const noter = (ref, famille) => { if (estExemple(ref) && EX.has(ref) && !utilises.has(ref)) utilises.set(ref, famille); };
+const famille = x => x.finition === 'argile' ? 'Motifs argile' : x.finition === 'chainmail' ? 'Formes chainmail'
+  : x.double || /plat/.test(norm([x.categorie, x.nom].join(' '))) ? 'Yeux · perles plates et heishi' : /culture/.test(norm(x.categorie)) ? 'Perles de culture'
+  : /etoile/.test(norm(x.categorie)) ? 'Perles étoile' : /lettre/.test(norm(x.categorie)) ? 'Perles lettre' : /metal/.test(norm(x.categorie)) ? 'Perles métal' : (x.categorie || 'Perles');
+for (const mo of modeles) {
+  for (const z of mo.zones || []) { couleursProposees(z, catalogue, parties).forEach(x => noter(x.ref, famille(x))); if (z.double) noter(z.double.k, 'Yeux · perles plates et heishi'); }
+  for (const g of mo.groupes || []) { if (g.pampille) noter(g.pampille.k, 'Perles métal'); (g.perles || []).forEach(b => b.k && noter(b.k, famille(EX.get(b.k) || {}))); }
+  for (const o of mo.options || []) {
+    if (o.type === 'perle') catalogue.filter(x => !o.categorie || correspondCategorie(x, o.categorie)).forEach(x => noter(x.ref, famille(x)));
+    if (o.type === 'fermoir') (o.choix || []).forEach(ch => noter(ch.ref, 'Fermoirs breloque'));
+    if (o.type === 'accroche') (accrochesProposees(mo, fermoirs)?.choix || o.choix || []).forEach(ch => (ch.pieces || []).forEach(r => noter(r, 'Porte-clés du bundle')));
+  }
+  if (estLettres(mo)) { const L = mo.lettres || {}; [L.ref, ...(L.haut || []).map(h => h.k), ...(L.bas || []).map(h => h.k)].forEach(r => noter(r, r === L.ref ? 'Perles lettre' : 'Perles métal')); }
+}
+// liens déjà faits vers des exemples qui ne sont plus utilisés : on les montre quand même
+Object.keys(liens).forEach(r => EX.has(r) && !utilises.has(r) && utilises.set(r, famille(EX.get(r))));
+
+const estBijou = d => d.finition === 'argile' || d.finition === 'chainmail';
+const estFermoir = d => FERMOIRS_DEMO.includes(d);
+const scPropose = d => estFermoir(d) ? 'Fermoir' : (d.categorie || 'Perles de rocailles');
+const motsCles = d => estFermoir(d) ? ['fermoir', 'mousqueton', 'anneau'] : norm(d.categorie || '').replace(/^perles? (de )?/, '').split(/\s+/).filter(w => w.length > 2);
+const fond = d => d.finition === 'argile' ? `url('${apercuArgile(d.motif, d.hex)}') center/cover` : d.finition === 'chainmail' ? `url('${apercuChainmail(d.forme)}') center/cover` : (d.hex || '#cfd0d4');
+
+function options(d, choisi) {
+  if (estBijou(d)) {
+    const cle = norm(d.motif || d.forme || d.nom);
+    const tri = [...bijoux].sort((a, b) => (norm([b.nom, b.variante].join(' ')).includes(cle) - norm([a.nom, a.variante].join(' ')).includes(cle)) || String(a.ref).localeCompare(b.ref));
+    return `<option value="">— exemple, non lié —</option>` + tri.map(b => `<option value="${esc(b.ref)}" ${b.ref === choisi ? 'selected' : ''}>${esc(b.ref)} · ${esc([b.nom, b.variante].filter(Boolean).join(' · '))}</option>`).join('');
+  }
+  const mc = motsCles(d);
+  const pertinent = x => mc.some(k => norm([x.sc, x.designation, x.variante].join(' ')).includes(k));
+  const lib = x => `${x.ref} · ${[x.designation, x.variante].filter(Boolean).join(' · ')} (${x.sc || '—'})`;
+  const sugg = mats.filter(pertinent), autres = mats.filter(x => !pertinent(x));
+  const opt = x => `<option value="${esc(x.ref)}" ${x.ref === choisi ? 'selected' : ''}>${esc(lib(x))}</option>`;
+  return `<option value="">— exemple, non lié —</option>`
+    + (sugg.length ? `<optgroup label="Suggestions">${sugg.map(opt).join('')}</optgroup>` : '')
+    + `<optgroup label="Toutes les références">${autres.map(opt).join('')}</optgroup>`;
+}
+
+let ouvert = null;                                   // exemple dont le formulaire « créer » est ouvert
+function rendre() {
+  const parFamille = new Map();
+  for (const [ref, fa] of utilises) { if (!parFamille.has(fa)) parFamille.set(fa, []); parFamille.get(fa).push(EX.get(ref)); }
+  if (!parFamille.size) { $('#contenu').innerHTML = '<p class="aide ok">✓ Le configurateur n\'utilise plus aucune référence d\'exemple.</p>'; return; }
+  const scs = [...new Set([...Object.keys(SC_PREFIX), ...mats.map(x => x.sc).filter(Boolean)])].sort((a, b) => a.localeCompare(b, 'fr'));
+  const mcs = [...new Set(mats.map(x => x.mc).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
+  $('#contenu').innerHTML = [...parFamille].map(([fa, ds]) => `<section class="groupe"><h2>${esc(fa)}</h2>${ds.map(d => {
+    const lie = liens[d.ref];
+    const sc = scPropose(d);
+    const mcProbable = (() => { const n = {}; mats.filter(x => x.sc === sc).forEach(x => n[x.mc] = (n[x.mc] || 0) + 1); return Object.entries(n).sort((a, b) => b[1] - a[1])[0]?.[0] || mcs[0] || ''; })();
+    return `<div class="ligne ${lie ? 'liee' : ''}">
+      <span class="pastille" style="background:${fond(d)}"></span>
+      <span>${esc(d.nom)} <span class="ref">${esc(d.ref)}</span>${lie ? `<br><span class="ok">→ ${esc(lie)}</span>` : ''}</span>
+      <select data-lien="${esc(d.ref)}">${options(d, lie)}</select>
+      ${estBijou(d) ? '<span class="ref">fiche bijou</span>' : `<button class="leger" data-creer="${esc(d.ref)}">＋ Créer</button>`}
+      ${ouvert === d.ref ? `<div class="creer" data-form="${esc(d.ref)}">
+        <label>Catégorie<select name="mc">${mcs.map(x => `<option ${x === mcProbable ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
+        <label>Sous-catégorie<select name="sc">${scs.map(x => `<option ${x === sc ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
+        <label>Désignation<input name="designation" value="${esc(estFermoir(d) ? d.nom + (d.taille ? ' ' + d.taille + ' mm' : '') : d.nom)}"></label>
+        <label>Variante<input name="variante" value=""></label>
+        <button data-valider="${esc(d.ref)}">Créer et lier</button>
+      </div>` : ''}
+    </div>`;
+  }).join('')}</section>`).join('');
+
+  $('#contenu').querySelectorAll('[data-lien]').forEach(sel => sel.addEventListener('change', () => {
+    sel.value ? liens[sel.dataset.lien] = sel.value : delete liens[sel.dataset.lien];
+    modifie(); rendre();
+  }));
+  $('#contenu').querySelectorAll('[data-creer]').forEach(b => b.addEventListener('click', () => { ouvert = ouvert === b.dataset.creer ? null : b.dataset.creer; rendre(); }));
+  $('#contenu').querySelectorAll('[data-valider]').forEach(b => b.addEventListener('click', () => creer(b.dataset.valider)));
+}
+function modifie() { $('#btEnregistrer').disabled = false; $('#etat').textContent = 'Modifications non enregistrées'; }
+
+/* création d'un matériau, avec la référence suivante de sa sous-catégorie (comme ton app) */
+async function creer(refEx) {
+  const d = EX.get(refEx), form = document.querySelector(`[data-form="${CSS.escape(refEx)}"]`);
+  const val = n => form.querySelector(`[name="${n}"]`).value.trim();
+  const sc = val('sc'), mc = val('mc'), designation = val('designation'), variante = val('variante');
+  if (!designation) return alert('Indique au moins une désignation.');
+  const pfx = SC_PREFIX[sc] || sc.replace(/[^A-Z]/gi, '').slice(0, 2).toUpperCase();
+  const nums = mats.filter(x => String(x.ref || '').startsWith('#' + pfx)).map(x => parseInt(String(x.ref).replace(/\D/g, '')) || 0);
+  const ref = '#' + pfx + String((nums.length ? Math.max(...nums) + 1 : 1)).padStart(3, '0');
+  const meta = {};
+  if (d.perle && !/^rocaille/.test(d.perle)) meta.perle = d.perle;          // forme 3D : plate 4 mm, étoile, perle de culture…
+  if (d.double) meta.double = true;                                         // heishi : petite plate blanche ajoutée dans l'œil
+  if (d.hex) meta.hex = d.hex;
+  const obj = { id: Math.random().toString(36).slice(2) + Date.now().toString(36), mc, sc, ref, designation, variante: variante || null,
+    qty: null, prix: null, type: 'creation', unite: 'pcs', meta: Object.keys(meta).length ? meta : null };
+  $('#etat').textContent = 'Création de ' + ref + '…';
+  const { error } = await sb.from('materiaux').insert(obj);
+  if (error) { $('#etat').textContent = 'Erreur : ' + error.message; return; }
+  await chargerMats();
+  liens[refEx] = ref; ouvert = null;
+  modifie(); rendre();
+  $('#etat').textContent = ref + ' créée et liée (complète son stock et son prix dans ton app). Pense à enregistrer les liens.';
+}
+
+rendre();
+$('#etat').textContent = Object.keys(liens).length ? Object.keys(liens).length + ' lien(s) enregistré(s)' : '';
+$('#btEnregistrer').addEventListener('click', async () => {
+  $('#btEnregistrer').disabled = true; $('#etat').textContent = 'Enregistrement…';
+  try { await enregistrerLiens(sb, liens); $('#etat').textContent = 'Liens enregistrés ✓ — le configurateur les utilise au prochain chargement'; }
+  catch (e) { $('#etat').textContent = 'Erreur : ' + e.message; $('#btEnregistrer').disabled = false; }
+});
+</script>
+</body>
+</html>
