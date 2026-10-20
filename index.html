@@ -814,18 +814,6 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
     </div>
   </div>
 
-  <!-- Configurateur -->
-  <div class="card">
-    <div class="card-hd"><h2>🐟 Zones configurateur</h2></div>
-    <div class="card-bd">
-      <div class="info-box" style="margin-bottom:10px">
-        Gérez les zones personnalisables du configurateur client (dos, ventre, queue, étoile…).
-        Activez/désactivez les zones et ajoutez-en de nouvelles.
-        Les calques PNG s'uploadent depuis la fiche matériau.
-      </div>
-      <div id="cfg-configurateur-section"></div>
-    </div>
-  </div>
 
   <!-- Export -->
   <div class="card">
@@ -866,7 +854,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
     </select>
    </div>
    <div class="fg"><label>Sous-catégorie</label>
-    <select id="mat-sc" onchange="genRef()"></select>
+    <select id="mat-sc" onchange="genRef();majChampsAbonnement()"></select>
    </div>
   </div>
   <div class="fg">
@@ -908,7 +896,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
     <option value="litre">Litre (L)</option>
    </select>
   </div>
-  <div class="r3">
+  <div class="r3" id="mat-qty-row">
    <div class="fg"><label id="mat-qty-label">Stock actuel</label>
     <input id="mat-qty" type="number" placeholder="450" oninput="calcPU()"></div>
    <div class="fg"><label>Prix d'achat (€)</label>
@@ -971,7 +959,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
    </div>
   </div>
   <!-- Image couleur (swatch) -->
-  <div class="fg" style="margin-top:8px">
+  <div class="fg" id="mat-img-row" style="margin-top:8px">
    <label>Image couleur / référence</label>
    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
     <div id="mat-img-preview" style="width:60px;height:60px;border-radius:50%;border:2px solid var(--border);background:var(--bg);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:20px">🖼</div>
@@ -980,12 +968,6 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
      <div id="mat-img-url" style="font-size:10px;color:var(--muted);word-break:break-all"></div>
     </div>
    </div>
-  </div>
-  <!-- Zones configurateur -->
-  <div id="mat-cfg-row" style="display:none;margin-top:8px;padding:10px 12px;background:var(--purpleP);border-radius:var(--rs)">
-   <div style="font-size:11px;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">🐟 Calques configurateur</div>
-   <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Pour chaque zone, uploadez le PNG fond transparent correspondant à cette couleur.</div>
-   <div id="mat-cfg-zones"></div>
   </div>
   <div class="mfoot">
    <button class="btn btn-ghost" onclick="closeModal('m-mat')">Annuler</button>
@@ -1389,6 +1371,15 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
    </div>
    <input type="hidden" id="ep-statut-val" value="produit">
   </div>
+  <div class="fg" id="ep-vente-row">
+   <label>📍 Mise en vente <span style="font-weight:400;color:var(--muted)">(où sont les pièces produites)</span></label>
+   <div id="ep-vente-lieux" style="display:flex;flex-direction:column;gap:6px;margin-top:4px"></div>
+   <div style="display:flex;gap:6px;margin-top:6px">
+    <input id="ep-vente-nouveau" placeholder="Autre lieu (ex. dépôt-vente chez…)" style="flex:1;font-size:12px;padding:8px">
+    <button type="button" class="btn btn-ghost btn-sm" onclick="ajouterLieuVente()">＋ Lieu</button>
+   </div>
+   <input id="ep-vente-note" placeholder="Note (ex. vitrine du marché de Noël, prix affiché…)" style="margin-top:6px;font-size:12px;padding:8px">
+  </div>
   <div class="mfoot">
    <button class="btn btn-ghost" onclick="closeModal('m-edit-prod')">Annuler</button>
    <button class="btn btn-p" onclick="saveEditProd()">Enregistrer</button>
@@ -1646,6 +1637,8 @@ async function loadAll() {
   const mainCatsCfg = cfg.find(c=>c.key==='main_cats');
   { let v = cfg.find(c=>c.key==='date_lancement')?.value; if (typeof v === 'string' && v.startsWith('"')) { try { v = JSON.parse(v); } catch(e) {} }
     LANCEMENT = /^\d{4}-\d{2}-\d{2}$/.test(v || '') ? v : ''; }
+  { let lv=cfg.find(c=>c.key==='lieux_vente')?.value; if(typeof lv==='string'){ try{ lv=JSON.parse(lv); }catch(e){ lv=null; } }
+    if(Array.isArray(lv)&&lv.length) LIEUX_VENTE=[...new Set(['Boutique en ligne','Point de vente physique',...lv])]; }
   const fourCfg     = cfg.find(c=>c.key==='fournisseurs');
   const hdrCfg      = cfg.find(c=>c.key==='header');
   // Catégories création (rétrocompatibilité avec main_cats)
@@ -1880,6 +1873,21 @@ function autoDetectUnite(mc, sc) {
   return 'unite';
 }
 
+// Sous-catégorie « Abonnement » : seulement les infos principales (désignation, réf., renouvellement)
+const estAbonnementSC = sc => /abonnement/i.test(sc||'');
+function majChampsAbonnement() {
+  const abo=estAbonnementSC(document.getElementById('mat-sc')?.value);
+  const cacher=(el,c)=>{ if(el) el.style.display=c?'none':''; };
+  cacher(document.getElementById('mat-var')?.closest('.fg'), abo);
+  cacher(document.getElementById('mat-fournisseur')?.closest('.fg'), abo);
+  cacher(document.getElementById('mat-unite')?.closest('.fg'), abo);
+  cacher(document.getElementById('mat-qty-row'), abo);
+  cacher(document.getElementById('mat-img-row'), abo);
+  if(abo){ const c=document.getElementById('mat-calib-row'); if(c) c.style.display='none'; }
+  const type=document.getElementById('mat-type')?.value;
+  const ren=document.getElementById('mat-renouvellement-row');
+  if(ren) ren.style.display=(abo||type==='outil')?'block':'none';
+}
 function onMatTypeChange() {
   const type=document.getElementById('mat-type')?.value||'creation';
   const renRow=document.getElementById('mat-renouvellement-row');
@@ -2044,6 +2052,7 @@ function syncSC() {
   // Afficher/masquer section méta fils
   const metaRow=document.getElementById('mat-meta-row');
   if(metaRow) metaRow.style.display=isFilMC(mc)?'block':'none';
+  setTimeout(majChampsAbonnement,0);
   // Auto-détecter l'unité si pas encore modifiée manuellement
   const uniteEl=document.getElementById('mat-unite');
   if(uniteEl && !uniteEl.dataset.userSet) {
@@ -2105,6 +2114,7 @@ function openMatModal(editId=null) {
       if(!Array.from(scSel.options).find(o=>o.value===m.sc)) scSel.innerHTML+=`<option>${m.sc}</option>`;
       scSel.value=m.sc||'';
     }
+    majChampsAbonnement();
     document.getElementById('mat-des').value=m.designation||m.des||'';
     document.getElementById('mat-var').value=m.variante||'';
     document.getElementById('mat-ref').value=m.ref;
@@ -2119,8 +2129,6 @@ function openMatModal(editId=null) {
     // Charger image existante
     MAT_IMG_PENDING = null;
     loadMatImgFromUrl(m.image_url || null);
-    // Charger zones configurateur
-    renderMatCfgZones(m.id);
     // Méta fils/laines
     const metaRow=document.getElementById('mat-meta-row');
     if(metaRow) metaRow.style.display=isFilMC(m.mc)?'block':'none';
@@ -2196,12 +2204,13 @@ async function saveMat() {
     meta.calib_pieces_per_g = calibNb/calibG;
     meta.calib_nb_echantillon = calibNb;
   }
+  const aboSC=estAbonnementSC(document.getElementById('mat-sc').value);
   const obj={
     id:editId||uid(), mc,
-    sc:document.getElementById('mat-sc').value, ref, designation, variante:varV,
-    fournisseur:document.getElementById('mat-fournisseur').value.trim(),
-    qty:+document.getElementById('mat-qty').value||null,
-    prix:+document.getElementById('mat-prix').value||null,
+    sc:document.getElementById('mat-sc').value, ref, designation, variante:aboSC?'':varV,
+    fournisseur:aboSC?'':document.getElementById('mat-fournisseur').value.trim(),
+    qty:aboSC?null:(+document.getElementById('mat-qty').value||null),
+    prix:aboSC?null:(+document.getElementById('mat-prix').value||null),
     type:matType,
     unite:unite,
     date_renouvellement:dateRenouv,
@@ -2823,6 +2832,7 @@ function champsManquants(m) {
   const manque=[];
   if(!(m.designation||m.des)) manque.push('désignation');
   if(!m.sc) manque.push('sous-catégorie');
+  if(estAbonnementSC(m.sc)) return manque;              // abonnement : pas de fournisseur, prix ni quantité
   if(!m.fournisseur) manque.push('fournisseur');
   if(m.prix==null||m.prix==='') manque.push('prix');
   if(m.qty==null||m.qty==='') manque.push('quantité');
@@ -3059,6 +3069,11 @@ function buildSCOptions(selectedMC, selectedSC) {
   return opts;
 }
 
+// Libellé d'une réf. dans les listes : la variante (couleur…) d'abord, c'est ce qui distingue les perles
+function libMatOption(m) {
+  const des=m.designation||m.des||'';
+  return m.variante ? `${m.variante} — ${des} (${m.ref})` : `${des||m.ref} (${m.ref})`;
+}
 function addMatRow(sc='',ref='',qty='',qty_unite='native') {
   const c=document.getElementById('bij-mats-list');
   // mc peut être passé séparément, ou déduit depuis MATS
@@ -3110,7 +3125,7 @@ function filterBijRefs(sel,preselectRef='') {
   } else {
     // Filtrer par mc ET sc pour éviter les doublons inter-catégories
     MATS.filter(m=>m.sc===sc&&(!mc||m.mc===mc)).forEach(m=>{
-      opts+=`<option value="${m.ref}" ${m.ref===preselectRef?'selected':''}>${m.ref} · ${m.designation||m.des||m.variante||''}</option>`;
+      opts+=`<option value="${m.ref}" ${m.ref===preselectRef?'selected':''}>${libMatOption(m)}</option>`;
     });
   }
   refSel.innerHTML=opts;
@@ -4418,7 +4433,7 @@ function openVarianteModal(parentId) {
   // Afficher les matériaux du parent
   const matsHtml=(parent.mats||[]).map((m,i)=>{
     const mat=getMat(m.ref);
-    const label=mat?(mat.designation||mat.des||m.ref):m.ref;
+    const label=mat?((mat.designation||mat.des||m.ref)+(mat.variante?' · <b>'+mat.variante+'</b>':'')):m.ref;
     return `<div class="var-mat-row" data-idx="${i}" style="padding:8px;background:var(--bg);border-radius:var(--rs);margin-bottom:6px;border:1px solid var(--border)">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
         <span class="ref">${m.ref}</span>
@@ -4461,7 +4476,7 @@ function filterVarRefs(sel) {
   const mc=parts[0]||'', sc=parts[1]||'';
   let opts='<option value="">-- Nouvelle réf --</option>';
   MATS.filter(m=>m.sc===sc&&(!mc||m.mc===mc)).forEach(m=>{
-    opts+=`<option value="${m.ref}">${m.ref} · ${m.designation||m.des||''}</option>`;
+    opts+=`<option value="${m.ref}">${libMatOption(m)}</option>`;
   });
   refSel.innerHTML=opts;
 }
@@ -4597,7 +4612,7 @@ function buildVariationMatsList() {
   const mats=getMatsEffectifs(b);
   const html=mats.map((m,i)=>{
     const mat=getMat(m.ref);
-    const label=mat?(mat.designation||mat.des||m.ref):m.ref;
+    const label=mat?((mat.designation||mat.des||m.ref)+(mat.variante?' · <b>'+mat.variante+'</b>':'')):m.ref;
     return `<div class="pv-mat-row" data-idx="${i}" style="padding:8px;background:#fff;border-radius:var(--rs);margin-bottom:6px;border:1px solid var(--border)">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
         <span class="ref">${m.ref}</span>
@@ -4637,7 +4652,7 @@ function filterPVRefs(sel) {
   const mc=parts[0]||'', sc=parts[1]||'';
   let opts='<option value="">-- Nouvelle réf --</option>';
   MATS.filter(m=>m.sc===sc&&(!mc||m.mc===mc)).forEach(m=>{
-    opts+=`<option value="${m.ref}">${m.ref} · ${m.designation||m.des||''}</option>`;
+    opts+=`<option value="${m.ref}">${libMatOption(m)}</option>`;
   });
   refSel.innerHTML=opts;
 }
@@ -4707,11 +4722,11 @@ function renderProdPrev() {
     const need=(+m.qty||0)*qty;
     // Cas 1 : matériau standard
     if(mat) {
-      const dispo=stockDispo(mat);
+      const dispo=MATS.filter(x=>baseRef(x.ref)===baseRef(mat.ref)).reduce((t,x)=>t+stockDispo(x),0);   // variantes = même stock
       const enough=dispo>=need;
       if(!enough&&m.qty) ok=false;
       return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 8px;border-radius:var(--rx);margin-bottom:2px;background:${enough?'var(--greenP)':'var(--redP)'}">
-        <span class="ref">${m.ref}</span>
+        <span class="ref">${m.ref}${mat.variante?' <span style="font-weight:400;color:var(--text)">'+mat.variante+'</span>':''}</span>
         <span style="font-size:12px">Besoin: <b>${n(need)||'?'}</b></span>
         <span style="color:${enough?'var(--green)':'var(--red)'};font-weight:700;font-size:12px">Dispo: ${n(dispo)} ${m.qty?(enough?'✓':'⚠'):''}</span>
       </div>`;
@@ -4817,6 +4832,49 @@ function toggleProdDetail(id) {
   if(el) el.style.display=el.style.display==='none'?'table-row':'none';
 }
 
+// ── Mise en vente des productions réalisées (boutique en ligne, point de vente physique…) ──
+// productions.mise_en_vente = { lieux: { "Boutique en ligne": 2, … }, note: "" }  (voir sql-mise-en-vente.sql)
+let LIEUX_VENTE=['Boutique en ligne','Point de vente physique'];
+const iconeLieu=l=>/en ligne|boutique|site|wix|etsy|shop/i.test(l)?'🛒':/point de vente|magasin|physique|d[ée]p[oô]t/i.test(l)?'🏪':/march|salon|[ée]v[ée]nement/i.test(l)?'🎪':'📍';
+function lireMiseEnVente(p) {
+  let v=p?.mise_en_vente; if(typeof v==='string'){ try{ v=JSON.parse(v); }catch(e){ v=null; } }
+  return { lieux:(v&&v.lieux)||{}, note:(v&&v.note)||'' };
+}
+function badgesMiseEnVente(p) {
+  const v=lireMiseEnVente(p);
+  const b=Object.entries(v.lieux).filter(([,q])=>+q>0).map(([l,q])=>`<span class="badge bgn" title="Mis en vente">${iconeLieu(l)} ${l} × ${n(q)}</span>`).join(' ');
+  return b+(v.note?` <span class="dim" style="font-size:11px" title="${v.note.replace(/"/g,'&quot;')}">📝 ${v.note.length>40?v.note.slice(0,40)+'…':v.note}</span>`:'');
+}
+function rendreLieuxVente(p) {
+  const v=lireMiseEnVente(p), qMax=+document.getElementById('ep-qty').value||+p?.qty||1;
+  const lieux=[...new Set([...LIEUX_VENTE,...Object.keys(v.lieux)])];
+  document.getElementById('ep-vente-lieux').innerHTML=lieux.map(l=>{
+    const q=+v.lieux[l]||0;
+    return `<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+      <input type="checkbox" class="ep-lieu-chk" style="width:18px;height:18px;padding:0;flex:0 0 auto;appearance:auto;-webkit-appearance:checkbox;accent-color:var(--purple)" data-lieu="${l.replace(/"/g,'&quot;')}" ${q?'checked':''} onchange="const i=this.parentNode.querySelector('.ep-lieu-qty'); if(this.checked&&!+i.value) i.value=${qMax}; if(!this.checked) i.value='';">
+      <span style="flex:1">${iconeLieu(l)} ${l}</span>
+      <input type="number" class="ep-lieu-qty" min="0" step="1" value="${q||''}" placeholder="qté" style="width:70px;padding:6px;font-size:12px" oninput="this.parentNode.querySelector('.ep-lieu-chk').checked=+this.value>0">
+    </label>`;
+  }).join('');
+  document.getElementById('ep-vente-note').value=v.note;
+}
+function lireFormMiseEnVente() {
+  const lieux={};
+  document.querySelectorAll('#ep-vente-lieux label').forEach(l=>{
+    const chk=l.querySelector('.ep-lieu-chk'), q=+l.querySelector('.ep-lieu-qty').value||0;
+    if(chk.checked&&q>0) lieux[chk.dataset.lieu]=q;
+  });
+  const note=document.getElementById('ep-vente-note').value.trim();
+  return Object.keys(lieux).length||note ? { lieux, note } : null;
+}
+async function ajouterLieuVente() {
+  const el=document.getElementById('ep-vente-nouveau'), l=el.value.trim(); if(!l) return;
+  if(!LIEUX_VENTE.includes(l)){ LIEUX_VENTE.push(l); await sbUpsertConfig('lieux_vente', LIEUX_VENTE); }
+  const p=PRODS.find(x=>x.id===document.getElementById('ep-prod-id').value);
+  const actuel=lireFormMiseEnVente()||{lieux:{},note:''};
+  rendreLieuxVente({...p, mise_en_vente:actuel});
+  el.value='';
+}
 function openEditProd(prodId) {
   const p=PRODS.find(x=>x.id===prodId); if(!p) return;
   const b=getBij(p.bij_id);
@@ -4826,6 +4884,7 @@ function openEditProd(prodId) {
   document.getElementById('ep-title').textContent='Modifier — '+(b?b.nom+(b.variante?' · '+b.variante:''):'');
   const isProd=!p.statut||p.statut==='produit';
   setEPStatut(isProd?'produit':'en_cours');
+  rendreLieuxVente(p);
   openModal('m-edit-prod');
 }
 
@@ -4840,6 +4899,7 @@ function setEPStatut(val) {
   elE.style.background=!isProd?'var(--purple)':'#fff';
   elE.style.color=!isProd?'#fff':'var(--muted)';
   elE.style.borderColor=!isProd?'var(--purple)':'var(--border)';
+  const vr=document.getElementById('ep-vente-row'); if(vr) vr.style.display=isProd?'':'none';   // seulement pour ce qui est produit
 }
 
 async function saveEditProd() {
@@ -4847,10 +4907,15 @@ async function saveEditProd() {
   const qty=+document.getElementById('ep-qty').value||1;
   const date=document.getElementById('ep-date').value;
   const statut=document.getElementById('ep-statut-val').value||'produit';
-  const ok=await sbUpdate('productions',id,{qty,date,statut});
+  const maj={qty,date,statut};
+  const mev=statut==='produit'?lireFormMiseEnVente():null;
+  const avant=lireMiseEnVente(PRODS.find(p=>p.id===id));
+  if(mev||Object.keys(avant.lieux).length||avant.note) maj.mise_en_vente=mev;   // la colonne n'est utilisée que si tu annotes
+  const ok=await sbUpdate('productions',id,maj);
+  if(!ok && maj.mise_en_vente!==undefined) toast('Mise en vente : lance d\'abord sql-mise-en-vente.sql dans Supabase','err');
   if(ok){
     const i=PRODS.findIndex(p=>p.id===id);
-    if(i>=0) PRODS[i]={...PRODS[i],qty,date,statut};
+    if(i>=0) PRODS[i]={...PRODS[i],...maj};
     closeModal('m-edit-prod');
     renderRent();
     toast('Production modifiée ✓','ok');
@@ -5054,7 +5119,7 @@ function renderRent() {
   if(!Object.keys(prodByBij).length){
     prodHtml='<div class="empty"><div class="empty-icon">🏭</div><p>Aucune production enregistrée</p></div>';
   } else {
-    prodHtml='<div class="tbl-wrap"><table><thead><tr><th>Bijou</th><th>Réf.</th><th>Produits</th><th>Vendus</th><th>Stock dispo</th><th>Coût mat.</th><th>PV unit.</th><th>Marge</th></tr></thead><tbody>';
+    prodHtml='<div class="tbl-wrap"><table><thead><tr><th>Bijou</th><th>Réf.</th><th>Produits</th><th>Mis en vente</th><th>Vendus</th><th>Stock dispo</th><th>Coût mat.</th><th>PV unit.</th><th>Marge</th></tr></thead><tbody>';
     Object.entries(prodByBij).forEach(([bijId,qProd])=>{
       const b=getBij(bijId); if(!b) return;
       const vt=venteTot(bijId);
@@ -5070,6 +5135,8 @@ function renderRent() {
         <td style="font-size:12px;font-weight:600">${b.nom}${b.variante?' · '+b.variante:''}</td>
         <td class="ref">${b.ref||'--'}</td>
         <td><b>${n(qProd)}</b></td>
+        <td>${(()=>{ const t={}; prodsLignes.forEach(p=>Object.entries(lireMiseEnVente(p).lieux).forEach(([l,q])=>t[l]=(t[l]||0)+(+q||0)));
+          const e=Object.entries(t).filter(([,q])=>q>0); return e.length?e.map(([l,q])=>`<span title="${l}">${iconeLieu(l)} ${n(q)}</span>`).join(' '):'<span class="dim">--</span>'; })()}</td>
         <td style="color:var(--green)">${n(vt.qty)}</td>
         <td><b style="color:${stock<0?'var(--red)':stock===0?'var(--muted)':'var(--green)'}">${n(stock)}</b></td>
         <td class="dim">${cout>0?eur(cout):'--'}</td>
@@ -5077,7 +5144,7 @@ function renderRent() {
         <td>${marge!==null?`<span class="badge ${marge>=30?'bgn':marge>=10?'bp':'br'}">${marge}%</span>`:'<span class="dim">--</span>'}</td>
       </tr>
       <tr id="pd_${bijId}" style="display:none">
-        <td colspan="8" style="padding:0">
+        <td colspan="9" style="padding:0">
           <div style="padding:6px 10px;background:var(--purpleP)">
             ${prodsLignes.map(p=>`
               <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;font-size:12px">
@@ -5085,6 +5152,8 @@ function renderRent() {
                 <span><b>${n(p.qty)}</b> pcs</span>
                 <span class="badge ${(!p.statut||p.statut==='produit')?'bgn':'bp'}">${(!p.statut||p.statut==='produit')?'✅ Produit':'🔧 En cours'}</span>
                 ${p.perso?`<span class="badge bm" style="cursor:pointer" onclick="event.stopPropagation();ouvrirPerso('${escPerso(p.perso)}')" title="${escPerso(p.perso_note||'')}">✨ ${escPerso(p.perso)}</span>`:''}
+                ${badgesMiseEnVente(p)}
+                ${(!p.statut||p.statut==='produit')&&!Object.keys(lireMiseEnVente(p).lieux).length?`<button class="btn btn-xs btn-ghost" onclick="event.stopPropagation();openEditProd('${p.id}')" title="Indiquer où ces pièces sont mises en vente">📍 Mettre en vente</button>`:''}
                 <button class="btn btn-xs btn-ghost" onclick="event.stopPropagation();openEditProd('${p.id}')">✎ Modifier</button>
                 <button class="btn btn-xs btn-red" onclick="event.stopPropagation();delProd('${p.id}')">✕</button>
               </div>`).join('')}
