@@ -518,7 +518,7 @@ import {
   couleursProposees, chargerCatalogueBoutique, affinerCouleursDepuisPhotos, resoudreDefauts, TAILLES_MOUSQUETON,
   FERMOIRS_DEMO, chargerFermoirsBoutique, prixConfiguration,
   genArete, PATRON_TETE_ARETE, estAccroche, modeleAreteDemo, modeleLettresDemo, modeleArgileDemo, modeleChainmailDemo, modelePerleCultureDemo, chargerModeleBoutique, listerModelesBoutique, enregistrerModeleBoutique,
-} from './bead-core.js?v=84dee3ef';
+} from './bead-core.js?v=4d7886b9';
 const raisonConnexion = e => /invalid login/i.test(e.message) ? 'e-mail ou mot de passe incorrect'
   : /not confirmed/i.test(e.message) ? 'adresse e-mail pas encore confirmée (Supabase › Authentication › Users)'
   : e.message;
@@ -607,7 +607,7 @@ $('#btVueZones').addEventListener('click', e => {
   e.currentTarget.setAttribute('aria-pressed', scene.vueZones);
   scene.reconstruire();
 });
-$('#btCadrer').addEventListener('click', () => scene.cadrer());
+$('#btCadrer').addEventListener('click', () => { scene.deFace(); scene.cadrer(); });
 $('#btAnnuler').addEventListener('click', annuler);
 document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); annuler(); } });
 function annuler() {

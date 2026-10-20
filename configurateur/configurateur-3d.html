@@ -82,6 +82,9 @@ button, input, textarea { font: inherit; color: inherit; }
 .pastille[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--prune); }
 .pastille .etoile { position: absolute; right: -9px; top: -9px; width: 24px; height: 24px; }
 .pastille:disabled { cursor: not-allowed; opacity: .35; }
+.pastille.epuisee-choisie { opacity: .6; }
+.rupture { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 10px; background: #f7e1e3; color: var(--erreur); font: 600 12px var(--f-texte); }
+.legende-rupture { font-size: 12px; color: var(--prune-doux); margin: 6px 0 0; }
 .pastille:disabled::after { content: ""; position: absolute; left: -3px; right: -3px; top: 50%; height: 2px; background: var(--prune); transform: rotate(-45deg); }
 
 /* ---- options ---- */
@@ -380,14 +383,14 @@ label.champ input:focus, label.champ textarea:focus { border-color: var(--prune)
    ------------------------------------------------------------------ */
 import {
   ScenePerles, CATALOGUE_DEMO, FERMOIRS_DEMO, modeleDemo, modeleAreteDemo, modeleLettresDemo,
-  couleursProposees, validerConfiguration, listerModelesPublies, chargerCatalogueBoutique, chargerFermoirsBoutique,
+  couleursProposees, validerConfiguration, couleursEpuisees, listerModelesPublies, chargerCatalogueBoutique, chargerFermoirsBoutique,
   chargerPartiesConfigurateur, chargerPrixBijou, affinerCouleursDepuisPhotos, resoudreDefauts, envoyerDemande,
   composerBundle, lignesCommandeBundle, accrochesProposees, construireLettres, verifierTexte, estLettres, offreApplicable,
   notePersonnalisation, chargerPersonnalisation, modeleArgileDemo, completerCatalogue, apercuArgile, estArgile,
   modeleChainmailDemo, estChainmail, chargerBijouxBoutique, bijouBreloque, modelePerleCultureDemo, estPerleCulture, apercuChainmail,
   correspondCategorie, texteCatalogue, ordreModeles, chargerRuptures, appliquerRuptures,
   chargerLiens, appliquerLiens, relierModele, chargerMateriauxParRefs,
-} from './bead-core.js?v=84dee3ef';
+} from './bead-core.js?v=4d7886b9';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER } from './perles-config.js?v=e1bf13ba';
 
 const $ = s => document.querySelector(s);
@@ -549,7 +552,7 @@ function rendre3D({ cadrer = false } = {}) {
     });
     scene.definirModele(comp.modele); scene.definirCouleurs(comp.couleurs); scene.definirOptions(comp.options);
   }
-  if (cadrer) scene.cadrer();
+  if (cadrer) { scene.deFace(); scene.cadrer(); }     // nouveau modèle : la rotation repart de face
 }
 const zoneScene = z => enBundle() ? 'b' + etat.actif + ':' + z : z;
 function montrerZones(ids) {
@@ -579,7 +582,7 @@ function fond(c) {
 const pastilles = (liste, choisi, attr, { sans = false } = {}) =>
   (sans ? `<button class="pastille sans" type="button" ${attr}="" aria-label="Sans" aria-pressed="${!choisi}">Sans${!choisi ? ETOILE : ''}</button>` : '')
   + liste.map(c => `
-  <button class="pastille" type="button" ${attr}="${esc(c.ref)}" title="${esc(c.nom)}${c.enStock === false ? ' · épuisé' : ''}"
+  <button class="pastille${c.enStock === false && c.ref === choisi ? ' epuisee-choisie' : ''}" type="button" ${attr}="${esc(c.ref)}" title="${esc(c.nom)}${c.enStock === false ? ' · épuisé' : ''}"
     aria-label="${esc(c.nom)}${c.enStock === false ? ', épuisé' : ''}" aria-pressed="${c.ref === choisi}"
     ${c.enStock === false ? 'disabled' : ''} style="background:${fond(c)}">${c.ref === choisi ? ETOILE : ''}</button>`).join('');
 function boutonsDe(m) {
@@ -754,8 +757,10 @@ function rendrePalette() {
   if (!x) return;
   $('#palette').innerHTML = x.zones.map(z => `
     <div>
-      <div class="palette-titre"><span>${esc(x.zones.length > 1 ? (z.libelle || z.nom) : z.nom)}</span><b>${esc(parRef[b.couleurs[z.id]]?.nom || '')}</b></div>
+      <div class="palette-titre"><span>${esc(x.zones.length > 1 ? (z.libelle || z.nom) : z.nom)}</span><b>${esc(parRef[b.couleurs[z.id]]?.nom || '')}${parRef[b.couleurs[z.id]]?.enStock === false ? '<span class="rupture">en rupture</span>' : ''}</b></div>
       <div class="pastilles" data-zone="${esc(z.id)}">${pastilles(couleursProposees(z, catalogue, parties), b.couleurs[z.id], 'data-ref')}</div>
+      ${parRef[b.couleurs[z.id]]?.enStock === false ? '<p class="legende-rupture">Cette couleur est en rupture de stock : choisis-en une autre pour commander.</p>'
+        : couleursProposees(z, catalogue, parties).some(c => c.enStock === false) ? '<p class="legende-rupture">Les couleurs barrées sont en rupture de stock.</p>' : ''}
     </div>`).join('');
   $('#palette').querySelectorAll('[data-zone]').forEach(box => box.querySelectorAll('[data-ref]').forEach(p => p.addEventListener('click', () => {
     const z = box.dataset.zone;
@@ -882,6 +887,15 @@ async function enregistrer() {
   if (valide) return valide;
   const iTexte = etat.breloques.findIndex(b => estLettres(modeleDe(b.slug)) && verifierTexte(b.texte, modeleDe(b.slug).lettres?.max || 8).erreur);
   if (iTexte >= 0) { etat.actif = iTexte; toutRendre(); $('#etapeTexte').scrollIntoView({ behavior: 'smooth' }); throw new Error('texte'); }
+  // une couleur choisie (ou de départ) en rupture : on la montre et on demande d'en changer
+  for (const [i, b] of etat.breloques.entries()) {
+    const ep = couleursEpuisees(modeleDe(b.slug), catalogue, b.couleurs);
+    if (ep.length) {
+      etat.actif = i; const m = modeleDe(b.slug), z = (m.zones || []).find(x => x.id === ep[0].zone);
+      b.actif = z?.groupe || z?.id || b.actif; toutRendre(); $('#palette').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const e = new Error('rupture'); e.detail = `${ep.map(x => x.nom + ' (' + x.zoneNom + ')').join(', ')} : en rupture de stock, choisis une autre couleur.`; throw e;
+    }
+  }
   const choix = choixActuels(), lignes = calcul();
   let numero = '', cle = null;
   if (sb) {
@@ -930,7 +944,7 @@ const erreur = msg => { $('#erreur').textContent = msg; $('#erreur').hidden = !m
 $('#btEnregistrer').addEventListener('click', async () => {
   erreur(''); $('#btEnregistrer').disabled = true;
   try { await enregistrer(); afficherEnregistree('Personnalisation enregistrée', 'Tu peux la reprendre à tout moment, depuis ce lien ou depuis cet appareil.'); }
-  catch (x) { if (x.message !== 'texte') { console.error(x); erreur('L\'enregistrement n\'a pas abouti. Réessaie dans un instant.'); } else erreur('Le texte de ta breloque lettre est à corriger.'); }
+  catch (x) { if (x.message === 'rupture') erreur(x.detail); else if (x.message !== 'texte') { console.error(x); erreur('L\'enregistrement n\'a pas abouti. Réessaie dans un instant.'); } else erreur('Le texte de ta breloque lettre est à corriger.'); }
   finally { $('#btEnregistrer').disabled = false; }
 });
 $('#btPanier').addEventListener('click', async () => {
@@ -944,7 +958,7 @@ $('#btPanier').addEventListener('click', async () => {
     afficherEnregistree('Ajout au panier…', 'Ta personnalisation est enregistrée.');
     clearTimeout(enregistrer.t);
     enregistrer.t = setTimeout(() => { if (!$('#merci').dataset.ok) afficherEnregistree('Personnalisation enregistrée', 'Le panier ne répond pas : garde ce numéro et ce lien, puis réessaie.'); }, 6000);
-  } catch (x) { if (x.message !== 'texte') { console.error(x); erreur('L\'ajout n\'a pas abouti. Réessaie dans un instant.'); } else erreur('Le texte de ta breloque lettre est à corriger.'); }
+  } catch (x) { if (x.message === 'rupture') erreur(x.detail); else if (x.message !== 'texte') { console.error(x); erreur('L\'ajout n\'a pas abouti. Réessaie dans un instant.'); } else erreur('Le texte de ta breloque lettre est à corriger.'); }
   finally { $('#btPanier').disabled = false; }
 });
 /* messages de la page Wix : confirmation du panier, adresse de la page, lien de reprise */

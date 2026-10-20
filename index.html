@@ -1708,34 +1708,41 @@ function puMoyen(mat) {
   const qT=qB+qE, pT=pB+pE;
   return (qT&&pT)?pT/qT:null;
 }
+// ── Calibrage pièce ↔ poids des perles stockées au gramme (sachets de 450 g…) ──
+// Une perle de même taille pèse pareil quelle que soit sa couleur : une référence sans
+// calibrage reprend celui des références de même sous-catégorie et de même taille (11/0, 8/0…).
+const normTxt = t => String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+function tailleRocaille(m) {
+  const t=[m.designation||m.des,m.variante,m.sc].join(' ');
+  const x=t.match(/\b(\d{1,2})\s*\/\s*0\b/); if(x) return x[1]+'/0';
+  const mm=t.match(/(\d+(?:[.,]\d+)?)\s*mm\b/i); return mm?mm[1].replace(',','.')+' mm':'';
+}
+const GPP_TYPIQUE={'15/0':0.0035,'11/0':0.009,'10/0':0.012,'8/0':0.028,'6/0':0.08};   // g par perle, rocailles japonaises
+const estPerleAuPoids = m => (m.unite==='gramme'||m.unite==='kilo') && /perle|rocaille/.test(normTxt([m.mc,m.sc,m.designation||m.des].join(' ')));
+function calibrage(mat) {
+  const propre=+mat.meta?.calib_g_per_piece;
+  if(propre>0) return {gpp:propre, source:'propre', refs:[mat.ref]};
+  const t=tailleRocaille(mat);
+  const autres=MATS.filter(x=>x.id!==mat.id && +x.meta?.calib_g_per_piece>0 && x.sc===mat.sc && tailleRocaille(x)===t);
+  if(autres.length) {
+    const v=autres.map(x=>+x.meta.calib_g_per_piece).sort((a,b)=>a-b), med=v[Math.floor(v.length/2)];
+    return {gpp:med, source:'même taille', refs:autres.map(x=>x.ref)};
+  }
+  if(GPP_TYPIQUE[t]) return {gpp:GPP_TYPIQUE[t], source:'valeur type '+t, refs:[]};
+  if(/rocaille/.test(normTxt([mat.sc,mat.designation||mat.des].join(' ')))) return {gpp:GPP_TYPIQUE['11/0'], source:'estimation (rocaille 11/0)', refs:[]};
+  return {gpp:0.1, source:'estimation 0,1 g', refs:[]};
+}
+// Équivalent en pièces d'une quantité exprimée dans l'unité du matériau (g ou kg)
+const enPieces = (mat, q) => { const c=calibrage(mat); return q*(mat.unite==='kilo'?1000:1)/c.gpp; };
 function matsConsumedByBij(bij, qtyProd, depth=0) {
   // Retourne {ref: qtyConsommée} pour tous les matériaux (récursif via compositions)
   if(depth>4) return {};
   const result={};
-  for(const m of (bij.mats||[])) {
+  // variante de bijou : matériaux du parent + remplacements (comme le coût) — avant, seuls ses ajouts comptaient
+  for(const m of getMatsEffectifs(bij)) {
     const mat=getMat(m.ref);
     if(mat) {
-      // Convertir la quantité selon l'unité saisie dans la composition
-      let qtyInMatUnite = +m.qty||0;
-      const saisieUnite = m.qty_unite||'native';
-      const matUnite = mat.unite||'unite';
-      if(saisieUnite!=='native' && saisieUnite!==matUnite) {
-        // pcs → grammes : utiliser calibration si dispo, sinon ratio estimé
-        if(saisieUnite==='unite' && (matUnite==='gramme'||matUnite==='kilo')) {
-          const gpp = mat.meta?.calib_g_per_piece;
-          qtyInMatUnite = gpp ? qtyInMatUnite * gpp : qtyInMatUnite * 0.1; // 0.1g estimé si pas de calib
-        }
-        // grammes → pelotes
-        else if(saisieUnite==='gramme' && matUnite==='pelote') {
-          const poidsPelote = mat.meta?.poids||100;
-          qtyInMatUnite = qtyInMatUnite / poidsPelote;
-        }
-        // cm → mètres
-        else if(saisieUnite==='centimetre' && matUnite==='metre') {
-          qtyInMatUnite = qtyInMatUnite / 100;
-        }
-      }
-      result[m.ref]=(result[m.ref]||0)+qtyInMatUnite*qtyProd;
+      result[m.ref]=(result[m.ref]||0)+qteMat(m,mat)*qtyProd;
     } else {
       // Bijou composant — descendre récursivement
       const comp=BIJS.find(b=>b.ref===m.ref);
@@ -1746,6 +1753,32 @@ function matsConsumedByBij(bij, qtyProd, depth=0) {
     }
   }
   return result;
+}
+// Quantité d'une ligne de fiche bijou, convertie dans l'unité de stock du matériau (perles → g…)
+function qteMat(m, mat) {
+      let qtyInMatUnite = +m.qty||0;
+      const saisieUnite = m.qty_unite||'native';
+      const matUnite = mat.unite||'unite';
+      if(saisieUnite!=='native' && saisieUnite!==matUnite) {
+        // pcs → grammes : utiliser calibration si dispo, sinon ratio estimé
+        if(saisieUnite==='unite' && (matUnite==='gramme'||matUnite==='kilo')) {
+          // calibrage de la réf., sinon celui des réf. de même taille ; stock en kg → /1000
+          qtyInMatUnite = qtyInMatUnite * calibrage(mat).gpp / (matUnite==='kilo'?1000:1);
+        }
+        // grammes → pelotes
+        else if(saisieUnite==='gramme' && matUnite==='pelote') {
+          const poidsPelote = mat.meta?.poids||100;
+          qtyInMatUnite = qtyInMatUnite / poidsPelote;
+        }
+        // cm → mètres
+        else if(saisieUnite==='centimetre' && matUnite==='metre') {
+          qtyInMatUnite = qtyInMatUnite / 100;
+        }
+        else if(saisieUnite==='gramme' && matUnite==='kilo') {
+          qtyInMatUnite = qtyInMatUnite / 1000;
+        }
+      }
+      return qtyInMatUnite;
 }
 
 // Matériaux pris par les productions, d'après la composition de la fiche bijou.
@@ -1793,7 +1826,7 @@ function coutBijou(bij, depth=0) {
     const mat=getMat(m.ref);
     if(mat){
       const pu=puMoyen(mat);
-      return s+(pu&&m.qty?pu*(+m.qty):0);
+      return s+(pu&&m.qty?pu*qteMat(m,mat):0);           // prix au gramme × grammes (perles converties)
     }
     // Bijou utilisé comme composant : chercher par ref parmi les is_mat
     const bm=BIJS.find(b=>b.is_mat&&(b.ref===m.ref||b.id===m.ref));
@@ -1838,6 +1871,14 @@ function calcCalibration() {
   const g  = +document.getElementById('mat-calib-g')?.value||0;
   const res = document.getElementById('mat-calib-result');
   const hint = document.getElementById('mat-calib-hint');
+  if(!(nb && g)) {                                       // pas de pesée propre : calibrage repris des réf. de même taille
+    const id=document.getElementById('mat-edit-id')?.value, m=MATS.find(x=>x.id===id) ||
+      { id:'', sc:document.getElementById('mat-sc')?.value, designation:document.getElementById('mat-des')?.value, variante:document.getElementById('mat-var')?.value, meta:null };
+    const c=calibrage({...m, meta:null});
+    if(res) res.textContent = c.gpp.toFixed(4)+' g/pièce';
+    if(hint) hint.textContent = 'Sans pesée ici : '+(c.source==='même taille'?'repris de '+c.refs.slice(0,4).join(', '):c.source)+'. Une pesée sur une seule réf. suffit pour toutes les couleurs de même taille.';
+    return;
+  }
   if(nb && g) {
     const gPerPiece = g/nb;
     const piecesPerG = nb/g;
@@ -2893,6 +2934,7 @@ function renderMat() {
             <td class="dim">${m.fournisseur||'--'}</td>
             <td title="Stock ${n(tot)} − utilisé ${n(util)} − réservé ${n(res)}">${(tot||util||res)?('<b style="color:'+(sc2<=0?'var(--red)':'inherit')+'">'+n(Math.round(sc2*100)/100)+'</b> <span style="font-size:10px;color:var(--muted)">'+getUniteShort(m)+'</span>'
               +(res?'<div style="font-size:10px;color:var(--orange)">🔧 '+n(Math.round(res*100)/100)+' réservé</div>':'')
+              +(estPerleAuPoids(m)?'<div style="font-size:10px;color:var(--muted)" title="Calibrage : '+calibrage(m).source+'">≈ '+n(Math.round(enPieces(m,sc2)))+' perles</div>':'')
               +(grp.length>1?'<div style="font-size:10px;color:var(--muted)">stock commun '+grp.map(x=>x.ref).join(' + ')+'</div>':'')):'<span class="dim">--</span>'}</td>
             <td class="${pu?'hi':'dim'}">${pu?eur(pu,4):'--'}</td>
             <td onclick="event.stopPropagation()" style="white-space:nowrap">
@@ -3102,6 +3144,7 @@ function addMatRow(sc='',ref='',qty='',qty_unite='native') {
   c.appendChild(div);
   filterBijRefs(div.querySelector('.bij-sc'),ref);
   // Après avoir peuplé les refs, sélectionner l'unité sauvegardée
+  if(ref) div.dataset.uniteSauvee=qty_unite||'native';    // fiche existante : garder l'unité enregistrée
   if(qty_unite&&qty_unite!=='native') {
     setTimeout(()=>{
       const uniteEl=div.querySelector('.bij-qty-unite');
@@ -3142,6 +3185,7 @@ function filterBijRefs(sel,preselectRef='') {
 
 function onBijRefChange(sel) {
   const row=sel.closest('.mat-row-item');
+  delete row.dataset.uniteSauvee;                        // nouvelle réf. : unité par défaut (perles → pcs)
   updateBijQtyUniteOpts(row, sel.value);
 }
 
@@ -3158,7 +3202,8 @@ function updateBijQtyUniteOpts(row, ref) {
   }
   const matUnite=mat.unite||'unite';
   const info=UNITE_LABELS[matUnite]||UNITE_LABELS.unite;
-  const hasCalib=mat.meta?.calib_g_per_piece>0;
+  const calib=(matUnite==='gramme'||matUnite==='kilo')?calibrage(mat):null;
+  const hasCalib=!!calib && calib.source!=='estimation 0,1 g';
   // Options disponibles selon l'unité du matériau
   let opts=`<option value="native">${info.short}</option>`;
   if(matUnite==='gramme'||matUnite==='kilo') {
@@ -3171,14 +3216,15 @@ function updateBijQtyUniteOpts(row, ref) {
     opts+=`<option value="centimetre">cm (→ m)</option>`;
   }
   uniteEl.innerHTML=opts;
+  if(estPerleAuPoids(mat) && !row.dataset.uniteSauvee) uniteEl.value='unite';   // perles au gramme : on compte en perles
   // Hint calibration
   if(hintEl) {
     if((matUnite==='gramme'||matUnite==='kilo') && !hasCalib) {
       hintEl.textContent='⚠ Pas de calibration — saisir directement en '+info.short;
       hintEl.style.color='var(--orange)';
     } else if(hasCalib) {
-      hintEl.textContent='✓ Calibration : '+mat.meta.calib_g_per_piece.toFixed(4)+' g/pièce ('+Math.round(mat.meta.calib_pieces_per_g*10)/10+' pcs/g)';
-      hintEl.style.color='var(--green)';
+      hintEl.textContent='✓ Calibrage '+(calib.source==='propre'?'':'('+calib.source+(calib.refs.length?' : '+calib.refs.slice(0,3).join(', '):'')+') ')+': '+calib.gpp.toFixed(4)+' g/perle ('+Math.round(10/calib.gpp)/10+' perles/g)';
+      hintEl.style.color=calib.source==='propre'||calib.source==='même taille'?'var(--green)':'var(--orange)';
     } else {
       hintEl.textContent='';
     }
@@ -3193,9 +3239,12 @@ function onBijQtyUniteChange(sel) {
   if(!mat||!hintEl) return;
   const matUnite=mat.unite||'unite';
   const saisieUnite=sel.value;
-  if(saisieUnite==='unite' && (matUnite==='gramme'||matUnite==='kilo')) {
-    if(mat.meta?.calib_g_per_piece) {
-      hintEl.textContent='✓ Converti : 1 pcs = '+mat.meta.calib_g_per_piece.toFixed(4)+'g';
+  if(saisieUnite==='native' && estPerleAuPoids(mat)) {
+    hintEl.textContent='⚠ Quantité en grammes : pour un nombre de perles, choisis « pcs (→ g) »';
+    hintEl.style.color='var(--orange)';
+  } else if(saisieUnite==='unite' && (matUnite==='gramme'||matUnite==='kilo')) {
+    if(calibrage(mat).gpp) {
+      hintEl.textContent='✓ Converti : 1 perle = '+calibrage(mat).gpp.toFixed(4)+' g';
       hintEl.style.color='var(--green)';
     } else {
       hintEl.textContent='\u26a0 Calibration manquante \u2014 saisir directement en '+info.short;
@@ -3358,7 +3407,7 @@ function renderBij() {
               const pu=mat?puMoyen(mat):null;
               const bijComp=!mat?BIJS.find(bj=>bj.ref===m.ref&&bj.is_mat):null;
               const coutComp=bijComp?coutBijou(bijComp):null;
-              const pm2=pu&&m.qty?pu*(+m.qty):(coutComp&&m.qty?coutComp*(+m.qty):null);
+              const pm2=pu&&m.qty?pu*qteMat(m,mat):(coutComp&&m.qty?coutComp*(+m.qty):null);
               const detailId='det_'+b.id+'_'+m.ref.replace(/[^a-z0-9]/gi,'_');
               const bijCompDetail=bijComp?(bijComp.mats||[]).map(bm=>{
                 const bmat=getMat(bm.ref);
@@ -3375,7 +3424,7 @@ function renderBij() {
                 <td><span class="badge" style="background:${SC_CLR[m.sc]||'#eee'};color:${m.sc?'#fff':'#888'};font-size:8px">${m.sc||'--'}</span></td>
                 <td class="ref">${m.ref}</td>
                 <td class="dim">${matLabel}</td>
-                <td>${m.qty?n(m.qty):`<span class="badge br">?</span>`}</td>
+                <td>${m.qty?n(m.qty)+(mat?' <span style="font-size:10px;color:var(--muted)">'+(m.qty_unite==='unite'&&mat.unite!=='unite'?'pcs':getUniteShort(mat))+'</span>'+((m.qty_unite||'native')==='native'&&estPerleAuPoids(mat)&&+m.qty>=3?' <span class="badge br" title="Perles stockées au gramme : vérifier si c\'est un nombre de perles (onglet 📊 Stock)">g ?</span>':''):''):`<span class="badge br">?</span>`}</td>
                 <td class="${pm2?'hi':'dim'}">${pm2?eur(pm2):'--'}</td>
               </tr>`;
             }).join('')}</tbody>
@@ -3422,6 +3471,38 @@ function baseRef(ref) {
   return (ref||'').replace(/[a-z]+$/i, '');
 }
 
+// Fiches bijoux où une perle stockée au gramme est saisie en grammes (unité par défaut) :
+// souvent un nombre de perles (ex. 30) compté comme 30 g. On les liste pour corriger d'un clic.
+function lignesPerlesEnGrammes() {
+  const out=[];
+  BIJS.forEach(b=>(b.mats||[]).forEach((m,i)=>{
+    const mat=getMat(m.ref);
+    if(mat && estPerleAuPoids(mat) && (m.qty_unite||'native')==='native' && +m.qty>=3) out.push({b,i,m,mat});
+  }));
+  return out;
+}
+function verifCompositionsPerles() {
+  const l=lignesPerlesEnGrammes();
+  const sansCalib=MATS.filter(m=>estPerleAuPoids(m)&&!(+m.meta?.calib_g_per_piece>0));
+  const tailles=[...new Set(sansCalib.map(m=>m.sc+' '+(tailleRocaille(m)||'')))];
+  let h='';
+  if(l.length) h+=`<div class="card" style="margin:0 0 12px;border:1.5px solid var(--orange)"><div class="card-bd">
+    <div style="font-weight:700;color:var(--orange);margin-bottom:6px">⚠ ${l.length} ligne(s) de fiches bijoux comptent des perles en grammes</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Ces perles sont stockées au gramme (sachets) mais la fiche indique la quantité en grammes. Si c'est un <b>nombre de perles</b>, clique « en perles » : la fiche est corrigée et le stock recalculé avec le calibrage.</div>
+    ${l.map(x=>`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:5px 0;border-top:1px solid var(--border);font-size:12px">
+      <span style="flex:1;min-width:180px"><b>${x.b.nom}${x.b.variante?' · '+x.b.variante:''}</b> — ${x.mat.variante||x.mat.designation||''} <span class="ref">${x.m.ref}</span> : <b>${n(x.m.qty)} g</b>
+        <span class="dim">(≈ ${n(Math.round(enPieces(x.mat,+x.m.qty)))} perles)</span></span>
+      <button class="btn btn-xs btn-p" onclick="corrigerUnitePerles('${x.b.id}',${x.i})">= ${n(x.m.qty)} perles</button>
+      <button class="btn btn-xs btn-ghost" onclick="corrigerUnitePerles('${x.b.id}',${x.i},true)" title="La quantité est bien en grammes">c'est bien en g</button>
+    </div>`).join('')}</div></div>`;
+  return h;
+}
+async function corrigerUnitePerles(bijId, i, garderGrammes=false) {
+  const b=BIJS.find(x=>x.id===bijId); if(!b) return;
+  const mats=(b.mats||[]).map((m,k)=>k===i?{...m, qty_unite:garderGrammes?'gramme':'unite'}:m);
+  const ok=await sbUpdate('bijoux',bijId,{mats});
+  if(ok){ b.mats=mats; renderStock(); renderMat(); toast(garderGrammes?'Gardé en grammes ✓':'Compté en perles ✓ — stock recalculé','ok'); }
+}
 function renderStock() {
   const el=document.getElementById('stock-body');
   if(!el) return;
@@ -3435,7 +3516,7 @@ function renderStock() {
   const stockableMats = filteredMats.filter(m=>(m.type||'creation')!=='outil');
   const by={};
   stockableMats.forEach(m=>{if(!by[m.mc])by[m.mc]={};if(!by[m.mc][m.sc])by[m.mc][m.sc]=[];by[m.mc][m.sc].push(m);});
-  let html='';
+  let html=verifCompositionsPerles();
   Object.entries(by).forEach(([mc,subs])=>{
     html+=`<div class="main-ban" style="background:${MAIN_CLR[mc]||'#888'}">◆ ${mc.toUpperCase()}</div>`;
     Object.entries(subs).forEach(([sc,mats])=>{
@@ -3466,7 +3547,7 @@ function renderStock() {
             <td>${totG?(n(totG)+' <span style="font-size:10px;color:var(--muted)">'+uniteShort+'</span>'):'<span class="dim">--</span>'}</td>
             <td class="dim" title="Productions terminées">${n(Math.round(uG*100)/100)||'0'}</td>
             <td style="color:${rG?'var(--orange)':'var(--muted)'}" title="Productions en cours et commandes sur mesure : pré-compté">${rG?'🔧 '+n(Math.round(rG*100)/100):'0'}</td>
-            <td><b style="color:${clr}">${n(dG)}</b>
+            <td><b style="color:${clr}">${n(Math.round(dG*100)/100)}</b>${estPerleAuPoids(firstMat)?`<div style="font-size:10px;color:var(--muted)" title="Calibrage : ${calibrage(firstMat).source}">≈ ${n(Math.round(enPieces(firstMat,dG)))} perles</div>`:''}
               <div class="sbar"><div class="sfill" style="width:${pct}%;background:${clr}"></div></div>
             </td>
             <td style="white-space:nowrap">

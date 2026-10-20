@@ -12,6 +12,9 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
 const DEG = Math.PI / 180;
+/* Vue « de face » : les breloques pendent selon Y et s'étalent dans le plan YZ (éventail),
+   leur face peinte / leur profil regarde +X. Légèrement au-dessus pour donner du relief. */
+const DIR_FACE = new THREE.Vector3(1, 0.12, 0).normalize();
 const AXE_X = new THREE.Vector3(1, 0, 0);
 
 /* --------------------------------------------------------------------------
@@ -1781,7 +1784,7 @@ export class ScenePerles {
     this.scene.add(sol, new THREE.AmbientLight(0xffffff, 0.25));
 
     this.camera = new THREE.PerspectiveCamera(35, 1, 0.1, 2000);
-    this.camera.position.set(40, 25, 40);
+    this.camera.position.copy(DIR_FACE).multiplyScalar(60);     // de face : le motif se voit dès le départ
     this.controls = new OrbitControls(this.camera, r.domElement);
     this.controls.enableDamping = true;
     this.controls.autoRotate = autoRotation;
@@ -2160,6 +2163,13 @@ export class ScenePerles {
     this.scene.add(h);
   }
 
+  /* Replace la caméra de face (garde la distance) : départ de la rotation automatique */
+  deFace() {
+    const d = this.camera.position.distanceTo(this.controls.target) || 60;
+    this.camera.position.copy(this.controls.target).add(DIR_FACE.clone().multiplyScalar(d));
+    this.camera.lookAt(this.controls.target);
+  }
+
   cadrer(marge = 1.25) {
     const box = new THREE.Box3().setFromObject(this.racine);
     if (box.isEmpty()) return;
@@ -2184,7 +2194,7 @@ export class ScenePerles {
      angle = rotation (radians) autour de l'axe vertical, à partir de la vue actuelle.
      Avec restaurer:false la vue reste à cette taille (enchaîner les images d'une vidéo),
      puis restaurerVue(). Renvoie le canvas WebGL (fond transparent). */
-  rendreVue({ largeur = 1080, hauteur = 1080, angle = 0, marge = 1.12, restaurer = true } = {}) {
+  rendreVue({ largeur = 1080, hauteur = 1080, angle = 0, marge = 1.12, restaurer = true, deFace = true } = {}) {
     const r = this.renderer, cam = this.camera, ctl = this.controls;
     if (!this._vueSauvee) this._vueSauvee = { taille: r.getSize(new THREE.Vector2()), ratio: r.getPixelRatio(), pos: cam.position.clone(),
       cible: ctl.target.clone(), aspect: cam.aspect, near: cam.near, far: cam.far, halo: this.halo?.visible, pause: this.enPause };
@@ -2195,7 +2205,7 @@ export class ScenePerles {
     const box = new THREE.Box3().setFromObject(this.racine);
     const c = box.isEmpty() ? v.cible.clone() : box.getCenter(new THREE.Vector3());
     const rayon = box.isEmpty() ? 20 : box.getBoundingSphere(new THREE.Sphere()).radius;
-    const dir = v.pos.clone().sub(v.cible).applyAxisAngle(new THREE.Vector3(0, 1, 0), angle).normalize();
+    const dir = (deFace ? DIR_FACE.clone() : v.pos.clone().sub(v.cible)).applyAxisAngle(new THREE.Vector3(0, 1, 0), angle).normalize();
     cam.aspect = largeur / hauteur;
     const demiV = cam.fov * DEG / 2, demiH = Math.atan(Math.tan(demiV) * cam.aspect);
     const dist = rayon * marge / Math.sin(Math.min(demiV, demiH));
@@ -2307,11 +2317,21 @@ export function validerConfiguration(modele, catalogue, config, parties = null) 
   const propre = {};
   for (const z of modele.zones || []) {
     const ok = couleursProposees(z, catalogue, parties).filter(c => c.enStock !== false).map(c => c.ref);
-    // défaut absent ou épuisé : la couleur du même nom (ex. « argent 1 »), sinon la première proposée
-    const dispo = couleursProposees(z, catalogue, parties).filter(c => c.enStock !== false);
-    propre[z.id] = ok.includes(config[z.id]) ? config[z.id] : (ok.includes(z.defaut) ? z.defaut : refParNom(z.defautNom, dispo) ?? ok[0] ?? null);
+    // La couleur de départ du modèle reste affichée même épuisée (le modèle ne change pas) :
+    // la pastille est barrée et la commande demande une autre couleur.
+    const tous = couleursProposees(z, catalogue, parties);
+    const defaut = tous.some(c => c.ref === z.defaut) ? z.defaut : refParNom(z.defautNom, tous);
+    propre[z.id] = ok.includes(config[z.id]) ? config[z.id]
+      : (config[z.id] === undefined || config[z.id] === defaut) && defaut ? defaut : ok[0] ?? defaut ?? null;
   }
   return propre;
+}
+
+/* Couleurs choisies qui sont en rupture : [{ zone, nom }] (bloque la commande) */
+export function couleursEpuisees(modele, catalogue, couleurs = {}) {
+  const parRef = new Map(catalogue.map(c => [c.ref, c]));
+  return (modele.zones || []).filter(z => z.client !== false && parRef.get(couleurs[z.id])?.enStock === false)
+    .map(z => ({ zone: z.id, zoneNom: z.libelle || z.nom, nom: parRef.get(couleurs[z.id]).nom }));
 }
 
 /* --------------------------------------------------------------------------
