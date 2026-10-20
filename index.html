@@ -354,6 +354,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
 <div class="tabs">
   <div class="tab on" data-p="mat" onclick="goTab(this)">📦 Gestion</div>
   <div class="tab" data-p="bij" onclick="goTab(this)">✨ Création</div>
+  <div class="tab" data-p="c3d" onclick="goTab(this)">🧊 Conception 3D</div>
   <div class="tab" data-p="compta" onclick="goTab(this)">🧾 Comptabilité</div>
   <div class="tab" data-p="cfg" onclick="goTab(this)">⚙ Paramètres</div>
 </div>
@@ -419,6 +420,31 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
   </div>
 </div>
 
+<!-- ════════════════ CONCEPTION 3D (configurateur des breloques) ════════════════ -->
+<div id="p-c3d" class="page" style="padding:0">
+  <div style="position:sticky;top:0;z-index:50;background:#fff;box-shadow:0 2px 8px rgba(26,18,40,.08)">
+    <div style="display:flex;border-bottom:2px solid var(--border);overflow-x:auto">
+      <div id="c3tab-cfg" onclick="switchC3dTab('cfg')" class="gtab gtab-on">👁 Configurateur</div>
+      <div id="c3tab-m3d" onclick="switchC3dTab('m3d')" class="gtab">🧊 Modèles</div>
+      <div id="c3tab-ref" onclick="switchC3dTab('ref')" class="gtab">🔗 Références</div>
+      <div id="c3tab-rup" onclick="switchC3dTab('rup')" class="gtab">📦 Ruptures</div>
+    </div>
+  </div>
+  <div id="c3panel-cfg">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:8px 12px;font-size:12px">
+      <span style="color:var(--muted)">Aperçu de la page client (comme dans Wix)</span>
+      <span style="flex:1"></span>
+      <a class="btn btn-xs btn-ghost" href="configurateur/configurateur-3d.html" target="_blank">↗ Ouvrir dans un onglet</a>
+      <a class="btn btn-xs btn-ghost" href="configurateur/configurateur-3d.html?diag=1" target="_blank">🔎 Diagnostic</a>
+      <button class="btn btn-xs btn-ghost" onclick="switchC3dTab('cfg', true)">↻ Recharger</button>
+    </div>
+    <iframe id="c3frame-cfg" title="Configurateur 3D" style="display:block;width:100%;height:calc(100vh - 100px);border:0"></iframe>
+  </div>
+  <div id="c3panel-m3d" style="display:none"><iframe id="c3frame-m3d" title="Modèles 3D" style="display:block;width:100%;height:calc(100vh - 56px);border:0"></iframe></div>
+  <div id="c3panel-ref" style="display:none"><iframe id="c3frame-ref" title="Références du configurateur" style="display:block;width:100%;height:calc(100vh - 56px);border:0"></iframe></div>
+  <div id="c3panel-rup" style="display:none"><iframe id="c3frame-rup" title="Ruptures du configurateur" style="display:block;width:100%;height:calc(100vh - 56px);border:0"></iframe></div>
+</div>
+
 <div id="p-bij" class="page" style="padding:0">
   <!-- Nav sticky -->
   <div style="position:sticky;top:0;z-index:50;background:#fff;box-shadow:0 2px 8px rgba(26,18,40,.08)">
@@ -426,9 +452,6 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
       <div id="ctab-bij" onclick="switchCreatTab('bij')" class="gtab gtab-on">💎 Bijoux</div>
       <div id="ctab-prod" onclick="switchCreatTab('prod')" class="gtab">🏭 Productions</div>
       <div id="ctab-perso" onclick="switchCreatTab('perso')" class="gtab">✨ Sur mesure</div>
-      <div id="ctab-m3d" onclick="switchCreatTab('m3d')" class="gtab">🧊 Modèles 3D</div>
-      <div id="ctab-cfg" onclick="switchCreatTab('cfg')" class="gtab">👁 Configurateur</div>
-      <div id="ctab-rup" onclick="switchCreatTab('rup')" class="gtab">📦 Ruptures</div>
     </div>
   </div>
 
@@ -475,25 +498,6 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
   <div id="cpanel-perso" style="display:none">
     <iframe id="frame-perso" title="Personnalisations sur mesure" style="display:block;width:100%;height:calc(100vh - 56px);border:0"></iframe>
   </div>
-  <!-- Panel Configurateur : la page client (celle qui ira dans Wix), en aperçu -->
-  <div id="cpanel-cfg" style="display:none">
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:8px 12px;font-size:12px">
-      <span style="color:var(--muted)">Aperçu de la page client (comme dans Wix)</span>
-      <span style="flex:1"></span>
-      <a class="btn btn-xs btn-ghost" href="configurateur/configurateur-3d.html" target="_blank">↗ Ouvrir dans un onglet</a>
-      <a class="btn btn-xs btn-ghost" href="configurateur/configurateur-3d.html?diag=1" target="_blank">🔎 Diagnostic</a>
-      <button class="btn btn-xs btn-ghost" onclick="document.getElementById('frame-cfg').src='configurateur/configurateur-3d.html?apercu=1&t='+Date.now()">↻ Recharger</button>
-    </div>
-    <iframe id="frame-cfg" title="Configurateur 3D" style="display:block;width:100%;height:calc(100vh - 100px);border:0"></iframe>
-  </div>
-  <!-- Panel Ruptures : éléments du configurateur à marquer épuisés -->
-  <div id="cpanel-rup" style="display:none">
-    <iframe id="frame-rup" title="Ruptures du configurateur" style="display:block;width:100%;height:calc(100vh - 56px);border:0"></iframe>
-  </div>
-  <!-- Panel Modèles 3D : éditeur des modèles du configurateur -->
-  <div id="cpanel-m3d" style="display:none">
-    <iframe id="frame-m3d" title="Modèles 3D" style="display:block;width:100%;height:calc(100vh - 56px);border:0"></iframe>
-  </div>
 </div>
   <button class="fab-top" id="fab-top-bij" onclick="document.getElementById('main-area').scrollTop=0" title="Haut de page">↑</button>
 
@@ -536,6 +540,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
     <div class="card">
       <div class="card-hd"><h2>💸 Dépenses matériaux & réappros</h2></div>
       <div class="card-bd">
+        <div class="info-box" id="dep-lancement" style="margin-bottom:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"></div>
         <div class="abar">
           <button class="btn btn-p" onclick="openDepModal()">＋ Nouvelle dépense</button>
           <div style="display:flex;gap:4px;flex-wrap:wrap">
@@ -1595,6 +1600,9 @@ async function sbUpsertConfig(key, value) {
 // IN-MEMORY STATE (populated from Supabase)
 // ═══════════════════════════════════════════════════════
 let MATS=[], BIJS=[], VENTES=[], PRODS=[], REAPPROS=[], KITS=[];
+// Lancement de la boutique : avant cette date (ou tant qu'elle n'est pas fixée), les réappros sont des dépenses de départ
+let LANCEMENT = '';
+const estDepart = r => !LANCEMENT || (r.date || '') < LANCEMENT;
 let MAIN_CATS={}, CATS_BY_TYPE={creation:{},envoi:{},consommable:{},outil:{}}, FOURNISSEURS=[], SC_CLR={}, MAIN_CLR={};
 
 const DEFAULT_MAIN_CLR = {"Perles":"#7A4F9A","Acier inoxydable":"#2E6A8A","Emballage":"#5A6A3A","Autre":"#5A5A6A"};
@@ -1631,6 +1639,8 @@ async function loadAll() {
   ]);
   MATS=mats; BIJS=bijs; VENTES=ventes; PRODS=prods; REAPPROS=reappros; KITS=kits||[]; CHARGES=charges||[]; TVA_ENTRIES=tva_entries||[]; COMMANDES=commandes||[]; AJUSTEMENTS=ajustements||[]; CFG_ZONES=cfg_zones||[]; CFG_CALQUES=cfg_calques||[];
   const mainCatsCfg = cfg.find(c=>c.key==='main_cats');
+  { let v = cfg.find(c=>c.key==='date_lancement')?.value; if (typeof v === 'string' && v.startsWith('"')) { try { v = JSON.parse(v); } catch(e) {} }
+    LANCEMENT = /^\d{4}-\d{2}-\d{2}$/.test(v || '') ? v : ''; }
   const fourCfg     = cfg.find(c=>c.key==='fournisseurs');
   const hdrCfg      = cfg.find(c=>c.key==='header');
   // Catégories création (rétrocompatibilité avec main_cats)
@@ -1963,7 +1973,7 @@ function updateMatMCSelect() {
 // ═══════════════════════════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════════════════════════
-const RENDERS = {mat:renderMat,bij:renderBij,compta:renderCompta,cfg:renderCfg};
+const RENDERS = {mat:renderMat,bij:renderBij,compta:renderCompta,cfg:renderCfg,c3d:()=>{ if(!document.getElementById('c3frame-cfg').getAttribute('src')) switchC3dTab('cfg'); }};
 
 function goTab(el) {
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
@@ -2625,7 +2635,7 @@ let CUR_MAT_TYPE = 'tout';
 let CUR_STOCK_FLT = 'all';
 
 function switchCreatTab(tab, numeroPerso) {
-  ['bij','prod','perso','m3d','cfg','rup'].forEach(t => {
+  ['bij','prod','perso'].forEach(t => {
     document.getElementById('cpanel-'+t).style.display = t===tab ? 'block' : 'none';
     document.getElementById('ctab-'+t).className = 'gtab'+(t===tab?' gtab-on':'');
   });
@@ -2636,24 +2646,25 @@ function switchCreatTab(tab, numeroPerso) {
     const url = 'configurateur/commandes-perso.html' + (numeroPerso ? '?numero=' + encodeURIComponent(numeroPerso) : '');
     if(numeroPerso || !f.getAttribute('src')) f.setAttribute('src', url);
   }
-  if(tab==='rup') {                                  // rechargé à chaque ouverture : stocks à jour
-    document.getElementById('frame-rup').setAttribute('src', 'configurateur/stock-configurateur.html?t=' + Date.now());
-  }
-  if(tab==='cfg') {
-    const f = document.getElementById('frame-cfg');
-    if(!f.getAttribute('src')) f.setAttribute('src', 'configurateur/configurateur-3d.html?apercu=1');
-  }
-  if(tab==='m3d') {
-    const f = document.getElementById('frame-m3d');
-    if(!f.getAttribute('src')) f.setAttribute('src', 'configurateur/editeur-perles.html');
-  }
 }
 
 /* ── Personnalisations sur mesure (configurateur 3D) ──
    Une commande Wix contenant une « Personnalisation sur mesure BN-P-… » crée ici une production
    « En cours » par breloque (fonction commander_personnalisation de sql-modeles-3d.sql),
    avec le n° de personnalisation (perso) et la note atelier (perso_note, avec les références). */
-const ouvrirPerso = numero => switchCreatTab('perso', numero);   // fiche atelier dans l'onglet « Sur mesure »
+const ouvrirPerso = numero => switchCreatTab('perso', numero);
+/* ── Conception 3D : configurateur, modèles, références, ruptures (pages du dossier configurateur/) ── */
+const C3D_PAGES = { cfg: 'configurateur-3d.html?apercu=1', m3d: 'editeur-perles.html', ref: 'references-configurateur.html', rup: 'stock-configurateur.html' };
+function switchC3dTab(tab, recharger) {
+  Object.keys(C3D_PAGES).forEach(t => {
+    document.getElementById('c3panel-'+t).style.display = t===tab ? 'block' : 'none';
+    document.getElementById('c3tab-'+t).className = 'gtab'+(t===tab?' gtab-on':'');
+  });
+  const f = document.getElementById('c3frame-'+tab);
+  // références et ruptures : toujours rechargées (données à jour) ; les autres au premier affichage
+  if (recharger || tab==='ref' || tab==='rup' || !f.getAttribute('src'))
+    f.setAttribute('src', 'configurateur/' + C3D_PAGES[tab] + (C3D_PAGES[tab].includes('?') ? '&' : '?') + 't=' + Date.now());
+}   // fiche atelier dans l'onglet « Sur mesure »
 const escPerso = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 function renderPersoAFaire() {
   const aFaire = PRODS.filter(p => p.perso && p.statut === 'en_cours').sort((a, b) => String(a.date).localeCompare(String(b.date)));
@@ -3434,6 +3445,13 @@ function setDepFlt(flt) {
 const STATUT_LABELS={'valide':'✅ Validé','attente':'⏳ En attente','annule':'❌ Annulé'};
 const STATUT_COLORS={'valide':'var(--green)','attente':'var(--orange)','annule':'var(--red)'};
 
+async function saveLancement() {
+  const v = document.getElementById('dep-date-lancement')?.value || '';
+  await sbUpsertConfig('date_lancement', v);
+  LANCEMENT = v;
+  renderDep();
+  toast(v ? 'Date de lancement enregistrée ✓' : 'Boutique marquée comme pas encore lancée', 'ok');
+}
 async function setRAStatut(id, statut) {
   const ok=await sbUpdate('reappros',id,{statut});
   if(ok){
@@ -3448,12 +3466,20 @@ function renderDep() {
   // Filtrer réappros selon le filtre actif
   const rasFiltered = DEP_FLT==='all' ? REAPPROS : REAPPROS.filter(r=>(r.statut||'valide')===DEP_FLT);
   const depInit=MATS.reduce((s,m)=>s+(+m.prix||0),0);
-  const depRA=REAPPROS.filter(r=>(!r.statut||r.statut==='valide')).reduce((s,r)=>s+(+r.prix||0),0);
-  const depTotal=depInit+depRA;
+  const raValides=REAPPROS.filter(r=>(!r.statut||r.statut==='valide'));
+  const depDepartRA=raValides.filter(estDepart).reduce((s,r)=>s+(+r.prix||0),0);
+  const depReassort=raValides.filter(r=>!estDepart(r)).reduce((s,r)=>s+(+r.prix||0),0);
+  const depTotal=depInit+depDepartRA+depReassort;
   document.getElementById('dep-stats').innerHTML=`
-    <div class="stat red"><div class="v">${eur(depInit)}</div><div class="l">Achats initiaux</div></div>
-    <div class="stat red"><div class="v">${eur(depRA)}</div><div class="l">Réappros validés</div></div>
+    <div class="stat red"><div class="v">${eur(depInit+depDepartRA)}</div><div class="l">Dépenses de départ</div></div>
+    <div class="stat red"><div class="v">${eur(depReassort)}</div><div class="l">Réassorts${LANCEMENT?'':' (après lancement)'}</div></div>
     <div class="stat red"><div class="v">${eur(depTotal)}</div><div class="l">Total validé</div></div>`;
+  const lc=document.getElementById('dep-lancement');
+  if(lc) lc.innerHTML = (LANCEMENT
+      ? `🚀 Boutique lancée le <b>${LANCEMENT}</b> : les achats d'avant comptent en dépenses de départ, ceux d'après en réassorts.`
+      : `🚀 Boutique pas encore lancée : tous les achats et réappros comptent en <b>dépenses de départ</b>.`)
+    + ` <span style="flex:1"></span><label style="font-size:12px">Date de lancement <input type="date" id="dep-date-lancement" value="${LANCEMENT}" style="font-size:12px;padding:3px 6px"></label>
+       <button class="btn btn-xs btn-p" onclick="saveLancement()">OK</button>`;
   const by={};MATS.forEach(m=>{if(!by[m.mc])by[m.mc]=[];by[m.mc].push(m);});
   let html='';
   Object.entries(by).forEach(([mc,mats])=>{
@@ -3490,7 +3516,7 @@ function renderDep() {
           const s=r.statut||'valide';
           const clr=STATUT_COLORS[s]||'var(--muted)';
           return `<div style="display:flex;gap:5px;padding:4px 8px;border-radius:var(--rx);margin-bottom:3px;flex-wrap:wrap;align-items:center;border:1px solid ${clr}20;background:${clr}10">
-            <span class="badge bp">↑ Réappro</span>
+            ${estDepart(r)?'<span class="badge bm">🚀 Départ</span>':'<span class="badge bp">↑ Réassort</span>'}
             <span style="font-size:11px;color:var(--muted)">${r.date||'--'}</span>
             <span style="font-size:12px">${n(r.qty)} u</span>
             <span style="font-weight:600;color:var(--red)">${eur(r.prix)}</span>
