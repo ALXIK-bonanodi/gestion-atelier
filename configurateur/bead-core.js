@@ -689,10 +689,20 @@ export async function affinerCouleursDepuisPhotos(catalogue) {
 
 /* Retrouve la couleur par défaut d'une zone dans le vrai catalogue
    (par ref, sinon par nom de variante : « bleu 2 » → #PR0xx). */
+/* Couleur d'après son nom, avec tolérance : « argent 1 » trouve « Argent 1 », « argenté 1 »,
+   « rocaille argent 1 »… (chaque mot cherché doit commencer un mot du nom). */
+export function refParNom(nom, liste) {
+  if (!nom) return null;
+  const n = norm(nom), mots = n.split(/[^a-z0-9]+/).filter(Boolean);
+  const exact = liste.find(c => norm(c.nom) === n);
+  if (exact) return exact.ref;
+  const motsDe = c => norm([c.nom, c.designation].filter(Boolean).join(' ')).split(/[^a-z0-9]+/).filter(Boolean);
+  const proche = liste.filter(c => { const m = motsDe(c); return mots.every(w => m.some(x => /^\d+$/.test(w) ? x === w : x.startsWith(w))); });
+  return (proche.find(c => c.enStock !== false) || proche[0])?.ref || null;
+}
 export function resoudreDefauts(modele, catalogue, fermoirs = null) {
   const parRef = new Set(catalogue.map(c => c.ref));
-  const parNom = new Map(catalogue.map(c => [norm(c.nom), c.ref]));
-  const fix = (ref, nom) => parRef.has(ref) ? ref : (nom && parNom.get(norm(nom))) || ref;
+  const fix = (ref, nom) => parRef.has(ref) ? ref : refParNom(nom, catalogue) || ref;
   const m = JSON.parse(JSON.stringify(modele));
   for (const z of m.zones || []) {
     z.defaut = fix(z.defaut, z.defautNom);
@@ -1529,7 +1539,7 @@ export function modeleAreteDemo() {
   return {
     version: 11, nom: 'Arête', unite: 'mm', slug: 'arete',
     zones: [
-      { id: 'dos',     nom: 'Tête (dos)',    defaut: '#PR-ex14', defautNom: 'bleu 2',   repere: '#3b82c4', categorie: 'rocaille' },
+      { id: 'dos',     nom: 'Tête (dos)',    defaut: '#PR-ex27', defautNom: 'argent 1', repere: '#3b82c4', categorie: 'rocaille' },   // comme le petit poisson
       { id: 'ventre',  nom: 'Tête (ventre)', defaut: '#PR-ex14', defautNom: 'bleu 2',   repere: '#e0a43a', categorie: 'rocaille' },
       { id: 'queue',   nom: 'Queue',         defaut: '#PR-ex15', defautNom: 'bleu 3',   repere: '#d4572e', categorie: 'rocaille' },
       { id: 'arete',   nom: 'Arête',         defaut: '#PR-ex27', defautNom: 'argent 1', repere: '#c4467a', categorie: 'rocaille' },
@@ -2297,7 +2307,9 @@ export function validerConfiguration(modele, catalogue, config, parties = null) 
   const propre = {};
   for (const z of modele.zones || []) {
     const ok = couleursProposees(z, catalogue, parties).filter(c => c.enStock !== false).map(c => c.ref);
-    propre[z.id] = ok.includes(config[z.id]) ? config[z.id] : (ok.includes(z.defaut) ? z.defaut : ok[0] ?? null);
+    // défaut absent ou épuisé : la couleur du même nom (ex. « argent 1 »), sinon la première proposée
+    const dispo = couleursProposees(z, catalogue, parties).filter(c => c.enStock !== false);
+    propre[z.id] = ok.includes(config[z.id]) ? config[z.id] : (ok.includes(z.defaut) ? z.defaut : refParNom(z.defautNom, dispo) ?? ok[0] ?? null);
   }
   return propre;
 }

@@ -56,7 +56,7 @@ import {
   listerModelesPublies, chargerCatalogueBoutique, chargerFermoirsBoutique, chargerPartiesConfigurateur, chargerBijouxBoutique,
   completerCatalogue, resoudreDefauts, couleursProposees, correspondCategorie, ordreModeles, estLettres, accrochesProposees,
   chargerLiens, enregistrerLiens, estExemple, exemplesParRef, apercuArgile, apercuChainmail, baseRef,
-} from './bead-core.js?v=6d43fad2';
+} from './bead-core.js?v=84dee3ef';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './perles-config.js?v=e1bf13ba';
 
 const $ = s => document.querySelector(s);
@@ -163,6 +163,7 @@ function ressemblantes(sc, designation, variante) {
 }
 let doublons = null;                                 // { refEx, liste } : proposition affichée avant de créer
 
+const existe = ref => mats.some(x => x.ref === ref) || bijoux.some(x => x.ref === ref);   // lien vers une réf supprimée ?
 let ouvert = null;                                   // exemple dont le formulaire « créer » est ouvert
 function rendre() {
   const parFamille = new Map();
@@ -176,7 +177,8 @@ function rendre() {
     const mcProbable = (() => { const n = {}; mats.filter(x => x.sc === sc).forEach(x => n[x.mc] = (n[x.mc] || 0) + 1); return Object.entries(n).sort((a, b) => b[1] - a[1])[0]?.[0] || mcs[0] || ''; })();
     return `<div class="ligne ${lie ? 'liee' : ''}">
       <span class="pastille" style="background:${fond(d)}"></span>
-      <span>${esc(d.nom)} <span class="ref">${esc(d.ref)}</span>${lie ? `<br><span class="ok">→ ${esc(lie)}</span>` : ''}</span>
+      <span>${esc(d.nom)} <span class="ref">${esc(d.ref)}</span>${lie ? (existe(lie) ? `<br><span class="ok">→ ${esc(lie)}</span>`
+        : `<br><span class="alerte" style="display:inline-block;padding:2px 6px">⚠ lié à ${esc(lie)}, qui n'existe plus : choisis la bonne référence</span>`) : ''}</span>
       <select data-lien="${esc(d.ref)}">${options(d, lie)}</select>
       ${estBijou(d) ? '<span class="ref">fiche bijou</span>' : `<button class="leger" data-creer="${esc(d.ref)}">＋ Créer</button>`}
       ${ouvert === d.ref ? `<div class="creer" data-form="${esc(d.ref)}">

@@ -387,7 +387,7 @@ import {
   modeleChainmailDemo, estChainmail, chargerBijouxBoutique, bijouBreloque, modelePerleCultureDemo, estPerleCulture, apercuChainmail,
   correspondCategorie, texteCatalogue, ordreModeles, chargerRuptures, appliquerRuptures,
   chargerLiens, appliquerLiens, relierModele, chargerMateriauxParRefs,
-} from './bead-core.js?v=6d43fad2';
+} from './bead-core.js?v=84dee3ef';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER } from './perles-config.js?v=e1bf13ba';
 
 const $ = s => document.querySelector(s);
@@ -478,7 +478,8 @@ if (new URLSearchParams(location.search).get('diag')) {
     ['Ruptures (app de gestion)', ruptures.join(', ') || 'aucune'],
     ['Références liées', Object.entries(liens).map(([a, b]) => a + ' → ' + b).join('\n') || 'aucune'],
     ['Modèles (ordre)', modeles.map(m => m.slug + ' — ' + euros(prixModele(m))).join('\n')],
-    ...modeles.flatMap(m => (m.zones || []).map(z => [`${nomCourt(m)} › ${z.nom} (défaut ${z.defaut})`, couleursProposees(z, catalogue, parties).map(ligne).join('\n') || 'AUCUN CHOIX'])),
+    ...modeles.flatMap(m => (m.zones || []).map(z => [`${nomCourt(m)} › ${z.nom} (défaut ${z.defaut} « ${z.defautNom || ''} » : ${(() => { const c = catalogue.find(x => x.ref === z.defaut);
+      return !c ? 'INTROUVABLE dans ta base → ' + (validerConfiguration(m, catalogue, {}, parties)[z.id] || 'aucun') : c.enStock === false ? 'ÉPUISÉ (stock 0 ou rupture) → ' + validerConfiguration(m, catalogue, {}, parties)[z.id] : 'ok'; })()})`, couleursProposees(z, catalogue, parties).map(ligne).join('\n') || 'AUCUN CHOIX'])),
     ['Perles étoile', catalogue.filter(c => texteCatalogue(c).includes('etoile')).map(ligne).join('\n') || 'AUCUNE'],
     ['Parties de l\'ancien configurateur (restrictions)', (parties || []).map(p => p.id + ' : ' + (p.enabled_mats?.length || 0) + ' matériaux').join('\n') || 'aucune'],
   ];
