@@ -899,7 +899,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
   <div class="r3" id="mat-qty-row">
    <div class="fg"><label id="mat-qty-label">Stock actuel</label>
     <input id="mat-qty" type="number" placeholder="450" oninput="calcPU()"></div>
-   <div class="fg"><label>Prix d'achat (€)</label>
+   <div class="fg"><label id="mat-prix-label">Prix d'achat (€)</label>
     <input id="mat-prix" type="number" step="0.01" placeholder="9.50" oninput="calcPU()"></div>
    <div class="fg"><label id="mat-pu-label">Prix unitaire</label>
     <div id="mat-pu" style="padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--rs);color:var(--green);font-weight:700;background:var(--greenP)">—</div>
@@ -966,6 +966,8 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
     <div style="flex:1">
      <input type="file" id="mat-img-file" accept="image/*" onchange="previewMatImg(this)" style="font-size:12px;margin-bottom:4px;width:100%">
      <div id="mat-img-url" style="font-size:10px;color:var(--muted);word-break:break-all"></div>
+     <button type="button" class="btn btn-xs btn-ghost" style="margin-top:4px" onclick="MAT_IMG_SUPPRIMER=true;resetMatImg();MAT_IMG_SUPPRIMER=true;loadMatImgFromUrl(null)">Retirer la photo</button>
+     <div style="font-size:10px;color:var(--muted);margin-top:3px">Une photo par référence (couleur) : elle sert de pastille dans le configurateur 3D.</div>
     </div>
    </div>
   </div>
@@ -1922,7 +1924,10 @@ function majChampsAbonnement() {
   cacher(document.getElementById('mat-var')?.closest('.fg'), abo);
   cacher(document.getElementById('mat-fournisseur')?.closest('.fg'), abo);
   cacher(document.getElementById('mat-unite')?.closest('.fg'), abo);
-  cacher(document.getElementById('mat-qty-row'), abo);
+  // abonnement : seul le prix reste (pour la comptabilité) ; pas de stock ni de prix unitaire
+  cacher(document.getElementById('mat-qty')?.closest('.fg'), abo);
+  cacher(document.getElementById('mat-pu')?.closest('.fg'), abo);
+  const lp=document.getElementById('mat-prix-label'); if(lp) lp.textContent=abo?"Prix de l'abonnement (€)":"Prix d'achat (€)";
   cacher(document.getElementById('mat-img-row'), abo);
   if(abo){ const c=document.getElementById('mat-calib-row'); if(c) c.style.display='none'; }
   const type=document.getElementById('mat-type')?.value;
@@ -2167,9 +2172,9 @@ function openMatModal(editId=null) {
     const uniteEl=document.getElementById('mat-unite');
     if(uniteEl){ uniteEl.value=m.unite||autoDetectUnite(m.mc,m.sc); onUniteChange(); }
     calcPU();
-    // Charger image existante
-    MAT_IMG_PENDING = null;
-    loadMatImgFromUrl(m.image_url || null);
+    // Charger image existante (celle de CETTE référence)
+    resetMatImg();
+    loadMatImgFromUrl(m.meta?.image || m.image_url || null);
     // Méta fils/laines
     const metaRow=document.getElementById('mat-meta-row');
     if(metaRow) metaRow.style.display=isFilMC(m.mc)?'block':'none';
@@ -2180,7 +2185,9 @@ function openMatModal(editId=null) {
         if(el) el.value=meta[k]||'';
       });
     }
-    // Calibration
+    // Calibration (vidée d'abord : sinon la pesée de la fiche précédente se recopiait)
+    ['mat-calib-nb','mat-calib-g'].forEach(i=>{ const e=document.getElementById(i); if(e) e.value=''; });
+    calcCalibration();
     if(m.meta?.calib_nb_echantillon) {
       const nbEl=document.getElementById('mat-calib-nb');
       const gEl=document.getElementById('mat-calib-g');
@@ -2190,7 +2197,8 @@ function openMatModal(editId=null) {
     }
   } else {
     document.getElementById('mat-modal-title').textContent='Nouveau matériau';
-    ['mat-edit-id','mat-des','mat-var','mat-fournisseur','mat-qty','mat-prix'].forEach(i=>document.getElementById(i).value='');
+    ['mat-edit-id','mat-des','mat-var','mat-fournisseur','mat-qty','mat-prix','mat-calib-nb','mat-calib-g'].forEach(i=>{ const e=document.getElementById(i); if(e) e.value=''; });
+    resetMatImg(); loadMatImgFromUrl(null);
     const typeEl=document.getElementById('mat-type');
   if(typeEl){
     typeEl.value=CUR_MAT_TYPE||'creation';
@@ -2221,10 +2229,12 @@ async function saveMat() {
   const dateRenouv=document.getElementById('mat-renouvellement')?.value||null;
   const mc=document.getElementById('mat-mc').value;
   const unite=document.getElementById('mat-unite')?.value||'unite';
-  // Méta fils/laines
-  let meta=null;
+  // Méta : on part de celle existante (le configurateur 3D y range forme de perle, couleur, œil double…)
+  const ancien=editId?MATS.find(m=>m.id===editId):null;
+  let meta={...(ancien?.meta&&typeof ancien.meta==='object'?ancien.meta:{})};
+  ['calib_g_per_piece','calib_pieces_per_g','calib_nb_echantillon','poids','longueur','matiere','grosseur','crochet','aiguilles','coloris'].forEach(k=>delete meta[k]);
   if(isFilMC(mc)) {
-    meta={
+    const fil={
       poids:+document.getElementById('mat-meta-poids')?.value||null,
       longueur:+document.getElementById('mat-meta-longueur')?.value||null,
       matiere:document.getElementById('mat-meta-matiere')?.value||null,
@@ -2233,25 +2243,30 @@ async function saveMat() {
       aiguilles:+document.getElementById('mat-meta-aiguilles')?.value||null,
       coloris:document.getElementById('mat-meta-coloris')?.value||null,
     };
-    Object.keys(meta).forEach(k=>{ if(!meta[k]) delete meta[k]; });
-    if(!Object.keys(meta).length) meta=null;
+    Object.entries(fil).forEach(([k,v])=>{ if(v) meta[k]=v; });
   }
   // Calibration pièce↔poids (pour toutes les unités gramme/kilo)
   const calibNb = +document.getElementById('mat-calib-nb')?.value||0;
   const calibG  = +document.getElementById('mat-calib-g')?.value||0;
   if(calibNb && calibG) {
-    if(!meta) meta={};
     meta.calib_g_per_piece = calibG/calibNb;
     meta.calib_pieces_per_g = calibNb/calibG;
     meta.calib_nb_echantillon = calibNb;
   }
   const aboSC=estAbonnementSC(document.getElementById('mat-sc').value);
+  // Photo de la couleur : envoyée sous le nom de CETTE référence, rangée dans sa fiche
+  if(MAT_IMG_PENDING && !aboSC) {
+    const url=await uploadMatImg(ref);
+    if(!url) return;                                     // erreur déjà affichée, rien n'est enregistré
+    meta.image=url;
+  } else if(MAT_IMG_SUPPRIMER) delete meta.image;
+  if(!Object.keys(meta).length) meta=null;
   const obj={
     id:editId||uid(), mc,
     sc:document.getElementById('mat-sc').value, ref, designation, variante:aboSC?'':varV,
     fournisseur:aboSC?'':document.getElementById('mat-fournisseur').value.trim(),
     qty:aboSC?null:(+document.getElementById('mat-qty').value||null),
-    prix:aboSC?null:(+document.getElementById('mat-prix').value||null),
+    prix:+document.getElementById('mat-prix').value||null,
     type:matType,
     unite:unite,
     date_renouvellement:dateRenouv,
@@ -2873,7 +2888,10 @@ function champsManquants(m) {
   const manque=[];
   if(!(m.designation||m.des)) manque.push('désignation');
   if(!m.sc) manque.push('sous-catégorie');
-  if(estAbonnementSC(m.sc)) return manque;              // abonnement : pas de fournisseur, prix ni quantité
+  if(estAbonnementSC(m.sc)) {                            // abonnement : pas de fournisseur ni de quantité, mais un prix
+    if(m.prix==null||m.prix==='') manque.push('prix');
+    return manque;
+  }
   if(!m.fournisseur) manque.push('fournisseur');
   if(m.prix==null||m.prix==='') manque.push('prix');
   if(m.qty==null||m.qty==='') manque.push('quantité');
@@ -2928,7 +2946,7 @@ function renderMat() {
             </div>`:''
           ;
           return `<tr onclick="openMatModal('${m.id}')" style="cursor:pointer" title="Cliquer pour modifier">
-            <td class="ref">${typeBadge} ${m.ref}${manque.length?`<div title="À compléter : ${manque.join(', ')}" style="font-size:10px;color:var(--orange);font-weight:700">⚠ ${manque.length}</div>`:''}</td>
+            <td class="ref">${m.meta?.image?`<img src="${m.meta.image}" alt="" loading="lazy" style="width:18px;height:18px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:3px;border:1px solid var(--border)">`:''}${typeBadge} ${m.ref}${manque.length?`<div title="À compléter : ${manque.join(', ')}" style="font-size:10px;color:var(--orange);font-weight:700">⚠ ${manque.length}</div>`:''}</td>
             <td style="font-size:12px">${m.designation||m.des||'--'}${metaInfo}</td>
             <td><span class="badge bm">${m.variante||'--'}</span></td>
             <td class="dim">${m.fournisseur||'--'}</td>
@@ -3091,7 +3109,12 @@ function buildSCOptions(selectedMC, selectedSC) {
   const selectedVal = selectedMC&&selectedSC ? selectedMC+'|||'+selectedSC : '';
   let opts = '';
   // Catégories fusionnées config + MATS (inclut celles sans matériaux)
+  // matériaux de création + consommables de production (fil métallique, colle…)
   const mcMap = getCatsForType('creation');
+  Object.entries(getCatsForType('consommable')).forEach(([mc,scs])=>{
+    if(!mcMap[mc]) mcMap[mc]=[];
+    scs.forEach(sc=>{ if(!mcMap[mc].includes(sc)) mcMap[mc].push(sc); });
+  });
   Object.entries(mcMap).forEach(([mc,scs])=>{
     if(!scs.length) return;
     opts+=`<optgroup label="◆ ${mc}">`;
@@ -4338,13 +4361,27 @@ function loadMatImgFromUrl(url) {
   if (urlEl) urlEl.textContent = url ? url.split('/').pop() : '';
 }
 
+let MAT_IMG_SUPPRIMER = false;
+function resetMatImg() {
+  MAT_IMG_PENDING = null; MAT_IMG_SUPPRIMER = false;
+  const f = document.getElementById('mat-img-file'); if (f) f.value = '';   // sinon le fichier choisi restait pour la fiche suivante
+}
+// Envoi avec la session connectée (le stockage refuse la clé publique seule une fois la base sécurisée).
+// Un fichier par référence et par envoi : jamais d'écrasement d'une autre couleur.
 async function uploadMatImg(matRef) {
   if (!MAT_IMG_PENDING) return MAT_IMG_CURRENT_URL;
-  const ext = MAT_IMG_PENDING.name.split('.').pop();
-  const path = `${matRef}_${Date.now()}.${ext}`;
-  const url = await uploadToStorage('materiaux-images', path, MAT_IMG_PENDING);
-  MAT_IMG_PENDING = null;
-  return url;
+  const file = MAT_IMG_PENDING;
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+  const path = `${String(matRef).replace(/[^A-Za-z0-9_-]/g, '')}/${Date.now()}.${ext}`;
+  try {
+    const { error } = await SB.storage.from('materiaux-images').upload(path, file, { upsert: false, contentType: file.type || 'image/jpeg' });
+    if (error) throw error;
+    MAT_IMG_PENDING = null;
+    return SB.storage.from('materiaux-images').getPublicUrl(path).data.publicUrl;
+  } catch (e) {
+    toast('Photo non envoyée : ' + (e.message || e) + (/bucket|not found|row-level|policy/i.test(e.message || '') ? ' — lance sql-images-materiaux.sql' : ''), 'err');
+    return null;
+  }
 }
 
 // ── Affichage zones configurateur dans la fiche mat ──

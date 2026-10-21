@@ -651,7 +651,7 @@ export function catalogueDepuisMateriaux(lignes, perlesImages = {}) {
         || devinerFinition([l.designation, l.variante].join(' ')),
       ordre: PLANCHE.get(norm(nom))?.ordre ?? 999,
       texture: meta.texture || null,
-      swatch: img.swatch || l.image_url || null,
+      swatch: img.swatch || meta.image || l.image_url || null,      // photo de la référence (fiche matériau de l'app)
       perle: meta.perle || (/[ée]toile/i.test([l.sc, l.designation, l.variante].join(' ')) ? (/nacr/i.test(nom + ' ' + (l.designation || '')) ? 'etoile-nacre-6' : 'etoile-8') : undefined),
       double: meta.double ?? /heishi/i.test([l.sc, l.designation, l.variante].join(' ')),
       visible: img.visible !== false,
