@@ -193,6 +193,9 @@ function telecharger(blob, ext) {
   a.download = `bona-nodi-${format.nom}-${new Date().toISOString().slice(0, 10)}.${ext}`;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  // dans l'app de gestion : propose d'ajouter le post prévu au suivi (📣 Réseaux › 📅 Posts)
+  try { window.parent !== window && window.parent.bnStudioExporte?.({ type: ext === 'png' ? 'image' : 'video', format: format.nom,
+    titre: $('#tTitre').value.trim(), sous: $('#tSous').value.trim() || studio()?.titre || '' }); } catch {}
 }
 $('#btImage').addEventListener('click', () => {
   const F = format, sortie = document.createElement('canvas'); sortie.width = F.W; sortie.height = F.H;

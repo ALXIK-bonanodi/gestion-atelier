@@ -360,7 +360,7 @@ export function apercuArgile(motif, hex) {
    sur ta photo des pastilles : servent tant que meta.hex / meta.finition ne sont pas
    renseignés dans materiaux. Le nom doit correspondre à la colonne variante. */
 export const PLANCHE_ROCAILLES = [
-  ['rouge 1', '#c8101a', 'opaque'],     ['rouge 2', '#7a0a10', 'argente'],    ['rouge 3', '#a51030', 'irise'],       ['rouge 4', '#6e1e2a', 'transparent'],
+  ['rouge 1', '#c8101a', 'opaque'],     ['rouge 2', '#7a0a10', 'argente'],    ['rouge 3', '#a51030', 'irise'],       ['rouge 4', '#4c1019', 'transparent'],
   ['orange 1', '#e2400a', 'opaque'],    ['orange 2', '#a8160a', 'argente'],   ['orange 3', '#d0561a', 'transparent'], ['marron', '#4a2a10', 'argente'],
   ['jaune 1', '#e5a000', 'opaque'],     ['jaune 2', '#d8c000', 'transparent'], ['pêche 1', '#b0604e', 'argente'],    ['pêche 2', '#ff9a7a', 'opaque'],
   ['bleu 1', '#10a39c', 'opaque'],      ['bleu 2', '#1f86a8', 'argente'],     ['bleu 3', '#1a14a0', 'opaque'],       ['bleu 4', '#141a40', 'opaque'],
@@ -659,33 +659,47 @@ export function catalogueDepuisMateriaux(lignes, perlesImages = {}) {
       stock: l.qty ?? null,
       enStock: l.qty == null ? true : l.qty > 0,
     };
-  }).filter(c => c.visible).map(c => c.finition === 'argile' ? c : ({ ...c, hex: c.hex || c.hexNom, teinteFixe: !!c.hex || PLANCHE.has(norm(c.nom)) }))
+  }).filter(c => c.visible).map(c => c.finition === 'argile' ? c : ({ ...c, hexManuel: !!c.hex, hex: c.hex || c.hexNom, teinteFixe: !!c.hex || PLANCHE.has(norm(c.nom)) }))
     .sort((a, b) => a.ordre - b.ordre);
 }
 
 /* Remplace la couleur « par nom » par la couleur médiane de la photo de la perle
    (seulement pour les refs sans meta.hex). À appeler une fois, en tâche de fond. */
+/* Couleur 3D d'après la PHOTO de la perle (pastille du configurateur), pour que la 3D ressemble
+   à ce que voit la cliente. Prioritaire sur la planche de couleurs ; seule une couleur saisie à la
+   main (meta.hex) reste prioritaire. Échantillonnage robuste : on ignore le trou (pixels très
+   sombres), les reflets et le fond clair, puis on prend la médiane des pixels restants. */
 export async function affinerCouleursDepuisPhotos(catalogue) {
   if (typeof document === 'undefined') return catalogue;
   const lire = url => new Promise(ok => {
     const im = new Image(); im.crossOrigin = 'anonymous';
     im.onload = () => {
       try {
-        const cv = document.createElement('canvas'); cv.width = cv.height = 24;
+        const N = 48, cv = document.createElement('canvas'); cv.width = cv.height = N;
         const x = cv.getContext('2d', { willReadFrequently: true });
-        const c = Math.min(im.width, im.height) * 0.5;      // centre de la photo
-        x.drawImage(im, (im.width - c) / 2, (im.height - c) / 2, c, c, 0, 0, 24, 24);
-        const d = x.getImageData(0, 0, 24, 24).data, r = [], g = [], b = [];
-        for (let i = 0; i < d.length; i += 4) { r.push(d[i]); g.push(d[i + 1]); b.push(d[i + 2]); }
-        const med = a => a.sort((p, q) => p - q)[a.length >> 1];
-        ok('#' + [med(r), med(g), med(b)].map(v => v.toString(16).padStart(2, '0')).join(''));
+        const c = Math.min(im.width, im.height) * 0.7;      // 70 % central de la photo
+        x.drawImage(im, (im.width - c) / 2, (im.height - c) / 2, c, c, 0, 0, N, N);
+        const d = x.getImageData(0, 0, N, N).data, px = [];
+        for (let i = 0; i < d.length; i += 4) {
+          const r = d[i], g = d[i + 1], b = d[i + 2], l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+          const mx = Math.max(r, g, b), mn = Math.min(r, g, b), sat = mx ? (mx - mn) / mx : 0;
+          px.push({ r, g, b, l, sat });
+        }
+        px.sort((a, b) => a.l - b.l);
+        // on retire 12 % les plus sombres (trou, ombres) et 18 % les plus clairs (reflets, fond)
+        let garde = px.slice(Math.floor(px.length * 0.12), Math.ceil(px.length * 0.82));
+        // fond clair et peu coloré (papier, table) : écarté si la perle elle-même est colorée
+        const colores = garde.filter(p => !(p.l > 200 && p.sat < 0.12));
+        if (colores.length > garde.length * 0.3) garde = colores;
+        const med = k => garde.map(p => p[k]).sort((a, b) => a - b)[garde.length >> 1];
+        ok('#' + [med('r'), med('g'), med('b')].map(v => v.toString(16).padStart(2, '0')).join(''));
       } catch { ok(null); }
     };
     im.onerror = () => ok(null);
     im.src = url;
   });
-  await Promise.all(catalogue.filter(c => c.swatch && !c.teinteFixe && c.finition !== 'argile').map(async c => {
-    const h = await lire(c.swatch); if (h) c.hex = h;
+  await Promise.all(catalogue.filter(c => c.swatch && !c.hexManuel && c.finition !== 'argile' && c.finition !== 'chainmail').map(async c => {
+    const h = await lire(c.swatch); if (h) { c.hex = h; c.hexPhoto = true; }
   }));
   return catalogue;
 }
@@ -784,11 +798,17 @@ export function creerMateriau(couleur) {
     color: c, roughness: 0.22, metalness: 0,
     clearcoat: 0.7, clearcoatRoughness: 0.12, envMapIntensity: 1,
   };
+  { const hsl = {}; c.getHSL(hsl); if (hsl.l < 0.18 && (!couleur.finition || couleur.finition === 'opaque')) p.envMapIntensity = 0.7; }
   switch (couleur.finition) {
-    case 'transparent':
-      Object.assign(p, { transmission: 0.92, thickness: 1.2, ior: 1.52, roughness: 0.04,
-        attenuationColor: c, attenuationDistance: 1.6, clearcoat: 1 });
+    case 'transparent': {
+      // Verre teinté : plus la teinte est sombre, plus il absorbe (sinon un grenat ou un bleu nuit
+      // laisse passer le fond clair et paraît vif). Couleur issue d'une photo = déjà la couleur perçue.
+      const hsl = {}; c.getHSL(hsl);
+      const sombre = hsl.l < 0.3, photo = !!couleur.hexPhoto;
+      Object.assign(p, { transmission: photo ? 0.45 : sombre ? 0.55 : 0.88, thickness: 1.2, ior: 1.52, roughness: 0.06,
+        attenuationColor: c, attenuationDistance: sombre ? 0.45 : 1.4, clearcoat: 1 });
       break;
+    }
     case 'mat':
       Object.assign(p, { roughness: 0.78, clearcoat: 0, envMapIntensity: 0.6 });
       break;
@@ -802,7 +822,7 @@ export function creerMateriau(couleur) {
     case 'argente':
       // verre teinté avec doublure miroir : couleur saturée + reflet métallique interne
       Object.assign(p, { metalness: 0.55, roughness: 0.12, clearcoat: 1,
-        emissive: c.clone().multiplyScalar(0.18) });
+        emissive: c.clone().multiplyScalar(couleur.hexPhoto ? 0.08 : 0.18) });
       break;
     case 'nacre':
       Object.assign(p, { roughness: 0.35, sheen: 1, sheenRoughness: 0.3,

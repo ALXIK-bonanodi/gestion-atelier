@@ -113,8 +113,8 @@ td.ref { font: 600 9.5pt var(--f-titre); white-space: nowrap; }
 
 <script type="module">
 import { lignesCommande, lignesCommandeBundle, construireLettres, estLettres, listerDemandes, majDemande, chargerModeleBoutique, chargerCatalogueBoutique,
-         chargerFermoirsBoutique, resoudreDefauts, modeleDemo, chargerBijouxBoutique, bijouBreloque, completerCatalogue } from './bead-core.js?v=71c6dbd8';
-import { SUPABASE_URL, SUPABASE_ANON_KEY, INFOS_ATELIER } from './perles-config.js?v=e1bf13ba';
+         chargerFermoirsBoutique, resoudreDefauts, modeleDemo, chargerBijouxBoutique, bijouBreloque, completerCatalogue } from './bead-core.js?v=a66123e0';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, INFOS_ATELIER } from './perles-config.js?v=e5e86015';
 const raisonConnexion = e => /invalid login/i.test(e.message) ? 'e-mail ou mot de passe incorrect'
   : /not confirmed/i.test(e.message) ? 'adresse e-mail pas encore confirmée (Supabase › Authentication › Users)'
   : e.message;

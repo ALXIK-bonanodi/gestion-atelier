@@ -8,6 +8,12 @@ export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 export const supabaseConfigure = () =>
   !!SUPABASE_URL && !!SUPABASE_ANON_KEY;
 
+/* Paiement des personnalisations sur mesure :
+   true  = le bouton « Ajouter au panier » ouvre le paiement sécurisé SHOPIFY (fonction Supabase « shopify »),
+           pour une boutique Shopify affichée sur le site Wix par ses boutons d'achat ;
+   false = ancien circuit : panier Wix Stores (wix-code-page.js). */
+export const PANIER_SHOPIFY = true;
+
 /* Informations imprimées sur le bon de commande / la facture.
    À compléter : les mentions légales d'une facture dépendent de ton statut. */
 export const INFOS_ATELIER = {

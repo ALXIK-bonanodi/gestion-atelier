@@ -320,6 +320,8 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
 .home-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
 .home-chip{background:rgba(255,247,198,.14);border:1px solid rgba(255,247,198,.3);border-radius:20px;padding:5px 11px;font-size:12px;font-weight:600}
 .home-titre{font-family:var(--serif);font-weight:500;font-size:17px;color:var(--purple);margin:18px 2px 8px}
+.home-chip.nouveau{background:var(--gold);color:var(--purple);border-color:var(--gold)}
+.mission-new{font-family:var(--sans);font-size:10px;font-weight:800;background:var(--gold);color:var(--purple);border-radius:10px;padding:2px 7px;margin-right:6px;vertical-align:middle;box-shadow:0 0 0 1px rgba(60,17,75,.15)}
 .home-bravo{background:var(--goldP);border:1.5px dashed #E8D58A;color:var(--purple);border-radius:14px;padding:12px 14px;font-weight:600;margin-bottom:8px}
 .home-missions{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
 .mission{border-radius:16px;padding:12px 14px;cursor:pointer;transition:transform .15s,box-shadow .15s;box-shadow:var(--sh);background:#fff;border:1.5px solid var(--border);min-height:96px}
@@ -374,6 +376,92 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
 .courses-q{width:76px!important;padding:6px 8px!important;font-size:13px!important}
 
 .tab-ic{margin-right:5px}
+/* ── Barres d'outils compactes (une ligne, recherche au centre) ── */
+.barre-outils{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px;position:sticky;top:0;z-index:5;background:#fff;padding:4px 0}
+.barre-outils input[type=search]{flex:1;min-width:150px;font-size:13px;padding:9px 14px;border-radius:20px}
+.barre-outils select{width:auto;font-size:12px;padding:8px 26px 8px 10px;max-width:170px}
+.btn.ico{padding:7px 10px;min-width:36px}
+.chips-defile{display:flex;gap:4px;overflow-x:auto;margin-bottom:8px;padding-bottom:2px;scrollbar-width:none}
+.chips-defile::-webkit-scrollbar{display:none}
+.chips-defile .chip{flex-shrink:0}
+.seul-mobile{display:none}
+@media (max-width:700px){ .col-opt{display:none} .seul-mobile{display:inline} .lbl{display:none} .barre-outils select{max-width:46%} }
+/* ── Réseaux ── */
+.idee{display:flex;gap:10px;align-items:center;padding:10px 4px;border-top:1px solid var(--border);flex-wrap:wrap}
+.idee:first-of-type{border-top:0}
+.idee-ic{font-size:22px;width:30px;text-align:center}
+.idee.p1 b{color:var(--purple)}
+.sem{display:inline-block;width:22px;height:22px;line-height:22px;margin:0 1px;border-radius:6px;background:var(--purpleP);color:var(--muted);font-size:12px}
+.sem.on{background:var(--purple);color:var(--gold)}
+.post-l{display:flex;gap:10px;align-items:center;padding:9px 4px;border-top:1px solid var(--border);cursor:pointer}
+.post-l:first-child{border-top:0}
+.post-l:hover{background:var(--purpleP)}
+.post-date{font-family:var(--serif);font-weight:600;color:var(--purple);min-width:44px;text-align:center;background:var(--purpleP);border-radius:8px;padding:4px 0}
+.post-stats{font-size:11px;color:var(--muted);white-space:nowrap}
+/* ── Fiche latérale (grand écran) ── */
+@media (min-width:1100px){
+  .overlay.tiroir{background:transparent;pointer-events:none;align-items:stretch;justify-content:flex-end}
+  .overlay.tiroir .modal{pointer-events:auto;width:480px;max-width:480px;height:100%;max-height:none;border-radius:0;
+    box-shadow:-10px 0 30px rgba(42,10,53,.18);animation:glisse .18s ease;padding-top:calc(16px + env(safe-area-inset-top))}
+  .overlay.tiroir .drag{display:none}
+  body.avec-tiroir main{margin-right:480px}
+}
+@keyframes glisse{from{transform:translateX(30px);opacity:.4}to{transform:none;opacity:1}}
+/* ── Fiche bijou par étapes ── */
+.etapes{display:flex;gap:4px;margin:-4px 0 12px;position:sticky;top:-20px;background:#fff;z-index:3;padding:6px 0;border-bottom:1px solid var(--border);overflow-x:auto}
+.etapes button{flex:1;border:0;background:var(--purpleP);color:var(--purple);border-radius:20px;padding:7px 8px;font:600 12px var(--sans);cursor:pointer;white-space:nowrap}
+.etapes button b{display:inline-block;width:18px;height:18px;line-height:18px;border-radius:50%;background:#fff;margin-right:4px;font-size:11px}
+.etapes button.on{background:var(--purple);color:var(--gold)}
+.etapes button.on b{background:var(--gold);color:var(--purple)}
+.sec-titre{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px;scroll-margin-top:60px}
+.cout-live{position:sticky;bottom:-24px;margin:12px -18px -10px;padding:10px 18px;background:var(--purple);color:var(--gold);display:flex;gap:14px;flex-wrap:wrap;font-size:12px;z-index:3}
+.cout-live b{font-family:var(--serif);font-size:15px;font-weight:600}
+.cout-live .ok{color:#7ee2a8}.cout-live .moyen{color:#f5c26b}.cout-live .bas{color:#ff9a9a}
+.cout-live .dim{color:rgba(255,247,198,.7)}
+/* ── Actions groupées ── */
+.barre-groupe{display:flex;gap:6px;flex-wrap:wrap;align-items:center;background:var(--purple);color:var(--gold);border-radius:14px;padding:8px 10px;margin-bottom:10px}
+.barre-groupe input,.barre-groupe select{width:auto;max-width:150px;font-size:12px;padding:6px 8px}
+.barre-groupe[hidden]{display:none}
+.grp-nb{font-weight:700;font-size:12px;margin-right:4px}
+.sel-mat{width:18px;height:18px;appearance:auto;-webkit-appearance:checkbox;vertical-align:middle;padding:0}
+/* ── Réseaux : calendrier, légendes, campagnes ── */
+.cal-tete{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;text-transform:capitalize;color:var(--purple)}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-s{text-align:center;font-size:10px;font-weight:700;color:var(--muted)}
+.cal-j{min-height:52px;border:1px solid var(--border);border-radius:8px;padding:3px;cursor:pointer;display:flex;flex-wrap:wrap;align-content:flex-start;gap:2px;background:#fff}
+.cal-j:hover{background:var(--purpleP)}
+.cal-j.vide{border:0;background:transparent;cursor:default}
+.cal-j.auj{border:2px solid var(--purple)}
+.cal-n{width:100%;font-size:10px;color:var(--muted);font-weight:700}
+.cal-p{font-size:13px;line-height:1;border-radius:6px;padding:2px}
+.cal-p.publie{background:#E3F4EA}.cal-p.prevu{background:var(--goldP);box-shadow:0 0 0 1px #EEDC94}.cal-p.idee{opacity:.55}
+.objectif{font-size:12px;color:var(--purple)}
+.objectif input{width:52px;padding:4px 6px;font-size:12px;display:inline-block}
+.chip-h{border:1px solid var(--border);background:var(--purpleP);color:var(--purple);border-radius:14px;padding:4px 10px;font:600 11px var(--sans);cursor:pointer;flex-shrink:0;white-space:nowrap}
+.chip-h.leg{background:var(--purple);color:var(--gold);border-color:var(--purple)}
+.chip-h.plus{background:#fff;border-style:dashed}
+.camp-barre{height:8px;background:var(--purpleP);border-radius:4px;margin:10px 0;overflow:hidden}
+.camp-barre span{display:block;height:100%;background:linear-gradient(90deg,var(--purple),#8C4FA0)}
+/* ── TikTok ── */
+.tt-barre{display:grid;grid-template-columns:minmax(90px,1.2fr) 2fr minmax(70px,auto);gap:8px;align-items:center;font-size:12px;margin:4px 0}
+.tt-l{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tt-b{height:10px;background:var(--purpleP);border-radius:5px;overflow:hidden}
+.tt-b span{display:block;height:100%;background:linear-gradient(90deg,var(--purple),#8C4FA0);border-radius:5px}
+.tt-v{text-align:right;font-weight:700;color:var(--purple);white-space:nowrap}
+.tt-conseil{padding:6px 0;border-top:1px solid var(--border);font-size:13px}
+.tt-conseil:first-child{border-top:0}
+.tt-top{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.tt-vid{display:flex;flex-direction:column;gap:4px;text-decoration:none;color:var(--ink);font-size:12px}
+.tt-vid img,.tt-sans{width:100%;aspect-ratio:9/16;max-height:240px;object-fit:cover;border-radius:12px;background:var(--purpleP);display:flex;align-items:center;justify-content:center;font-size:30px}
+.tt-grille{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:0 12px}
+/* ── Boutique en ligne ── */
+.bt-l{display:grid;grid-template-columns:minmax(180px,1.4fr) minmax(150px,1fr) 110px minmax(200px,1.4fr);gap:10px;align-items:center;padding:10px 8px;border-top:1px solid var(--border)}
+.bt-l:first-child{border-top:0}
+.bt-nom{display:flex;gap:8px;align-items:center;min-width:0}
+.bt-nom img,.bt-ph{width:36px;height:36px;border-radius:10px;object-fit:cover;background:var(--purpleP);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.bt-l select{font-size:12px;padding:7px 26px 7px 8px}
+.bt-lien{display:flex;flex-direction:column;gap:4px}
+@media (max-width:700px){ .bt-l{grid-template-columns:1fr 1fr} .bt-nom,.bt-lien{grid-column:1/-1} }
 /* ── Bandeaux repliables ── */
 .repliable{cursor:pointer;-webkit-user-select:none;user-select:none;display:flex;justify-content:space-between;align-items:center}
 .ban-nb{font-size:10px;opacity:.75;font-style:normal;font-family:var(--sans);font-weight:700}
@@ -487,6 +575,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
   <div class="tab" data-p="mat" onclick="goTab(this)"><span class="tab-ic">📦</span><span class="tab-l">Gestion</span></div>
   <div class="tab" data-p="bij" onclick="goTab(this)"><span class="tab-ic">✨</span><span class="tab-l">Création</span></div>
   <div class="tab" data-p="c3d" onclick="goTab(this)"><span class="tab-ic">🧊</span><span class="tab-l">Conception 3D</span></div>
+  <div class="tab" data-p="res" onclick="goTab(this)"><span class="tab-ic">📣</span><span class="tab-l">Réseaux</span></div>
   <div class="tab" data-p="compta" onclick="goTab(this)"><span class="tab-ic">🧾</span><span class="tab-l">Comptabilité</span></div>
   <div class="tab" data-p="cfg" onclick="goTab(this)"><span class="tab-ic">⚙</span><span class="tab-l">Paramètres</span></div>
 </div>
@@ -528,21 +617,20 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
   <!-- PANEL MATÉRIAUX -->
   <div id="gpanel-mat" style="padding:12px;max-width:960px;margin:0 auto">
     <div class="card" style="margin-top:0">
-      <div id="cat-bar" class="cat-bar"></div>
+      <div id="cat-bar" class="cat-bar" style="display:none"></div>
       <div class="card-bd">
-        <div class="abar">
-          <button class="btn btn-p" onclick="openMatModal()">＋ Nouveau</button>
-          <button class="btn btn-ghost" id="btn-addcat" onclick="openAddCat()">＋ Catégorie</button>
-          <select id="flt-sc" onchange="renderMat()" style="width:auto;flex:1;max-width:180px;font-size:12px;padding:8px 26px 8px 10px"></select>
+        <div class="barre-outils">
+          <button class="btn btn-p" onclick="openMatModal()" title="Nouvelle référence">＋ Nouveau</button>
+          <input id="mat-search" type="search" placeholder="🔍 Réf., nom, couleur, fournisseur…" oninput="renderMat()">
+          <select id="flt-sc" onchange="renderMat()" title="Catégorie"></select>
+          <button id="bt-a-completer" class="btn btn-sm btn-ghost" onclick="toggleACompleter()" style="display:none" title="Références dont il manque la désignation, la sous-catégorie, le fournisseur, le prix ou la quantité">⚠ À compléter</button>
+          <button class="btn btn-sm btn-ghost ico" onclick="toutMat(true)" title="Déplier toutes les catégories">⊕</button>
+          <button class="btn btn-sm btn-ghost ico" onclick="toutMat(false)" title="Replier toutes les catégories">⊖</button>
+          <button class="btn btn-sm btn-ghost ico" id="bt-chips" onclick="basculerChips()" title="Afficher les pastilles de catégories">🗂</button>
+          <button class="btn btn-sm btn-ghost ico" id="btn-addcat" onclick="openAddCat()" title="Nouvelle catégorie">＋🗂</button>
+          <button class="btn btn-sm btn-ghost ico" id="bt-selection" onclick="basculerSelection()" title="Sélectionner plusieurs références pour les modifier ensemble">☑</button>
         </div>
-        <div style="margin-bottom:10px">
-          <div style="display:flex;gap:8px;align-items:center">
-            <input id="mat-search" type="search" placeholder="🔍 Rechercher…" oninput="renderMat()" style="font-size:13px;padding:10px 14px;border-radius:20px;flex:1">
-            <button id="bt-a-completer" class="btn btn-sm btn-ghost" onclick="toggleACompleter()" style="white-space:nowrap;display:none" title="Références dont il manque la désignation, la sous-catégorie, le fournisseur, le prix ou la quantité">⚠ À compléter</button>
-            <button class="btn btn-sm btn-ghost" onclick="toutMat(true)" title="Déplier toutes les catégories">⊕</button>
-            <button class="btn btn-sm btn-ghost" onclick="toutMat(false)" title="Replier toutes les catégories">⊖</button>
-          </div>
-        </div>
+        <div id="barre-groupe" class="barre-groupe" hidden></div>
         <div id="mat-body"><div class="loading">Chargement…</div></div>
       </div>
     </div>
@@ -568,7 +656,6 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
       <div id="c3tab-m3d" onclick="switchC3dTab('m3d')" class="gtab">🧊 Modèles</div>
       <div id="c3tab-ref" onclick="switchC3dTab('ref')" class="gtab">🔗 Références</div>
       <div id="c3tab-rup" onclick="switchC3dTab('rup')" class="gtab">📦 Ruptures</div>
-      <div id="c3tab-soc" onclick="switchC3dTab('soc')" class="gtab">📱 Réseaux</div>
     </div>
   </div>
   <div id="c3panel-cfg">
@@ -584,7 +671,6 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
   <div id="c3panel-m3d" style="display:none"><iframe id="c3frame-m3d" title="Modèles 3D" style="display:block;width:100%;height:calc(100vh - 56px);border:0"></iframe></div>
   <div id="c3panel-ref" style="display:none"><iframe id="c3frame-ref" title="Références du configurateur" style="display:block;width:100%;height:calc(100vh - 56px);border:0"></iframe></div>
   <div id="c3panel-rup" style="display:none"><iframe id="c3frame-rup" title="Ruptures du configurateur" style="display:block;width:100%;height:calc(100vh - 56px);border:0"></iframe></div>
-  <div id="c3panel-soc" style="display:none"><iframe id="c3frame-soc" title="Studio réseaux sociaux" style="display:block;width:100%;height:calc(100vh - 56px);border:0" allow="fullscreen"></iframe></div>
 </div>
 
 <div id="p-bij" class="page" style="padding:0">
@@ -594,6 +680,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
       <div id="ctab-bij" onclick="switchCreatTab('bij')" class="gtab gtab-on">💎 Bijoux</div>
       <div id="ctab-prod" onclick="switchCreatTab('prod')" class="gtab">🏭 Productions</div>
       <div id="ctab-perso" onclick="switchCreatTab('perso')" class="gtab">✨ Sur mesure</div>
+      <div id="ctab-boutique" onclick="switchCreatTab('boutique')" class="gtab">🛍 Boutique en ligne</div>
     </div>
   </div>
 
@@ -601,27 +688,23 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
   <div id="cpanel-bij" style="padding:12px;max-width:960px;margin:0 auto">
     <div class="card">
       <div class="card-bd">
-        <div class="abar">
-          <button class="btn btn-p" onclick="openBijModal()">＋ Nouveau bijou</button>
-          <select id="flt-status" onchange="renderBij()" style="width:auto;font-size:12px;padding:8px 26px 8px 10px">
-            <option value="">Tous</option><option value="ok">Complets</option><option value="draft">Brouillons</option>
+        <div class="barre-outils">
+          <button class="btn btn-p" onclick="openBijModal()" title="Nouvelle création">＋ Nouveau</button>
+          <input id="bij-search" type="search" placeholder="🔍 Nom, réf., collection…" oninput="renderBij()">
+          <select id="flt-status" onchange="renderBij()" title="Statut">
+            <option value="">Toutes</option><option value="ok">Complètes</option><option value="draft">Brouillons</option>
           </select>
-          <div style="display:flex;gap:4px">
-            <button id="bij-view-list" class="btn btn-p btn-sm" onclick="setBijView('list')" title="Vue liste">☰</button>
-            <button id="bij-view-grid" class="btn btn-ghost btn-sm" onclick="setBijView('grid')" title="Vue grille">⊞</button>
-          </div>
-        </div>
-        <div id="bij-coll-bar" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px"></div>
-        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center;flex-wrap:wrap">
-          <input id="bij-search" type="search" placeholder="🔍 Rechercher…" oninput="renderBij()" style="font-size:13px;padding:10px 14px;border-radius:20px;flex:1;min-width:160px">
-          <select id="bij-tri" onchange="renderBij()" style="width:auto;font-size:12px;padding:8px 26px 8px 10px" title="Trier">
-            <option value="nom">Tri : nom</option><option value="ref">Tri : référence</option><option value="pv">Tri : prix de vente</option>
-            <option value="marge">Tri : marge</option><option value="stock">Tri : en stock</option><option value="brouillons">Tri : brouillons d'abord</option>
+          <select id="bij-tri" onchange="renderBij()" title="Trier">
+            <option value="nom">Tri : nom</option><option value="ref">Tri : référence</option><option value="pv">Tri : prix</option>
+            <option value="marge">Tri : marge</option><option value="stock">Tri : stock</option><option value="brouillons">Tri : brouillons</option>
           </select>
-          <button class="btn btn-ghost btn-sm" onclick="toutBij(true)" title="Déplier toutes les fiches">⊕ Tout déplier</button>
-          <button class="btn btn-ghost btn-sm" onclick="toutBij(false)" title="Replier toutes les fiches">⊖ Tout replier</button>
-          <button class="btn btn-ghost btn-sm" onclick="showBijDiag()">🔍 Doublons</button>
+          <button class="btn btn-ghost btn-sm ico" onclick="toutBij(true)" title="Déplier toutes les fiches">⊕</button>
+          <button class="btn btn-ghost btn-sm ico" onclick="toutBij(false)" title="Replier toutes les fiches">⊖</button>
+          <button id="bij-view-list" class="btn btn-p btn-sm ico" onclick="setBijView('list')" title="Vue liste">☰</button>
+          <button id="bij-view-grid" class="btn btn-ghost btn-sm ico" onclick="setBijView('grid')" title="Vue grille">⊞</button>
+          <button class="btn btn-ghost btn-sm ico" onclick="showBijDiag()" title="Chercher les doublons de référence">🔍</button>
         </div>
+        <div id="bij-coll-bar" class="chips-defile"></div>
         <div id="bij-diag-banner" style="display:none;margin-bottom:8px"></div>
         <div id="bij-body"><div class="loading">Chargement…</div></div>
       </div>
@@ -654,6 +737,9 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
     </div>
   </div>
 
+  <!-- Panel Boutique en ligne : produits Shopify (affichés sur le site Wix) reliés aux fiches, stock partagé -->
+  <div id="cpanel-boutique" style="display:none;padding:12px;max-width:960px;margin:0 auto"><div id="boutique-body"><div class="loading">Chargement…</div></div></div>
+
   <!-- Panel Sur mesure : personnalisations du configurateur 3D (fiches atelier, bons, factures) -->
   <div id="cpanel-perso" style="display:none">
     <iframe id="frame-perso" title="Personnalisations sur mesure" style="display:block;width:100%;height:calc(100vh - 56px);border:0"></iframe>
@@ -662,6 +748,24 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
   <button class="fab-top" id="fab-top-bij" onclick="document.getElementById('main-area').scrollTop=0" title="Haut de page">↑</button>
 
 <!-- stock panel moved into p-mat -->
+
+<!-- ════════════════ RÉSEAUX : idées, suivi des posts, studio ════════════════ -->
+<div id="p-res" class="page" style="padding:0">
+  <div style="position:sticky;top:0;z-index:50;background:#fff;box-shadow:0 2px 8px rgba(60,17,75,.08)">
+    <div style="display:flex;border-bottom:2px solid var(--border)">
+      <div id="rtab-idees" onclick="switchResTab('idees')" class="gtab gtab-on">💡 Idées</div>
+      <div id="rtab-posts" onclick="switchResTab('posts')" class="gtab">📅 Posts</div>
+      <div id="rtab-camp" onclick="switchResTab('camp')" class="gtab">🎯 Campagnes</div>
+      <div id="rtab-tiktok" onclick="switchResTab('tiktok')" class="gtab">🎵 TikTok</div>
+      <div id="rtab-studio" onclick="switchResTab('studio')" class="gtab">🎬 Studio</div>
+    </div>
+  </div>
+  <div id="rpanel-idees" style="padding:12px;max-width:960px;margin:0 auto"><div id="res-idees"></div></div>
+  <div id="rpanel-posts" style="display:none;padding:12px;max-width:960px;margin:0 auto"><div id="res-posts"></div></div>
+  <div id="rpanel-camp" style="display:none;padding:12px;max-width:960px;margin:0 auto"><div id="res-camp"></div></div>
+  <div id="rpanel-tiktok" style="display:none;padding:12px;max-width:960px;margin:0 auto"><div id="res-tiktok"></div></div>
+  <div id="rpanel-studio" style="display:none"><iframe id="frame-studio" title="Studio réseaux sociaux" style="display:block;width:100%;height:calc(100vh - 56px);border:0" allow="fullscreen"></iframe></div>
+</div>
 
 <div id="p-compta" class="page" style="padding:0">
   <!-- Nav sticky -->
@@ -1345,9 +1449,15 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
   <div class="drag"></div>
   <div class="modal-title" id="bij-modal-title">Nouveau bijou</div>
   <input type="hidden" id="bij-edit-id">
+  <div class="etapes" id="bij-etapes">
+   <button type="button" onclick="allerEtape('bij-sec-infos',this)" class="on"><b>1</b> Infos</button>
+   <button type="button" onclick="allerEtape('bij-sec-compo',this)"><b>2</b> Composition</button>
+   <button type="button" onclick="allerEtape('bij-sec-vitrine',this)"><b>3</b> Prix &amp; photo</button>
+   <button type="button" onclick="allerEtape('bij-sec-options',this)"><b>4</b> Options</button>
+  </div>
 
   <!-- SECTION: Infos -->
-  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px">Informations</div>
+  <div id="bij-sec-infos" class="sec-titre">Informations</div>
   <div class="r2">
    <div class="fg"><label>Collection *</label>
     <input id="bij-coll" placeholder="Poisson" list="dl-collections" autocomplete="off">
@@ -1368,6 +1478,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
    <div class="fg"><label>Désignation *</label><input id="bij-nom" placeholder="Petit poisson"></div>
    <div class="fg"><label>Variante</label><input id="bij-var" placeholder="3 couleurs"></div>
   </div>
+  <div id="bij-sec-vitrine" class="sec-titre" style="margin-top:6px">Prix &amp; photo</div>
   <div class="fg"><label>Prix de vente</label>
    <div style="display:flex;align-items:center;gap:6px">
     <input id="bij-pv" type="number" step="0.01" placeholder="0.00" style="flex:1">
@@ -1388,7 +1499,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
   <div style="border-top:1px solid var(--border);margin:14px 0 12px"></div>
 
   <!-- SECTION: Composition -->
-  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px">Composition</div>
+  <div id="bij-sec-compo" class="sec-titre">Composition</div>
   <div class="info-box" style="margin-bottom:10px">Sous-catégorie → Référence. Les bijoux marqués "composant" apparaissent dans 💎 Bijou (composition).</div>
   <div id="bij-mats-list"></div>
   <button class="btn btn-ghost btn-sm" onclick="addMatRow()" style="margin-top:6px">＋ Ajouter un matériau</button>
@@ -1397,7 +1508,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
   <div style="border-top:1px solid var(--border);margin:14px 0 12px"></div>
 
   <!-- SECTION: Option composant -->
-  <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);margin-bottom:8px">Options</div>
+  <div id="bij-sec-options" class="sec-titre">Options</div>
   <div class="toggle-row off" id="is-mat-toggle" onclick="toggleIsMat()">
    <input type="checkbox" id="bij-is-mat">
    <div>
@@ -1414,6 +1525,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
    </div>
   </div>
 
+  <div class="cout-live" id="bij-cout-live"></div>
   <div class="mfoot">
    <button class="btn btn-ghost" onclick="closeModal('m-bij')">Annuler</button>
    <button class="btn btn-p" onclick="saveBij()">Enregistrer</button>
@@ -1432,7 +1544,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
    <div class="fg"><label>Plateforme / Canal</label>
     <select id="v-canal" onchange="onCanalChange()">
      <option value="atelier">🏪 Atelier / direct</option>
-     <option value="wix">🛒 Boutique en ligne (Wix)</option>
+     <option value="wix">🛒 Boutique en ligne</option>
      <option value="point_vente">🏬 Point de vente physique</option>
      <option value="depot">📍 Dépôt-vente</option>
      <option value="shopify">🛒 Shopify</option>
@@ -1819,6 +1931,12 @@ async function loadAll() {
     LANCEMENT = /^\d{4}-\d{2}-\d{2}$/.test(v || '') ? v : ''; }
   { let lv=cfg.find(c=>c.key==='lieux_vente')?.value; if(typeof lv==='string'){ try{ lv=JSON.parse(lv); }catch(e){ lv=null; } }
     if(Array.isArray(lv)&&lv.length) LIEUX_VENTE=[...new Set(['Boutique en ligne','Point de vente physique',...lv])]; }
+  { let rp=cfg.find(c=>c.key==='reseaux_posts')?.value; if(typeof rp==='string'){ try{ rp=JSON.parse(rp); }catch(e){ rp=null; } }
+    POSTS=Array.isArray(rp)?rp:[];
+    let rr=cfg.find(c=>c.key==='reseaux_reglages')?.value; if(typeof rr==='string'){ try{ rr=JSON.parse(rr); }catch(e){ rr=null; } }
+    RES_REG={...RES_REG_DEFAUT, ...(rr&&typeof rr==='object'?rr:{})};
+    const lireCfg=k=>{ let v=cfg.find(c=>c.key===k)?.value; if(typeof v==='string'){ try{ v=JSON.parse(v); }catch(e){ v=null; } } return v; };
+    TIKTOK=lireCfg('tiktok_videos'); TIKTOK_HIST=lireCfg('tiktok_historique')||{}; TIKTOK_RELIE=!!lireCfg('tiktok_jetons')?.acces; }
   const fourCfg     = cfg.find(c=>c.key==='fournisseurs');
   const hdrCfg      = cfg.find(c=>c.key==='header');
   // Catégories création (rétrocompatibilité avec main_cats)
@@ -1858,7 +1976,10 @@ async function loadAll() {
   if(typeof renderStock==="function") renderStock();
   majBadgesOnglets();
   renderAccueil();
-  if(!loadAll.fait){ loadAll.fait=true; restaurerOnglets(); }
+  if(!loadAll.fait){ loadAll.fait=true; restaurerOnglets();
+    const tt=new URLSearchParams(location.search).get('tiktok');
+    if(tt){ history.replaceState(null,'',location.pathname); goTabNom('res'); switchResTab('tiktok');
+      toast(tt==='ok'?'Compte TikTok relié ✓ — vidéos importées':'Connexion TikTok '+(tt==='annule'?'annulée':'refusée'), tt==='ok'?'ok':'err'); } }
 }
 
 // ═══════════════════════════════════════════════════════
@@ -2221,7 +2342,7 @@ function updateMatMCSelect() {
 // ═══════════════════════════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════════════════════════
-const RENDERS = {home:renderAccueil,mat:renderMat,bij:renderBij,compta:renderCompta,cfg:renderCfg,c3d:()=>{ if(!document.getElementById('c3frame-cfg').getAttribute('src')) switchC3dTab('cfg'); }};
+const RENDERS = {res:()=>switchResTab(lireOnglet('reseaux')||'idees'),home:renderAccueil,mat:renderMat,bij:renderBij,compta:renderCompta,cfg:renderCfg,c3d:()=>{ if(!document.getElementById('c3frame-cfg').getAttribute('src')) switchC3dTab('cfg'); }};
 
 function goTab(el) {
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
@@ -2298,6 +2419,374 @@ async function copierCourses() {
 }
 
 // ═══════════════════════════════════════════════════════
+// RÉSEAUX : idées de posts, suivi des publications, studio
+// Les posts sont gardés dans la table config (clé « reseaux_posts ») : rien à créer dans Supabase.
+// ═══════════════════════════════════════════════════════
+let POSTS=[];
+// Réglages réseaux : rythme visé, groupes de hashtags, campagnes (clé config « reseaux_reglages »)
+const RES_REG_DEFAUT={ objectif:3, campagnes:[], hashtags:[
+  {nom:'Bona Nodi',tags:'#bonanodi #faitmain #bijouxfaitmain #createurfrancais #artisanat'},
+  {nom:'Perles',tags:'#perlesderocaille #seedbeads #beadwork #bijouxperles #perlage'},
+  {nom:'Chainmail',tags:'#chainmail #cottedemaille #bijouxchainmail #jumpring'},
+  {nom:'Porte-clés',tags:'#porteclés #keychain #bagcharm #bijoudesac'},
+  {nom:'Cadeau',tags:'#ideecadeau #cadeaufaitmain #madeinfrance #petitcreateur'} ]};
+let RES_REG={...RES_REG_DEFAUT};
+async function sauverRegRes(){ await sbUpsertConfig('reseaux_reglages', RES_REG); }
+// Ventes des créations montrées dans les 7 jours qui suivent le post
+function ventes7j(p){
+  if(!p.date||!(p.bij_ids||[]).length) return 0;
+  const d0=jourNum(p.date);
+  return VENTES.filter(v=>p.bij_ids.includes(v.bij_id)&&v.date&&jourNum(v.date)>=d0&&jourNum(v.date)<=d0+7).reduce((t,v)=>t+(+v.qty||0),0);
+}
+// Modèles de légendes : {creations} {prix} {moment}
+const MODELES_LEGENDE={
+  nouveaute:['✨ Nouveauté',"✨ Nouveauté à l'atelier : {creations} !\nChaque pièce est montée à la main, perle après perle.{prix}\nDisponible sur la boutique (lien en bio) 💜"],
+  coulisses:['🧵 Coulisses',"🧵 Dans les coulisses de l'atelier…\nAujourd'hui je monte {creations}. Combien de perles d'après vous ? 👀"],
+  surmesure:['🎨 Sur mesure',"🎨 Création sur mesure : {creations}, aux couleurs choisies par une cliente.\nToi aussi, compose la tienne avec le configurateur 3D (lien en bio) ✨"],
+  avant:['💫 Mise en avant',"💫 Coup de cœur du moment : {creations}.{prix}\nPlus que quelques pièces disponibles !"],
+  moment:['🎁 Date cadeau',"🎁 {moment} approche ! Une idée cadeau faite main : {creations}.{prix}\nCommande vite pour une livraison à temps."],
+  star:['🏆 Star du mois',"🏆 La star du mois : {creations} ! Merci pour votre amour 💜"],
+};
+function remplirLegende(cle){
+  const t=MODELES_LEGENDE[cle]?.[1]; if(!t) return;
+  const bs=[...document.getElementById('po-bij').selectedOptions].map(o=>getBij(o.value)).filter(Boolean);
+  const noms=bs.map(b=>b.nom+(b.variante?' '+b.variante:'')).join(', ')||'ma dernière création';
+  const prix=bs.length===1&&bs[0].pv?'\n'+String(bs[0].pv).replace('.',',')+' €':'';
+  const moment=(momentsAVenir()[0]?.t||'La fête').replace(/^\S+\s/,'');
+  const ta=document.getElementById('po-note');
+  ta.value=(t.replace('{creations}',noms).replace('{prix}',prix).replace('{moment}',moment))+(ta.value?'\n\n'+ta.value:'');
+}
+function ajouterHashtags(i){ const ta=document.getElementById('po-note'); const h=RES_REG.hashtags[i]?.tags||''; ta.value=(ta.value.trim()+'\n\n'+h).trim(); }
+async function nouveauGroupeHashtags(){
+  const nom=prompt('Nom du groupe de hashtags (ex. Noël)'); if(!nom) return;
+  const tags=prompt('Hashtags, séparés par des espaces','#'); if(!tags) return;
+  RES_REG.hashtags=[...RES_REG.hashtags,{nom,tags}]; await sauverRegRes();
+  const box=document.getElementById('po-tags'); if(box) box.innerHTML=chipsHashtags();
+}
+const chipsHashtags=()=>RES_REG.hashtags.map((h,i)=>`<button type="button" class="chip-h" onclick="ajouterHashtags(${i})" title="${h.tags}"># ${h.nom}</button>`).join('')+`<button type="button" class="chip-h plus" onclick="nouveauGroupeHashtags()">＋ groupe</button>`;
+// Semaines (lundi→dimanche) d'affilée où l'objectif de posts est atteint
+function serieSemaines(){
+  const lundi=d=>{ const x=new Date(d); x.setHours(12,0,0,0); x.setDate(x.getDate()-((x.getDay()+6)%7)); return jourISO(x); };
+  const parSem={}; POSTS.filter(p=>p.statut==='publie'&&p.date).forEach(p=>{ const k=lundi(p.date+'T12:00:00'); parSem[k]=(parSem[k]||0)+1; });
+  const d=new Date(); let k=lundi(d), n0=0;
+  if((parSem[k]||0)<RES_REG.objectif){ d.setDate(d.getDate()-7); k=lundi(d); }
+  while((parSem[k]||0)>=RES_REG.objectif){ n0++; d.setDate(d.getDate()-7); k=lundi(d); }
+  return {serie:n0, cetteSemaine:parSem[lundi(new Date())]||0};
+}
+let CAL_DECALAGE=0;
+function calendrierPosts(){
+  const base=new Date(); base.setDate(1); base.setMonth(base.getMonth()+CAL_DECALAGE);
+  const an=base.getFullYear(), mo=base.getMonth(), nbJ=new Date(an,mo+1,0).getDate(), dec=(new Date(an,mo,1).getDay()+6)%7;
+  const auj=today(), cases=[];
+  for(let i=0;i<dec;i++) cases.push('<div class="cal-j vide"></div>');
+  for(let j=1;j<=nbJ;j++){
+    const iso=`${an}-${String(mo+1).padStart(2,'0')}-${String(j).padStart(2,'0')}`;
+    const ps=POSTS.filter(p=>p.date===iso);
+    cases.push(`<div class="cal-j ${iso===auj?'auj':''}" onclick="formPost({statut:'prevu',date:'${iso}'})" title="Nouveau post le ${j}">
+      <span class="cal-n">${j}</span>${ps.map(p=>`<span class="cal-p ${p.statut}" onclick="event.stopPropagation();ouvrirPost('${p.id}')" title="${(p.titre||'').replace(/"/g,'&quot;')}">${(RESEAUX[p.reseau]||'•').split(' ')[0]}</span>`).join('')}</div>`);
+  }
+  return `<div class="cal-tete"><button class="btn btn-xs btn-ghost" onclick="CAL_DECALAGE--;renderPosts()">◀</button>
+    <b>${base.toLocaleDateString('fr-FR',{month:'long',year:'numeric'})}</b><button class="btn btn-xs btn-ghost" onclick="CAL_DECALAGE++;renderPosts()">▶</button></div>
+    <div class="cal">${['L','M','M','J','V','S','D'].map(x=>`<div class="cal-s">${x}</div>`).join('')}${cases.join('')}</div>`;
+}
+async function changerObjectif(v){ RES_REG.objectif=Math.max(1,+v||1); await sauverRegRes(); renderPosts(); }
+// ── Campagnes : un temps fort (Noël…) avec ses créations, ses posts et un objectif de ventes ──
+function renderCampagnes(){
+  const el=document.getElementById('res-camp'); if(!el) return;
+  const cs=[...(RES_REG.campagnes||[])].sort((a,b)=>String(b.debut).localeCompare(String(a.debut)));
+  el.innerHTML=`<div class="barre-outils"><button class="btn btn-p" onclick="formCampagne()">＋ Nouvelle campagne</button>
+    <span class="dim" style="font-size:12px">Prépare un temps fort : ses créations, ses posts et un objectif de ventes, puis suis où tu en es.</span></div>
+    ${momentsAVenir().length?`<div class="dim" style="font-size:12px;margin-bottom:8px">Bientôt : ${momentsAVenir().map(m=>`<button class="chip-h" onclick="formCampagne({nom:'${m.t.slice(m.t.indexOf(' ')+1).replace(/'/g,"\\'")}',fin:'${jourISO(m.d)}'})">${m.t} · ${m.j} j</button>`).join(' ')}</div>`:''}
+    ${cs.length?cs.map(c=>{ const v=VENTES.filter(x=>(c.bij_ids||[]).includes(x.bij_id)&&x.date>=c.debut&&x.date<=c.fin).reduce((t,x)=>t+(+x.qty||0),0);
+      const ca=VENTES.filter(x=>(c.bij_ids||[]).includes(x.bij_id)&&x.date>=c.debut&&x.date<=c.fin).reduce((t,x)=>t+(+x.qty||0)*(+x.prix||0),0);
+      const ps=POSTS.filter(p=>p.campagne===c.id), pub=ps.filter(p=>p.statut==='publie').length;
+      const pct=c.objectif?Math.min(100,Math.round(v/c.objectif*100)):0, enCours=today()>=c.debut&&today()<=c.fin;
+      return `<div class="card camp"><div class="card-hd" onclick="formCampagne(RES_REG.campagnes.find(x=>x.id==='${c.id}'))" style="cursor:pointer"><h2>🎯 ${c.nom}</h2><span class="badge ${enCours?'bgn':'bm'}">${enCours?'en cours':today()<c.debut?'à venir':'terminée'}</span></div>
+        <div class="card-bd"><div class="dim" style="font-size:12px">${c.debut.split('-').reverse().join('/')} → ${c.fin.split('-').reverse().join('/')} · ${(c.bij_ids||[]).map(getBij).filter(Boolean).map(b=>b.nom+(b.variante?' '+b.variante:'')).join(', ')||'aucune création'}</div>
+        <div class="camp-barre"><span style="width:${pct}%"></span></div>
+        <div class="home-stats"><div><b>${n(v)}${c.objectif?' / '+n(c.objectif):''}</b><span>ventes</span></div><div><b>${eur(ca)}</b><span>chiffre</span></div><div><b>${pub} / ${ps.length}</b><span>posts publiés</span></div></div>
+        <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-xs btn-p" onclick="formPost({statut:'prevu',campagne:'${c.id}',bij_ids:${JSON.stringify(c.bij_ids||[]).replace(/"/g,'&quot;')},date:'${today()>c.debut?today():c.debut}'})">➕ Post de la campagne</button></div></div></div>`; }).join('')
+      :'<div class="empty"><div class="empty-icon">🎯</div><p>Aucune campagne pour l\'instant.</p></div>'}`;
+}
+function formCampagne(c){
+  c=c||{}; let ov=document.getElementById('m-camp');
+  if(!ov){ ov=document.createElement('div'); ov.id='m-camp'; ov.className='overlay'; ov.onclick=e=>bgClose(e,ov); document.body.appendChild(ov); }
+  const crea=BIJS.filter(b=>!b.is_mat).sort((a,b)=>String(a.nom).localeCompare(String(b.nom),'fr'));
+  const fin=c.fin||jourISO(new Date(Date.now()+30*86400000)), debut=c.debut||(c.fin?jourISO(new Date(new Date(c.fin).getTime()-30*86400000)):today());
+  ov.innerHTML=`<div class="modal"><div class="drag"></div><div class="modal-title">${c.id?'Modifier':'Nouvelle'} campagne</div>
+    <div class="fg"><label>Nom</label><input id="ca-nom" value="${(c.nom||'').replace(/"/g,'&quot;')}" placeholder="ex. Noël 2026"></div>
+    <div class="r3"><div class="fg"><label>Début</label><input id="ca-debut" type="date" value="${debut}"></div><div class="fg"><label>Fin</label><input id="ca-fin" type="date" value="${fin}"></div>
+      <div class="fg"><label>Objectif de ventes</label><input id="ca-obj" type="number" min="0" value="${c.objectif||''}" placeholder="pièces"></div></div>
+    <div class="fg"><label>Créations mises en avant</label><select id="ca-bij" multiple size="6" style="height:auto">${crea.map(b=>`<option value="${b.id}" ${(c.bij_ids||[]).includes(b.id)?'selected':''}>${b.nom}${b.variante?' · '+b.variante:''}</option>`).join('')}</select></div>
+    <div class="fg"><label>Notes (code promo, livraison garantie, visuels…)</label><textarea id="ca-note" rows="2">${(c.note||'').replace(/</g,'&lt;')}</textarea></div>
+    <div class="mfoot">${c.id?`<button class="btn btn-red" onclick="supprimerCampagne('${c.id}')">Supprimer</button>`:''}<span style="flex:1"></span>
+      <button class="btn btn-ghost" onclick="closeModal('m-camp')">Annuler</button><button class="btn btn-p" onclick="enregistrerCampagne('${c.id||''}')">Enregistrer</button></div></div>`;
+  openModal('m-camp');
+}
+async function enregistrerCampagne(id){
+  const v=k=>document.getElementById('ca-'+k).value;
+  const c={id:id||uid(), nom:v('nom').trim()||'Campagne', debut:v('debut'), fin:v('fin'), objectif:+v('obj')||0, note:v('note').trim(),
+    bij_ids:[...document.getElementById('ca-bij').selectedOptions].map(o=>o.value)};
+  const l=[...(RES_REG.campagnes||[])], i=l.findIndex(x=>x.id===c.id); if(i>=0) l[i]=c; else l.push(c);
+  RES_REG.campagnes=l; await sauverRegRes(); closeModal('m-camp'); renderCampagnes(); toast('Campagne enregistrée ✓','ok');
+}
+async function supprimerCampagne(id){ if(!confirm('Supprimer cette campagne ? (ses posts restent)')) return; RES_REG.campagnes=RES_REG.campagnes.filter(c=>c.id!==id); await sauverRegRes(); closeModal('m-camp'); renderCampagnes(); }
+// ═══ 🎵 TikTok : import de tes vidéos (fonction « tiktok ») et analyse de ce qui marche ═══
+let TIKTOK=null, TIKTOK_HIST={}, TIKTOK_RELIE=false;
+async function appelTikTok(action){
+  const { data, error } = await SB.functions.invoke('tiktok', { body: { action } });
+  if (error) { let m=error.message; try{ const c=await error.context?.json?.(); if(c?.erreur) m=c.erreur; }catch(e){} throw new Error(m); }
+  if (data?.erreur) throw new Error(data.erreur);
+  return data;
+}
+async function connecterTikTok(){ try{ const r=await appelTikTok('lien'); location.href=r.url; }catch(e){ toast('TikTok : '+e.message,'err'); } }
+async function synchroTikTok(){
+  toast('Import des vidéos TikTok…');
+  try{ TIKTOK=await appelTikTok('synchroniser'); TIKTOK_RELIE=true; majPostsDepuisTikTok(); renderTikTok(); toast(`${TIKTOK.videos.length} vidéo(s) importée(s) ✓`,'ok'); }
+  catch(e){ toast('TikTok : '+e.message,'err'); }
+}
+const engagement = v => v.vues ? (v.likes+v.commentaires+v.partages)/v.vues : 0;
+const pct = x => (Math.round(x*1000)/10).toLocaleString('fr-FR')+' %';
+const hashtagsDe = v => [...new Set((String(v.description||'')+' '+String(v.titre||'')).toLowerCase().match(/#[\p{L}\p{N}_]+/gu)||[])];
+// Les posts du suivi reliés à une vidéo reprennent ses statistiques
+async function majPostsDepuisTikTok(){
+  if(!TIKTOK?.videos) return 0; let n0=0;
+  for(const v of TIKTOK.videos){ const p=POSTS.find(x=>x.tiktok_id===v.id||(v.lien&&x.lien===v.lien));
+    if(p&&(p.vues!==v.vues||p.likes!==v.likes)){ Object.assign(p,{vues:v.vues,likes:v.likes,tiktok_id:v.id,statut:'publie'}); n0++; } }
+  if(n0) await sauverPosts();
+  return n0;
+}
+async function importerDansSuivi(){
+  const nouvelles=(TIKTOK?.videos||[]).filter(v=>!POSTS.some(p=>p.tiktok_id===v.id||(v.lien&&p.lien===v.lien)));
+  nouvelles.forEach(v=>POSTS.push({id:uid(),tiktok_id:v.id,titre:(v.titre||v.description||'Vidéo TikTok').slice(0,120),reseau:'tiktok',format:'reel',statut:'publie',
+    date:(v.date||'').slice(0,10),lien:v.lien,bij_ids:BIJS.filter(b=>!b.is_mat&&!b.parent_id&&String(v.description+' '+v.titre).toLowerCase().includes(String(b.nom).toLowerCase())).map(b=>b.id),
+    vues:v.vues,likes:v.likes,ventes:0,note:v.description||''}));
+  await sauverPosts(); toast(`${nouvelles.length} vidéo(s) ajoutée(s) au suivi des posts ✓`,'ok'); renderTikTok();
+}
+function barres(lignes, fmt=x=>n(Math.round(x))){            // [libellé, valeur, détail]
+  const max=Math.max(1,...lignes.map(l=>l[1]));
+  return lignes.map(([l,v,d])=>`<div class="tt-barre"><span class="tt-l">${l}</span><span class="tt-b"><span style="width:${Math.round(v/max*100)}%"></span></span><span class="tt-v">${fmt(v)}${d?` <span class="dim">${d}</span>`:''}</span></div>`).join('');
+}
+function renderTikTok(){
+  const el=document.getElementById('res-tiktok'); if(!el) return;
+  const vids=(TIKTOK?.videos||[]).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+  const entete=`<div class="card"><div class="card-bd" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    ${TIKTOK?.profil?.avatar?`<img src="${TIKTOK.profil.avatar}" alt="" style="width:40px;height:40px;border-radius:50%">`:'<span style="font-size:28px">🎵</span>'}
+    <div><b>${TIKTOK?.profil?.nom||'TikTok'}</b><div class="dim" style="font-size:11px">${TIKTOK?.maj?'mis à jour le '+new Date(TIKTOK.maj).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'}):'jamais importé'}</div></div>
+    <span style="flex:1"></span>
+    ${TIKTOK_RELIE?`<button class="btn btn-p" onclick="synchroTikTok()">↻ Mettre à jour</button>`:`<button class="btn btn-p" onclick="connecterTikTok()">🎵 Connecter mon compte TikTok</button>`}</div></div>`;
+  if(!vids.length){
+    el.innerHTML=entete+`<div class="card"><div class="card-bd"><p style="font-size:13px;line-height:1.6">${TIKTOK_RELIE?'Aucune vidéo pour l\'instant : publie ta première, puis « Mettre à jour ».':'Relie ton compte (lecture seule) pour importer tes vidéos et leurs statistiques : vues, j\'aime, commentaires, partages.'}</p>
+      <p class="dim" style="font-size:12px">Mise en place (une fois) : LISEZMOI, section « TikTok ». En attendant, tu peux noter tes vidéos à la main dans 📅 Posts.</p></div></div>`;
+    return;
+  }
+  const tot=k=>vids.reduce((t,v)=>t+v[k],0), vues=tot('vues'), moy=vues/vids.length;
+  const engMoy=vids.reduce((t,v)=>t+engagement(v),0)/vids.length;
+  const top=[...vids].sort((a,b)=>b.vues-a.vues).slice(0,3);
+  const jours=['dim.','lun.','mar.','mer.','jeu.','ven.','sam.'], parJour={}, parCreneau={};
+  const creneau=h=>h<6?'nuit (0-6 h)':h<12?'matin (6-12 h)':h<18?'après-midi (12-18 h)':'soir (18-24 h)';
+  vids.forEach(v=>{ const d=new Date(v.date); if(isNaN(d)) return;
+    (parJour[d.getDay()] ||= []).push(v.vues); (parCreneau[creneau(d.getHours())] ||= []).push(v.vues); });
+  const moyL=a=>a.reduce((t,x)=>t+x,0)/a.length;
+  const lJours=[1,2,3,4,5,6,0].filter(j=>parJour[j]).map(j=>[jours[j],moyL(parJour[j]),`(${parJour[j].length})`]);
+  const lCren=Object.entries(parCreneau).map(([c,a])=>[c,moyL(a),`(${a.length})`]);
+  const durees={'< 15 s':[],'15-30 s':[],'30-60 s':[],'> 60 s':[]};
+  vids.forEach(v=>durees[v.duree<15?'< 15 s':v.duree<30?'15-30 s':v.duree<=60?'30-60 s':'> 60 s'].push(v.vues));
+  const lDur=Object.entries(durees).filter(([,a])=>a.length).map(([k,a])=>[k,moyL(a),`(${a.length})`]);
+  const tags={}; vids.forEach(v=>hashtagsDe(v).forEach(h=>(tags[h] ||= []).push(v.vues)));
+  const lTags=Object.entries(tags).map(([h,a])=>[h,moyL(a),`(${a.length})`]).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const meilleur=l=>l.slice().sort((a,b)=>b[1]-a[1])[0];
+  const conseils=[];
+  if(meilleur(lCren)&&lCren.length>1) conseils.push(`🕐 Tes vidéos postées le <b>${meilleur(lCren)[0]}</b> font le plus de vues en moyenne.`);
+  if(meilleur(lJours)&&lJours.length>1) conseils.push(`📅 Meilleur jour pour l'instant : <b>${meilleur(lJours)[0].replace('.','')}</b>`);
+  if(meilleur(lDur)&&lDur.length>1) conseils.push(`⏱ Les vidéos de <b>${meilleur(lDur)[0]}</b> marchent le mieux chez toi.`);
+  if(lTags[0]) conseils.push(`#️⃣ Le hashtag <b>${lTags[0][0]}</b> accompagne tes vidéos les plus vues.`);
+  conseils.push(engMoy>=0.08?`💜 Engagement de ${pct(engMoy)} : ta communauté réagit bien, continue de lui parler (questions, coulisses).`
+    :`💡 Engagement de ${pct(engMoy)} : pose une question en légende ou montre une étape de fabrication pour faire réagir.`);
+  if(vids.length<10) conseils.push(`🌱 Avec ${vids.length} vidéo${vids.length>1?'s':''}, ces tendances sont encore fragiles : elles s'affinent à chaque nouvelle vidéo.`);
+  const nonSuivies=vids.filter(v=>!POSTS.some(p=>p.tiktok_id===v.id||(v.lien&&p.lien===v.lien))).length;
+  const progression=v=>{ const h=TIKTOK_HIST[v.id]||[]; if(h.length<2) return ''; const d=h[h.length-1][1]-h[h.length-2][1]; return d>0?`<span style="color:var(--green)">+${n(d)}</span>`:''; };
+  el.innerHTML=entete+`
+  <div class="stats" style="grid-template-columns:repeat(4,1fr)">
+    <div class="stat pur"><div class="v">${vids.length}</div><div class="l">vidéos</div></div>
+    <div class="stat"><div class="v">${n(vues)}</div><div class="l">vues au total</div></div>
+    <div class="stat"><div class="v">${n(Math.round(moy))}</div><div class="l">vues / vidéo</div></div>
+    <div class="stat grn"><div class="v">${pct(engMoy)}</div><div class="l">engagement moyen</div></div>
+  </div>
+  <div class="card"><div class="card-hd"><h2>💡 Ce que disent tes vidéos</h2></div><div class="card-bd">${conseils.map(c=>`<div class="tt-conseil">${c}</div>`).join('')}
+    ${nonSuivies?`<button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="importerDansSuivi()">📥 Ajouter ${nonSuivies} vidéo(s) au suivi des posts</button>`:''}</div></div>
+  <div class="card"><div class="card-hd"><h2>🏆 Tes meilleures vidéos</h2></div><div class="card-bd tt-top">${top.map(v=>`<a class="tt-vid" href="${v.lien}" target="_blank" rel="noopener">
+      ${v.couverture?`<img src="${v.couverture}" alt="" loading="lazy">`:'<div class="tt-sans">🎵</div>'}
+      <b>${(v.titre||v.description||'Sans titre').replace(/</g,'&lt;').slice(0,60)}</b>
+      <span>👁 ${n(v.vues)} ${progression(v)} · ♥ ${n(v.likes)} · 💬 ${n(v.commentaires)} · ↗ ${n(v.partages)}</span><span class="dim">engagement ${pct(engagement(v))}</span></a>`).join('')}</div></div>
+  <div class="card"><div class="card-hd"><h2>📈 Vues de chaque vidéo</h2></div><div class="card-bd">${barres(vids.map(v=>[new Date(v.date).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})+' · '+(v.titre||v.description||'').replace(/</g,'&lt;').slice(0,28),v.vues,pct(engagement(v))]))}</div></div>
+  <div class="tt-grille">
+    <div class="card"><div class="card-hd"><h2>📅 Par jour de publication</h2></div><div class="card-bd">${barres(lJours)}<div class="dim" style="font-size:10px">vues moyennes (nombre de vidéos)</div></div></div>
+    <div class="card"><div class="card-hd"><h2>🕐 Par moment de la journée</h2></div><div class="card-bd">${barres(lCren)}</div></div>
+    <div class="card"><div class="card-hd"><h2>⏱ Par durée</h2></div><div class="card-bd">${barres(lDur)}</div></div>
+    <div class="card"><div class="card-hd"><h2>#️⃣ Hashtags</h2></div><div class="card-bd">${lTags.length?barres(lTags):'<div class="dim" style="font-size:12px">Aucun hashtag dans tes descriptions.</div>'}</div></div>
+  </div>`;
+}
+
+// ── Studio → suivi : un visuel exporté propose d'ajouter le post prévu correspondant ──
+window.bnStudioExporte = info => {
+  const fmt=info.type==='video'?'reel':info.format==='story'?'story':'post';
+  const titre=[info.titre,info.sous].filter(Boolean).join(' — ');
+  const txt=String(info.sous||'').toLowerCase(), nomComplet=b=>(b.nom+(b.variante?' · '+b.variante:'')).toLowerCase();
+  const exacts=BIJS.filter(b=>txt.includes(nomComplet(b))&&b.variante), bij=(exacts.length?exacts:BIJS.filter(b=>!b.parent_id&&txt.includes(String(b.nom).toLowerCase()))).map(b=>b.id);
+  formPost({statut:'prevu', reseau:info.format==='tiktok'?'tiktok':'instagram', format:fmt, titre, bij_ids:bij, date:today(), note:'Visuel préparé dans le studio ('+(info.type==='video'?'vidéo':'image')+' '+info.format+').'});
+  toast('Visuel téléchargé : complète le post prévu ✨','ok');
+};
+const RESEAUX={instagram:'📷 Instagram',tiktok:'🎵 TikTok',facebook:'📘 Facebook',pinterest:'📌 Pinterest',autre:'• Autre'};
+const FORMATS_POST={post:'Post',carrousel:'Carrousel',reel:'Reel / vidéo',story:'Story'};
+const STATUTS_POST={idee:'💡 Idée',prevu:'🗓 Prévu',publie:'✅ Publié'};
+const jourNum = d => Math.floor(new Date(d+'T12:00:00').getTime()/86400000);
+const ilYa = d => Math.floor(Date.now()/86400000) - jourNum(d);
+function switchResTab(t){
+  ['idees','posts','camp','tiktok','studio'].forEach(x=>{ document.getElementById('rpanel-'+x).style.display=x===t?'block':'none'; document.getElementById('rtab-'+x).className='gtab'+(x===t?' gtab-on':''); });
+  memoOnglet('reseaux',t);
+  if(t==='idees') renderIdees();
+  if(t==='posts') renderPosts();
+  if(t==='camp') renderCampagnes();
+  if(t==='tiktok') renderTikTok();
+  if(t==='studio'){ const f=document.getElementById('frame-studio'); if(!f.getAttribute('src')) f.setAttribute('src','configurateur/studio-reseaux.html'); }
+}
+async function sauverPosts(){ await sbUpsertConfig('reseaux_posts', POSTS); }
+const postsDe = bijId => POSTS.filter(p=>(p.bij_ids||[]).includes(bijId));
+function dernierPost(bijId){ return postsDe(bijId).filter(p=>p.statut==='publie').sort((a,b)=>String(b.date).localeCompare(String(a.date)))[0]; }
+// Dates à ne pas rater (prévenu 45 jours avant)
+function momentsAVenir(){
+  const a=new Date().getFullYear(), m=[];
+  const dimDernier=(an,mois)=>{ const d=new Date(an,mois+1,0); d.setDate(d.getDate()-d.getDay()); return d; };
+  const vendrediNov=an=>{ const d=new Date(an,10,30); while(d.getDay()!==5) d.setDate(d.getDate()-1); return d; };
+  [a,a+1].forEach(an=>{
+    m.push(['💝 Saint-Valentin',new Date(an,1,14)],['💐 Fête des mères',dimDernier(an,4)],['👔 Fête des pères',(()=>{ const d=new Date(an,5,1); while(d.getDay()!==0) d.setDate(d.getDate()+1); d.setDate(d.getDate()+14); return d; })()],
+      ['🎒 Rentrée',new Date(an,8,1)],['🖤 Black Friday',vendrediNov(an)],['🎄 Noël',new Date(an,11,25)],['🎆 Nouvel an',new Date(an,11,31)]);
+  });
+  const auj=new Date(); auj.setHours(0,0,0,0);
+  return m.map(([t,d])=>({t,d,j:Math.round((d-auj)/86400000)})).filter(x=>x.j>=0&&x.j<=45).sort((x,y)=>x.j-y.j);
+}
+function ideesPosts(){
+  const out=[], vend=BIJS.filter(b=>!b.is_mat&&!b.no_sell);
+  const stockDe=id=>PRODS.filter(p=>p.bij_id===id&&(!p.statut||p.statut==='produit')).reduce((t,p)=>t+(+p.qty||0),0)-venteTot(id).qty;
+  const publies=POSTS.filter(p=>p.statut==='publie').sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+  const dernier=publies[0];
+  if(!dernier) out.push({ic:'👋',t:'Premier post suivi',d:'Note ici tes publications pour suivre ta régularité et ce qui marche.',prio:1});
+  else if(ilYa(dernier.date)>=7) out.push({ic:'⏰',t:`${ilYa(dernier.date)} jours sans post`,d:'Un petit post ou une story garde ton compte vivant.',prio:1});
+  momentsAVenir().forEach(x=>out.push({ic:x.t.split(' ')[0],t:`${x.t.slice(x.t.indexOf(' ')+1)} dans ${x.j} jour${x.j>1?'s':''}`,d:'Prépare une sélection cadeau, une story compte à rebours, un code ou une livraison garantie.',prio:x.j<=21?1:2,moment:x.t}));
+  // nouveautés produites récemment et jamais montrées
+  vend.forEach(b=>{
+    const recente=PRODS.filter(p=>p.bij_id===b.id).some(p=>String(p.date||'')>=jourISO(new Date(Date.now()-14*86400000)));
+    const dp=dernierPost(b.id);
+    if(recente&&!dp) out.push({ic:'✨',t:`Nouveauté : ${b.nom}${b.variante?' · '+b.variante:''}`,d:'Produite ces 2 dernières semaines, jamais présentée.',bij:b.id,prio:1});
+    else if(stockDe(b.id)>=3&&(!dp||ilYa(dp.date)>30)) out.push({ic:'📦',t:`Mets en avant ${b.nom}${b.variante?' · '+b.variante:''}`,d:`${stockDe(b.id)} pièces en stock${dp?', dernier post il y a '+ilYa(dp.date)+' jours':', jamais montrée'}.`,bij:b.id,prio:2});
+    else if(!dp&&!b.parent_id&&b.photo) out.push({ic:'📸',t:`Présente ${b.nom}`,d:'Elle a une photo mais n\'a jamais été postée.',bij:b.id,prio:3});
+  });
+  const persoFini=PRODS.filter(p=>p.perso&&(!p.statut||p.statut==='produit')).sort((a,b)=>String(b.date).localeCompare(String(a.date)))[0];
+  if(persoFini&&!POSTS.some(p=>(p.note||'').includes(persoFini.perso))) out.push({ic:'🎨',t:`Montre une création sur mesure (${persoFini.perso})`,d:'Le configurateur en story : « tu choisis, je fabrique ». Demande l\'accord de la cliente.',bij:persoFini.bij_id,perso:persoFini.perso,prio:2});
+  const mois=jourISO(new Date()).slice(0,7), top={};
+  VENTES.filter(v=>String(v.date||'').startsWith(mois)).forEach(v=>top[v.bij_id]=(top[v.bij_id]||0)+(+v.qty||0));
+  const best=Object.entries(top).sort((a,b)=>b[1]-a[1])[0];
+  if(best&&best[1]>=2){ const b=getBij(best[0]); if(b) out.push({ic:'🏆',t:`Star du mois : ${b.nom}`,d:`${best[1]} vendues ce mois-ci : la preuve sociale fait vendre.`,bij:b.id,prio:2}); }
+  out.push({ic:'🧵',t:'Coulisses de l\'atelier',d:'Un timelapse de montage, ton plan de travail, le tri des perles : ce sont souvent les vidéos les plus vues.',prio:3});
+  return out.sort((a,b)=>a.prio-b.prio);
+}
+function renderIdees(){
+  const el=document.getElementById('res-idees'); if(!el) return;
+  const id=ideesPosts(), mois=jourISO(new Date()).slice(0,7);
+  const publiesMois=POSTS.filter(p=>p.statut==='publie'&&String(p.date).startsWith(mois)).length;
+  const sem=[0,1,2,3].map(k=>POSTS.filter(p=>p.statut==='publie'&&ilYa(p.date)>=k*7&&ilYa(p.date)<k*7+7).length).reverse();
+  const prevus=POSTS.filter(p=>p.statut==='prevu').sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+  el.innerHTML=`
+  <div class="stats">
+    <div class="stat pur"><div class="v">${publiesMois}</div><div class="l">posts ce mois</div></div>
+    <div class="stat"><div class="v">${sem.map(x=>`<span class="sem ${x?'on':''}" title="${x} post(s)">${x||'·'}</span>`).join('')}</div><div class="l">4 dernières semaines</div></div>
+    <div class="stat grn"><div class="v">${prevus[0]?(prevus[0].date||'').slice(5).split('-').reverse().join('/'):'—'}</div><div class="l">prochain post prévu</div></div>
+  </div>
+  <div class="card"><div class="card-hd"><h2>💡 Idées de posts du moment</h2></div><div class="card-bd">
+    <div class="dim" style="font-size:12px;margin-bottom:8px">Tirées de tes créations, productions, ventes et posts déjà faits. Elles changent toutes seules quand tu publies.</div>
+    ${id.map((x,i)=>`<div class="idee p${x.prio}">
+      <span class="idee-ic">${x.ic}</span><div style="flex:1;min-width:0"><b>${x.t}</b><div class="dim" style="font-size:12px">${x.d}</div></div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">
+        <button class="btn btn-xs btn-p" onclick="nouveauPost(${i})">➕ Planifier</button>
+        ${x.bij?`<button class="btn btn-xs btn-ghost" onclick="switchResTab('studio')" title="Préparer le visuel dans le studio">🎬</button>`:''}
+      </div></div>`).join('')}
+  </div></div>`;
+  ideesPosts.cache=id;
+}
+function renderPosts(){
+  const el=document.getElementById('res-posts'); if(!el) return;
+  const groupe=st=>POSTS.filter(p=>p.statut===st).sort((a,b)=>st==='publie'?String(b.date).localeCompare(String(a.date)):String(a.date||'9').localeCompare(String(b.date||'9')));
+  const ligne=p=>{ const bs=(p.bij_ids||[]).map(getBij).filter(Boolean);
+    return `<div class="post-l" onclick="ouvrirPost('${p.id}')">
+      <span class="post-date">${p.date?p.date.slice(8,10)+'/'+p.date.slice(5,7):'—'}</span>
+      <div style="flex:1;min-width:0"><b>${(p.titre||'(sans titre)').replace(/</g,'&lt;')}</b>
+        <div class="dim" style="font-size:11px">${RESEAUX[p.reseau]||''} · ${FORMATS_POST[p.format]||''}${bs.length?' · '+bs.map(b=>b.nom+(b.variante?' '+b.variante:'')).join(', '):''}</div></div>
+      ${p.statut==='publie'?`<span class="post-stats" title="Vues · j'aime · ventes des créations montrées dans les 7 jours">${p.vues?'👁 '+n(p.vues):''} ${p.likes?'♥ '+n(p.likes):''} ${(p.ventes||ventes7j(p))?'💶 '+n(p.ventes||ventes7j(p))+(p.ventes?'':' en 7 j'):''}</span>`:''}
+      ${p.lien?`<a href="${p.lien}" target="_blank" onclick="event.stopPropagation()" class="btn btn-xs btn-ghost">↗</a>`:''}
+    </div>`; };
+  const pub=groupe('publie');
+  const topPub=[...pub].filter(p=>p.vues||p.likes).sort((a,b)=>(+b.vues||0)+(+b.likes||0)*10-((+a.vues||0)+(+a.likes||0)*10))[0];
+  const {serie,cetteSemaine}=serieSemaines();
+  // ce qui marche : par réseau et format, vues moyennes et ventes dans les 7 jours
+  const parType={}; pub.forEach(p=>{ const k=(RESEAUX[p.reseau]||'?')+' · '+(FORMATS_POST[p.format]||'?'); const t=(parType[k] ||= {n:0,vues:0,ventes:0}); t.n++; t.vues+=+p.vues||0; t.ventes+=(+p.ventes||ventes7j(p)); });
+  const lignesType=Object.entries(parType).sort((a,b)=>(b[1].ventes-a[1].ventes)||(b[1].vues/b[1].n-a[1].vues/a[1].n));
+  el.innerHTML=`<div class="barre-outils"><button class="btn btn-p" onclick="nouveauPost()">＋ Nouveau post</button>
+      <span class="objectif">Objectif <input type="number" min="1" max="14" value="${RES_REG.objectif}" onchange="changerObjectif(this.value)"> posts / semaine ·
+        cette semaine <b>${cetteSemaine}/${RES_REG.objectif}</b>${serie?` · 🔥 ${serie} semaine${serie>1?'s':''} d'affilée`:''}</span></div>
+    <div class="card"><div class="card-bd">${calendrierPosts()}</div></div>
+    ${lignesType.length?`<div class="card"><div class="card-hd"><h2>📈 Ce qui marche</h2></div><div class="card-bd"><table><thead><tr><th>Réseau · format</th><th>Posts</th><th>Vues moy.</th><th>Ventes 7 j</th></tr></thead><tbody>
+      ${lignesType.map(([k,t])=>`<tr><td>${k}</td><td>${t.n}</td><td>${t.vues?n(Math.round(t.vues/t.n)):'--'}</td><td><b>${n(t.ventes)}</b></td></tr>`).join('')}</tbody></table>
+      <div class="dim" style="font-size:11px;margin-top:6px">Ventes 7 j = ventes des créations montrées dans les 7 jours suivant le post (ou le chiffre que tu as noté).</div></div></div>`:''}
+    ${topPub?`<div class="home-bravo">🏆 Ton post le plus vu : <b>${(topPub.titre||'').replace(/</g,'&lt;')}</b> (${RESEAUX[topPub.reseau]||''}, ${FORMATS_POST[topPub.format]||''}) — refais ce format !</div>`:''}
+    ${['prevu','idee','publie'].map(st=>{ const l=groupe(st); return `<div class="card"><div class="card-hd"><h2>${STATUTS_POST[st]} · ${l.length}</h2></div><div class="card-bd" style="padding:4px 10px">${l.length?l.map(ligne).join(''):'<div class="dim" style="padding:10px;font-size:12px">Rien pour l\'instant.</div>'}</div></div>`; }).join('')}`;
+}
+function formPost(p){
+  let ov=document.getElementById('m-post');
+  if(!ov){ ov=document.createElement('div'); ov.id='m-post'; ov.className='overlay'; ov.onclick=e=>bgClose(e,ov); document.body.appendChild(ov); }
+  const opt=(o,v)=>Object.entries(o).map(([k,l])=>`<option value="${k}" ${k===v?'selected':''}>${l}</option>`).join('');
+  const crea=BIJS.filter(b=>!b.is_mat).sort((a,b)=>String(a.nom).localeCompare(String(b.nom),'fr'));
+  ov.innerHTML=`<div class="modal"><div class="drag"></div><div class="modal-title">${p.id?'Modifier le post':'Nouveau post'}</div>
+    <div class="fg"><label>Sujet / légende courte</label><input id="po-titre" value="${(p.titre||'').replace(/"/g,'&quot;')}" placeholder="ex. Nouveaux petits poissons bleus"></div>
+    <div class="r3">
+      <div class="fg"><label>Réseau</label><select id="po-reseau">${opt(RESEAUX,p.reseau||'instagram')}</select></div>
+      <div class="fg"><label>Format</label><select id="po-format">${opt(FORMATS_POST,p.format||'post')}</select></div>
+      <div class="fg"><label>Statut</label><select id="po-statut">${opt(STATUTS_POST,p.statut||'prevu')}</select></div>
+    </div>
+    <div class="r2"><div class="fg"><label>Date (prévue ou publiée)</label><input id="po-date" type="date" value="${p.date||today()}"></div>
+      <div class="fg"><label>Lien du post</label><input id="po-lien" type="url" value="${p.lien||''}" placeholder="https://…"></div></div>
+    <div class="fg"><label>Créations montrées</label><select id="po-bij" multiple size="5" style="height:auto">${crea.map(b=>`<option value="${b.id}" ${(p.bij_ids||[]).includes(b.id)?'selected':''}>${b.nom}${b.variante?' · '+b.variante:''}</option>`).join('')}</select>
+      <div class="dim" style="font-size:10px;margin-top:3px">Ctrl/Cmd + clic pour en choisir plusieurs</div></div>
+    <div class="r3"><div class="fg"><label>Vues</label><input id="po-vues" type="number" min="0" value="${p.vues||''}"></div>
+      <div class="fg"><label>J'aime</label><input id="po-likes" type="number" min="0" value="${p.likes||''}"></div>
+      <div class="fg"><label>Ventes liées</label><input id="po-ventes" type="number" min="0" value="${p.ventes||''}"></div></div>
+    ${(RES_REG.campagnes||[]).length?`<div class="fg"><label>Campagne</label><select id="po-camp"><option value="">— aucune —</option>${RES_REG.campagnes.map(c=>`<option value="${c.id}" ${p.campagne===c.id?'selected':''}>${c.nom}</option>`).join('')}</select></div>`:''}
+    <div class="fg"><label>Légende, hashtags, idée de visuel</label>
+      <div class="chips-defile">${Object.entries(MODELES_LEGENDE).map(([k,[l]])=>`<button type="button" class="chip-h leg" onclick="remplirLegende('${k}')" title="Écrire une légende de ce type avec les créations choisies">${l}</button>`).join('')}</div>
+      <textarea id="po-note" rows="5">${(p.note||'').replace(/</g,'&lt;')}</textarea>
+      <div class="chips-defile" id="po-tags" style="margin-top:6px">${chipsHashtags()}</div>
+      <div style="text-align:right"><button type="button" class="btn btn-xs btn-ghost" onclick="copierTexte(document.getElementById('po-note').value)">📋 Copier la légende</button></div></div>
+    <div class="mfoot">${p.id?`<button class="btn btn-red" onclick="supprimerPost('${p.id}')">Supprimer</button>`:''}<span style="flex:1"></span>
+      <button class="btn btn-ghost" onclick="closeModal('m-post')">Annuler</button><button class="btn btn-p" onclick="enregistrerPost('${p.id||''}')">Enregistrer</button></div></div>`;
+  openModal('m-post');
+}
+function nouveauPost(i){
+  const x=i!=null?(ideesPosts.cache||ideesPosts())[i]:null;
+  formPost({statut:x?'prevu':'idee', titre:x?x.t:'', bij_ids:x?.bij?[x.bij]:[], note:x?(x.d+(x.perso?' '+x.perso:'')):'', date:today()});
+}
+const ouvrirPost = id => formPost(POSTS.find(p=>p.id===id)||{});
+async function enregistrerPost(id){
+  const v=k=>document.getElementById('po-'+k).value;
+  const p={ id:id||uid(), titre:v('titre').trim(), reseau:v('reseau'), format:v('format'), statut:v('statut'), date:v('date'), lien:v('lien').trim(),
+    bij_ids:[...document.getElementById('po-bij').selectedOptions].map(o=>o.value), vues:+v('vues')||0, likes:+v('likes')||0, ventes:+v('ventes')||0, note:v('note').trim(),
+    campagne:document.getElementById('po-camp')?.value||'' };
+  const i=POSTS.findIndex(x=>x.id===p.id); if(i>=0) POSTS[i]=p; else POSTS.push(p);
+  await sauverPosts(); closeModal('m-post'); renderPosts(); renderIdees(); renderAccueil();
+  toast(p.statut==='publie'?'Post publié noté ✨':'Post enregistré ✓','ok');
+}
+async function supprimerPost(id){ if(!confirm('Supprimer ce post ?')) return; POSTS=POSTS.filter(p=>p.id!==id); await sauverPosts(); closeModal('m-post'); renderPosts(); renderIdees(); renderAccueil(); }
+
+// ═══════════════════════════════════════════════════════
 // ACCUEIL : tableau de bord (un peu ludique)
 // ═══════════════════════════════════════════════════════
 const PHRASES_ATELIER=['Une perle après l\'autre.','Chaque nœud compte.','Petites mains, grandes étoiles.','Aujourd\'hui, on enfile du bonheur.','Fait main, fait cœur.','Les plus belles constellations commencent par une perle.','Un anneau, puis un autre : c\'est comme ça qu\'on fait une croix.'];
@@ -2332,17 +2821,27 @@ function renderAccueil() {
   const perso=PRODS.filter(p=>p.perso&&p.statut==='en_cours').sort((a,b)=>String(a.date).localeCompare(String(b.date)));
   const avendre=PRODS.filter(p=>(!p.statut||p.statut==='produit')&&!Object.keys(lireMiseEnVente(p).lieux).length);
   const bas=stocksBas(), brouillons=BIJS.filter(isDraft), incompl=MATS.filter(m=>champsManquants(m).length), enG=lignesPerlesEnGrammes();
+  const idees1=ideesPosts().filter(x=>x.prio===1), postAuj=POSTS.filter(p=>p.statut==='prevu'&&p.date<=today());
   const missions=[
-    {ic:'✨',t:'Sur mesure à fabriquer',nb:perso.length,c:'violet',go:"goTabNom('bij');switchCreatTab('prod')",
+    {ic:'✨',t:'Sur mesure à fabriquer',nb:perso.length,ids:perso.map(p=>p.id),c:'violet',go:"goTabNom('bij');switchCreatTab('prod')",
       det:perso.slice(0,3).map(p=>{ const b=getBij(p.bij_id); return `<div class="mis-l"><span>${escPerso(p.perso)} · ${b?b.nom:''}</span><button class="btn btn-xs btn-p" onclick="event.stopPropagation();marquerPersoProduite('${p.id}')">✓ Produite</button></div>`; }).join('')},
-    {ic:'📍',t:'À mettre en vente',nb:avendre.length,c:'creme',go:"goTabNom('bij');switchCreatTab('prod');document.getElementById('prod-flt').value='avendre';renderRent()"},
-    {ic:'🛒',t:'Stocks bas à racheter',nb:bas.length,c:'rose',go:'ouvrirCourses()',
+    {ic:'📍',t:'À mettre en vente',nb:avendre.length,ids:avendre.map(p=>p.id),c:'creme',go:"goTabNom('bij');switchCreatTab('prod');document.getElementById('prod-flt').value='avendre';renderRent()"},
+    {ic:'🛒',t:'Stocks bas à racheter',nb:bas.length,ids:bas.map(g=>g.m.ref),c:'rose',go:'ouvrirCourses()',
       det:bas.slice(0,3).map(g=>`<div class="mis-l"><span>${g.m.variante||g.m.designation} <span class="dim">${g.m.ref}</span></span><span class="dim">${n(Math.round(g.dispo))} ${getUniteShort(g.m)}</span></div>`).join('')},
-    {ic:'📝',t:'Créations en brouillon',nb:brouillons.length,c:'lilas',go:"goTabNom('bij');switchCreatTab('bij');document.getElementById('flt-status').value='draft';renderBij()"},
-    {ic:'🧩',t:'Références à compléter',nb:incompl.length,c:'lilas',go:"goTabNom('mat');switchGTab('mat');if(!MAT_A_COMPLETER)toggleACompleter()"},
-    {ic:'🔎',t:'Fiches à vérifier (perles en g)',nb:enG.length,c:'rose',go:"goTabNom('mat');switchGTab('stock')"},
+    {ic:'📣',t:postAuj.length?'Post prévu à publier':'Idées de posts du moment',nb:postAuj.length||idees1.length,ids:postAuj.length?postAuj.map(p=>p.id):idees1.map(x=>x.t),c:'violet',go:"goTabNom('res');switchResTab('"+(postAuj.length?'posts':'idees')+"')",
+      det:(postAuj.length?postAuj.map(p=>`<div class="mis-l"><span>${(p.titre||'').replace(/</g,'&lt;')}</span></div>`):idees1.slice(0,2).map(x=>`<div class="mis-l"><span>${x.ic} ${x.t}</span></div>`)).join('')},
+    {ic:'📝',t:'Créations en brouillon',nb:brouillons.length,ids:brouillons.map(b=>b.id),c:'lilas',go:"goTabNom('bij');switchCreatTab('bij');document.getElementById('flt-status').value='draft';renderBij()"},
+    {ic:'🧩',t:'Références à compléter',nb:incompl.length,ids:incompl.map(m=>m.id),c:'lilas',go:"goTabNom('mat');switchGTab('mat');if(!MAT_A_COMPLETER)toggleACompleter()"},
+    {ic:'🔎',t:'Fiches à vérifier (perles en g)',nb:enG.length,ids:enG.map(x=>x.b.id+':'+x.i),c:'rose',go:"goTabNom('mat');switchGTab('stock')"},
   ];
   const aFaire=missions.reduce((t,m)=>t+m.nb,0);
+  // « nouveau » : ce qui n'était pas là à ta dernière visite de l'Accueil (mémorisé sur cet appareil)
+  let vu={}; try{ vu=JSON.parse(localStorage.getItem('accueil_vu')||'{}'); }catch(e){}
+  missions.forEach(m=>{ const avant=new Set(vu[m.t]||[]); m.nouveaux=vu.__init?m.ids.filter(id=>!avant.has(id)).length:0; });
+  clearTimeout(renderAccueil.t);
+  renderAccueil.t=setTimeout(()=>{ if(!document.getElementById('p-home')?.classList.contains('on')) return;
+    const n0={__init:1}; missions.forEach(m=>n0[m.t]=m.ids); try{ localStorage.setItem('accueil_vu',JSON.stringify(n0)); }catch(e){} },4000);
+  const nbNouveaux=missions.reduce((t,m)=>t+m.nouveaux,0);
   const etoiles=Math.min(prodMois,40);
   const succ=succesAtelier(), gagnes=succ.filter(x=>x[2]).length;
   el.innerHTML=`
@@ -2353,14 +2852,26 @@ function renderAccueil() {
     <div class="home-chips">
       ${serie?`<span class="home-chip">🔥 ${serie} jour${serie>1?'s':''} d'atelier d'affilée</span>`:'<span class="home-chip">🧵 Une production aujourd\'hui lance ta série</span>'}
       <span class="home-chip">${aFaire?`📋 ${aFaire} chose${aFaire>1?'s':''} à faire`:'🌙 Tout est à jour'}</span>
+      ${nbNouveaux?`<span class="home-chip nouveau">🆕 ${nbNouveaux} nouveau${nbNouveaux>1?'x':''} depuis ta dernière visite</span>`:''}
     </div>
   </div>
 
-  <div class="home-titre">Missions du jour</div>
+  <div class="home-titre" style="display:flex;justify-content:space-between;align-items:baseline">Missions du jour
+    <button class="btn btn-xs btn-ghost" onclick="const e=document.getElementById('home-aide');e.hidden=!e.hidden">ℹ️ D'où viennent les missions ?</button></div>
+  <div id="home-aide" class="info-box" hidden>
+    L'Accueil n'invente rien : il relit tes données à chaque ouverture et chaque modification.
+    <b>✨ Sur mesure</b> = productions « en cours » créées par une commande du configurateur ;
+    <b>📍 À mettre en vente</b> = productions terminées sans lieu de vente noté ;
+    <b>🛒 Stocks bas</b> = références sous leur seuil d'alerte (ou vides) ;
+    <b>📣 Posts</b> = post prévu à la date du jour, sinon idées urgentes de l'onglet Réseaux (nouveauté jamais montrée, date commerciale proche, une semaine sans post) ;
+    <b>📝 Brouillons</b> = fiches bijoux incomplètes ; <b>🧩 Références</b> = matériaux sans prix, fournisseur, quantité… ;
+    <b>🔎 Fiches à vérifier</b> = perles au gramme saisies en grammes.
+    Une mission disparaît d'elle-même quand la tâche est faite. « 🆕 nouveau » = apparu depuis ta dernière visite de l'Accueil.
+  </div>
   ${aFaire?'':`<div class="home-bravo">✨ Tout est rangé, l'atelier est à jour. Tu peux créer en paix !</div>`}
   <div class="home-missions">${missions.map(m=>`
     <div class="mission ${m.c} ${m.nb?'':'faite'}" onclick="${m.go}">
-      <div class="mission-tete"><span class="mission-ic">${m.nb?m.ic:'✓'}</span><span class="mission-nb">${m.nb||''}</span></div>
+      <div class="mission-tete"><span class="mission-ic">${m.nb?m.ic:'✓'}</span><span class="mission-nb">${m.nouveaux?`<span class="mission-new">+${m.nouveaux} nouveau${m.nouveaux>1?'x':''}</span>`:''}${m.nb||''}</span></div>
       <div class="mission-t">${m.t}</div>
       ${m.nb&&m.det?`<div class="mission-det">${m.det}</div>`:''}
       ${m.nb?'':'<div class="mission-ok">rien à faire</div>'}
@@ -2413,8 +2924,19 @@ function majBadgesOnglets(){
   } catch(e) {}
 }
 
-function openModal(id) { document.getElementById(id).classList.add('on'); }
-function closeModal(id) { document.getElementById(id).classList.remove('on'); }
+// Sur grand écran, les fiches matériau et bijou s'ouvrent sur le côté : la liste reste visible et cliquable
+const TIROIRS=['m-mat','m-bij'];
+const grandEcran=()=>window.matchMedia('(min-width:1100px)').matches;
+function openModal(id) {
+  const el=document.getElementById(id);
+  if(TIROIRS.includes(id)&&grandEcran()){ TIROIRS.forEach(t=>t!==id&&document.getElementById(t)?.classList.remove('on')); el.classList.add('tiroir'); document.body.classList.add('avec-tiroir'); }
+  else el.classList.remove('tiroir');
+  el.classList.add('on');
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('on');
+  if(!TIROIRS.some(t=>document.getElementById(t)?.classList.contains('on'))) document.body.classList.remove('avec-tiroir');
+}
 function bgClose(e,el) { if(e.target===el) el.classList.remove('on'); }
 
 function switchTab(el, showId) {
@@ -2978,7 +3500,11 @@ async function addFournisseur(val) {
   updateFournisseursDatalist();
 }
 
+// Pastilles de catégories : rangées dans un tiroir (le menu « Catégorie » fait la même chose)
+function basculerChips(){ const b=document.getElementById('cat-bar'); const v=b.style.display==='none';
+  b.style.display=v?'':'none'; try{ localStorage.setItem('mat_chips', v?'1':''); }catch(e){} document.getElementById('bt-chips').classList.toggle('btn-p',v); }
 function buildCatBar() {
+  try{ if(localStorage.getItem('mat_chips')){ document.getElementById('cat-bar').style.display=''; document.getElementById('bt-chips')?.classList.add('btn-p'); } }catch(e){}
   const bar=document.getElementById('cat-bar');
   const flt=document.getElementById('flt-sc');
   if(!bar||!flt) return;
@@ -3077,11 +3603,12 @@ let CUR_STOCK_FLT = 'all';
 
 function switchCreatTab(tab, numeroPerso) {
   memoOnglet('creation', tab);
-  ['bij','prod','perso'].forEach(t => {
+  ['bij','prod','perso','boutique'].forEach(t => {
     document.getElementById('cpanel-'+t).style.display = t===tab ? 'block' : 'none';
     document.getElementById('ctab-'+t).className = 'gtab'+(t===tab?' gtab-on':'');
   });
   if(tab==='prod') renderCreatProd();
+  if(tab==='boutique') renderBoutique();
   // pages du configurateur, chargées seulement à la première ouverture (ou pour ouvrir une personnalisation précise)
   if(tab==='perso') {
     const f = document.getElementById('frame-perso');
@@ -3096,7 +3623,7 @@ function switchCreatTab(tab, numeroPerso) {
    avec le n° de personnalisation (perso) et la note atelier (perso_note, avec les références). */
 const ouvrirPerso = numero => switchCreatTab('perso', numero);
 /* ── Conception 3D : configurateur, modèles, références, ruptures (pages du dossier configurateur/) ── */
-const C3D_PAGES = { cfg: 'configurateur-3d.html?apercu=1', m3d: 'editeur-perles.html', ref: 'references-configurateur.html', rup: 'stock-configurateur.html', soc: 'studio-reseaux.html' };
+const C3D_PAGES = { cfg: 'configurateur-3d.html?apercu=1', m3d: 'editeur-perles.html', ref: 'references-configurateur.html', rup: 'stock-configurateur.html' };
 function switchC3dTab(tab, recharger) {
   Object.keys(C3D_PAGES).forEach(t => {
     document.getElementById('c3panel-'+t).style.display = t===tab ? 'block' : 'none';
@@ -3250,6 +3777,38 @@ function switchStockFlt(flt) {
 
 // Références pas encore complétées (créées depuis le configurateur, saisies rapides…)
 let MAT_A_COMPLETER=false;
+// ── Actions groupées : plusieurs références modifiées en une fois ──
+let MODE_SELECTION=false; const SEL_MATS=new Set();
+function basculerSelection(){ MODE_SELECTION=!MODE_SELECTION; SEL_MATS.clear(); document.getElementById('bt-selection').classList.toggle('btn-p',MODE_SELECTION); renderMat(); }
+function cocherMat(id,on){ on?SEL_MATS.add(id):SEL_MATS.delete(id); majBarreGroupe(); }
+function cocherTout(on){ document.querySelectorAll('#mat-body .sel-mat').forEach(c=>{ c.checked=on; on?SEL_MATS.add(c.dataset.id):SEL_MATS.delete(c.dataset.id); }); majBarreGroupe(); }
+function majBarreGroupe(){
+  const b=document.getElementById('barre-groupe'); if(!b) return;
+  b.hidden=!MODE_SELECTION; if(!MODE_SELECTION) return;
+  const cats=getCatsForType('tout'), fours=[...new Set([...FOURNISSEURS,...MATS.map(m=>m.fournisseur).filter(Boolean)])].sort();
+  if(!b.dataset.pret){ b.dataset.pret=1;
+    b.innerHTML=`<span id="grp-nb" class="grp-nb"></span>
+      <button class="btn btn-xs btn-ghost" onclick="cocherTout(true)">Tout cocher</button><button class="btn btn-xs btn-ghost" onclick="cocherTout(false)">Aucune</button>
+      <input id="grp-four" list="dl-fournisseurs" placeholder="Fournisseur…" title="Fournisseur à mettre">
+      <input id="grp-seuil" type="number" min="0" step="any" placeholder="Seuil…" title="Seuil d'alerte stock bas">
+      <select id="grp-cat" title="Déplacer dans la catégorie"><option value="">Catégorie…</option>${Object.entries(cats).map(([mc,scs])=>`<optgroup label="${mc}">${scs.map(sc=>`<option value="${mc}|||${sc}">${sc}</option>`).join('')}</optgroup>`).join('')}</select>
+      <button class="btn btn-xs btn-p" onclick="appliquerGroupe()">Appliquer</button>`; }
+  document.getElementById('grp-nb').textContent=SEL_MATS.size+' sélectionnée'+(SEL_MATS.size>1?'s':'');
+}
+async function appliquerGroupe(){
+  if(!SEL_MATS.size) return toast('Coche au moins une référence','err');
+  const four=document.getElementById('grp-four').value.trim(), seuil=document.getElementById('grp-seuil').value, cat=document.getElementById('grp-cat').value;
+  if(!four&&seuil===''&&!cat) return toast('Choisis ce qu\'il faut changer','err');
+  let ok=0;
+  for(const id of SEL_MATS){ const m=MATS.find(x=>x.id===id); if(!m) continue;
+    const maj={};
+    if(four) maj.fournisseur=four;
+    if(seuil!==''){ maj.meta={...(m.meta&&typeof m.meta==='object'?m.meta:{}), seuil:+seuil}; }
+    if(cat){ const [mc,sc]=cat.split('|||'); maj.mc=mc; maj.sc=sc; }
+    if(await sbUpdate('materiaux',id,maj)){ Object.assign(m,maj); ok++; }
+  }
+  toast(ok+' référence(s) modifiée(s) ✓','ok'); SEL_MATS.clear(); renderMat(); majBarreGroupe();
+}
 // Catégories de matériaux repliées (mémorisé sur cet appareil)
 const MAT_FERMES=(()=>{ try{ return new Set(JSON.parse(localStorage.getItem('mat_fermes')||'[]')); }catch(e){ return new Set(); } })();
 function toggleMatCat(k){ MAT_FERMES.has(k)?MAT_FERMES.delete(k):MAT_FERMES.add(k); try{ localStorage.setItem('mat_fermes',JSON.stringify([...MAT_FERMES])); }catch(e){} renderMat(); }
@@ -3269,7 +3828,7 @@ function champsManquants(m) {
 }
 function toggleACompleter() { MAT_A_COMPLETER=!MAT_A_COMPLETER; renderMat(); }
 function renderMat() {
-  setTimeout(majBadgesOnglets,0);
+  setTimeout(majBadgesOnglets,0); setTimeout(majBarreGroupe,0);
   buildCatBar();
   const btAC=document.getElementById('bt-a-completer');
   if(btAC){ const nb=MATS.filter(m=>champsManquants(m).length).length;
@@ -3305,7 +3864,7 @@ function renderMat() {
       if(scF) return;
       html+=`
       <div class="tbl-wrap"><table>
-        <thead><tr><th>Réf.</th><th>Désignation</th><th>Variante</th><th>Fournisseur</th><th>Disponible</th><th>PU moy.</th><th></th></tr></thead>
+        <thead><tr><th>Réf.</th><th>Désignation</th><th class="col-opt">Variante</th><th class="col-opt">Fournisseur</th><th>Disponible</th><th class="col-opt">PU moy.</th><th></th></tr></thead>
         <tbody>${mats.map(m=>{
           const pu=puMoyen(m);
           // variantes d'une même réf (#AI001, #AI001b…) : un seul stock, affiché sur chaque ligne
@@ -3323,21 +3882,21 @@ function renderMat() {
               ${m.meta.coloris?' · '+m.meta.coloris:''}
             </div>`:''
           ;
-          return `<tr onclick="openMatModal('${m.id}')" style="cursor:pointer" title="Cliquer pour modifier">
-            <td class="ref">${m.meta?.image?`<img src="${m.meta.image}" alt="" loading="lazy" style="width:18px;height:18px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:3px;border:1px solid var(--border)">`:''}${typeBadge} ${m.ref}${manque.length?`<div title="À compléter : ${manque.join(', ')}" style="font-size:10px;color:var(--orange);font-weight:700">⚠ ${manque.length}</div>`:''}</td>
-            <td style="font-size:12px">${m.designation||m.des||'--'}${metaInfo}</td>
-            <td><span class="badge bm">${m.variante||'--'}</span></td>
-            <td class="dim">${m.fournisseur||'--'}</td>
+          return `<tr onclick="${MODE_SELECTION?`this.querySelector('.sel-mat').click()`:`openMatModal('${m.id}')`}" style="cursor:pointer" title="${MODE_SELECTION?'Cocher':'Cliquer pour modifier'}">
+            <td class="ref">${MODE_SELECTION?`<input type="checkbox" class="sel-mat" data-id="${m.id}" ${SEL_MATS.has(m.id)?'checked':''} onclick="event.stopPropagation();cocherMat('${m.id}',this.checked)"> `:''}${m.meta?.image?`<img src="${m.meta.image}" alt="" loading="lazy" style="width:18px;height:18px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:3px;border:1px solid var(--border)">`:''}${typeBadge} ${m.ref}${manque.length?`<div title="À compléter : ${manque.join(', ')}" style="font-size:10px;color:var(--orange);font-weight:700">⚠ ${manque.length}</div>`:''}</td>
+            <td style="font-size:12px"><b class="seul-mobile">${m.variante||''}</b> ${m.designation||m.des||'--'}${metaInfo}</td>
+            <td class="col-opt"><span class="badge bm">${m.variante||'--'}</span></td>
+            <td class="dim col-opt">${m.fournisseur||'--'}</td>
             <td title="Stock ${n(tot)} − utilisé ${n(util)} − réservé ${n(res)}">${(tot||util||res)?('<b style="color:'+(sc2<=0?'var(--red)':'inherit')+'">'+n(Math.round(sc2*100)/100)+'</b> <span style="font-size:10px;color:var(--muted)">'+getUniteShort(m)+'</span>'
               +(res?'<div style="font-size:10px;color:var(--orange)">🔧 '+n(Math.round(res*100)/100)+' réservé</div>':'')
               +(estPerleAuPoids(m)?'<div style="font-size:10px;color:var(--muted)" title="Calibrage : '+calibrage(m).source+'">≈ '+n(Math.round(enPieces(m,sc2)))+' perles</div>':'')
               +(grp.length>1?'<div style="font-size:10px;color:var(--muted)">stock commun '+grp.map(x=>x.ref).join(' + ')+'</div>':'')):'<span class="dim">--</span>'}</td>
-            <td class="${pu?'hi':'dim'}">${pu?eur(pu,4):'--'}</td>
+            <td class="${pu?'hi':'dim'} col-opt">${pu?eur(pu,4):'--'}</td>
             <td onclick="event.stopPropagation()" style="white-space:nowrap">
               <div style="display:flex;gap:5px;justify-content:flex-end;flex-wrap:wrap">
                 ${isFilMC(m.mc)?`<button class="btn btn-sm btn-ghost" onclick="openSimulateur('${m.id}')" style="padding:6px 11px">🧶 Simuler</button>`:''}
-                <button class="btn btn-sm btn-ghost" onclick="openReappro('${m.id}')" style="padding:6px 11px">↑ Réappro</button>
-                <button class="btn btn-sm btn-red" onclick="delMat('${m.id}')" style="padding:6px 11px">✕</button>
+                ${estAbonnementSC(m.sc)?'':`<button class="btn btn-sm btn-ghost" onclick="openReappro('${m.id}')" style="padding:6px 11px" title="Enregistrer un réapprovisionnement">↑<span class="lbl"> Réappro</span></button>`}
+                <button class="btn btn-xs btn-red" onclick="delMat('${m.id}')" title="Supprimer">✕</button>
               </div>
             </td>
           </tr>`;
@@ -3479,6 +4038,8 @@ function openBijModal(editId=null) {
     document.getElementById('bij-mats-list').innerHTML='';
     addMatRow();
   }
+  setTimeout(majCoutLive,120);
+  document.querySelectorAll('#bij-etapes button').forEach((b,i)=>b.classList.toggle('on',i===0));
   // reset to info tab
   document.querySelectorAll('#m-bij .mtab').forEach((t,i)=>t.classList.toggle('on',i===0));
   ['tab-info','tab-compo','tab-options'].forEach((id,i)=>{const d=document.getElementById(id);if(d)d.style.display=i===0?'block':'none';});
@@ -3519,6 +4080,29 @@ function libMatOption(m) {
   const des=m.designation||m.des||'';
   return m.variante ? `${m.variante} — ${des} (${m.ref})` : `${des||m.ref} (${m.ref})`;
 }
+// ── Fiche bijou : navigation par étapes et coût calculé pendant la saisie ──
+function allerEtape(id,btn){
+  document.getElementById(id)?.scrollIntoView({behavior:'smooth',block:'start'});
+  document.querySelectorAll('#bij-etapes button').forEach(b=>b.classList.toggle('on',b===btn));
+}
+function majCoutLive(){
+  const el=document.getElementById('bij-cout-live'); if(!el) return;
+  let cout=0, inconnus=0;
+  document.querySelectorAll('#bij-mats-list .mat-row-item').forEach(row=>{
+    const ref=row.querySelector('.bij-ref')?.value, qty=+row.querySelector('.bij-qty')?.value||0;
+    if(!ref||!qty) return;
+    const mat=getMat(ref);
+    if(mat){ const pu=puMoyen(mat); if(pu) cout+=pu*qteMat({ref,qty,qty_unite:row.querySelector('.bij-qty-unite')?.value||'native'},mat); else inconnus++; }
+    else { const comp=BIJS.find(b=>b.ref===ref&&b.is_mat); if(comp) cout+=coutBijou(comp)*qty; }
+  });
+  const pv=+document.getElementById('bij-pv')?.value||0, pm=cout>0?Math.round((cout+cout*0.6+5)*100)/100:null;
+  const marge=pv&&cout>0?Math.round((pv-cout)/pv*100):null;
+  el.innerHTML=`<span>⚙ Coût <b>${cout>0?eur(cout):'--'}</b>${inconnus?` <span class="dim" title="Références sans prix d'achat">(+${inconnus} sans prix)</span>`:''}</span>
+    <span>Prix minimum <b>${pm?eur(pm):'--'}</b></span>
+    <span>Marge <b class="${marge==null?'':marge>=30?'ok':marge>=10?'moyen':'bas'}">${marge!=null?marge+' %':'--'}</b></span>`;
+}
+document.addEventListener('input',e=>{ if(e.target.closest?.('#m-bij')) majCoutLive(); });
+document.addEventListener('change',e=>{ if(e.target.closest?.('#m-bij')) setTimeout(majCoutLive,60); });
 function addMatRow(sc='',ref='',qty='',qty_unite='native') {
   const c=document.getElementById('bij-mats-list');
   // mc peut être passé séparément, ou déduit depuis MATS
@@ -3545,9 +4129,12 @@ function addMatRow(sc='',ref='',qty='',qty_unite='native') {
       <button class="btn btn-red btn-sm" onclick="this.closest('.mat-row-item').remove()" style="flex-shrink:0">✕</button>
     </div>`;
   c.appendChild(div);
+  // fiche existante : garder l'unité enregistrée (à poser AVANT de remplir les listes, sinon une perle
+  // au gramme saisie en grammes repassait en « pcs » à l'ouverture et changeait le décompte)
+  if(ref) div.dataset.uniteSauvee=qty_unite||'native';
   filterBijRefs(div.querySelector('.bij-sc'),ref);
+  if(ref) updateBijQtyUniteOpts(div, ref);
   // Après avoir peuplé les refs, sélectionner l'unité sauvegardée
-  if(ref) div.dataset.uniteSauvee=qty_unite||'native';    // fiche existante : garder l'unité enregistrée
   if(qty_unite&&qty_unite!=='native') {
     setTimeout(()=>{
       const uniteEl=div.querySelector('.bij-qty-unite');
@@ -3751,8 +4338,8 @@ function setBijView(v){
   BIJ_VIEW=v;
   const el1=document.getElementById('bij-view-list');
   const el2=document.getElementById('bij-view-grid');
-  if(el1) el1.className=v==='list'?'btn btn-p btn-sm':'btn btn-ghost btn-sm';
-  if(el2) el2.className=v==='grid'?'btn btn-p btn-sm':'btn btn-ghost btn-sm';
+  if(el1) el1.className=v==='list'?'btn btn-p btn-sm ico':'btn btn-ghost btn-sm ico';
+  if(el2) el2.className=v==='grid'?'btn btn-p btn-sm ico':'btn btn-ghost btn-sm ico';
   renderBij();
 }
 function setBijCollFlt(coll){
@@ -3834,7 +4421,10 @@ function renderBij() {
           </div>
         </div>
         ${ouvert?`<div class="bij-corps">${b.photo||b.description?`<div class="bij-vitrine">${b.photo?`<img src="${b.photo}" alt="">`:''}${b.description?`<p>${b.description.replace(/</g,'&lt;')}</p>`:''}</div>`:''}${corpsBij(b)}
-          ${b.no_sell||b.is_mat?'':`<div class="bij-actions"><button class="btn btn-xs btn-ghost" onclick="event.stopPropagation();ficheBoutique('${b.id}')">🛒 Fiche boutique (Wix)</button></div>`}</div>`:''}
+          <div class="bij-actions">
+            ${b.parent_id?'':`<button class="btn btn-xs btn-ghost" onclick="event.stopPropagation();openVarianteModal('${b.id}')" title="Même bijou, autres couleurs : coche seulement les perles à changer">🎨 Variante de couleur</button>`}
+            ${b.no_sell||b.is_mat?'':`<button class="btn btn-xs btn-ghost" onclick="event.stopPropagation();ficheBoutique('${b.id}')">🛒 Fiche boutique</button>`}
+          </div></div>`:''}
         ${vars.length?`<div class="bij-vars-tete" onclick="toggleVarsBij('${b.id}')">${varOuv?'▾':'▸'} 🎨 ${vars.length} variante${vars.length>1?'s':''} <span class="dim">${vars.map(v=>v.variante||v.ref).slice(0,6).join(' · ')}${vars.length>6?'…':''}</span></div>
           ${varOuv?`<div class="bij-vars">${vars.map(v=>ligne(v,true)).join('')}</div>`:''}`:''}
       </div>`;
@@ -5418,6 +6008,108 @@ function stockDispo2(bijId) {
   return prodFini - venteTot(bijId).qty;
 }
 
+// ═══════════════════════════════════════════════════════
+// BOUTIQUE EN LIGNE : Shopify (vitrine Wix) relié aux fiches — un seul stock, piloté par l'app
+// Fonction Supabase « shopify » (secrets Shopify côté serveur, jamais dans l'app).
+// ═══════════════════════════════════════════════════════
+let SHOPIFY={etat:null, produits:null, erreur:null};
+const MODES_VENTE={stock:'📦 Pièces prêtes',commande:'🔨 Fabriqué à la commande',surmesure:'🎨 Sur mesure (configurateur)'};
+async function appelShopify(action, donnees={}) {
+  const { data, error } = await SB.functions.invoke('shopify', { body: { action, ...donnees } });
+  if (error) { let m=error.message; try{ const c=await error.context?.json?.(); if(c?.erreur) m=c.erreur; }catch(e){} throw new Error(m); }
+  if (data?.erreur) throw new Error(data.erreur);
+  return data;
+}
+const venduEnLigne = b => !b.is_mat && !b.no_sell;
+const modeVente = b => b.mode_vente || 'stock';
+// Quantité proposée en ligne : pièces prêtes notées « Boutique en ligne » (Productions › 📍 Mise en vente)
+const stockEnLigne = b => PRODS.filter(p=>p.bij_id===b.id&&(!p.statut||p.statut==='produit')).reduce((t,p)=>t+(+lireMiseEnVente(p).lieux['Boutique en ligne']||0),0);
+function ligneStock(b){ return { product_id:b.shopify_product_id, variant_id:b.shopify_variant_id, inventory_item_id:b.shopify_inventory_item_id,
+  quantite: modeVente(b)==='stock'?stockEnLigne(b):0, mode:modeVente(b) }; }
+async function pousserStock(bijs, silencieux=false){
+  const l=bijs.filter(b=>b.shopify_inventory_item_id&&venduEnLigne(b));
+  if(!l.length||SHOPIFY.etat?.configure===false) return;
+  try { const r=await appelShopify('stock',{lignes:l.map(ligneStock)});
+    const ko=(r.resultats||[]).filter(x=>!x.ok);
+    if(!silencieux||ko.length) toast(ko.length?`Shopify : ${ko.length} erreur(s) — ${ko[0].erreur}`:`Stock envoyé à la boutique (${l.length}) ✓`, ko.length?'err':'ok');
+    SHOPIFY.produits=null;
+  } catch(e){ if(!silencieux) toast('Shopify : '+e.message,'err'); }
+}
+// après une mise en vente, une vente ou une suppression : le stock en ligne suit (regroupé, 2 s)
+const A_SYNCHRO=new Set();
+function planifierSynchro(bijId){ const b=getBij(bijId); if(!b?.shopify_inventory_item_id) return; A_SYNCHRO.add(bijId);
+  clearTimeout(planifierSynchro.t); planifierSynchro.t=setTimeout(()=>{ const ids=[...A_SYNCHRO]; A_SYNCHRO.clear(); pousserStock(ids.map(getBij).filter(Boolean),true); },2000); }
+async function chargerShopify(force){
+  if(SHOPIFY.etat&&SHOPIFY.produits&&!force) return;
+  try { SHOPIFY.etat=await appelShopify('etat'); SHOPIFY.erreur=null;
+    if(SHOPIFY.etat.configure) SHOPIFY.produits=(await appelShopify('produits')).produits; }
+  catch(e){ SHOPIFY.erreur=e.message; SHOPIFY.etat=SHOPIFY.etat||{configure:false}; }
+}
+async function renderBoutique(force){
+  const el=document.getElementById('boutique-body'); if(!el) return;
+  if(force||!SHOPIFY.etat) el.innerHTML='<div class="loading">Connexion à la boutique…</div>';
+  await chargerShopify(force);
+  if(!SHOPIFY.etat?.configure){
+    el.innerHTML=`<div class="card"><div class="card-hd"><h2>🛍 Boutique en ligne</h2></div><div class="card-bd">
+      <div class="warn-box">${SHOPIFY.erreur?'La boutique ne répond pas : '+SHOPIFY.erreur.replace(/</g,'&lt;'):'La boutique Shopify n\'est pas encore reliée.'}</div>
+      <p style="font-size:13px;line-height:1.6">Une fois reliée, cet onglet :<br>• relie chaque création à son produit Shopify (ou le crée pour toi) ;<br>
+      • envoie le <b>stock partagé</b> : les pièces notées « 🛒 Boutique en ligne » dans Productions, ou « toujours achetable » pour ce qui est fait à la commande ;<br>
+      • reçoit les <b>commandes</b> : vente enregistrée, pièce retirée, production « en cours » pour le fait-main à la commande, fiche atelier pour le sur mesure.</p>
+      <p style="font-size:13px">Mise en place (une fois) : voir le LISEZMOI, section « Boutique en ligne : Shopify + Wix ».</p>
+      <button class="btn btn-ghost" onclick="renderBoutique(true)">↻ Réessayer</button></div></div>`;
+    return;
+  }
+  const variantes=(SHOPIFY.produits||[]).flatMap(p=>p.variantes.map(v=>({...v,produit:p})));
+  const vParId=new Map(variantes.map(v=>[v.id,v]));
+  const crea=BIJS.filter(venduEnLigne).sort((a,b)=>(!!b.shopify_variant_id-!!a.shopify_variant_id)||String(a.nom).localeCompare(String(b.nom),'fr'));
+  const relies=crea.filter(b=>b.shopify_variant_id);
+  const aJour=b=>{ const v=vParId.get(b.shopify_variant_id); if(!v) return null; const m=modeVente(b);
+    return m==='stock' ? (+v.stock===stockEnLigne(b) && v.politique==='DENY') : v.politique==='CONTINUE'; };
+  const nbAEnvoyer=relies.filter(b=>aJour(b)===false).length;
+  el.innerHTML=`<div class="card"><div class="card-bd" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <span>🛍 Reliée à <b>${SHOPIFY.etat.boutique}</b> <span class="dim">(${SHOPIFY.etat.domaine})</span></span><span style="flex:1"></span>
+      <button class="btn ${nbAEnvoyer?'btn-p':'btn-ghost'}" onclick="pousserStock(BIJS.filter(b=>b.shopify_inventory_item_id)).then(()=>renderBoutique(true))">🔄 Envoyer tout le stock${nbAEnvoyer?' ('+nbAEnvoyer+' à mettre à jour)':''}</button>
+      <button class="btn btn-ghost" onclick="renderBoutique(true)" title="Relire les produits Shopify">↻</button></div></div>
+    <div class="info-box">Un seul stock, piloté ici. <b>📦 Pièces prêtes</b> : la quantité en ligne = pièces notées « 🛒 Boutique en ligne » dans Productions (vente bloquée à 0).
+      <b>🔨 À la commande</b> et <b>🎨 Sur mesure</b> : toujours achetables ; chaque commande crée une production « en cours » qui réserve les matériaux.
+      Le stock part tout seul à chaque mise en vente, vente ou suppression.</div>
+    <div class="card"><div class="card-hd"><h2>Créations · ${relies.length}/${crea.length} reliées</h2></div><div class="card-bd" style="padding:0 6px">
+    ${crea.map(b=>{ const v=vParId.get(b.shopify_variant_id), ok=aJour(b), m=modeVente(b);
+      return `<div class="bt-l">
+        <div class="bt-nom">${b.photo?`<img src="${b.photo}" alt="">`:'<span class="bt-ph">💎</span>'}<div><b>${b.nom}${b.variante?' · '+b.variante:''}</b>
+          <div class="dim" style="font-size:11px">${b.ref||''} · ${b.pv?eur(b.pv):'sans prix'}</div></div></div>
+        <select onchange="changerModeVente('${b.id}',this.value)" title="Comment cette création est vendue">${Object.entries(MODES_VENTE).map(([k,l])=>`<option value="${k}" ${k===m?'selected':''}>${l}</option>`).join('')}</select>
+        <div class="bt-stock">${m==='stock'?`<b>${n(stockEnLigne(b))}</b> en ligne`:'<span class="dim">à la commande</span>'}
+          ${v?`<div class="dim" style="font-size:10px">Shopify : ${m==='stock'?n(v.stock):'toujours achetable'} ${ok===true?'✓':ok===false?'<span style="color:var(--orange)">≠</span>':''}</div>`:''}</div>
+        <div class="bt-lien">${b.shopify_variant_id&&!v?'<span class="badge br" title="Le produit relié n\'existe plus dans Shopify">produit introuvable</span>':''}
+          <select onchange="lierShopify('${b.id}',this.value)"><option value="">— non reliée —</option>${(SHOPIFY.produits||[]).map(p=>`<optgroup label="${p.titre.replace(/"/g,'&quot;')}${p.statut!=='ACTIVE'?' ('+p.statut.toLowerCase()+')':''}">${p.variantes.map(x=>`<option value="${x.id}" ${x.id===b.shopify_variant_id?'selected':''}>${p.variantes.length>1?x.titre:p.titre}${x.sku?' · '+x.sku:''}</option>`).join('')}</optgroup>`).join('')}</select>
+          ${b.shopify_variant_id?'':`<button class="btn btn-xs btn-p" onclick="publierShopify('${b.id}')" title="Créer le produit dans Shopify (en brouillon) avec le nom, le prix, la description et la photo">＋ Créer dans Shopify</button>`}
+        </div></div>`; }).join('')||'<div class="empty"><p>Aucune création à vendre.</p></div>'}</div></div>`;
+}
+async function changerModeVente(bijId, mode){
+  const b=getBij(bijId); if(!b) return;
+  if(await sbUpdate('bijoux',bijId,{mode_vente:mode})){ b.mode_vente=mode; if(b.shopify_inventory_item_id) await pousserStock([b],true); renderBoutique(); }
+  else toast('Lance sql-boutique-en-ligne.sql dans Supabase','err');
+}
+async function lierShopify(bijId, variantId){
+  const b=getBij(bijId); if(!b) return;
+  const v=(SHOPIFY.produits||[]).flatMap(p=>p.variantes.map(x=>({...x,pid:p.id}))).find(x=>x.id===variantId);
+  const maj={shopify_variant_id:v?v.id:null, shopify_product_id:v?v.pid:null, shopify_inventory_item_id:v?v.inventory_item_id:null};
+  if(await sbUpdate('bijoux',bijId,maj)){ Object.assign(b,maj); if(v) await pousserStock([b]); renderBoutique(); }
+  else toast('Lance sql-boutique-en-ligne.sql dans Supabase','err');
+}
+async function publierShopify(bijId){
+  const b=getBij(bijId); if(!b) return;
+  if(!b.pv) return toast('Donne d\'abord un prix de vente à la fiche','err');
+  if(!confirm(`Créer « ${b.nom}${b.variante?' · '+b.variante:''} » dans Shopify (en brouillon) ?`)) return;
+  try {
+    const r=await appelShopify('publier',{bijou:{nom:b.nom,variante:b.variante,description:b.description||descriptionAuto(b),pv:b.pv,ref:b.ref,photo:b.photo||null,mode:modeVente(b)}});
+    const maj={shopify_product_id:r.product_id, shopify_variant_id:r.variant_id, shopify_inventory_item_id:r.inventory_item_id};
+    if(await sbUpdate('bijoux',bijId,maj)){ Object.assign(b,maj); await pousserStock([b],true); }
+    toast('Produit créé en brouillon dans Shopify : vérifie-le puis active-le ✓','ok'); renderBoutique(true);
+  } catch(e){ toast('Shopify : '+e.message,'err'); }
+}
+
 // ── Fiche produit prête à copier dans la boutique en ligne (Wix) ──
 function descriptionAuto(b) {
   const parSC={};
@@ -5436,13 +6128,15 @@ function ficheBoutique(bijId) {
     ['Quantité en stock',enLigne?String(enLigne):''],['Description',b.description||descriptionAuto(b)]];
   let ov=document.getElementById('m-boutique');
   if(!ov){ ov=document.createElement('div'); ov.id='m-boutique'; ov.className='overlay'; ov.onclick=e=>bgClose(e,ov); document.body.appendChild(ov); }
-  ov.innerHTML=`<div class="modal"><div class="drag"></div><div class="modal-title">🛒 Fiche boutique — ${b.nom}</div>
-    <div class="info-box">Copie chaque champ dans Wix › Produits › Nouveau produit${b.photo?', et ajoute la photo':''}. ${b.description?'':'La description est proposée d\'après la fiche (modifiable dans la fiche bijou).'}</div>
+  ov.innerHTML=`<div class="modal"><div class="drag"></div><div class="modal-title">🛍 Fiche boutique — ${b.nom}</div>
+    <div class="info-box">${b.shopify_variant_id?'Créée dans Shopify et reliée : le stock est envoyé tout seul.':'« ＋ Créer dans Shopify » la crée pour toi en brouillon ; sinon copie chaque champ dans Shopify › Produits'+(b.photo?' et ajoute la photo':'')+'.'} ${b.description?'':'La description est proposée d\'après la fiche (modifiable dans la fiche bijou).'}</div>
     ${b.photo?`<div style="text-align:center;margin-bottom:10px"><img src="${b.photo}" alt="" style="max-width:180px;border-radius:12px"><div><a class="btn btn-xs btn-ghost" href="${b.photo}" target="_blank" download>⬇ Photo</a></div></div>`:''}
     ${champs.map(([l,v],i)=>`<div class="fg"><label>${l}</label><div style="display:flex;gap:6px;align-items:flex-start">
       ${l==='Description'?`<textarea id="fb-${i}" rows="5" style="flex:1">${v.replace(/</g,'&lt;')}</textarea>`:`<input id="fb-${i}" value="${v.replace(/"/g,'&quot;')}" style="flex:1">`}
       <button class="btn btn-xs btn-ghost" onclick="copierChamp('fb-${i}')">📋</button></div></div>`).join('')}
-    <div class="mfoot"><button class="btn btn-ghost" onclick="closeModal('m-boutique')">Fermer</button><button class="btn btn-p" onclick="copierFiche(${champs.length})">📋 Tout copier</button></div></div>`;
+    <div class="mfoot"><button class="btn btn-ghost" onclick="closeModal('m-boutique')">Fermer</button>
+      ${b.shopify_variant_id?`<button class="btn btn-ghost" onclick="pousserStock([getBij('${b.id}')])">🔄 Envoyer le stock</button>`:`<button class="btn btn-ghost" onclick="closeModal('m-boutique');publierShopify('${b.id}')">＋ Créer dans Shopify</button>`}
+      <button class="btn btn-p" onclick="copierFiche(${champs.length})">📋 Tout copier</button></div></div>`;
   openModal('m-boutique');
 }
 async function copierTexte(t){ try{ await navigator.clipboard.writeText(t); toast('Copié ✓','ok'); }catch(e){ prompt('Copie :',t); } }
@@ -5470,7 +6164,7 @@ async function retirerDuLieu(lignes) {
   const v=lireMiseEnVente(p), reste=Math.max(0,(+v.lieux[lieu]||0)-vendu);
   if(reste) v.lieux[lieu]=reste; else delete v.lieux[lieu];
   const mev=Object.keys(v.lieux).length||v.note?v:null;
-  if(await sbUpdate('productions',prodId,{mise_en_vente:mev})) p.mise_en_vente=mev;
+  if(await sbUpdate('productions',prodId,{mise_en_vente:mev})){ p.mise_en_vente=mev; planifierSynchro(p.bij_id); }
 }
 
 let PROD_TOUT_OUVERT=false;
@@ -5566,6 +6260,7 @@ async function saveEditProd() {
   if(ok){
     const i=PRODS.findIndex(p=>p.id===id);
     if(i>=0) PRODS[i]={...PRODS[i],...maj};
+    if(i>=0) planifierSynchro(PRODS[i].bij_id);
     closeModal('m-edit-prod');
     renderRent();
     toast('Production modifiée ✓','ok');
@@ -5575,7 +6270,8 @@ async function saveEditProd() {
 async function delProd(id) {
   if(!confirm('Supprimer cette production ?')) return;
   const ok=await sbDelete('productions',id);
-  if(ok){PRODS=PRODS.filter(p=>p.id!==id);renderRent();toast('Production supprimée','ok');}
+  const bj=PRODS.find(p=>p.id===id)?.bij_id;
+  if(ok){PRODS=PRODS.filter(p=>p.id!==id);renderRent();toast('Production supprimée','ok'); if(bj) planifierSynchro(bj);}
 }
 
 function onCanalChange() {

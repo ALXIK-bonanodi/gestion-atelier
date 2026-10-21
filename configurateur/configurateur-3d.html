@@ -390,8 +390,8 @@ import {
   modeleChainmailDemo, estChainmail, chargerBijouxBoutique, bijouBreloque, modelePerleCultureDemo, estPerleCulture, apercuChainmail,
   correspondCategorie, texteCatalogue, ordreModeles, chargerRuptures, appliquerRuptures,
   chargerLiens, appliquerLiens, relierModele, chargerMateriauxParRefs,
-} from './bead-core.js?v=71c6dbd8';
-import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER } from './perles-config.js?v=e1bf13ba';
+} from './bead-core.js?v=a66123e0';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER, PANIER_SHOPIFY } from './perles-config.js?v=e5e86015';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -947,8 +947,30 @@ $('#btEnregistrer').addEventListener('click', async () => {
   catch (x) { if (x.message === 'rupture') erreur(x.detail); else if (x.message !== 'texte') { console.error(x); erreur('L\'enregistrement n\'a pas abouti. Réessaie dans un instant.'); } else erreur('Le texte de ta breloque lettre est à corriger.'); }
   finally { $('#btEnregistrer').disabled = false; }
 });
+/* Paiement Shopify : la personnalisation devient une commande provisoire Shopify (prix calculé,
+   n° BN-P-… sur chaque ligne) ; la cliente paie sur la page sécurisée Shopify, dans un nouvel onglet. */
+async function payerShopify() {
+  const onglet = window.open('', '_blank');                      // ouvert pendant le clic : pas bloqué par le navigateur
+  try {
+    await enregistrer();
+    const r = await avecDelai(fetch(SUPABASE_URL + '/functions/v1/shopify', { method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY },
+      body: JSON.stringify({ action: 'perso-panier', numero: valide.numero, cle: valide.cle }) }), 15000);
+    const d = await r.json();
+    if (!r.ok || !d.url) throw new Error(d.erreur || 'paiement indisponible');
+    if (onglet && !onglet.closed) onglet.location.href = d.url;
+    afficherEnregistree('Paiement ouvert', 'Termine ta commande sur la page de paiement sécurisée qui vient de s\'ouvrir.');
+    $('#merci').insertAdjacentHTML('beforeend', `<p><a class="btn-envoi" href="${esc(d.url)}" target="_blank" rel="noopener">Ouvrir le paiement</a></p>`);
+  } catch (x) { try { onglet?.close(); } catch {} throw x; }
+}
 $('#btPanier').addEventListener('click', async () => {
   erreur(''); $('#btPanier').disabled = true;
+  if (PANIER_SHOPIFY && sb) {
+    try { await payerShopify(); }
+    catch (x) { if (x.message === 'rupture') erreur(x.detail); else if (x.message !== 'texte') { console.error(x); erreur('Le paiement n\'a pas pu s\'ouvrir. Réessaie dans un instant.'); } else erreur('Le texte de ta breloque lettre est à corriger.'); }
+    finally { $('#btPanier').disabled = false; }
+    return;
+  }
   try {
     await enregistrer();
     if (!DANS_WIX) { afficherEnregistree('Personnalisation enregistrée', 'Sur la boutique, ce bouton l\'ajoute directement à ton panier.'); return; }
