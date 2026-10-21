@@ -4,12 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bona Nodi · Ruptures du configurateur</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Figtree:wght@400;600;700&display=swap">
 <style>
-:root { --bg: #f6f3f8; --carte: #fff; --texte: #1a1228; --doux: #6b6478; --ligne: #e3dce8; --prune: #6b4e8e; --rouge: #a1272d; --vert: #2f7a46; }
+:root { --bg: #f7f2f7; --carte: #fff; --texte: #2a0f33; --doux: #7e6a85; --ligne: #e6dbe8; --prune: #3c114b; --rouge: #a1272d; --vert: #2f7a46; }
 * { box-sizing: border-box; }
-html, body { margin: 0; background: var(--bg); color: var(--texte); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+html, body { margin: 0; background: var(--bg); color: var(--texte); font: 14px/1.45 "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif; }
 main { max-width: 960px; margin: 0 auto; padding: 14px 16px 90px; }
-h1 { font-size: 18px; margin: 4px 0 2px; }
+h1 { font-size: 18px; font-family: "Fredoka", sans-serif; font-weight: 500; color: var(--prune); margin: 4px 0 2px; }
 .aide { color: var(--doux); margin: 0 0 14px; }
 .groupe { background: var(--carte); border: 1px solid var(--ligne); border-radius: 12px; margin-bottom: 12px; overflow: hidden; }
 .groupe h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--prune); margin: 0; padding: 10px 14px; border-bottom: 1px solid var(--ligne); display: flex; justify-content: space-between; }
@@ -25,7 +26,7 @@ h1 { font-size: 18px; margin: 4px 0 2px; }
 .bascule input { width: 18px; height: 18px; accent-color: var(--vert); }
 .barre { position: fixed; left: 0; right: 0; bottom: 0; background: #fff; border-top: 1px solid var(--ligne); padding: 10px 16px; display: flex; gap: 12px; align-items: center; justify-content: flex-end; }
 .barre span { color: var(--doux); flex: 1; }
-button { font: inherit; border: 0; border-radius: 10px; padding: 9px 16px; background: var(--prune); color: #fff; cursor: pointer; font-weight: 600; }
+button { font: inherit; border: 0; border-radius: 10px; padding: 9px 16px; background: var(--prune); color: #fff7c6; cursor: pointer; font-weight: 600; }
 button:disabled { opacity: .5; cursor: default; }
 .alerte { background: #fbf0f0; color: var(--rouge); border-radius: 10px; padding: 10px 14px; }
 </style>
@@ -99,7 +100,7 @@ const matiere = x => x && ajouter(famille(x), x.ref, { cle: x.ref, nom: x.nom, r
 const fermoir = (fam, ref) => { const x = fermParRef.get(ref); if (x) ajouter(fam, ref, { cle: ref, nom: x.nom, ref, fond: '#cfd0d4', stock: x.stock }); };
 
 for (const mo of modeles) {
-  ajouter('Breloques', 'modele:' + mo.slug, { cle: 'modele:' + mo.slug, nom: nomCourt(mo), ref: euros(bijouBreloque(mo, { bijoux }).prix), fond: '#ede6f3' });
+  ajouter('Breloques', 'modele:' + mo.slug, { cle: 'modele:' + mo.slug, nom: nomCourt(mo), ref: euros(bijouBreloque(mo, { bijoux }).prix), fond: '#f2eaf3' });
   for (const z of mo.zones || []) couleursProposees(z, catalogue, parties).forEach(matiere);
   for (const o of mo.options || []) {
     if (o.type === 'perle') catalogue.filter(x => !o.categorie || correspondCategorie(x, o.categorie)).forEach(matiere);

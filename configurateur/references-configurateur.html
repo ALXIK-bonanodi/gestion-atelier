@@ -4,12 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bona Nodi · Références du configurateur</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Figtree:wght@400;600;700&display=swap">
 <style>
-:root { --bg: #f6f3f8; --carte: #fff; --texte: #1a1228; --doux: #6b6478; --ligne: #e3dce8; --prune: #6b4e8e; --rouge: #a1272d; --vert: #2f7a46; }
+:root { --bg: #f7f2f7; --carte: #fff; --texte: #2a0f33; --doux: #7e6a85; --ligne: #e6dbe8; --prune: #3c114b; --rouge: #a1272d; --vert: #2f7a46; }
 * { box-sizing: border-box; }
-html, body { margin: 0; background: var(--bg); color: var(--texte); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+html, body { margin: 0; background: var(--bg); color: var(--texte); font: 14px/1.45 "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif; }
 main { max-width: 980px; margin: 0 auto; padding: 14px 16px 90px; }
-h1 { font-size: 18px; margin: 4px 0 2px; }
+h1 { font-size: 18px; font-family: "Fredoka", sans-serif; font-weight: 500; color: var(--prune); margin: 4px 0 2px; }
 .aide { color: var(--doux); margin: 0 0 14px; }
 .groupe { background: var(--carte); border: 1px solid var(--ligne); border-radius: 12px; margin-bottom: 12px; overflow: hidden; }
 .groupe h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--prune); margin: 0; padding: 10px 14px; border-bottom: 1px solid var(--ligne); }
@@ -19,8 +20,8 @@ h1 { font-size: 18px; margin: 4px 0 2px; }
 .pastille { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--ligne); }
 .ref { font: 11px ui-monospace, monospace; color: var(--doux); }
 select, input { font: inherit; font-size: 13px; padding: 6px 8px; border: 1px solid var(--ligne); border-radius: 8px; background: #fff; width: 100%; min-width: 0; }
-button { font: inherit; border: 0; border-radius: 10px; padding: 8px 14px; background: var(--prune); color: #fff; cursor: pointer; font-weight: 600; white-space: nowrap; }
-button.leger { background: #ede6f3; color: var(--prune); padding: 6px 10px; font-size: 12px; }
+button { font: inherit; border: 0; border-radius: 10px; padding: 8px 14px; background: var(--prune); color: #fff7c6; cursor: pointer; font-weight: 600; white-space: nowrap; }
+button.leger { background: #f2eaf3; color: var(--prune); padding: 6px 10px; font-size: 12px; }
 button:disabled { opacity: .5; cursor: default; }
 .creer { grid-column: 2 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) auto; gap: 8px; align-items: end; background: #faf8fc; border: 1px dashed var(--ligne); border-radius: 10px; padding: 10px; }
 .creer label { font-size: 11px; color: var(--doux); display: grid; gap: 3px; }

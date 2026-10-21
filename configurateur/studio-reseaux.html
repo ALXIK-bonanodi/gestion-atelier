@@ -10,18 +10,18 @@
 <style>
 /* Studio réseaux : tu composes la breloque dans le configurateur (à gauche),
    le studio en fait une image ou une vidéo qui tourne aux formats story / TikTok / post. */
-:root { --bg: #f6f3f8; --carte: #fff; --texte: #1a1228; --doux: #6b6478; --ligne: #e3dce8; --prune: #6b4e8e; --encre: #3c114b; --creme: #fff7c6; }
+:root { --bg: #f7f2f7; --carte: #fff; --texte: #2a0f33; --doux: #7e6a85; --ligne: #e6dbe8; --prune: #3c114b; --encre: #3c114b; --creme: #fff7c6; }
 * { box-sizing: border-box; }
-html, body { margin: 0; background: var(--bg); color: var(--texte); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+html, body { margin: 0; background: var(--bg); color: var(--texte); font: 14px/1.45 "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif; }
 .studio { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 0; height: 100vh; }
 .config { border-right: 1px solid var(--ligne); min-width: 0; display: flex; flex-direction: column; }
 .config .bandeau { padding: 8px 12px; font-size: 12px; color: var(--doux); background: #fff; border-bottom: 1px solid var(--ligne); }
 .config iframe { flex: 1; width: 100%; border: 0; background: var(--creme); }
 .panneau { overflow-y: auto; padding: 14px 16px 30px; background: #fff; }
-h1 { font-size: 17px; margin: 0 0 2px; }
+h1 { font-size: 17px; font-family: "Fredoka", sans-serif; font-weight: 500; color: var(--prune); margin: 0 0 2px; }
 .aide { color: var(--doux); margin: 0 0 12px; font-size: 12px; }
 .formats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 12px; }
-.formats button { background: #f3eef7; color: var(--prune); border: 1.5px solid transparent; border-radius: 10px; padding: 7px 4px; font: 600 12px system-ui; cursor: pointer; line-height: 1.2; }
+.formats button { background: #f2eaf3; color: var(--prune); border: 1.5px solid transparent; border-radius: 10px; padding: 7px 4px; font: 600 12px system-ui; cursor: pointer; line-height: 1.2; }
 .formats button small { display: block; font-weight: 400; color: var(--doux); font-size: 10px; }
 .formats button.on { border-color: var(--prune); background: #fff; }
 .apercu { background: #ece6f0; border-radius: 12px; padding: 10px; display: grid; place-items: center; margin-bottom: 12px; position: relative; }
@@ -32,8 +32,8 @@ input[type=text], select { font: inherit; font-size: 13px; padding: 7px 9px; bor
 .cases { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 4px 0 12px; font-size: 12px; }
 .cases label { display: flex; gap: 5px; align-items: center; cursor: pointer; }
 .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.actions button { font: 600 13px system-ui; border: 0; border-radius: 10px; padding: 11px 10px; background: var(--prune); color: #fff; cursor: pointer; }
-.actions button.second { background: #ede6f3; color: var(--prune); }
+.actions button { font: 600 13px system-ui; border: 0; border-radius: 10px; padding: 11px 10px; background: var(--prune); color: #fff7c6; cursor: pointer; }
+.actions button.second { background: #f2eaf3; color: var(--prune); }
 .actions button:disabled { opacity: .5; cursor: default; }
 .ligne2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 #etat { font-size: 12px; color: var(--doux); margin-top: 8px; min-height: 18px; }
