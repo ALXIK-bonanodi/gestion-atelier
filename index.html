@@ -2632,13 +2632,43 @@ async function enregistrerVideoTT(id){
   closeModal('m-tt'); renderTikTok(); toast('Vidéo enregistrée ✓','ok');
 }
 async function supprimerVideoTT(id){ if(!confirm('Retirer cette vidéo de l\'analyse ?')) return; TIKTOK_MANUEL=TIKTOK_MANUEL.filter(x=>x.id!==id); await sbUpsertConfig('tiktok_manuel', TIKTOK_MANUEL); closeModal('m-tt'); renderTikTok(); }
+// Erreur d'une fonction Supabase traduite en clair (au lieu de « non-2xx status code »)
+async function erreurFonction(nom, error){
+  const rep=error?.context; let st=rep?.status, c=null, brut='';
+  try{ brut=await rep.text(); c=JSON.parse(brut); }catch(e){}
+  const m=String(c?.erreur||c?.message||c?.msg||c?.error||brut||error?.message||'erreur inconnue').slice(0,200), code=String(c?.code||'');
+  let clair;
+  if(!rep) clair=`la fonction « ${nom} » ne répond pas (réseau, ou fonction pas encore déployée)`;
+  else if(st===404||/not.?found/i.test(m+code)) clair=`la fonction « ${nom} » est introuvable dans Supabase : vérifie qu'elle est déployée sous ce nom exact (${nom}, en minuscules)`;
+  else if(st===401&&/jwt|authorization|token/i.test(m)) clair=`Supabase refuse l'appel : dans Edge Functions › ${nom} › Details, désactive « Enforce JWT verification », puis déconnecte-toi et reconnecte-toi à l'app`;
+  else if(st===401) clair=`${m} : reconnecte-toi à l'app ; vérifie aussi le secret ADMIN_UID = 24e8cb8e-6077-417c-a74b-695745f085b0`;
+  else if(st>=500&&/boot|worker|syntax|module|import/i.test(m+code)) clair=`la fonction « ${nom} » ne démarre pas (${m}) : recolle tout son code depuis le guide puis « Deploy »`;
+  else clair=m;
+  return new Error(clair+(st?` [${st}]`:''));
+}
 async function appelTikTok(action){
   const { data, error } = await SB.functions.invoke('tiktok', { body: { action } });
-  if (error) { let m=error.message; try{ const c=await error.context?.json?.(); if(c?.erreur) m=c.erreur; }catch(e){} throw new Error(m); }
+  if (error) throw await erreurFonction('tiktok', error);
   if (data?.erreur) throw new Error(data.erreur);
   return data;
 }
-async function connecterTikTok(){ try{ const r=await appelTikTok('lien'); location.href=r.url; }catch(e){ toast('TikTok : '+e.message,'err'); } }
+async function connecterTikTok(){ try{ const r=await appelTikTok('lien'); location.href=r.url; }catch(e){ alerteFonction('TikTok', e.message); } }
+// Message d'erreur qui reste affiché (lisible en entier, copiable) au lieu d'un toast qui disparaît
+function alerteFonction(titre, msg){
+  modalVolante('m-err',`<div class="modal-title">⚠️ ${escA(titre)} : la connexion n'a pas abouti</div>
+    <div class="warn-box" style="user-select:text">${escA(msg)}</div>
+    <p class="dim" style="font-size:12px">Si tu ne vois pas quoi faire, fais une capture de ce message et envoie-la-moi.</p>
+    <div class="mfoot"><button class="btn btn-p" onclick="closeModal('m-err')">OK</button></div>`);
+}
+// Test complet de la fonction TikTok (Paramètres › Connexions)
+async function testerTikTok(){
+  const el=document.getElementById('cx-test-tt'); if(el) el.innerHTML='<span class="dim">Test en cours…</span>';
+  try{ const r=await appelTikTok('etat');
+    const l=[r.configure?'✅ Fonction « tiktok » déployée, clés TikTok présentes':'⚠️ Fonction déployée mais secrets TIKTOK_CLIENT_KEY / TIKTOK_CLIENT_SECRET manquants (étape 8)',
+      r.relie?'✅ Compte TikTok relié':'⏳ Compte pas encore relié : 📣 Réseaux › 🎵 TikTok › 🔗 Import automatique'];
+    if(el) el.innerHTML=l.map(x=>`<div>${x}</div>`).join('');
+  }catch(e){ if(el) el.innerHTML=`<div class="warn-box">${escA(e.message)}</div>`; }
+}
 // Compte relié : les chiffres se mettent à jour seuls (chaque matin côté Supabase, et à l'ouverture de l'app s'ils datent de plus de 6 h)
 async function autoTikTok(){
   if(!TIKTOK_RELIE) return;
@@ -2654,7 +2684,7 @@ async function synchroTikTok(){
   try{ TIKTOK=await appelTikTok('synchroniser'); TIKTOK_RELIE=true; majPostsDepuisTikTok(); renderTikTok();
     if(TIKTOK.erreur_videos) toast('Profil relié, mais TikTok refuse la lecture des vidéos : voir le message en haut','err');
     else toast(`${(TIKTOK.videos||[]).length} vidéo(s) importée(s) ✓`,'ok'); }
-  catch(e){ toast('TikTok : '+e.message,'err'); }
+  catch(e){ alerteFonction('TikTok', e.message); }
 }
 const engagement = v => v.vues ? (v.likes+v.commentaires+v.partages)/v.vues : 0;
 const pct = x => (Math.round(x*1000)/10).toLocaleString('fr-FR')+' %';
@@ -2862,11 +2892,11 @@ function renderPosts(){
 }
 // Choix de créations à toucher (téléphone compris) : chaque modèle puis ses couleurs, avec recherche
 function choixCreations(id, choisis=[]){
-  const sel=new Set(choisis||[]), racines=BIJS.filter(b=>!b.is_mat&&(!b.parent_id||!getBij(b.parent_id))).sort((a,b)=>String(a.nom).localeCompare(String(b.nom),'fr')||String(a.variante||'').localeCompare(String(b.variante||''),'fr'));
+  const sel=new Set(choisis||[]), racines=BIJS.filter(b=>!b.parent_id||!getBij(b.parent_id)).sort((a,b)=>String(a.nom).localeCompare(String(b.nom),'fr')||String(a.variante||'').localeCompare(String(b.variante||''),'fr'));
   const puce=(b,txt,cl='')=>`<button type="button" class="cc-p ${cl} ${sel.has(b.id)?'on':''}" data-id="${b.id}" data-q="${escA(cleNom(b.nom+' '+(b.variante||'')))}" onclick="this.classList.toggle('on')">${escA(txt)}</button>`;
   return `<div class="cc" id="${id}"><input type="search" placeholder="🔍 Chercher une création" oninput="filtrerChoixCreations('${id}',this.value)">
     <div class="cc-liste">${racines.map(r=>{ const v=BIJS.filter(b=>b.parent_id===r.id).sort((a,b)=>String(a.variante||'').localeCompare(String(b.variante||''),'fr'));
-      return `<div class="cc-g">${puce(r,r.nom+(r.variante?' · '+r.variante:''),'cc-m')}${v.map(x=>puce(x,x.variante||x.ref)).join('')}</div>`; }).join('')}</div></div>`;
+      return `<div class="cc-g">${puce(r,(r.is_mat?'💎 ':'')+r.nom+(r.variante?' · '+r.variante:''),'cc-m')}${v.map(x=>puce(x,x.variante||x.ref)).join('')}</div>`; }).join('')}</div></div>`;
 }
 const lireChoixCreations = id => [...document.querySelectorAll(`#${id} .cc-p.on`)].map(x=>x.dataset.id);
 function filtrerChoixCreations(id,q){ const k=cleNom(q);
@@ -6413,7 +6443,7 @@ let SHOPIFY={etat:null, produits:null, erreur:null};
 const MODES_VENTE={stock:'📦 Pièces prêtes',commande:'🔨 Fabriqué à la commande',surmesure:'🎨 Sur mesure (configurateur)'};
 async function appelShopify(action, donnees={}) {
   const { data, error } = await SB.functions.invoke('shopify', { body: { action, ...donnees } });
-  if (error) { let m=error.message; try{ const c=await error.context?.json?.(); if(c?.erreur) m=c.erreur; }catch(e){} throw new Error(m); }
+  if (error) throw await erreurFonction('shopify', error);
   if (data?.erreur) throw new Error(data.erreur);
   return data;
 }
@@ -7070,7 +7100,8 @@ function renderConnexions(){
   const el=document.getElementById('cfg-connexions'); if(!el) return;
   const tt=TIKTOK_RELIE?`✅ Relié${TIKTOK?.profil?.nom?' ('+escA(TIKTOK.profil.nom)+')':''} · dernier import ${TIKTOK?.maj?new Date(TIKTOK.maj).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'}):'—'}`:'⏳ Pas encore relié';
   const sh=SHOPIFY.etat?.configure?`✅ Reliée à ${escA(SHOPIFY.etat.boutique||'')}`:SHOPIFY.etat?'⏳ Pas encore reliée':'— ouvre l\'onglet Boutique en ligne pour vérifier';
-  el.innerHTML=`<div class="cx-l"><span style="font-size:24px">🎵</span><div class="cx-t"><b>TikTok</b><div class="dim" style="font-size:12px">${tt}</div></div><button class="btn btn-xs btn-ghost" onclick="goTabNom('res');switchResTab('tiktok')">Ouvrir</button></div>
+  el.innerHTML=`<div class="cx-l"><span style="font-size:24px">🎵</span><div class="cx-t"><b>TikTok</b><div class="dim" style="font-size:12px">${tt}</div></div><button class="btn btn-xs btn-ghost" onclick="testerTikTok()">🩺 Tester</button><button class="btn btn-xs btn-ghost" onclick="goTabNom('res');switchResTab('tiktok')">Ouvrir</button></div>
+    <div id="cx-test-tt" style="font-size:12px;line-height:1.7;margin:-4px 0 6px 34px"></div>
     <div class="cx-l"><span style="font-size:24px">🛍</span><div class="cx-t"><b>Boutique Shopify (site Wix)</b><div class="dim" style="font-size:12px">${sh}</div></div><button class="btn btn-xs btn-ghost" onclick="goTabNom('bij');switchCreatTab('boutique')">Ouvrir</button></div>
     <div class="info-box" style="margin-top:8px">La mise en place pas à pas est dans le guide <b>GUIDE-CONNEXIONS.html</b> (dossier « bona-nodi-connexions »). Les clés TikTok et Shopify restent dans Supabase, jamais dans l'app.</div>`;
 }
