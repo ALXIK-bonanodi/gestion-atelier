@@ -390,7 +390,7 @@ import {
   modeleChainmailDemo, estChainmail, chargerBijouxBoutique, bijouBreloque, modelePerleCultureDemo, estPerleCulture, apercuChainmail,
   correspondCategorie, texteCatalogue, ordreModeles, chargerRuptures, appliquerRuptures,
   chargerLiens, appliquerLiens, relierModele, chargerMateriauxParRefs,
-} from './bead-core.js?v=4455895e';
+} from './bead-core.js?v=e64b15ad';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER, PANIER_SHOPIFY } from './perles-config.js?v=e5e86015';
 
 const $ = s => document.querySelector(s);
@@ -575,6 +575,8 @@ function fond(c) {
     case 'irise': case 'irise-metal': return `conic-gradient(from 40deg, ${c.hex}, #7fd6c9, ${c.hex}, #d68fd0, ${c.hex})`;
     case 'transparent': return `radial-gradient(circle at 35% 30%, #fffc, ${c.hex}cc 62%)`;
     case 'transparent-irise': return `radial-gradient(circle at 35% 30%, #fffc, transparent 40%), conic-gradient(from 200deg, ${c.hex}, #6f8fe0aa, ${c.hex}, #b07ad6aa, ${c.hex})`;
+    case 'translucide': return `radial-gradient(circle at 35% 30%, #fff9, ${c.hex}e6 55%)`;
+    case 'transparent-metal-fort': return `radial-gradient(circle at 35% 30%, #fffb 0%, ${c.hex}e0 40%, ${c.hex} 64%, #ffffff44 80%, ${c.hex} 100%)`;
     case 'transparent-metal': return `radial-gradient(circle at 35% 30%, #fffd 0%, ${c.hex}d0 38%, ${c.hex} 62%, #ffffff55 78%, ${c.hex} 100%)`;
     case 'metallise': case 'metallise-fort': return `linear-gradient(135deg, #fffa 0%, ${c.hex} 40%, ${c.hex} 60%, #0003 100%)`;
     case 'argente': return `radial-gradient(circle at 35% 30%, #fff, ${c.hex} 45%, #0008 100%)`;

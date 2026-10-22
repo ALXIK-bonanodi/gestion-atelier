@@ -137,6 +137,15 @@ main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0;backgr
 .sub-tab{padding:9px 12px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;transition:.12s;-webkit-user-select:none}
 .sub-tab:active{background:var(--purpleP)}
 .fab-top{position:fixed;bottom:80px;right:16px;z-index:200;width:40px;height:40px;border-radius:50%;background:var(--purple);color:var(--gold);border:none;font-size:18px;box-shadow:0 3px 10px rgba(60,17,75,.4);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.2s;-webkit-user-select:none}
+.cfg-nav{display:flex;overflow-x:auto;scrollbar-width:none;background:var(--card,#fff);border-radius:14px;margin:0 0 10px;box-shadow:0 2px 8px rgba(26,18,40,.06)}
+.cfg-nav::-webkit-scrollbar{display:none}
+.sv-etat{display:flex;gap:12px;align-items:center;padding:12px;border-radius:14px;background:var(--purpleP);margin-bottom:12px}
+.sv-etat b{font-size:15px}
+.cx-l{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--border)}
+.cx-l:first-child{border-top:0}
+.cx-l .cx-t{flex:1;min-width:0}
+.lv-l{display:flex;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--border)}
+.lv-l:first-child{border-top:0}
 .sub-tab-on{color:var(--purple);border-bottom-color:var(--purple);background:var(--purpleP)}
 .cat-section{display:flex;align-items:flex-start;flex-wrap:wrap;gap:4px;margin-bottom:6px}
 .cat-section:last-child{margin-bottom:0}
@@ -458,6 +467,26 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
 .bt-l{display:grid;grid-template-columns:minmax(180px,1.4fr) minmax(150px,1fr) 110px minmax(200px,1.4fr);gap:10px;align-items:center;padding:10px 8px;border-top:1px solid var(--border)}
 .bt-l:first-child{border-top:0}
 .bt-nom{display:flex;gap:8px;align-items:center;min-width:0}
+.bt-groupe{border-top:2px solid var(--purpleP);margin-top:4px}
+.bt-ghd{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 8px 4px;font-size:13px}
+.bt-groupe .bt-l{padding-left:22px;border-top:1px dashed var(--border)}
+.rg-groupe{border:1px solid var(--border);border-radius:12px;padding:8px 10px;margin-bottom:8px}
+.rg-tete{display:flex;gap:6px;align-items:center;cursor:pointer;margin-bottom:6px}
+.rg-tete input[type=checkbox]{appearance:auto;-webkit-appearance:checkbox;padding:0}
+.rg-l{display:grid;grid-template-columns:auto minmax(0,1fr) minmax(120px,1fr);gap:6px;align-items:center;margin:4px 0 4px 22px}
+.rg-l input{padding:6px 8px;font-size:12px}
+.cc input[type=search]{margin-bottom:6px}
+.cc-liste{max-height:210px;overflow-y:auto;border:1px solid var(--border);border-radius:12px;padding:6px}
+.cc-g{display:flex;flex-wrap:wrap;gap:4px;padding:4px 0;border-bottom:1px dashed var(--border)}
+.cc-g:last-child{border-bottom:0}
+.cc-p{border:1px solid var(--border);background:var(--surface,#fff);color:var(--text,#3C114B);border-radius:999px;padding:5px 10px;font-size:12px;cursor:pointer;font-family:inherit}
+.cc-p.cc-m{font-weight:700}
+.cc-p.on{background:var(--purple);color:#fff;border-color:var(--purple)}
+.dc-tab{border-collapse:collapse;font-size:12px;width:100%}
+.dc-tab th{text-align:left;font-size:11px;color:var(--muted);padding:4px}
+.dc-tab td{padding:4px;border-top:1px solid var(--border);vertical-align:middle}
+.dc-tab select{padding:6px;font-size:12px;min-width:110px}
+.modal input[type=checkbox]{appearance:auto;-webkit-appearance:checkbox;padding:0}
 .bt-nom img,.bt-ph{width:36px;height:36px;border-radius:10px;object-fit:cover;background:var(--purpleP);display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .bt-l select{font-size:12px;padding:7px 26px 7px 8px}
 .bt-lien{display:flex;flex-direction:column;gap:4px}
@@ -703,6 +732,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
           <button id="bij-view-list" class="btn btn-p btn-sm ico" onclick="setBijView('list')" title="Vue liste">☰</button>
           <button id="bij-view-grid" class="btn btn-ghost btn-sm ico" onclick="setBijView('grid')" title="Vue grille">⊞</button>
           <button class="btn btn-ghost btn-sm ico" onclick="showBijDiag()" title="Chercher les doublons de référence">🔍</button>
+          <button class="btn btn-ghost btn-sm" onclick="ouvrirRegroupement()" title="Regrouper les créations du même nom en un produit avec des variantes">🧩 Regrouper</button>
         </div>
         <div id="bij-coll-bar" class="chips-defile"></div>
         <div id="bij-diag-banner" style="display:none;margin-bottom:8px"></div>
@@ -973,19 +1003,28 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
 
 <!-- ═══ PARAMÈTRES ═══ -->
 <div id="p-cfg" class="page">
+  <div id="cfg-nav" class="cfg-nav">
+    <div class="sub-tab" data-cs="atelier" onclick="switchCfgTab('atelier')">🏷 Atelier</div>
+    <div class="sub-tab" data-cs="sauvegarde" onclick="switchCfgTab('sauvegarde')">💾 Sauvegarde</div>
+    <div class="sub-tab" data-cs="connexions" onclick="switchCfgTab('connexions')">🔌 Connexions</div>
+    <div class="sub-tab" data-cs="lieux" onclick="switchCfgTab('lieux')">📍 Lieux de vente</div>
+    <div class="sub-tab" data-cs="categories" onclick="switchCfgTab('categories')">🗂 Catégories</div>
+    <div class="sub-tab" data-cs="fournisseurs" onclick="switchCfgTab('fournisseurs')">🏭 Fournisseurs</div>
+    <div class="sub-tab" data-cs="references" onclick="switchCfgTab('references')">🔍 Références</div>
+  </div>
 
   <!-- Header personnalisé -->
-  <div class="card">
-    <div class="card-hd"><h2>🎨 Apparence du header</h2></div>
+  <div class="card" data-cs="atelier">
+    <div class="card-hd"><h2>🏷 Nom de l'atelier</h2></div>
     <div class="card-bd">
-      <div class="info-box">Ces réglages sont sauvegardés dans Supabase et s'appliquent sur tous vos appareils.</div>
+      <div class="info-box">Le nom et le sous-titre s'affichent en haut de l'app, sur tous tes appareils. Les couleurs suivent l'identité Bona Nodi : violet <b>#3C114B</b> pour l'app, crème <b>#FFF7C6</b> réservé à la boutique en ligne.</div>
       <div class="r2">
         <div class="fg"><label>Nom affiché dans le header</label>
           <input id="cfg-hdr-name" placeholder="ex: Mon Atelier, Tulipes & Stars…"></div>
         <div class="fg"><label>Sous-titre</label>
           <input id="cfg-hdr-sub" placeholder="ex: bijoux, créations…"></div>
       </div>
-      <div class="r2">
+      <div class="r2" style="display:none">
         <div class="fg"><label>Couleur principale (header)</label>
           <div style="display:flex;gap:8px;align-items:center">
             <input type="color" id="cfg-color-dark" value="#1A1228" style="width:48px;height:40px;padding:2px;border-radius:var(--rs);cursor:pointer;flex-shrink:0">
@@ -1005,12 +1044,21 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
           <span id="prev-sub" style="font-size:12px;opacity:.4"></span>
         </div>
       </div>
-      <button class="btn btn-p" onclick="saveHdrConfig()">💾 Enregistrer l'apparence</button>
+      <button class="btn btn-p" onclick="saveHdrConfig()">💾 Enregistrer</button>
     </div>
   </div>
 
+  <!-- Sauvegarde -->
+  <div class="card" data-cs="sauvegarde"><div class="card-hd"><h2>💾 Sauvegarde de tes données</h2></div><div class="card-bd" id="cfg-sauvegarde"></div></div>
+
+  <!-- État des connexions -->
+  <div class="card" data-cs="connexions"><div class="card-hd"><h2>🔗 TikTok et boutique en ligne</h2></div><div class="card-bd" id="cfg-connexions"></div></div>
+
+  <!-- Lieux de vente -->
+  <div class="card" data-cs="lieux"><div class="card-hd"><h2>📍 Lieux de vente</h2></div><div class="card-bd" id="cfg-lieux"></div></div>
+
   <!-- Connexion Supabase -->
-  <div class="card">
+  <div class="card" data-cs="connexions">
     <div class="card-hd"><h2>🔌 Connexion Supabase</h2></div>
     <div class="card-bd">
       <div class="r2" style="margin-bottom:10px">
@@ -1022,7 +1070,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
   </div>
 
   <!-- Catégories par type -->
-  <div class="card">
+  <div class="card" data-cs="categories">
     <div class="card-hd"><h2>🗂 Catégories matériaux</h2></div>
     <div class="card-bd">
       <!-- Sélecteur de type -->
@@ -1056,7 +1104,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
   </div>
 
   <!-- Fournisseurs -->
-  <div class="card">
+  <div class="card" data-cs="fournisseurs">
     <div class="card-hd"><h2>🏭 Fournisseurs</h2></div>
     <div class="card-bd">
       <div style="display:flex;gap:6px;margin-bottom:12px">
@@ -1068,7 +1116,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
   </div>
 
   <!-- Diagnostic + renommage inline -->
-  <div class="card">
+  <div class="card" data-cs="references">
     <div class="card-hd"><h2>🔍 Diagnostic références bijoux</h2></div>
     <div class="card-bd">
       <div class="info-box" style="margin-bottom:10px">
@@ -1081,15 +1129,6 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
     </div>
   </div>
 
-
-  <!-- Export -->
-  <div class="card">
-    <div class="card-hd"><h2>📤 Export données</h2></div>
-    <div class="card-bd">
-      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Téléchargez toutes vos données en JSON (sauvegarde) ou importez-les depuis l'outil Import/Export.</p>
-      <button class="btn btn-ghost" onclick="exportJSON()">⬇ Télécharger JSON</button>
-    </div>
-  </div>
 
 </div>
 
@@ -1936,7 +1975,10 @@ async function loadAll() {
     let rr=cfg.find(c=>c.key==='reseaux_reglages')?.value; if(typeof rr==='string'){ try{ rr=JSON.parse(rr); }catch(e){ rr=null; } }
     RES_REG={...RES_REG_DEFAUT, ...(rr&&typeof rr==='object'?rr:{})};
     const lireCfg=k=>{ let v=cfg.find(c=>c.key===k)?.value; if(typeof v==='string'){ try{ v=JSON.parse(v); }catch(e){ v=null; } } return v; };
-    TIKTOK=lireCfg('tiktok_videos'); TIKTOK_HIST=lireCfg('tiktok_historique')||{}; TIKTOK_RELIE=!!lireCfg('tiktok_jetons')?.acces; }
+    TIKTOK=lireCfg('tiktok_videos'); TIKTOK_HIST=lireCfg('tiktok_historique')||{}; TIKTOK_RELIE=!!lireCfg('tiktok_jetons')?.acces;
+    TIKTOK_MANUEL=Array.isArray(lireCfg('tiktok_manuel'))?lireCfg('tiktok_manuel'):[];
+    DERNIERE_SAUV=typeof lireCfg('derniere_sauvegarde')==='string'?lireCfg('derniere_sauvegarde'):'';
+    setTimeout(autoTikTok,2500); }
   const fourCfg     = cfg.find(c=>c.key==='fournisseurs');
   const hdrCfg      = cfg.find(c=>c.key==='header');
   // Catégories création (rétrocompatibilité avec main_cats)
@@ -2106,7 +2148,8 @@ function getMatsEffectifs(bij) {
   if(bij.parent_id) {
     const parent=BIJS.find(b=>b.id===bij.parent_id);
     if(parent) {
-      const overrides=bij.variante_overrides||[];
+      const overrides=(bij.variante_overrides||[]).filter(o=>o&&o.ref_parent);
+      if(aCompoPropre(bij)) return bij.mats||[];   // variante regroupée : elle garde sa propre composition complète
       const mats=[...(parent.mats||[])];
       overrides.forEach(ov=>{
         const idx=mats.findIndex(m=>m.ref===ov.ref_parent);
@@ -2449,7 +2492,7 @@ const MODELES_LEGENDE={
 };
 function remplirLegende(cle){
   const t=MODELES_LEGENDE[cle]?.[1]; if(!t) return;
-  const bs=[...document.getElementById('po-bij').selectedOptions].map(o=>getBij(o.value)).filter(Boolean);
+  const bs=lireChoixCreations('po-bij').map(getBij).filter(Boolean);
   const noms=bs.map(b=>b.nom+(b.variante?' '+b.variante:'')).join(', ')||'ma dernière création';
   const prix=bs.length===1&&bs[0].pv?'\n'+String(bs[0].pv).replace('.',',')+' €':'';
   const moment=(momentsAVenir()[0]?.t||'La fête').replace(/^\S+\s/,'');
@@ -2517,7 +2560,7 @@ function formCampagne(c){
     <div class="fg"><label>Nom</label><input id="ca-nom" value="${(c.nom||'').replace(/"/g,'&quot;')}" placeholder="ex. Noël 2026"></div>
     <div class="r3"><div class="fg"><label>Début</label><input id="ca-debut" type="date" value="${debut}"></div><div class="fg"><label>Fin</label><input id="ca-fin" type="date" value="${fin}"></div>
       <div class="fg"><label>Objectif de ventes</label><input id="ca-obj" type="number" min="0" value="${c.objectif||''}" placeholder="pièces"></div></div>
-    <div class="fg"><label>Créations mises en avant</label><select id="ca-bij" multiple size="6" style="height:auto">${crea.map(b=>`<option value="${b.id}" ${(c.bij_ids||[]).includes(b.id)?'selected':''}>${b.nom}${b.variante?' · '+b.variante:''}</option>`).join('')}</select></div>
+    <div class="fg"><label>Créations mises en avant</label>${choixCreations('ca-bij',c.bij_ids)}</div>
     <div class="fg"><label>Notes (code promo, livraison garantie, visuels…)</label><textarea id="ca-note" rows="2">${(c.note||'').replace(/</g,'&lt;')}</textarea></div>
     <div class="mfoot">${c.id?`<button class="btn btn-red" onclick="supprimerCampagne('${c.id}')">Supprimer</button>`:''}<span style="flex:1"></span>
       <button class="btn btn-ghost" onclick="closeModal('m-camp')">Annuler</button><button class="btn btn-p" onclick="enregistrerCampagne('${c.id||''}')">Enregistrer</button></div></div>`;
@@ -2526,13 +2569,62 @@ function formCampagne(c){
 async function enregistrerCampagne(id){
   const v=k=>document.getElementById('ca-'+k).value;
   const c={id:id||uid(), nom:v('nom').trim()||'Campagne', debut:v('debut'), fin:v('fin'), objectif:+v('obj')||0, note:v('note').trim(),
-    bij_ids:[...document.getElementById('ca-bij').selectedOptions].map(o=>o.value)};
+    bij_ids:lireChoixCreations('ca-bij')};
   const l=[...(RES_REG.campagnes||[])], i=l.findIndex(x=>x.id===c.id); if(i>=0) l[i]=c; else l.push(c);
   RES_REG.campagnes=l; await sauverRegRes(); closeModal('m-camp'); renderCampagnes(); toast('Campagne enregistrée ✓','ok');
 }
 async function supprimerCampagne(id){ if(!confirm('Supprimer cette campagne ? (ses posts restent)')) return; RES_REG.campagnes=RES_REG.campagnes.filter(c=>c.id!==id); await sauverRegRes(); closeModal('m-camp'); renderCampagnes(); }
 // ═══ 🎵 TikTok : import de tes vidéos (fonction « tiktok ») et analyse de ce qui marche ═══
-let TIKTOK=null, TIKTOK_HIST={}, TIKTOK_RELIE=false;
+let TIKTOK=null, TIKTOK_HIST={}, TIKTOK_RELIE=false, TIKTOK_MANUEL=[];
+// Vidéos analysées : celles importées par la connexion TikTok + celles notées à la main (sans doublon de lien)
+function videosTikTok(){
+  const api=TIKTOK?.videos||[];
+  return [...api, ...TIKTOK_MANUEL.filter(m=>!api.some(v=>v.lien&&normLienTT(v.lien)===normLienTT(m.lien)))];
+}
+const normLienTT = u => { const m=String(u||'').match(/video\/(\d+)/); return m?m[1]:String(u||'').split('?')[0]; };
+// Saisie à la main (sans compte développeur) : lien de la vidéo + chiffres lus dans TikTok
+function formVideoTT(id){
+  const v=TIKTOK_MANUEL.find(x=>x.id===id)||{};
+  let ov=document.getElementById('m-tt');
+  if(!ov){ ov=document.createElement('div'); ov.id='m-tt'; ov.className='overlay'; ov.onclick=e=>bgClose(e,ov); document.body.appendChild(ov); }
+  const dt=v.date?new Date(v.date):new Date(); const loc=new Date(dt.getTime()-dt.getTimezoneOffset()*60000).toISOString().slice(0,16);
+  ov.innerHTML=`<div class="modal"><div class="drag"></div><div class="modal-title">${v.id?'Modifier la vidéo':'Ajouter une vidéo TikTok'}</div>
+    <div class="info-box">Colle le lien de la vidéo (bouton Partager › Copier le lien), puis recopie les chiffres affichés dans TikTok (Statistiques de la vidéo). Mets-les à jour de temps en temps.</div>
+    <div class="fg"><label>Lien de la vidéo</label><input id="tt-lien" value="${(v.lien||'').replace(/"/g,'&quot;')}" placeholder="https://www.tiktok.com/@…/video/…" onchange="infosLienTT(this.value)"></div>
+    <div class="fg"><label>Titre / description (avec les hashtags)</label><textarea id="tt-titre" rows="2">${(v.titre||'').replace(/</g,'&lt;')}</textarea></div>
+    <div id="tt-apercu" style="margin:-4px 0 8px">${v.couverture?`<img src="${v.couverture}" alt="" style="height:90px;border-radius:8px">`:''}</div>
+    <div class="r2"><div class="fg"><label>Publiée le</label><input id="tt-date" type="datetime-local" value="${loc}"></div>
+      <div class="fg"><label>Durée (secondes)</label><input id="tt-duree" type="number" min="0" value="${v.duree||''}"></div></div>
+    <div class="r2"><div class="fg"><label>Vues</label><input id="tt-vues" type="number" min="0" value="${v.vues||''}"></div>
+      <div class="fg"><label>J'aime</label><input id="tt-likes" type="number" min="0" value="${v.likes||''}"></div></div>
+    <div class="r2"><div class="fg"><label>Commentaires</label><input id="tt-comm" type="number" min="0" value="${v.commentaires||''}"></div>
+      <div class="fg"><label>Partages</label><input id="tt-part" type="number" min="0" value="${v.partages||''}"></div></div>
+    <div class="mfoot">${v.id?`<button class="btn btn-red" onclick="supprimerVideoTT('${v.id}')">Supprimer</button>`:''}<span style="flex:1"></span>
+      <button class="btn btn-ghost" onclick="closeModal('m-tt')">Annuler</button><button class="btn btn-p" onclick="enregistrerVideoTT('${v.id||''}')">Enregistrer</button></div></div>`;
+  ov.dataset.couverture=v.couverture||'';
+  openModal('m-tt');
+}
+// Titre et miniature d'après le lien public (service oEmbed de TikTok), si le navigateur l'autorise
+async function infosLienTT(url){
+  if(!/tiktok\.com/.test(url)) return;
+  try { const r=await fetch('https://www.tiktok.com/oembed?url='+encodeURIComponent(url)); if(!r.ok) return; const d=await r.json();
+    const t=document.getElementById('tt-titre'); if(t&&!t.value&&d.title) t.value=d.title;
+    if(d.thumbnail_url){ document.getElementById('m-tt').dataset.couverture=d.thumbnail_url; document.getElementById('tt-apercu').innerHTML=`<img src="${d.thumbnail_url}" alt="" style="height:90px;border-radius:8px">`; }
+  } catch(e) { /* pas grave : on garde la saisie à la main */ }
+}
+async function enregistrerVideoTT(id){
+  const g=k=>document.getElementById('tt-'+k).value;
+  const v={ id:id||uid(), source:'manuel', lien:g('lien').trim(), titre:g('titre').trim(), date:g('date')?new Date(g('date')).toISOString():new Date().toISOString(),
+    duree:+g('duree')||0, vues:+g('vues')||0, likes:+g('likes')||0, commentaires:+g('comm')||0, partages:+g('part')||0,
+    couverture:document.getElementById('m-tt').dataset.couverture||'' };
+  if(!v.lien&&!v.titre) return toast('Mets au moins le lien ou le titre','err');
+  const i=TIKTOK_MANUEL.findIndex(x=>x.id===v.id); if(i>=0) TIKTOK_MANUEL[i]=v; else TIKTOK_MANUEL.push(v);
+  await sbUpsertConfig('tiktok_manuel', TIKTOK_MANUEL);
+  // le post du suivi relié à cette vidéo reprend ses chiffres
+  const p=POSTS.find(x=>v.lien&&normLienTT(x.lien)===normLienTT(v.lien)); if(p){ Object.assign(p,{vues:v.vues,likes:v.likes,statut:'publie'}); await sauverPosts(); }
+  closeModal('m-tt'); renderTikTok(); toast('Vidéo enregistrée ✓','ok');
+}
+async function supprimerVideoTT(id){ if(!confirm('Retirer cette vidéo de l\'analyse ?')) return; TIKTOK_MANUEL=TIKTOK_MANUEL.filter(x=>x.id!==id); await sbUpsertConfig('tiktok_manuel', TIKTOK_MANUEL); closeModal('m-tt'); renderTikTok(); }
 async function appelTikTok(action){
   const { data, error } = await SB.functions.invoke('tiktok', { body: { action } });
   if (error) { let m=error.message; try{ const c=await error.context?.json?.(); if(c?.erreur) m=c.erreur; }catch(e){} throw new Error(m); }
@@ -2540,9 +2632,21 @@ async function appelTikTok(action){
   return data;
 }
 async function connecterTikTok(){ try{ const r=await appelTikTok('lien'); location.href=r.url; }catch(e){ toast('TikTok : '+e.message,'err'); } }
+// Compte relié : les chiffres se mettent à jour seuls (chaque matin côté Supabase, et à l'ouverture de l'app s'ils datent de plus de 6 h)
+async function autoTikTok(){
+  if(!TIKTOK_RELIE) return;
+  const age=TIKTOK?.maj?Date.now()-new Date(TIKTOK.maj).getTime():Infinity;
+  try{
+    if(age>6*3600e3){ TIKTOK=await appelTikTok('synchroniser'); }
+    await majPostsDepuisTikTok();
+    if(document.getElementById('res-tiktok')?.offsetParent) renderTikTok();
+  }catch(e){ console.warn('TikTok auto :',e.message); }
+}
 async function synchroTikTok(){
   toast('Import des vidéos TikTok…');
-  try{ TIKTOK=await appelTikTok('synchroniser'); TIKTOK_RELIE=true; majPostsDepuisTikTok(); renderTikTok(); toast(`${TIKTOK.videos.length} vidéo(s) importée(s) ✓`,'ok'); }
+  try{ TIKTOK=await appelTikTok('synchroniser'); TIKTOK_RELIE=true; majPostsDepuisTikTok(); renderTikTok();
+    if(TIKTOK.erreur_videos) toast('Profil relié, mais TikTok refuse la lecture des vidéos : voir le message en haut','err');
+    else toast(`${(TIKTOK.videos||[]).length} vidéo(s) importée(s) ✓`,'ok'); }
   catch(e){ toast('TikTok : '+e.message,'err'); }
 }
 const engagement = v => v.vues ? (v.likes+v.commentaires+v.partages)/v.vues : 0;
@@ -2557,7 +2661,7 @@ async function majPostsDepuisTikTok(){
   return n0;
 }
 async function importerDansSuivi(){
-  const nouvelles=(TIKTOK?.videos||[]).filter(v=>!POSTS.some(p=>p.tiktok_id===v.id||(v.lien&&p.lien===v.lien)));
+  const nouvelles=videosTikTok().filter(v=>!POSTS.some(p=>p.tiktok_id===v.id||(v.lien&&p.lien===v.lien)));
   nouvelles.forEach(v=>POSTS.push({id:uid(),tiktok_id:v.id,titre:(v.titre||v.description||'Vidéo TikTok').slice(0,120),reseau:'tiktok',format:'reel',statut:'publie',
     date:(v.date||'').slice(0,10),lien:v.lien,bij_ids:BIJS.filter(b=>!b.is_mat&&!b.parent_id&&String(v.description+' '+v.titre).toLowerCase().includes(String(b.nom).toLowerCase())).map(b=>b.id),
     vues:v.vues,likes:v.likes,ventes:0,note:v.description||''}));
@@ -2569,15 +2673,20 @@ function barres(lignes, fmt=x=>n(Math.round(x))){            // [libellé, valeu
 }
 function renderTikTok(){
   const el=document.getElementById('res-tiktok'); if(!el) return;
-  const vids=(TIKTOK?.videos||[]).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+  const vids=videosTikTok().slice().sort((a,b)=>String(a.date).localeCompare(String(b.date)));
   const entete=`<div class="card"><div class="card-bd" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
     ${TIKTOK?.profil?.avatar?`<img src="${TIKTOK.profil.avatar}" alt="" style="width:40px;height:40px;border-radius:50%">`:'<span style="font-size:28px">🎵</span>'}
-    <div><b>${TIKTOK?.profil?.nom||'TikTok'}</b><div class="dim" style="font-size:11px">${TIKTOK?.maj?'mis à jour le '+new Date(TIKTOK.maj).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'}):'jamais importé'}</div></div>
+    <div><b>${TIKTOK?.profil?.nom||'TikTok'}</b><div class="dim" style="font-size:11px">${TIKTOK?.maj?'mis à jour tout seul · dernier import le '+new Date(TIKTOK.maj).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'}):TIKTOK_MANUEL.length?TIKTOK_MANUEL.length+' vidéo(s) notée(s) à la main':'aucune vidéo pour l\'instant'}</div></div>
     <span style="flex:1"></span>
-    ${TIKTOK_RELIE?`<button class="btn btn-p" onclick="synchroTikTok()">↻ Mettre à jour</button>`:`<button class="btn btn-p" onclick="connecterTikTok()">🎵 Connecter mon compte TikTok</button>`}</div></div>`;
+    <button class="btn ${TIKTOK_RELIE?'btn-ghost':'btn-p'}" onclick="formVideoTT()" title="Noter une vidéo à la main : lien + chiffres">＋ Ajouter une vidéo</button>
+    ${TIKTOK_RELIE?`<button class="btn btn-p" onclick="synchroTikTok()">↻ Mettre à jour</button>`:`<button class="btn btn-ghost" onclick="connecterTikTok()" title="Import automatique : demande une app développeur TikTok (voir LISEZMOI)">🔗 Import automatique</button>`}</div></div>`;
+  const alerteTT=TIKTOK?.erreur_videos?`<div class="warn-box"><b>TikTok a relié ton profil mais refuse de lire tes vidéos</b> (${escA(TIKTOK.erreur_videos)}).<br>
+    Dans developers.tiktok.com › ta sandbox › <b>Scopes</b> : vérifie que <b>video.list</b> est présent, <b>Apply changes</b>, puis réautorise (TikTok redemande ton accord pour la nouvelle autorisation). En attendant, la saisie à la main fonctionne.
+    <div style="margin-top:6px"><button class="btn btn-xs btn-p" onclick="connecterTikTok()">🔗 Réautoriser TikTok</button></div></div>`:'';
   if(!vids.length){
-    el.innerHTML=entete+`<div class="card"><div class="card-bd"><p style="font-size:13px;line-height:1.6">${TIKTOK_RELIE?'Aucune vidéo pour l\'instant : publie ta première, puis « Mettre à jour ».':'Relie ton compte (lecture seule) pour importer tes vidéos et leurs statistiques : vues, j\'aime, commentaires, partages.'}</p>
-      <p class="dim" style="font-size:12px">Mise en place (une fois) : LISEZMOI, section « TikTok ». En attendant, tu peux noter tes vidéos à la main dans 📅 Posts.</p></div></div>`;
+    el.innerHTML=entete+alerteTT+`<div class="card"><div class="card-bd"><p style="font-size:13px;line-height:1.6"><b>Deux façons d'analyser tes vidéos :</b><br>
+      • <b>＋ Ajouter une vidéo</b> : tu colles son lien et tu recopies ses chiffres (vues, j'aime, commentaires, partages). Rien à installer, l'analyse marche tout de suite.<br>
+      • <b>🔗 Import automatique</b> : l'app lit toutes tes vidéos et leurs chiffres d'un clic ; demande une app développeur TikTok (voir LISEZMOI).</p></div></div>`;
     return;
   }
   const tot=k=>vids.reduce((t,v)=>t+v[k],0), vues=tot('vues'), moy=vues/vids.length;
@@ -2606,7 +2715,7 @@ function renderTikTok(){
   if(vids.length<10) conseils.push(`🌱 Avec ${vids.length} vidéo${vids.length>1?'s':''}, ces tendances sont encore fragiles : elles s'affinent à chaque nouvelle vidéo.`);
   const nonSuivies=vids.filter(v=>!POSTS.some(p=>p.tiktok_id===v.id||(v.lien&&p.lien===v.lien))).length;
   const progression=v=>{ const h=TIKTOK_HIST[v.id]||[]; if(h.length<2) return ''; const d=h[h.length-1][1]-h[h.length-2][1]; return d>0?`<span style="color:var(--green)">+${n(d)}</span>`:''; };
-  el.innerHTML=entete+`
+  el.innerHTML=entete+alerteTT+`
   <div class="stats" style="grid-template-columns:repeat(4,1fr)">
     <div class="stat pur"><div class="v">${vids.length}</div><div class="l">vidéos</div></div>
     <div class="stat"><div class="v">${n(vues)}</div><div class="l">vues au total</div></div>
@@ -2619,6 +2728,9 @@ function renderTikTok(){
       ${v.couverture?`<img src="${v.couverture}" alt="" loading="lazy">`:'<div class="tt-sans">🎵</div>'}
       <b>${(v.titre||v.description||'Sans titre').replace(/</g,'&lt;').slice(0,60)}</b>
       <span>👁 ${n(v.vues)} ${progression(v)} · ♥ ${n(v.likes)} · 💬 ${n(v.commentaires)} · ↗ ${n(v.partages)}</span><span class="dim">engagement ${pct(engagement(v))}</span></a>`).join('')}</div></div>
+  ${TIKTOK_MANUEL.length?`<div class="card"><div class="card-hd"><h2>✍️ Vidéos notées à la main</h2></div><div class="card-bd">${TIKTOK_MANUEL.slice().sort((a,b)=>String(b.date).localeCompare(String(a.date))).map(v=>`<div class="post-l" onclick="formVideoTT('${v.id}')">
+      <span class="post-date">${new Date(v.date).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})}</span><div style="flex:1;min-width:0"><b>${(v.titre||v.lien||'').replace(/</g,'&lt;').slice(0,70)}</b></div>
+      <span class="post-stats">👁 ${n(v.vues)} ♥ ${n(v.likes)}</span><span class="btn btn-xs btn-ghost">✎ chiffres</span></div>`).join('')}</div></div>`:''}
   <div class="card"><div class="card-hd"><h2>📈 Vues de chaque vidéo</h2></div><div class="card-bd">${barres(vids.map(v=>[new Date(v.date).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})+' · '+(v.titre||v.description||'').replace(/</g,'&lt;').slice(0,28),v.vues,pct(engagement(v))]))}</div></div>
   <div class="tt-grille">
     <div class="card"><div class="card-hd"><h2>📅 Par jour de publication</h2></div><div class="card-bd">${barres(lJours)}<div class="dim" style="font-size:10px">vues moyennes (nombre de vidéos)</div></div></div>
@@ -2741,6 +2853,17 @@ function renderPosts(){
     ${topPub?`<div class="home-bravo">🏆 Ton post le plus vu : <b>${(topPub.titre||'').replace(/</g,'&lt;')}</b> (${RESEAUX[topPub.reseau]||''}, ${FORMATS_POST[topPub.format]||''}) — refais ce format !</div>`:''}
     ${['prevu','idee','publie'].map(st=>{ const l=groupe(st); return `<div class="card"><div class="card-hd"><h2>${STATUTS_POST[st]} · ${l.length}</h2></div><div class="card-bd" style="padding:4px 10px">${l.length?l.map(ligne).join(''):'<div class="dim" style="padding:10px;font-size:12px">Rien pour l\'instant.</div>'}</div></div>`; }).join('')}`;
 }
+// Choix de créations à toucher (téléphone compris) : chaque modèle puis ses couleurs, avec recherche
+function choixCreations(id, choisis=[]){
+  const sel=new Set(choisis||[]), racines=BIJS.filter(b=>!b.is_mat&&(!b.parent_id||!getBij(b.parent_id))).sort((a,b)=>String(a.nom).localeCompare(String(b.nom),'fr')||String(a.variante||'').localeCompare(String(b.variante||''),'fr'));
+  const puce=(b,txt,cl='')=>`<button type="button" class="cc-p ${cl} ${sel.has(b.id)?'on':''}" data-id="${b.id}" data-q="${escA(cleNom(b.nom+' '+(b.variante||'')))}" onclick="this.classList.toggle('on')">${escA(txt)}</button>`;
+  return `<div class="cc" id="${id}"><input type="search" placeholder="🔍 Chercher une création" oninput="filtrerChoixCreations('${id}',this.value)">
+    <div class="cc-liste">${racines.map(r=>{ const v=BIJS.filter(b=>b.parent_id===r.id).sort((a,b)=>String(a.variante||'').localeCompare(String(b.variante||''),'fr'));
+      return `<div class="cc-g">${puce(r,r.nom+(r.variante?' · '+r.variante:''),'cc-m')}${v.map(x=>puce(x,x.variante||x.ref)).join('')}</div>`; }).join('')}</div></div>`;
+}
+const lireChoixCreations = id => [...document.querySelectorAll(`#${id} .cc-p.on`)].map(x=>x.dataset.id);
+function filtrerChoixCreations(id,q){ const k=cleNom(q);
+  document.querySelectorAll(`#${id} .cc-g`).forEach(g=>{ g.style.display=!k||[...g.querySelectorAll('.cc-p')].some(x=>x.dataset.q.includes(k))?'':'none'; }); }
 function formPost(p){
   let ov=document.getElementById('m-post');
   if(!ov){ ov=document.createElement('div'); ov.id='m-post'; ov.className='overlay'; ov.onclick=e=>bgClose(e,ov); document.body.appendChild(ov); }
@@ -2755,8 +2878,7 @@ function formPost(p){
     </div>
     <div class="r2"><div class="fg"><label>Date (prévue ou publiée)</label><input id="po-date" type="date" value="${p.date||today()}"></div>
       <div class="fg"><label>Lien du post</label><input id="po-lien" type="url" value="${p.lien||''}" placeholder="https://…"></div></div>
-    <div class="fg"><label>Créations montrées</label><select id="po-bij" multiple size="5" style="height:auto">${crea.map(b=>`<option value="${b.id}" ${(p.bij_ids||[]).includes(b.id)?'selected':''}>${b.nom}${b.variante?' · '+b.variante:''}</option>`).join('')}</select>
-      <div class="dim" style="font-size:10px;margin-top:3px">Ctrl/Cmd + clic pour en choisir plusieurs</div></div>
+    <div class="fg"><label>Créations montrées</label>${choixCreations('po-bij',p.bij_ids)}</div>
     <div class="r3"><div class="fg"><label>Vues</label><input id="po-vues" type="number" min="0" value="${p.vues||''}"></div>
       <div class="fg"><label>J'aime</label><input id="po-likes" type="number" min="0" value="${p.likes||''}"></div>
       <div class="fg"><label>Ventes liées</label><input id="po-ventes" type="number" min="0" value="${p.ventes||''}"></div></div>
@@ -2778,7 +2900,7 @@ const ouvrirPost = id => formPost(POSTS.find(p=>p.id===id)||{});
 async function enregistrerPost(id){
   const v=k=>document.getElementById('po-'+k).value;
   const p={ id:id||uid(), titre:v('titre').trim(), reseau:v('reseau'), format:v('format'), statut:v('statut'), date:v('date'), lien:v('lien').trim(),
-    bij_ids:[...document.getElementById('po-bij').selectedOptions].map(o=>o.value), vues:+v('vues')||0, likes:+v('likes')||0, ventes:+v('ventes')||0, note:v('note').trim(),
+    bij_ids:lireChoixCreations('po-bij'), vues:+v('vues')||0, likes:+v('likes')||0, ventes:+v('ventes')||0, note:v('note').trim(),
     campagne:document.getElementById('po-camp')?.value||'' };
   const i=POSTS.findIndex(x=>x.id===p.id); if(i>=0) POSTS[i]=p; else POSTS.push(p);
   await sauverPosts(); closeModal('m-post'); renderPosts(); renderIdees(); renderAccueil();
@@ -2822,6 +2944,8 @@ function renderAccueil() {
   const avendre=PRODS.filter(p=>(!p.statut||p.statut==='produit')&&!Object.keys(lireMiseEnVente(p).lieux).length);
   const bas=stocksBas(), brouillons=BIJS.filter(isDraft), incompl=MATS.filter(m=>champsManquants(m).length), enG=lignesPerlesEnGrammes();
   const idees1=ideesPosts().filter(x=>x.prio===1), postAuj=POSTS.filter(p=>p.statut==='prevu'&&p.date<=today());
+  const sansPhoto=BIJS.filter(b=>b.parent_id&&!b.photo&&!b.is_mat&&!b.no_sell);
+  const sauvAFaire=joursDepuisSauv()===null?BIJS.length>0:joursDepuisSauv()>30;
   const missions=[
     {ic:'✨',t:'Sur mesure à fabriquer',nb:perso.length,ids:perso.map(p=>p.id),c:'violet',go:"goTabNom('bij');switchCreatTab('prod')",
       det:perso.slice(0,3).map(p=>{ const b=getBij(p.bij_id); return `<div class="mis-l"><span>${escPerso(p.perso)} · ${b?b.nom:''}</span><button class="btn btn-xs btn-p" onclick="event.stopPropagation();marquerPersoProduite('${p.id}')">✓ Produite</button></div>`; }).join('')},
@@ -2833,6 +2957,9 @@ function renderAccueil() {
     {ic:'📝',t:'Créations en brouillon',nb:brouillons.length,ids:brouillons.map(b=>b.id),c:'lilas',go:"goTabNom('bij');switchCreatTab('bij');document.getElementById('flt-status').value='draft';renderBij()"},
     {ic:'🧩',t:'Références à compléter',nb:incompl.length,ids:incompl.map(m=>m.id),c:'lilas',go:"goTabNom('mat');switchGTab('mat');if(!MAT_A_COMPLETER)toggleACompleter()"},
     {ic:'🔎',t:'Fiches à vérifier (perles en g)',nb:enG.length,ids:enG.map(x=>x.b.id+':'+x.i),c:'rose',go:"goTabNom('mat');switchGTab('stock')"},
+    {ic:'📷',t:'Couleurs sans photo',nb:sansPhoto.length,ids:sansPhoto.map(b=>b.id),c:'creme',go:"goTabNom('bij');switchCreatTab('bij')",
+      det:sansPhoto.slice(0,3).map(b=>`<div class="mis-l"><span>${escA(b.nom)} · ${escA(b.variante||'')}</span><button class="btn btn-xs btn-p" onclick="event.stopPropagation();photoRapide('${b.id}')">📷</button></div>`).join('')},
+    {ic:'💾',t:'Sauvegarde à faire',nb:sauvAFaire?1:0,ids:sauvAFaire?['sauv-'+(DERNIERE_SAUV||'jamais')]:[],c:'lilas',go:"goTabNom('cfg');switchCfgTab('sauvegarde')"},
   ];
   const aFaire=missions.reduce((t,m)=>t+m.nb,0);
   // « nouveau » : ce qui n'était pas là à ta dernière visite de l'Accueil (mémorisé sur cet appareil)
@@ -2962,13 +3089,6 @@ async function saveSettings() {
   await loadAll();
 }
 
-function exportJSON() {
-  const data={materiaux:MATS,bijoux:BIJS,ventes:VENTES,productions:PRODS,reappros:REAPPROS,main_cats:MAIN_CATS,fournisseurs:FOURNISSEURS,exported:today()};
-  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-  a.download=`atelier-${today()}.json`; a.click();
-  toast('Export téléchargé ✓','ok');
-}
 
 // ═══════════════════════════════════════════════════════
 // MATÉRIAUX
@@ -4414,6 +4534,7 @@ function renderBij() {
             </div>
           </div>
           <div style="display:flex;gap:4px;flex-wrap:wrap">
+            ${b.is_mat?'':`<button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();photoRapide('${b.id}')" title="${b.photo?'Changer la photo':'Ajouter une photo'}${b.parent_id?' de cette couleur':''}">${b.photo?'🖼':'📷'}</button>`}
             <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();openBijModal('${b.id}')" title="Modifier la fiche">✎</button>
             <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();quickProd('${b.id}')" title="Enregistrer une production">🏭</button>
             <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();dupBij('${b.id}')" title="Dupliquer">⎘</button>
@@ -4423,6 +4544,10 @@ function renderBij() {
         ${ouvert?`<div class="bij-corps">${b.photo||b.description?`<div class="bij-vitrine">${b.photo?`<img src="${b.photo}" alt="">`:''}${b.description?`<p>${b.description.replace(/</g,'&lt;')}</p>`:''}</div>`:''}${corpsBij(b)}
           <div class="bij-actions">
             ${b.parent_id?'':`<button class="btn btn-xs btn-ghost" onclick="event.stopPropagation();openVarianteModal('${b.id}')" title="Même bijou, autres couleurs : coche seulement les perles à changer">🎨 Variante de couleur</button>`}
+            ${b.parent_id||b.is_mat?'':`<button class="btn btn-xs btn-ghost" onclick="event.stopPropagation();ouvrirDeclinaison('${b.id}')" title="Créer les couleurs d'un modèle d'un coup (ex. écru, camel ; sardine, anchois), et ses autres modèles">🧩 Décliner</button>
+              <button class="btn btn-xs btn-ghost" onclick="event.stopPropagation();ouvrirRattachement('${b.id}')" title="Faire de cette création une variante d'une autre (même produit)">🔗 Rattacher à…</button>`}
+            ${b.parent_id?`<button class="btn btn-xs btn-ghost" onclick="event.stopPropagation();openVarianteModal('${b.parent_id}','${b.id}')" title="Choisir les références qui changent pour cette couleur">🎨 Couleurs</button>
+              <button class="btn btn-xs btn-ghost" onclick="event.stopPropagation();detacherVariante('${b.id}')" title="En faire une création indépendante">↩ Détacher</button>`:''}
             ${b.no_sell||b.is_mat?'':`<button class="btn btn-xs btn-ghost" onclick="event.stopPropagation();ficheBoutique('${b.id}')">🛒 Fiche boutique</button>`}
           </div></div>`:''}
         ${vars.length?`<div class="bij-vars-tete" onclick="toggleVarsBij('${b.id}')">${varOuv?'▾':'▸'} 🎨 ${vars.length} variante${vars.length>1?'s':''} <span class="dim">${vars.map(v=>v.variante||v.ref).slice(0,6).join(' · ')}${vars.length>6?'…':''}</span></div>
@@ -5401,6 +5526,16 @@ function loadMatImgFromUrl(url) {
 }
 
 // Envoi d'une photo dans l'espace « materiaux-images » (session connectée), sous un dossier donné
+// Photo d'une création ou d'une couleur, sans ouvrir la fiche (appareil photo ou galerie sur téléphone)
+function photoRapide(id){
+  const b=getBij(id); if(!b) return;
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*';
+  inp.onchange=async()=>{ const f=inp.files[0]; if(!f) return; toast('Envoi de la photo…');
+    const url=await envoyerPhoto(f,'bijoux/'+(b.ref||b.id)); if(!url) return;
+    if(await sbUpdate('bijoux',id,{photo:url})){ b.photo=url; renderBij(); if(document.getElementById('p-home')?.classList.contains('on')) renderAccueil(); toast('Photo enregistrée ✓','ok'); }
+    else toast('Lance sql-ameliorations-app.sql dans Supabase','err'); };
+  inp.click();
+}
 async function envoyerPhoto(file, dossier) {
   const ext=(file.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'')||'jpg';
   const path=`${String(dossier).replace(/[^A-Za-z0-9_\/-]/g,'')}/${Date.now()}.${ext}`;
@@ -5601,16 +5736,245 @@ async function delAjust(id) {
 }
 
 // ═══════════════════════════════════════════════════════
+// PRODUITS ET VARIANTES : un produit = une création de base + ses variantes (même nom)
+// Une variante regroupée garde sa composition complète (marque compo_complete dans variante_overrides).
+// Variante à deux choix : « Modèle / Couleur » (ex. « 6 couleurs recto / Écru »).
+// ═══════════════════════════════════════════════════════
+const cleNom = s => String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+const majuscule = s => s ? s.charAt(0).toUpperCase()+s.slice(1) : s;
+const COMPO_PROPRE = [{compo_complete:true}];
+function aCompoPropre(b){ return (b.variante_overrides||[]).some(o=>o&&o.compo_complete); }
+const membresGroupe = rootId => BIJS.filter(b=>b.id===rootId||b.parent_id===rootId)
+  .sort((a,b)=>(a.id===rootId?-1:b.id===rootId?1:0)||String(a.variante||'').localeCompare(String(b.variante||''),'fr',{numeric:true}));
+const escA = t => String(t||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+function modalVolante(id, html){
+  let ov=document.getElementById(id);
+  if(!ov){ ov=document.createElement('div'); ov.id=id; ov.className='overlay'; ov.onclick=e=>bgClose(e,ov); document.body.appendChild(ov); }
+  ov.innerHTML=`<div class="modal"><div class="drag"></div>${html}</div>`; openModal(id); return ov;
+}
+// Variante de couleur = même modèle, seules certaines références changent (mêmes quantités).
+// Renvoie les remplacements [{ref_parent, ref_variante, qty, sc}] de la base vers la fiche, ou null si c'est un autre modèle
+// (ligne en plus ou en moins, quantité différente pour une même référence).
+function diffCouleur(base, fiche){
+  const B=getMatsEffectifs(base).map(m=>({...m})), M=getMatsEffectifs(fiche).map(m=>({...m}));
+  const scDe=m=>getMat(m.ref)?.sc||m.sc||'', u=m=>m.qty_unite||'native';
+  for(let i=B.length-1;i>=0;i--){ const j=M.findIndex(m=>m.ref===B[i].ref&&+m.qty===+B[i].qty&&u(m)===u(B[i])); if(j>=0){ B.splice(i,1); M.splice(j,1); } }
+  const ov=[];
+  for(const b of B){
+    const j=M.findIndex(m=>m.ref!==b.ref&&!B.some(x=>x.ref===m.ref)&&scDe(m)===scDe(b)&&u(m)===u(b));
+    if(j<0) return null;
+    const m=M.splice(j,1)[0]; ov.push({ref_parent:b.ref, ref_variante:m.ref, qty:+m.qty===+b.qty?null:(+m.qty||null), sc:scDe(m)});
+  }
+  return M.length?null:ov;
+}
+// Propositions : fiches du même nom (ou nom + un mot) dont la composition ne diffère que par des couleurs → variantes de couleur de la base.
+// Celles qui diffèrent autrement (quantités, lignes) sont d'autres modèles du même produit : elles restent des fiches de base.
+function propositionsRegroupement(){
+  const racines=BIJS.filter(b=>!b.parent_id&&!b.is_mat);
+  const g=new Map(); const ajouter=(k,x)=>{ if(!g.has(k)) g.set(k,[]); g.get(k).push(x); };
+  racines.forEach(b=>ajouter(cleNom(b.nom),{b,variante:b.variante||''}));
+  const cles=[...g.keys()].sort((a,b)=>a.length-b.length);
+  for(const k of [...g.keys()]){
+    const l=g.get(k); if(!l) continue;
+    const base=cles.filter(p=>p!==k&&k.startsWith(p+' ')&&g.has(p)).pop(); if(!base) continue;
+    const motsBase=base.split(' ').length;
+    l.forEach(x=>ajouter(base,{b:x.b,variante:x.variante||majuscule(String(x.b.nom).trim().split(/\s+/).slice(motsBase).join(' '))}));
+    g.delete(k);
+  }
+  const props=[];
+  for(const [k,l] of g){
+    const score=b=>(cleNom(b.nom)===k?100:0)+BIJS.filter(x=>x.parent_id===b.id).length*10+(b.shopify_product_id?5:0);
+    l.sort((a,b)=>score(b.b)-score(a.b)||String(a.b.created_at||'').localeCompare(String(b.b.created_at||'')));
+    // chaque fiche rejoint le premier modèle dont elle n'est qu'une couleur ; sinon elle devient un modèle
+    const modeles=[];
+    for(const x of l){
+      const m=modeles.find(md=>diffCouleur(md.base.b,x.b)); 
+      if(m) m.couleurs.push(x); else modeles.push({base:x,couleurs:[]});
+    }
+    if(modeles.some(m=>m.couleurs.length)||(modeles.length>1&&l.some(x=>cleNom(x.b.nom)!==k))) props.push({nom:l[0].b.nom,cle:k,modeles});
+  }
+  // variantes déjà regroupées mais gardées en composition complète : on peut les ramener à « seules les couleurs changent »
+  const aSimplifier=BIJS.filter(b=>b.parent_id&&aCompoPropre(b)&&getBij(b.parent_id)&&diffCouleur(getBij(b.parent_id),b));
+  return {props:props.sort((a,b)=>String(a.nom).localeCompare(String(b.nom),'fr')), aSimplifier};
+}
+let PROPS_REGROUP={props:[],aSimplifier:[]};
+function ouvrirRegroupement(){
+  PROPS_REGROUP=propositionsRegroupement();
+  const {props,aSimplifier}=PROPS_REGROUP;
+  const ligneRef=m=>m?`<span class="dim" style="font-size:11px">${m.ref_parent} → <b>${m.ref_variante}</b></span>`:'';
+  const corps=props.map((p,i)=>`<div class="rg-groupe">
+      <label class="rg-tete"><input type="checkbox" class="rg-chk" data-i="${i}" checked> <b>${escA(p.nom)}</b> <span class="dim">→ 1 produit${p.modeles.length>1?', '+p.modeles.length+' modèles':''}</span></label>
+      ${p.modeles.map((md,mi)=>`<div class="rg-l"><span class="ref">${md.base.b.ref||''}</span><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📐 <b>modèle de base</b> <span class="dim">${escA(md.base.b.nom)}</span></span>
+          <input class="rg-var" data-i="${i}" data-id="${md.base.b.id}" value="${escA(md.base.variante||(p.modeles.length>1?md.base.b.ref:''))}" placeholder="${p.modeles.length>1?'Nom du modèle':'(facultatif)'}"></div>
+        ${md.couleurs.map(x=>`<div class="rg-l" style="margin-left:44px"><span class="ref">${x.b.ref||''}</span><span style="min-width:0">🎨 couleur ${diffCouleur(md.base.b,x.b).map(o=>ligneRef(o)).join(' ')||'<span class="dim">(même composition)</span>'}</span>
+          <input class="rg-var" data-i="${i}" data-id="${x.b.id}" data-base="${md.base.b.id}" value="${escA(x.variante||x.b.ref)}" placeholder="Nom de la couleur"></div>`).join('')}`).join('')}
+    </div>`).join('')
+    +(aSimplifier.length?`<div class="rg-groupe"><label class="rg-tete"><input type="checkbox" id="rg-simpl" checked> <b>Variantes à simplifier</b> <span class="dim">(seules les couleurs changent : elles suivront les quantités du modèle)</span></label>
+      ${aSimplifier.map(b=>`<div class="rg-l"><span class="ref">${b.ref||''}</span><span>${escA(b.nom)} · ${escA(b.variante||'')}</span><span>${diffCouleur(getBij(b.parent_id),b).map(ligneRef).join(' ')}</span></div>`).join('')}</div>`:'');
+  modalVolante('m-regroup',`<div class="modal-title">🧩 Regrouper en modèles et variantes de couleur</div>
+    <div class="info-box">Un <b>modèle de base</b> porte la composition et les quantités. Ses <b>variantes de couleur</b> reprennent ce modèle et ne changent que les références de couleur (ex. perles du dos du petit poisson pour Sardine et Anchois). Les fiches dont les quantités ou les lignes diffèrent sont d'<b>autres modèles</b> (ex. recto / recto verso) : elles restent des modèles, réunis sous le même produit dans la boutique. Productions, ventes et stock de chaque fiche sont gardés.</div>
+    ${corps||'<div class="info-box">Rien à regrouper : tout est déjà rangé. Pour faire d\'une création la couleur d\'une autre : déplie sa fiche › 🔗 Rattacher à…</div>'}
+    <div class="mfoot"><button class="btn btn-ghost" onclick="closeModal('m-regroup')">Fermer</button>${corps?'<button class="btn btn-p" onclick="appliquerRegroupements()">Appliquer</button>':''}</div>`);
+}
+async function appliquerRegroupements(){
+  let nb=0;
+  for(const c of document.querySelectorAll('#m-regroup .rg-chk:checked')){
+    const p=PROPS_REGROUP.props[+c.dataset.i]; if(!p) continue;
+    const champs=[...document.querySelectorAll(`#m-regroup .rg-var[data-i="${c.dataset.i}"]`)];
+    for(const md of p.modeles){
+      const nomBase=champs.find(x=>x.dataset.id===md.base.b.id)?.value.trim()||'';
+      const membres=[{id:md.base.b.id,variante:nomBase},...champs.filter(x=>x.dataset.base===md.base.b.id).map(x=>({id:x.dataset.id,variante:x.value.trim()}))];
+      // un modèle « nom + mot » reprend le nom du produit
+      if(cleNom(md.base.b.nom)!==p.cle){ const maj={nom:p.modeles[0].base.b.nom}; if(await sbUpdate('bijoux',md.base.b.id,maj)) Object.assign(md.base.b,maj); }
+      nb+=await regrouper(md.base.b.id, membres); if(md.couleurs.length) BIJ_VAR_OUVERTS.add(md.base.b.id);
+    }
+  }
+  if(document.getElementById('rg-simpl')?.checked)
+    for(const b of PROPS_REGROUP.aSimplifier){ const d=diffCouleur(getBij(b.parent_id),b); if(!d) continue;
+      const maj={mats:[],variante_overrides:d}; if(await sbUpdate('bijoux',b.id,maj)){ Object.assign(b,maj); nb++; } }
+  sauverMemo('bij_var_ouverts',BIJ_VAR_OUVERTS); closeModal('m-regroup'); renderBij(); toast(`${nb} fiche(s) rangée(s) ✓`,'ok');
+}
+// membres : [{id, variante}] — la base garde sa place ; les autres (et leurs propres variantes) deviennent ses variantes de couleur.
+// Si une fiche ne diffère pas que par les couleurs, elle garde sa composition complète.
+async function regrouper(parentId, membres){
+  const parent=getBij(parentId); if(!parent) return 0;
+  const plan=[];
+  for(const m of membres){
+    const b=getBij(m.id); if(!b) continue;
+    if(b.id===parentId){ if((m.variante||'')!==(b.variante||'')) plan.push({e:b,maj:{variante:m.variante}}); continue; }
+    for(const e of [b,...BIJS.filter(x=>x.parent_id===b.id)]){
+      const d=diffCouleur(parent,e);
+      const maj={parent_id:parentId, nom:parent.nom, collection:parent.collection, ...(d?{mats:[],variante_overrides:d}:{mats:JSON.parse(JSON.stringify(getMatsEffectifs(e))),variante_overrides:COMPO_PROPRE})};
+      if(e===b) maj.variante=m.variante||b.variante||b.ref;
+      plan.push({e,maj});
+    }
+  }
+  let nb=0;
+  for(const {e,maj} of plan) if(await sbUpdate('bijoux',e.id,maj)){ Object.assign(e,maj); nb++; }
+  return nb;
+}
+function ouvrirRattachement(id){
+  const b=getBij(id); if(!b) return;
+  const cibles=BIJS.filter(x=>!x.parent_id&&!x.is_mat&&x.id!==id).sort((a,c)=>String(a.nom).localeCompare(String(c.nom),'fr'));
+  modalVolante('m-ratt',`<div class="modal-title">🔗 ${escA(b.nom)}${b.variante?' · '+escA(b.variante):''} devient une couleur de…</div>
+    <div class="fg"><label>Modèle de base</label><select id="ratt-cible" onchange="apercuRattachement('${id}')">${cibles.map(x=>`<option value="${x.id}" ${cleNom(x.nom)===cleNom(b.nom)?'selected':''}>${escA(x.nom)}${x.variante?' · '+escA(x.variante):''} — ${x.ref||''}</option>`).join('')}</select></div>
+    <div class="fg"><label>Nom de la couleur</label><input id="ratt-var" value="${escA(b.variante||'')}" placeholder="ex. Sardine, Camel"></div>
+    <div id="ratt-apercu"></div>
+    <div class="mfoot"><button class="btn btn-ghost" onclick="closeModal('m-ratt')">Annuler</button><button class="btn btn-p" onclick="validerRattachement('${id}')">Rattacher</button></div>`);
+  apercuRattachement(id);
+}
+function apercuRattachement(id){
+  const d=diffCouleur(getBij(document.getElementById('ratt-cible').value),getBij(id)), el=document.getElementById('ratt-apercu');
+  el.innerHTML=d?`<div class="info-box">Seules les couleurs changent : ${d.map(o=>`${o.ref_parent} → <b>${o.ref_variante}</b>`).join(', ')||'même composition'}. Elle suivra les quantités du modèle.</div>`
+    :`<div class="warn-box">Sa composition diffère aussi par les quantités ou les lignes : c'est plutôt un autre modèle. Si tu la rattaches quand même, elle garde sa composition complète.</div>`;
+}
+async function validerRattachement(id){
+  const cible=document.getElementById('ratt-cible').value, v=document.getElementById('ratt-var').value.trim();
+  if(!cible) return; if(!v) return toast('Donne un nom à la couleur','err');
+  await regrouper(cible,[{id,variante:v}]); BIJ_VAR_OUVERTS.add(cible); sauverMemo('bij_var_ouverts',BIJ_VAR_OUVERTS);
+  closeModal('m-ratt'); renderBij(); toast('Variante rattachée ✓','ok');
+}
+async function detacherVariante(id){
+  const b=getBij(id); if(!b||!confirm(`Faire de « ${b.variante||b.ref} » une création indépendante ?`)) return;
+  const maj={parent_id:null, mats:JSON.parse(JSON.stringify(getMatsEffectifs(b))), variante_overrides:[]};
+  if(await sbUpdate('bijoux',id,maj)){ Object.assign(b,maj); renderBij(); toast('Variante détachée ✓','ok'); }
+}
+// ── Décliner : un modèle (ou plusieurs) × des couleurs. Chaque couleur = une variante qui ne remplace que les références choisies.
+const listeVirgules = id => [...new Set(document.getElementById(id).value.split(',').map(x=>x.trim()).filter(Boolean))];
+let DC_SEL={};
+function ouvrirDeclinaison(rootId){
+  const root=getBij(rootId); if(!root) return;
+  const memeNom=BIJS.filter(b=>!b.parent_id&&!b.is_mat&&cleNom(b.nom)===cleNom(root.nom));
+  const couleurs=[...new Set(memeNom.flatMap(r=>BIJS.filter(b=>b.parent_id===r.id).map(b=>b.variante).filter(Boolean)))];
+  DC_SEL={};
+  modalVolante('m-decl',`<div class="modal-title">🧩 Décliner — ${escA(root.nom)}</div>
+    <div class="info-box">Le <b>modèle</b> porte la composition et les quantités. Chaque <b>couleur</b> devient une variante qui reprend le modèle et ne change que les références cochées ci-dessous (la laine, les perles du dos…).</div>
+    <div class="fg"><label>Modèles (facultatif, si le produit existe en plusieurs modèles)</label><input id="dc-mod" value="${escA(memeNom.length>1?memeNom.map(r=>r.variante||r.ref).join(', '):(root.variante||''))}" placeholder="ex. 6 couleurs recto, 6 couleurs recto verso"></div>
+    <div class="fg"><label>Couleurs</label><input id="dc-coul" value="${escA(couleurs.join(', '))}" placeholder="ex. Écru, Camel — ou Sardine, Anchois" oninput="matriceDeclinaison('${rootId}')"></div>
+    <div id="dc-matrice"></div>
+    <label class="toggle-row" style="margin-top:8px"><input type="checkbox" id="dc-base" checked style="pointer-events:auto"> <span>Le modèle de base n'est pas vendu tel quel (on vend seulement ses couleurs)</span></label>
+    <div class="mfoot"><button class="btn btn-ghost" onclick="closeModal('m-decl')">Annuler</button><button class="btn btn-p" onclick="appliquerDeclinaison('${rootId}')">Créer / mettre à jour</button></div>`);
+  matriceDeclinaison(rootId);
+}
+function devinerRef(ligne, couleur){
+  const sc=getMat(ligne.ref)?.sc, k=cleNom(couleur);
+  return MATS.find(m=>m.sc===sc&&cleNom([m.variante,m.designation||m.des].join(' ')).split(' ').includes(k.split(' ')[0]))?.ref||'';
+}
+function matriceDeclinaison(rootId){
+  const root=getBij(rootId), el=document.getElementById('dc-matrice'); if(!el) return;
+  // garder ce qui a déjà été choisi
+  document.querySelectorAll('#dc-matrice .dc-ref').forEach(s=>{ (DC_SEL[s.dataset.i] ||= {})[s.dataset.c]=s.value; });
+  document.querySelectorAll('#dc-matrice .dc-chg').forEach(c=>{ (DC_SEL[c.dataset.i] ||= {}).__coche=c.checked; });
+  const couleurs=listeVirgules('dc-coul'), lignes=getMatsEffectifs(root);
+  const variantes=BIJS.filter(b=>b.parent_id===rootId);
+  if(!couleurs.length){ el.innerHTML=''; return; }
+  el.innerHTML=`<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin:8px 0 4px">Ce qui change avec la couleur</div>
+    <div style="overflow-x:auto"><table class="dc-tab"><tr><th></th><th>Ligne du modèle</th>${couleurs.map(c=>`<th>${escA(c)}</th>`).join('')}</tr>
+    ${lignes.map((l,i)=>{ const mat=getMat(l.ref), sel=DC_SEL[i]||{};
+      const choix=couleurs.map(c=>{ const k=cleNom(c), ex=variantes.find(v=>cleNom(v.variante)===k);
+        const exRef=(ex?.variante_overrides||[]).find(o=>o.ref_parent===l.ref)?.ref_variante;
+        return sel[k]??exRef??(devinerRef(l,c)||l.ref); });
+      const coche=sel.__coche??choix.some(r=>r!==l.ref);
+      const opts=MATS.filter(m=>m.sc===mat?.sc).sort((a,b)=>String(a.ref).localeCompare(String(b.ref)));
+      return `<tr><td><input type="checkbox" class="dc-chg" data-i="${i}" ${coche?'checked':''}></td><td><span class="ref">${l.ref}</span> ${escA(mat?((mat.designation||mat.des||'')+(mat.variante?' · '+mat.variante:'')):'')} <span class="dim">× ${l.qty??'?'}</span></td>
+        ${couleurs.map((c,j)=>`<td><select class="dc-ref" data-i="${i}" data-c="${cleNom(c)}">${opts.map(m=>`<option value="${m.ref}" ${m.ref===choix[j]?'selected':''}>${m.ref}${m.variante?' · '+escA(m.variante):''}</option>`).join('')}</select></td>`).join('')}</tr>`; }).join('')}
+    </table></div>`;
+}
+async function appliquerDeclinaison(rootId){
+  const root=getBij(rootId); if(!root) return;
+  const couleurs=listeVirgules('dc-coul'), modeles=listeVirgules('dc-mod'), baseNonVendue=document.getElementById('dc-base').checked;
+  const lignes=getMatsEffectifs(root);
+  const choix={}; document.querySelectorAll('#dc-matrice .dc-ref').forEach(s=>{ (choix[s.dataset.c] ||= {})[s.dataset.i]=s.value; });
+  const cochees=[...document.querySelectorAll('#dc-matrice .dc-chg:checked')].map(c=>+c.dataset.i);
+  let nvModeles=0, crees=0, majs=0;
+  // 1. les modèles (fiches de base du même nom)
+  let racines=[root];
+  if(modeles.length){
+    if(!root.variante&&await sbUpdate('bijoux',root.id,{variante:modeles[0]})) root.variante=modeles[0];
+    const memeNom=()=>BIJS.filter(b=>!b.parent_id&&!b.is_mat&&cleNom(b.nom)===cleNom(root.nom));
+    racines=[];
+    for(const m of modeles){
+      let r=memeNom().find(b=>cleNom(b.variante||b.ref)===cleNom(m));
+      if(!r){ r={id:uid(), collection:root.collection, nom:root.nom, variante:m, ref:autoRefBij(), pv:root.pv||null, draft:false, is_mat:false, no_sell:root.no_sell||false,
+          mats:JSON.parse(JSON.stringify(lignes)), created_at:new Date().toISOString()};
+        if(root.mode_vente!==undefined) r.mode_vente=root.mode_vente; if(root.description) r.description=root.description;
+        if(!(await sbInsert('bijoux',r))) continue; BIJS.push(r); nvModeles++; }
+      racines.push(r);
+    }
+  }
+  // 2. les couleurs de chaque modèle
+  for(const r of racines){
+    if(couleurs.length&&baseNonVendue&&!r.no_sell&&await sbUpdate('bijoux',r.id,{no_sell:true})) r.no_sell=true;
+    const refsModele=getMatsEffectifs(r).map(m=>m.ref);
+    for(const c of couleurs){
+      const k=cleNom(c);
+      const ov=cochees.map(i=>{ const l=lignes[i], ref=choix[k]?.[i]||l.ref; return ref!==l.ref&&refsModele.includes(l.ref)?{ref_parent:l.ref, ref_variante:ref, qty:null, sc:getMat(ref)?.sc||''}:null; }).filter(Boolean);
+      const ex=BIJS.find(b=>b.parent_id===r.id&&cleNom(b.variante)===k);
+      if(ex){ const maj={variante_overrides:ov, ...(aCompoPropre(ex)?{mats:[]}:{})}; if(await sbUpdate('bijoux',ex.id,maj)){ Object.assign(ex,maj); majs++; } continue; }
+      const obj={id:uid(), parent_id:r.id, collection:r.collection, nom:r.nom, variante:c, ref:autoRefBij(), pv:r.pv||null, draft:false, is_mat:false, no_sell:false,
+        mats:[], variante_overrides:ov, created_at:new Date().toISOString()};
+      if(r.mode_vente!==undefined) obj.mode_vente=r.mode_vente;
+      if(await sbInsert('bijoux',obj)){ BIJS.push(obj); crees++; }
+    }
+    BIJ_VAR_OUVERTS.add(r.id);
+  }
+  sauverMemo('bij_var_ouverts',BIJ_VAR_OUVERTS); closeModal('m-decl'); renderBij();
+  toast(`${nvModeles?nvModeles+' modèle(s) créé(s) — ajuste leurs quantités ; ':''}${crees} couleur(s) créée(s), ${majs} mise(s) à jour ✓`,'ok');
+}
+
+// ═══════════════════════════════════════════════════════
 // VARIANTES BIJOUX
 // ═══════════════════════════════════════════════════════
 let VARIANTE_PARENT_ID=null;
 
-function openVarianteModal(parentId) {
-  VARIANTE_PARENT_ID=parentId;
+let VARIANTE_EDIT_ID=null;
+function openVarianteModal(parentId, editId=null) {
+  VARIANTE_PARENT_ID=parentId; VARIANTE_EDIT_ID=editId;
   const parent=BIJS.find(b=>b.id===parentId); if(!parent) return;
+  const ed=editId?getBij(editId):null;
   // Pré-remplir le titre
   document.getElementById('var-modal-title').textContent=
-    '🎨 Nouvelle variante — '+parent.nom;
+    (ed?'🎨 Couleurs de « '+(ed.variante||ed.ref)+' » — ':'🎨 Nouvelle variante de couleur — ')+parent.nom+(parent.variante?' · '+parent.variante:'');
   // Afficher les matériaux du parent
   const matsHtml=(parent.mats||[]).map((m,i)=>{
     const mat=getMat(m.ref);
@@ -5637,9 +6001,19 @@ function openVarianteModal(parentId) {
   document.getElementById('var-mats-list').innerHTML=matsHtml||'<div class="dim">Aucun matériau dans le parent</div>';
   // Champs variante
   document.getElementById('var-nom').value=parent.nom;
-  document.getElementById('var-variante').value='';
-  document.getElementById('var-pv').value=parent.pv||'';
-  document.getElementById('var-ref').value='';
+  document.getElementById('var-variante').value=ed?.variante||'';
+  document.getElementById('var-pv').value=(ed?ed.pv:parent.pv)||'';
+  document.getElementById('var-ref').value=ed?.ref||'';
+  // variante existante : ses remplacements déjà cochés (une variante gardée en composition complète est ramenée à ses couleurs si possible)
+  const ovs=ed?(aCompoPropre(ed)?(diffCouleur(parent,ed)||[]):(ed.variante_overrides||[]).filter(o=>o&&o.ref_parent)):[];
+  ovs.forEach(o=>{
+    const chk=[...document.querySelectorAll('.var-override-chk')].find(c=>c.dataset.ref===o.ref_parent); if(!chk) return;
+    chk.checked=true; toggleVarOverride(chk);
+    const row=chk.closest('.var-mat-row'), m=getMat(o.ref_variante), scSel=row.querySelector('.var-new-sc');
+    if(m){ scSel.value=m.mc+'|||'+m.sc; filterVarRefs(scSel); row.querySelector('.var-new-ref').value=o.ref_variante; }
+    if(o.qty) row.querySelector('.var-new-qty').value=o.qty;
+  });
+  document.querySelector('#m-variante .btn-p').textContent=ed?'Enregistrer':'Créer la variante';
   openModal('m-variante');
 }
 
@@ -5679,6 +6053,12 @@ async function saveVariante() {
     const newSC=row.querySelector('.var-new-sc')?.value?.split('|||')[1]||'';
     if(newRef) overrides.push({ref_parent:refParent, ref_variante:newRef, qty:newQty, sc:newSC});
   });
+  if(VARIANTE_EDIT_ID){
+    const ed=getBij(VARIANTE_EDIT_ID); if(!ed) return;
+    const maj={nom, variante, pv, ref:ref||ed.ref, variante_overrides:overrides, ...(aCompoPropre(ed)?{mats:[]}:{})};
+    if(await sbUpdate('bijoux',ed.id,maj)){ Object.assign(ed,maj); closeModal('m-variante'); renderBij(); toast('Variante enregistrée ✓','ok'); }
+    return;
+  }
   const obj={
     id:uid(),
     parent_id:VARIANTE_PARENT_ID,
@@ -5687,7 +6067,7 @@ async function saveVariante() {
     ref:ref||autoRefBij(),
     pv, draft:false,
     is_mat:parent.is_mat||false,
-    no_sell:parent.no_sell||false,
+    no_sell:parent.is_mat?(parent.no_sell||false):false,   // modèle de base non vendu : ses couleurs, elles, se vendent
     mats:[], // mats additionnels spécifiques (pas les overrides)
     variante_overrides:overrides,
     created_at:new Date().toISOString()
@@ -5860,7 +6240,7 @@ async function createVariationAndProd(baseBijId, qty, date, statut) {
     nom:base.nom, variante,
     ref, pv, draft:false,
     is_mat:base.is_mat||false,
-    no_sell:base.no_sell||false,
+    no_sell:base.is_mat?(base.no_sell||false):false,
     mats:[],
     variante_overrides:overrides,
     created_at:new Date().toISOString()
@@ -6074,17 +6454,75 @@ async function renderBoutique(force){
       <b>🔨 À la commande</b> et <b>🎨 Sur mesure</b> : toujours achetables ; chaque commande crée une production « en cours » qui réserve les matériaux.
       Le stock part tout seul à chaque mise en vente, vente ou suppression.</div>
     <div class="card"><div class="card-hd"><h2>Créations · ${relies.length}/${crea.length} reliées</h2></div><div class="card-bd" style="padding:0 6px">
-    ${crea.map(b=>{ const v=vParId.get(b.shopify_variant_id), ok=aJour(b), m=modeVente(b);
+    ${produitsBoutique(crea).map(pr=>pr.fiches.length===1?ligneB(pr.fiches[0],b0=>b0.nom+(b0.variante?' · '+b0.variante:''),true):enteteGroupeB(pr)+pr.fiches.map(x=>ligneB(x,x0=>pr.o.valeurs(x0).join(' · '),false)).join('')+'</div>').join('')||'<div class="empty"><p>Aucune création à vendre.</p></div>'}</div></div>`;
+  function ligneB(b,titre,seule){ const v=vParId.get(b.shopify_variant_id), ok=aJour(b), m=modeVente(b);
       return `<div class="bt-l">
-        <div class="bt-nom">${b.photo?`<img src="${b.photo}" alt="">`:'<span class="bt-ph">💎</span>'}<div><b>${b.nom}${b.variante?' · '+b.variante:''}</b>
-          <div class="dim" style="font-size:11px">${b.ref||''} · ${b.pv?eur(b.pv):'sans prix'}</div></div></div>
+        <div class="bt-nom">${b.photo?`<img src="${b.photo}" alt="">`:'<span class="bt-ph">💎</span>'}<div><b>${escA(titre(b))}</b>
+          <div class="dim" style="font-size:11px">${b.ref||''} · ${(b.pv||racineDe(b).pv)?eur(b.pv||racineDe(b).pv):'sans prix'}</div></div></div>
         <select onchange="changerModeVente('${b.id}',this.value)" title="Comment cette création est vendue">${Object.entries(MODES_VENTE).map(([k,l])=>`<option value="${k}" ${k===m?'selected':''}>${l}</option>`).join('')}</select>
         <div class="bt-stock">${m==='stock'?`<b>${n(stockEnLigne(b))}</b> en ligne`:'<span class="dim">à la commande</span>'}
           ${v?`<div class="dim" style="font-size:10px">Shopify : ${m==='stock'?n(v.stock):'toujours achetable'} ${ok===true?'✓':ok===false?'<span style="color:var(--orange)">≠</span>':''}</div>`:''}</div>
         <div class="bt-lien">${b.shopify_variant_id&&!v?'<span class="badge br" title="Le produit relié n\'existe plus dans Shopify">produit introuvable</span>':''}
           <select onchange="lierShopify('${b.id}',this.value)"><option value="">— non reliée —</option>${(SHOPIFY.produits||[]).map(p=>`<optgroup label="${p.titre.replace(/"/g,'&quot;')}${p.statut!=='ACTIVE'?' ('+p.statut.toLowerCase()+')':''}">${p.variantes.map(x=>`<option value="${x.id}" ${x.id===b.shopify_variant_id?'selected':''}>${p.variantes.length>1?x.titre:p.titre}${x.sku?' · '+x.sku:''}</option>`).join('')}</optgroup>`).join('')}</select>
-          ${b.shopify_variant_id?'':`<button class="btn btn-xs btn-p" onclick="publierShopify('${b.id}')" title="Créer le produit dans Shopify (en brouillon) avec le nom, le prix, la description et la photo">＋ Créer dans Shopify</button>`}
-        </div></div>`; }).join('')||'<div class="empty"><p>Aucune création à vendre.</p></div>'}</div></div>`;
+          ${b.shopify_variant_id||!seule?'':`<button class="btn btn-xs btn-p" onclick="publierShopify('${b.id}')" title="Créer le produit dans Shopify (en brouillon) avec le nom, le prix, la description et la photo">＋ Créer dans Shopify</button>`}
+        </div></div>`; }
+  function enteteGroupeB(pr){
+    const g=pr.fiches, cle=pr.cle, pids=[...new Set(g.map(b=>b.shopify_product_id).filter(Boolean))], libres=g.filter(b=>!b.shopify_variant_id);
+    const prod=pids.length===1?(SHOPIFY.produits||[]).find(p=>p.id===pids[0]||String(p.id).endsWith('/'+pids[0])):null;
+    const action=!pids.length?`<button class="btn btn-xs btn-p" onclick="ouvrirPublicationGroupe('${cle}')">＋ Créer le produit avec ses ${g.length} variantes</button>`
+      :pids.length===1&&libres.length?`<button class="btn btn-xs btn-p" onclick="ouvrirPublicationGroupe('${cle}','${pids[0]}')">＋ Ajouter ${libres.length} variante(s) au produit</button>`
+      :pids.length===1?`<span class="badge bgn">✓ un produit${prod?' : '+escA(prod.titre):''}</span>`
+      :`<span class="badge br" title="Les variantes sont reliées à des produits Shopify différents">${pids.length} produits Shopify différents</span><button class="btn btn-xs btn-p" onclick="ouvrirPublicationGroupe('${cle}',null,true)">Regrouper en un seul produit</button>`;
+    return `<div class="bt-groupe"><div class="bt-ghd">📦 <b>${escA(pr.nom)}</b> <span class="dim">${g.length} variantes · ${pr.o.noms.join(' × ')}</span><span style="flex:1"></span>${action}</div>`;
+  }
+}
+// Un produit de la boutique = toutes les fiches vendues d'un même nom : ses modèles (fiches de base) et leurs couleurs (variantes).
+const racineDe = b => (b.parent_id&&getBij(b.parent_id))||b;
+function produitsBoutique(crea){
+  const m=new Map();
+  crea.forEach(b=>{ const k=cleNom(racineDe(b).nom); if(!m.has(k)) m.set(k,[]); m.get(k).push(b); });
+  return [...m.entries()].map(([cle,fiches])=>{
+    const o=optionsProduit(fiches);
+    fiches.sort((a,b)=>o.valeurs(a).join(' ').localeCompare(o.valeurs(b).join(' '),'fr',{numeric:true}));
+    return {cle, nom:racineDe(fiches[0]).nom, fiches, o};
+  }).sort((a,b)=>String(a.nom).localeCompare(String(b.nom),'fr'));
+}
+// Choix proposés à la cliente : « Modèle » s'il y a plusieurs fiches de base, « Couleur » s'il y a des variantes
+function optionsProduit(fiches){
+  const racines=new Set(fiches.map(racineDe)), modeles=racines.size>1, couleurs=fiches.some(f=>f.parent_id);
+  const valM=f=>racineDe(f).variante||racineDe(f).ref||'Classique', valC=f=>f.parent_id?(f.variante||f.ref):(f.variante&&!modeles?f.variante:'Classique');
+  if(modeles&&couleurs) return {noms:['Modèle','Couleur'], valeurs:f=>[valM(f),valC(f)]};
+  if(modeles) return {noms:['Modèle'], valeurs:f=>[valM(f)]};
+  return {noms:['Couleur'], valeurs:f=>[valC(f)]};
+}
+const produitParCle = cle => produitsBoutique(BIJS.filter(venduEnLigne)).find(p=>p.cle===cle);
+function ouvrirPublicationGroupe(cle, pid=null, refaire=false){
+  const p=produitParCle(cle); if(!p) return;
+  const prix=f=>f.pv||racineDe(f).pv, sansPrix=p.fiches.filter(f=>!prix(f));
+  modalVolante('m-pubg',`<div class="modal-title">🛍 ${pid?'Ajouter les variantes au produit':'Créer le produit'} « ${escA(p.nom)} »</div>
+    <div class="info-box">${pid?'Les variantes qui manquent sont ajoutées au produit Shopify existant ; celles qui y sont déjà sont mises à jour (prix, SKU) et reliées.'
+      :'Un seul produit Shopify, en <b>brouillon</b>, avec une variante par fiche : chacune garde son prix, sa référence (SKU), sa photo et son stock.'}
+      ${refaire?' Les anciens produits séparés restent dans Shopify : archive-les ensuite (Produits › … › Archiver).':''}</div>
+    ${p.o.noms.map((nm,i)=>`<div class="fg"><label>Nom du choix ${p.o.noms.length>1?i+1:''} (vu par la cliente)</label><input class="pg-opt" value="${nm}" ${pid?'disabled title="Le produit existe déjà : ses choix restent ceux de Shopify"':''}></div>`).join('')}
+    <div style="font-size:12px;line-height:1.8">${p.fiches.map(f=>`<div>• <b>${escA(p.o.valeurs(f).join(' · '))}</b> <span class="dim">${f.ref||''} · ${prix(f)?eur(prix(f)):'<span style="color:var(--red)">sans prix</span>'}${f.shopify_variant_id?' · déjà reliée':''}</span></div>`).join('')}</div>
+    ${sansPrix.length?'<div class="warn-box">Donne d\'abord un prix à : '+sansPrix.map(f=>escA(f.variante||f.ref)).join(', ')+'</div>':''}
+    <div class="mfoot"><button class="btn btn-ghost" onclick="closeModal('m-pubg')">Annuler</button>
+      ${sansPrix.length?'':`<button class="btn btn-p" onclick="publierGroupe('${cle}',${pid?`'${pid}'`:'null'})">${pid?'Ajouter':'Créer dans Shopify'}</button>`}</div>`);
+}
+async function publierGroupe(cle, pid){
+  const p=produitParCle(cle); if(!p) return;
+  const r0=racineDe(p.fiches[0]), noms=[...document.querySelectorAll('#m-pubg .pg-opt')].map((x,i)=>x.value.trim()||p.o.noms[i]);
+  toast('Création dans Shopify…');
+  try {
+    const r=await appelShopify('publier-groupe',{ produit:{ nom:p.nom, description:r0.description||descriptionAuto({...r0,variante:''}), photo:r0.photo||p.fiches.find(f=>f.photo)?.photo||null, product_id:pid },
+      options:noms, variantes:p.fiches.map(f=>({ cle:f.id, valeurs:p.o.valeurs(f), pv:f.pv||racineDe(f).pv, ref:f.ref||'', photo:f.photo||null, mode:modeVente(f) })) });
+    const relies=[];
+    for(const l of r.liens||[]){ const b=getBij(l.cle); if(!b) continue;
+      const maj={shopify_product_id:r.product_id, shopify_variant_id:l.variant_id, shopify_inventory_item_id:l.inventory_item_id};
+      if(await sbUpdate('bijoux',b.id,maj)){ Object.assign(b,maj); relies.push(b); } }
+    if(relies.length) await pousserStock(relies,true);
+    closeModal('m-pubg'); toast(`${relies.length} variante(s) reliée(s) dans Shopify ✓${pid?'':' — vérifie le produit (brouillon) puis active-le'}`,'ok'); renderBoutique(true);
+  } catch(e){ toast('Shopify : '+e.message,'err'); }
 }
 async function changerModeVente(bijId, mode){
   const b=getBij(bijId); if(!b) return;
@@ -6572,7 +7010,72 @@ function renderRent() {
 // ═══════════════════════════════════════════════════════
 let HDR_CFG = {name:'Atelier', sub:'bijoux', dark:'#1A1228', gold:'#C8A951'};
 
+const CFG_ONGLETS=['atelier','sauvegarde','connexions','lieux','categories','fournisseurs','references'];
+function switchCfgTab(t){
+  if(!CFG_ONGLETS.includes(t)) t='atelier';
+  try{ localStorage.setItem('cfg_onglet',t); }catch(e){}
+  document.querySelectorAll('#cfg-nav .sub-tab').forEach(x=>x.classList.toggle('sub-tab-on',x.dataset.cs===t));
+  document.querySelectorAll('#p-cfg > .card[data-cs]').forEach(c=>c.style.display=c.dataset.cs===t?'':'none');
+  if(t==='sauvegarde') renderSauvegarde(); if(t==='connexions') renderConnexions(); if(t==='lieux') renderLieuxCfg();
+}
+// ── Sauvegarde : tout télécharger en un fichier (rappel tous les 30 jours sur l'Accueil)
+let DERNIERE_SAUV='';
+const joursDepuisSauv = () => DERNIERE_SAUV ? Math.floor((Date.now()-new Date(DERNIERE_SAUV).getTime())/864e5) : null;
+function renderSauvegarde(){
+  const el=document.getElementById('cfg-sauvegarde'); if(!el) return; const j=joursDepuisSauv();
+  el.innerHTML=`<div class="sv-etat"><span style="font-size:28px">${j===null?'⚠️':j>30?'⏰':'✅'}</span><div><b>${j===null?'Jamais sauvegardé':'Dernière sauvegarde : '+new Date(DERNIERE_SAUV).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})}</b>
+      <div class="dim" style="font-size:12px">${j===null?'Fais-en une maintenant, puis une fois par mois.':j>30?'Plus d\'un mois : pense à en refaire une.':'Prochaine conseillée dans '+(30-j)+' jour'+(30-j>1?'s':'')+'.'}</div></div></div>
+    <p style="font-size:13px;line-height:1.6">Un seul fichier avec <b>tout</b> : matériaux, réappros, créations, productions, ventes, commandes, dépenses, posts, réglages (${n(MATS.length)} matériaux, ${n(BIJS.length)} créations, ${n(VENTES.length)} ventes). Range-le dans ton ordinateur ou ton cloud : en cas de souci avec Supabase, tout peut être remis à partir de lui.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-p" onclick="exportJSON()">⬇ Télécharger la sauvegarde complète</button>
+      <button class="btn btn-ghost" onclick="exportVentesCSV()" title="Pour ta comptable ou un tableur">⬇ Ventes en tableau (CSV)</button></div>`;
+}
+async function exportJSON() {
+  let config=[]; try{ config=(await sbGet('config'))||[]; }catch(e){}
+  config=config.filter(c=>!/^tiktok_(jetons|etat)$/.test(c.key));   // les clés de connexion TikTok ne sortent jamais
+  const data={exporte_le:new Date().toISOString(), version:2,
+    materiaux:MATS, reappros:REAPPROS, ajustements:AJUSTEMENTS, bijoux:BIJS, productions:PRODS, ventes:VENTES, commandes:COMMANDES,
+    charges:CHARGES, tva:TVA_ENTRIES, kits:KITS, cfg_zones:CFG_ZONES, main_cats:MAIN_CATS, fournisseurs:FOURNISSEURS, config};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`bona-nodi-sauvegarde-${today()}.json`; document.body.appendChild(a); a.click(); a.remove();
+  DERNIERE_SAUV=new Date().toISOString(); await sbUpsertConfig('derniere_sauvegarde', DERNIERE_SAUV);
+  toast('Sauvegarde téléchargée ✓','ok'); renderSauvegarde(); if(typeof renderAccueil==='function') majBadgesOnglets?.();
+}
+function exportVentesCSV(){
+  const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+  const l=[['Date','Création','Référence','Quantité','Prix unitaire','Total','Canal','Client','Note'].map(q).join(';')];
+  VENTES.slice().sort((a,b)=>String(a.date).localeCompare(String(b.date))).forEach(v=>{ const b=getBij(v.bij_id), c=COMMANDES.find(x=>x.id===v.commande_id);
+    l.push([v.date,b?b.nom+(b.variante?' · '+b.variante:''):'',b?.ref||'',v.qty,String(v.prix??'').replace('.',','),String(((+v.qty||0)*(+v.prix||0)).toFixed(2)).replace('.',','),v.canal||'',c?.client_nom||'',v.note||''].map(q).join(';')); });
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff'+l.join('\n')],{type:'text/csv'})); a.download=`bona-nodi-ventes-${today()}.csv`; document.body.appendChild(a); a.click(); a.remove();
+  toast('Tableau des ventes téléchargé ✓','ok');
+}
+// ── État des connexions (rien à régler ici : les clés restent dans Supabase)
+function renderConnexions(){
+  const el=document.getElementById('cfg-connexions'); if(!el) return;
+  const tt=TIKTOK_RELIE?`✅ Relié${TIKTOK?.profil?.nom?' ('+escA(TIKTOK.profil.nom)+')':''} · dernier import ${TIKTOK?.maj?new Date(TIKTOK.maj).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'}):'—'}`:'⏳ Pas encore relié';
+  const sh=SHOPIFY.etat?.configure?`✅ Reliée à ${escA(SHOPIFY.etat.boutique||'')}`:SHOPIFY.etat?'⏳ Pas encore reliée':'— ouvre l\'onglet Boutique en ligne pour vérifier';
+  el.innerHTML=`<div class="cx-l"><span style="font-size:24px">🎵</span><div class="cx-t"><b>TikTok</b><div class="dim" style="font-size:12px">${tt}</div></div><button class="btn btn-xs btn-ghost" onclick="goTabNom('res');switchResTab('tiktok')">Ouvrir</button></div>
+    <div class="cx-l"><span style="font-size:24px">🛍</span><div class="cx-t"><b>Boutique Shopify (site Wix)</b><div class="dim" style="font-size:12px">${sh}</div></div><button class="btn btn-xs btn-ghost" onclick="goTabNom('bij');switchCreatTab('boutique')">Ouvrir</button></div>
+    <div class="info-box" style="margin-top:8px">La mise en place pas à pas est dans le guide <b>GUIDE-CONNEXIONS.html</b> (dossier « bona-nodi-connexions »). Les clés TikTok et Shopify restent dans Supabase, jamais dans l'app.</div>`;
+}
+// ── Lieux de vente (utilisés dans Productions › 📍 Mise en vente)
+const LIEUX_FIXES=['Boutique en ligne','Point de vente physique'];
+function renderLieuxCfg(){
+  const el=document.getElementById('cfg-lieux'); if(!el) return;
+  const enCours=l=>PRODS.reduce((t,p)=>t+(+lireMiseEnVente(p).lieux[l]||0),0);
+  el.innerHTML=`<div class="info-box">Où tes pièces terminées sont proposées : boutique en ligne, point de vente, dépôts chez des commerçants, marchés… Le nombre indique les pièces qui y sont en ce moment.</div>
+    ${LIEUX_VENTE.map(l=>`<div class="lv-l"><span style="flex:1">${l==='Boutique en ligne'?'🛒':l==='Point de vente physique'?'🏪':'📍'} ${escA(l)}</span><span class="dim" style="font-size:12px">${n(enCours(l))} pièce(s)</span>
+      ${LIEUX_FIXES.includes(l)?'<span class="dim" style="font-size:11px">fixe</span>':`<button class="btn btn-xs btn-red" onclick="retirerLieuCfg('${escA(l).replace(/'/g,"\\'")}')">✕</button>`}</div>`).join('')}
+    <div style="display:flex;gap:6px;margin-top:10px"><input id="lv-nouveau" placeholder="ex. Dépôt Les Tulipes, Marché de Noël" style="flex:1"><button class="btn btn-p btn-sm" onclick="ajouterLieuCfg()">＋ Ajouter</button></div>`;
+}
+async function ajouterLieuCfg(){ const el=document.getElementById('lv-nouveau'), l=el.value.trim(); if(!l||LIEUX_VENTE.includes(l)) return;
+  LIEUX_VENTE.push(l); await sbUpsertConfig('lieux_vente', LIEUX_VENTE); renderLieuxCfg(); toast('Lieu ajouté ✓','ok'); }
+async function retirerLieuCfg(l){
+  const pieces=PRODS.reduce((t,p)=>t+(+lireMiseEnVente(p).lieux[l]||0),0);
+  if(!confirm(pieces?`${pieces} pièce(s) sont encore notées à « ${l} ». Retirer quand même ce lieu de la liste ? (les productions gardent leur note)`:`Retirer « ${l} » ?`)) return;
+  LIEUX_VENTE=LIEUX_VENTE.filter(x=>x!==l); await sbUpsertConfig('lieux_vente', LIEUX_VENTE); renderLieuxCfg(); }
 function renderCfg() {
+  let t='atelier'; try{ t=localStorage.getItem('cfg_onglet')||'atelier'; }catch(e){}
+  switchCfgTab(t);
   // Prefill header fields
   document.getElementById('cfg-hdr-name').value = HDR_CFG.name||'';
   document.getElementById('cfg-hdr-sub').value  = HDR_CFG.sub||'';
