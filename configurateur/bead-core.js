@@ -217,7 +217,9 @@ function matLettre(ch, couleur = '#c9ccd2') {
 export const FINITIONS = {
   opaque: 'Opaque', transparent: 'Transparent', mat: 'Mat',
   metallique: 'Métallique / galvanisé', irise: 'Irisé (AB)', 'irise-metal': 'Hématite irisée', hematite: 'Hématite', petrole: 'Métal pétrole',
-  argente: 'Intérieur argenté', nacre: 'Nacré / ceylan', oeil: 'Perle œil (motif)', argile: 'Argile peinte (motif)',
+  argente: 'Intérieur argenté', nacre: 'Nacré / ceylan',
+  'transparent-metal': 'Transparent, reflet métal à l\'intérieur', 'transparent-irise': 'Transparent irisé (reflets)',
+  metallise: 'Métallisé doux', 'metallise-fort': 'Métallisé', oeil: 'Perle œil (motif)', argile: 'Argile peinte (motif)',
 };
 
 /* --------------------------------------------------------------------------
@@ -360,14 +362,15 @@ export function apercuArgile(motif, hex) {
    sur ta photo des pastilles : servent tant que meta.hex / meta.finition ne sont pas
    renseignés dans materiaux. Le nom doit correspondre à la colonne variante. */
 export const PLANCHE_ROCAILLES = [
-  ['rouge 1', '#c8101a', 'opaque'],     ['rouge 2', '#7a0a10', 'argente'],    ['rouge 3', '#a51030', 'irise'],       ['rouge 4', '#4c1019', 'transparent'],
-  ['orange 1', '#e2400a', 'opaque'],    ['orange 2', '#a8160a', 'argente'],   ['orange 3', '#d0561a', 'transparent'], ['marron', '#4a2a10', 'argente'],
-  ['jaune 1', '#e5a000', 'opaque'],     ['jaune 2', '#d8c000', 'transparent'], ['pêche 1', '#b0604e', 'argente'],    ['pêche 2', '#ff9a7a', 'opaque'],
-  ['bleu 1', '#10a39c', 'opaque'],      ['bleu 2', '#1f86a8', 'argente'],     ['bleu 3', '#1a14a0', 'opaque'],       ['bleu 4', '#141a40', 'opaque'],
-  ['rose 1', '#f0288f', 'opaque'],      ['rose 2', '#f04ab8', 'transparent'], ['vert 1', '#7a9418', 'argente'],      ['vert 2', '#1a3a14', 'argente'],
-  ['violet 1', '#6a0a60', 'opaque'],    ['violet 2', '#9a78c0', 'nacre'],     ['violet 3', '#a8586a', 'argente'],    ['violet 4', '#8a6a80', 'transparent'],
-  ['blanc', '#eef2ec', 'opaque'],       ['noir', '#0a0c10', 'opaque'],
-  ['argent 1', '#cfd0ca', 'metallique'], ['argent 2', '#4a4a48', 'metallique'], ['doré', '#b07818', 'metallique'],
+  // Teintes et finitions d'après ta description de chaque rocaille (prioritaires sur les photos)
+  ['rouge 1', '#c8101a', 'opaque'],              ['rouge 2', '#8e0c16', 'transparent'],         ['rouge 3', '#c8182c', 'transparent-irise'],  ['rouge 4', '#6e1024', 'transparent-metal'],
+  ['orange 1', '#ff5a0a', 'opaque'],             ['orange 2', '#d8480c', 'transparent-metal'],  ['orange 3', '#ff8c2e', 'transparent'],       ['marron', '#7a4216', 'transparent-metal'],
+  ['jaune 1', '#ffd400', 'opaque'],              ['jaune 2', '#f2d21e', 'transparent'],         ['pêche 1', '#f4a07a', 'transparent'],        ['pêche 2', '#ff9a7a', 'opaque'],
+  ['bleu 1', '#10a39c', 'opaque'],               ['bleu 2', '#2fa6cc', 'transparent-metal'],    ['bleu 3', '#1f3fc4', 'opaque'],              ['bleu 4', '#22337a', 'opaque'],
+  ['rose 1', '#f0288f', 'opaque'],               ['rose 2', '#f04ab8', 'transparent'],          ['vert 1', '#93b02a', 'transparent-metal'],   ['vert 2', '#2c6e2c', 'transparent'],
+  ['violet 1', '#7e2e70', 'opaque'],             ['violet 2', '#9a78c0', 'metallise'],          ['violet 3', '#c7689e', 'transparent-metal'], ['violet 4', '#b99ad9', 'metallise-fort'],
+  ['blanc', '#eef2ec', 'opaque'],                ['noir', '#0a0c10', 'opaque'],
+  ['argent 1', '#cfd0ca', 'metallique'],         ['argent 2', '#4a4a48', 'metallique'],         ['doré', '#d9ad48', 'metallique'],
 ];
 const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
 const PLANCHE = new Map(PLANCHE_ROCAILLES.map(([n, hex, finition], i) => [norm(n), { hex, finition, ordre: i }]));
@@ -698,7 +701,8 @@ export async function affinerCouleursDepuisPhotos(catalogue) {
     im.onerror = () => ok(null);
     im.src = url;
   });
-  await Promise.all(catalogue.filter(c => c.swatch && !c.hexManuel && c.finition !== 'argile' && c.finition !== 'chainmail').map(async c => {
+  // la planche (rouge 1…, argent, doré) garde ses teintes réglées à la main : la photo ne sert qu'aux autres couleurs
+  await Promise.all(catalogue.filter(c => c.swatch && !c.teinteFixe && !c.hexManuel && c.finition !== 'argile' && c.finition !== 'chainmail').map(async c => {
     const h = await lire(c.swatch); if (h) { c.hex = h; c.hexPhoto = true; }
   }));
   return catalogue;
@@ -798,17 +802,28 @@ export function creerMateriau(couleur) {
     color: c, roughness: 0.22, metalness: 0,
     clearcoat: 0.7, clearcoatRoughness: 0.12, envMapIntensity: 1,
   };
-  { const hsl = {}; c.getHSL(hsl); if (hsl.l < 0.18 && (!couleur.finition || couleur.finition === 'opaque')) p.envMapIntensity = 0.7; }
   switch (couleur.finition) {
-    case 'transparent': {
-      // Verre teinté : plus la teinte est sombre, plus il absorbe (sinon un grenat ou un bleu nuit
-      // laisse passer le fond clair et paraît vif). Couleur issue d'une photo = déjà la couleur perçue.
-      const hsl = {}; c.getHSL(hsl);
-      const sombre = hsl.l < 0.3, photo = !!couleur.hexPhoto;
-      Object.assign(p, { transmission: photo ? 0.45 : sombre ? 0.55 : 0.88, thickness: 1.2, ior: 1.52, roughness: 0.06,
-        attenuationColor: c, attenuationDistance: sombre ? 0.45 : 1.4, clearcoat: 1 });
+    case 'transparent':
+      Object.assign(p, { transmission: 0.92, thickness: 1.2, ior: 1.52, roughness: 0.04,
+        attenuationColor: c, attenuationDistance: 1.6, clearcoat: 1 });
       break;
-    }
+    case 'transparent-irise':      // verre transparent avec reflets bleus/violets (finition AB)
+      Object.assign(p, { transmission: 0.88, thickness: 1.2, ior: 1.52, roughness: 0.05,
+        attenuationColor: c, attenuationDistance: 1.4, clearcoat: 1,
+        iridescence: 1, iridescenceIOR: 1.8, iridescenceThicknessRange: [280, 420] });
+      break;
+    case 'transparent-metal':      // verre teinté transparent avec doublure métal : brille de l'intérieur
+      Object.assign(p, { transmission: 0.62, thickness: 1.2, ior: 1.55, roughness: 0.06, metalness: 0.28,
+        attenuationColor: c, attenuationDistance: 1.1, clearcoat: 1, clearcoatRoughness: 0.05,
+        emissive: c.clone().multiplyScalar(0.22), envMapIntensity: 1.35 });
+      break;
+    case 'metallise':              // métallisé doux (violet 2) : couleur gardée, reflet métal
+      Object.assign(p, { metalness: 0.55, roughness: 0.2, clearcoat: 0.9, clearcoatRoughness: 0.08,
+        iridescence: 0.25, iridescenceIOR: 1.4, envMapIntensity: 1.2 });
+      break;
+    case 'metallise-fort':         // plus métal (violet 4, lilas)
+      Object.assign(p, { metalness: 0.8, roughness: 0.18, clearcoat: 0.8, clearcoatRoughness: 0.06, envMapIntensity: 1.3 });
+      break;
     case 'mat':
       Object.assign(p, { roughness: 0.78, clearcoat: 0, envMapIntensity: 0.6 });
       break;
@@ -822,7 +837,7 @@ export function creerMateriau(couleur) {
     case 'argente':
       // verre teinté avec doublure miroir : couleur saturée + reflet métallique interne
       Object.assign(p, { metalness: 0.55, roughness: 0.12, clearcoat: 1,
-        emissive: c.clone().multiplyScalar(couleur.hexPhoto ? 0.08 : 0.18) });
+        emissive: c.clone().multiplyScalar(0.18) });
       break;
     case 'nacre':
       Object.assign(p, { roughness: 0.35, sheen: 1, sheenRoughness: 0.3,
