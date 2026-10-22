@@ -220,7 +220,8 @@ export const FINITIONS = {
   argente: 'Intérieur argenté', nacre: 'Nacré / ceylan',
   'transparent-metal': 'Transparent, reflet métal à l\'intérieur', 'transparent-metal-fort': 'Transparent métallisé (terne)',
   translucide: 'Translucide (moins transparent)', 'transparent-irise': 'Transparent irisé (reflets)',
-  metallise: 'Métallisé doux', 'metallise-fort': 'Métallisé', oeil: 'Perle œil (motif)', argile: 'Argile peinte (motif)',
+  metallise: 'Métallisé doux', 'metallise-fort': 'Métallisé', 'opaque-vif': 'Opaque lumineux',
+  'translucide-metal': 'Translucide métallisé', 'transparent-irise-violet': 'Transparent, reflets métal violets', oeil: 'Perle œil (motif)', argile: 'Argile peinte (motif)',
 };
 
 /* --------------------------------------------------------------------------
@@ -364,10 +365,10 @@ export function apercuArgile(motif, hex) {
    renseignés dans materiaux. Le nom doit correspondre à la colonne variante. */
 export const PLANCHE_ROCAILLES = [
   // Teintes et finitions d'après ta description de chaque rocaille (prioritaires sur les photos)
-  ['rouge 1', '#c8101a', 'opaque'],              ['rouge 2', '#b3141f', 'transparent'],         ['rouge 3', '#c8182c', 'transparent-irise'],  ['rouge 4', '#6e1024', 'transparent-metal'],
-  ['orange 1', '#e45c0c', 'opaque'],             ['orange 2', '#d8480c', 'transparent-metal'],  ['orange 3', '#ff8c2e', 'translucide'],       ['marron', '#a0602a', 'transparent-metal'],
-  ['jaune 1', '#f2c000', 'opaque'],              ['jaune 2', '#f2d21e', 'translucide'],         ['pêche 1', '#f4a07a', 'translucide'],        ['pêche 2', '#ee8a66', 'opaque'],
-  ['bleu 1', '#12b3ad', 'opaque'],               ['bleu 2', '#2fa6cc', 'transparent-metal'],    ['bleu 3', '#1a36aa', 'opaque'],              ['bleu 4', '#1c2b68', 'opaque'],
+  ['rouge 1', '#c8101a', 'opaque'],              ['rouge 2', '#b3141f', 'transparent'],         ['rouge 3', '#c8182c', 'transparent-irise-violet'],  ['rouge 4', '#6e1024', 'transparent-metal'],
+  ['orange 1', '#d6660c', 'opaque'],             ['orange 2', '#d8480c', 'transparent-metal'],  ['orange 3', '#ff8c2e', 'translucide'],       ['marron', '#6e3f1c', 'translucide-metal'],
+  ['jaune 1', '#ffe600', 'opaque-vif'],              ['jaune 2', '#f2d21e', 'translucide'],         ['pêche 1', '#f4a07a', 'translucide-metal'],        ['pêche 2', '#ee8a66', 'opaque'],
+  ['bleu 1', '#00c9be', 'opaque-vif'],               ['bleu 2', '#2fa6cc', 'transparent-metal'],    ['bleu 3', '#1a36aa', 'opaque'],              ['bleu 4', '#1c2b68', 'opaque'],
   ['rose 1', '#f0288f', 'opaque'],               ['rose 2', '#f04ab8', 'translucide'],          ['vert 1', '#93b02a', 'transparent-metal'],   ['vert 2', '#2f7f3a', 'transparent'],
   ['violet 1', '#722a66', 'opaque'],             ['violet 2', '#9a78c0', 'metallise'],          ['violet 3', '#b07892', 'transparent-metal-fort'], ['violet 4', '#ab98c6', 'metallise-fort'],
   ['blanc', '#eef2ec', 'opaque'],                ['noir', '#0a0c10', 'opaque'],
@@ -540,15 +541,32 @@ export function apercuChainmail(forme) {
    Le prix vient du pv de la fiche ; sans pv, du prix du modèle.
    -------------------------------------------------------------------------- */
 export async function chargerBijouxBoutique(sb) {
-  const { data, error } = await sb.from('bijoux').select('id,ref,nom,variante,pv,is_mat');   // colonnes autorisées à la clé publique
+  // colonnes autorisées à la clé publique ; parent_id + variante_overrides (sql-variantes-configurateur.sql) pour trouver la bonne couleur
+  let { data, error } = await sb.from('bijoux').select('id,ref,nom,variante,pv,is_mat,parent_id,variante_overrides');
+  if (error) ({ data, error } = await sb.from('bijoux').select('id,ref,nom,variante,pv,is_mat'));
   if (error) throw error;
-  return (data || []).map(b => ({ id: b.id, ref: b.ref, nom: b.nom || '', variante: b.variante || '', pv: b.pv, is_mat: !!b.is_mat }));
+  return (data || []).map(b => ({ id: b.id, ref: b.ref, nom: b.nom || '', variante: b.variante || '', pv: b.pv, is_mat: !!b.is_mat,
+    parent_id: b.parent_id || null, variante_overrides: lireOverrides(b.variante_overrides) }));
+}
+const lireOverrides = v => { if (typeof v === 'string') { try { v = JSON.parse(v); } catch { v = []; } } return Array.isArray(v) ? v : []; };
+/* Variante de couleur d'une fiche modèle qui correspond aux couleurs choisies :
+   une variante convient si chaque référence qu'elle remplace est parmi les couleurs choisies (la plus précise gagne). */
+export function varianteSelonCouleurs(row, bijoux, couleurs = {}) {
+  if (!row) return row;
+  const choisis = new Set(Object.values(couleurs || {}).filter(Boolean));
+  if (!choisis.size) return row;
+  let meilleur = null, score = 0;
+  for (const v of bijoux.filter(b => b.parent_id && b.parent_id === row.id)) {
+    const ov = (v.variante_overrides || []).filter(o => o && o.ref_parent && o.ref_variante);
+    if (ov.length > score && ov.every(o => choisis.has(o.ref_variante))) { meilleur = v; score = ov.length; }
+  }
+  return meilleur || row;
 }
 export function trouverBijou(bijoux, motif) {
   if (!motif) return null;
   const re = new RegExp(norm(motif));
   const ok = bijoux.filter(b => re.test(norm([b.nom, b.variante].join(' '))));
-  return ok.find(b => !b.is_mat) || ok[0] || null;
+  return ok.find(b => !b.is_mat && !b.parent_id) || ok.find(b => !b.is_mat) || ok[0] || null;   // le modèle d'abord : sa couleur est choisie ensuite
 }
 export function bijouBreloque(modele, { couleurs = {}, texte = null, bijoux = [] } = {}) {
   const parRef = new Map(bijoux.map(b => [b.ref, b]));
@@ -562,6 +580,9 @@ export function bijouBreloque(modele, { couleurs = {}, texte = null, bijoux = []
   if (!row && modele.bijParMode) row = trouverBijou(bijoux, modele.bijParMode[mode]);
   if (!row && modele.bij_ref) row = parRef.get(modele.bij_ref) || null;
   if (!row && modele.bijNom) row = trouverBijou(bijoux, modele.bijNom);
+  // la fiche trouvée est un modèle : on prend sa variante de couleur qui correspond aux couleurs choisies (ex. Sardine)
+  const base = row; row = varianteSelonCouleurs(row, bijoux, couleurs);
+  if (row && row !== base && (row.pv == null || row.pv === '')) row = { ...row, pv: base.pv };
   const pv = row?.pv != null && row.pv !== '' ? parseFloat(row.pv) : NaN;
   const prix = pv > 0 ? pv : (modele.prixParMode?.[mode] ?? modele.prix ?? 0);
   return { ref: row?.ref || ref || modele.bij_ref || '', id: row?.id || null, nom: row ? [row.nom, row.variante].filter(Boolean).join(' · ') : '', prix };
@@ -816,6 +837,20 @@ export function creerMateriau(couleur) {
       Object.assign(p, { transmission: 0.45, thickness: 1.2, ior: 1.55, roughness: 0.16, metalness: 0.42,
         attenuationColor: c, attenuationDistance: 1.1, clearcoat: 0.8, clearcoatRoughness: 0.12,
         emissive: c.clone().multiplyScalar(0.16), envMapIntensity: 1.2 });
+      break;
+    case 'opaque-vif':             // opaque très lumineux (jaune 1 citron, bleu 1 turquoise) : le rendu ne le ternit pas
+      Object.assign(p, { roughness: 0.18, clearcoat: 0.9, emissive: c.clone().multiplyScalar(0.2), envMapIntensity: 0.85 });
+      break;
+    case 'translucide-metal':      // verre teinté peu transparent avec reflet métal (pêche 1, marron) : la teinte reste lisible
+      Object.assign(p, { transmission: 0.32, thickness: 1.2, ior: 1.55, roughness: 0.1, metalness: 0.38,
+        attenuationColor: c, attenuationDistance: 0.9, clearcoat: 1, clearcoatRoughness: 0.06,
+        emissive: c.clone().multiplyScalar(0.2), envMapIntensity: 1.3 });
+      break;
+    case 'transparent-irise-violet': // verre transparent à reflets métallisés violets (rouge 3)
+      Object.assign(p, { transmission: 0.72, thickness: 1.2, ior: 1.55, roughness: 0.06, metalness: 0.3,
+        attenuationColor: c, attenuationDistance: 1.3, clearcoat: 1, clearcoatRoughness: 0.05,
+        iridescence: 1, iridescenceIOR: 1.6, iridescenceThicknessRange: [400, 560],
+        sheen: 0.9, sheenRoughness: 0.35, sheenColor: new THREE.Color('#8a3cff'), envMapIntensity: 1.3 });
       break;
     case 'transparent-irise':      // verre transparent avec reflets bleus/violets (finition AB)
       Object.assign(p, { transmission: 0.88, thickness: 1.2, ior: 1.52, roughness: 0.05,
