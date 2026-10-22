@@ -2639,6 +2639,7 @@ async function erreurFonction(nom, error){
   const m=String(c?.erreur||c?.message||c?.msg||c?.error||brut||error?.message||'erreur inconnue').slice(0,200), code=String(c?.code||'');
   let clair;
   if(!rep) clair=`la fonction « ${nom} » ne répond pas (réseau, ou fonction pas encore déployée)`;
+  else if(/@supabase\/server|apikey header matched no key/i.test(m)) clair=`la fonction « ${nom} » dans Supabase contient encore le code d'exemple de Supabase, pas celui de Bona Nodi : ouvre-la › onglet Code › efface tout › colle le code « ${nom} » du guide (il commence par « // ===== Bona Nodi ») › Deploy`;
   else if(st===404||/not.?found/i.test(m+code)) clair=`la fonction « ${nom} » est introuvable dans Supabase : vérifie qu'elle est déployée sous ce nom exact (${nom}, en minuscules)`;
   else if(st===401&&/jwt|authorization|token/i.test(m)) clair=`Supabase refuse l'appel : dans Edge Functions › ${nom} › Details, désactive « Enforce JWT verification », puis déconnecte-toi et reconnecte-toi à l'app`;
   else if(st===401) clair=`${m} : reconnecte-toi à l'app ; vérifie aussi le secret ADMIN_UID = 24e8cb8e-6077-417c-a74b-695745f085b0`;

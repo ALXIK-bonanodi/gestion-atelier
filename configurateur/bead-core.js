@@ -366,8 +366,8 @@ export function apercuArgile(motif, hex) {
 export const PLANCHE_ROCAILLES = [
   // Teintes et finitions d'après ta description de chaque rocaille (prioritaires sur les photos)
   ['rouge 1', '#c8101a', 'opaque'],              ['rouge 2', '#b3141f', 'transparent'],         ['rouge 3', '#c8182c', 'transparent-irise-violet'],  ['rouge 4', '#6e1024', 'transparent-metal'],
-  ['orange 1', '#ff6a00', 'opaque-fluo'],             ['orange 2', '#d8480c', 'transparent-metal'],  ['orange 3', '#ff8c2e', 'translucide'],       ['marron', '#8a4f24', 'brun-reflet'],
-  ['jaune 1', '#ffea00', 'opaque-fluo'],              ['jaune 2', '#f2d21e', 'translucide'],         ['pêche 1', '#f4a07a', 'translucide-metal'],        ['pêche 2', '#ee8a66', 'opaque'],
+  ['orange 1', '#ff6a00', 'opaque-fluo'],             ['orange 2', '#d8480c', 'transparent-metal'],  ['orange 3', '#ff8c2e', 'translucide'],       ['marron', '#93562a', 'brun-reflet'],
+  ['jaune 1', '#ffc400', 'opaque-fluo'],              ['jaune 2', '#f2d21e', 'translucide'],         ['pêche 1', '#f4a07a', 'translucide-metal'],        ['pêche 2', '#ee8a66', 'opaque'],
   ['bleu 1', '#00c9be', 'opaque-vif'],               ['bleu 2', '#2fa6cc', 'transparent-metal'],    ['bleu 3', '#1a36aa', 'opaque'],              ['bleu 4', '#15246e', 'opaque'],
   ['rose 1', '#f0288f', 'opaque'],               ['rose 2', '#f04ab8', 'translucide'],          ['vert 1', '#93b02a', 'transparent-metal'],   ['vert 2', '#2f7f3a', 'transparent'],
   ['violet 1', '#722a66', 'opaque'],             ['violet 2', '#9a78c0', 'metallise'],          ['violet 3', '#b07892', 'transparent-metal-fort'], ['violet 4', '#ab98c6', 'metallise-fort'],
@@ -846,14 +846,14 @@ export function creerMateriau(couleur) {
         envMapIntensity: 0.7, toneMapped: false });
       break;
     case 'brun-reflet':            // marron transparent avec reflets caramel clairs (on lit bien le brun)
-      Object.assign(p, { transmission: 0.28, thickness: 1.2, ior: 1.55, roughness: 0.12, metalness: 0.3,
-        attenuationColor: c, attenuationDistance: 1, clearcoat: 1, clearcoatRoughness: 0.06,
-        emissive: c.clone().multiplyScalar(0.22), sheen: 1, sheenRoughness: 0.3, sheenColor: new THREE.Color('#e0a868'), envMapIntensity: 1.25 });
+      Object.assign(p, { transmission: 0.22, thickness: 1.2, ior: 1.55, roughness: 0.1, metalness: 0.5,
+        attenuationColor: c, attenuationDistance: 1, clearcoat: 1, clearcoatRoughness: 0.05,
+        emissive: c.clone().multiplyScalar(0.24), sheen: 1, sheenRoughness: 0.25, sheenColor: new THREE.Color('#f2c48e'), envMapIntensity: 1.5 });
       break;
     case 'translucide-metal':      // verre teinté peu transparent avec reflet métal (pêche 1, marron) : la teinte reste lisible
-      Object.assign(p, { transmission: 0.32, thickness: 1.2, ior: 1.55, roughness: 0.1, metalness: 0.38,
-        attenuationColor: c, attenuationDistance: 0.9, clearcoat: 1, clearcoatRoughness: 0.06,
-        emissive: c.clone().multiplyScalar(0.2), envMapIntensity: 1.3 });
+      Object.assign(p, { transmission: 0.28, thickness: 1.2, ior: 1.55, roughness: 0.07, metalness: 0.58,
+        attenuationColor: c, attenuationDistance: 0.9, clearcoat: 1, clearcoatRoughness: 0.04,
+        emissive: c.clone().multiplyScalar(0.2), envMapIntensity: 1.6 });
       break;
     case 'transparent-irise-violet': // verre transparent à reflets métallisés violets (rouge 3)
       Object.assign(p, { transmission: 0.72, thickness: 1.2, ior: 1.55, roughness: 0.06, metalness: 0.3,
