@@ -2667,6 +2667,8 @@ async function testerTikTok(){
   try{ const r=await appelTikTok('etat');
     const l=[r.configure?'✅ Fonction « tiktok » déployée, clés TikTok présentes':'⚠️ Fonction déployée mais secrets TIKTOK_CLIENT_KEY / TIKTOK_CLIENT_SECRET manquants (étape 8)',
       r.relie?'✅ Compte TikTok relié':'⏳ Compte pas encore relié : 📣 Réseaux › 🎵 TikTok › 🔗 Import automatique'];
+    if(r.cle_debut) l.push(`🔑 Client key enregistrée : <b>${escA(r.cle_debut)}</b> (${r.cle_longueur} caractères). Elle doit être <b>identique</b> au « Client key » affiché dans ta <b>Sandbox</b> (pas celui de Production).`);
+    if(r.retour) l.push(`↩️ Adresse de retour à mettre dans Login Kit › Redirect URI : <code style="user-select:all">${escA(r.retour)}</code>`);
     if(el) el.innerHTML=l.map(x=>`<div>${x}</div>`).join('');
   }catch(e){ if(el) el.innerHTML=`<div class="warn-box">${escA(e.message)}</div>`; }
 }
