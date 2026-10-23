@@ -475,6 +475,11 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
 .rg-tete input[type=checkbox]{appearance:auto;-webkit-appearance:checkbox;padding:0}
 .rg-l{display:grid;grid-template-columns:auto minmax(0,1fr) minmax(120px,1fr);gap:6px;align-items:center;margin:4px 0 4px 22px}
 .rg-l input{padding:6px 8px;font-size:12px}
+.c3-proposes{padding:10px 12px 0}
+.c3p-tete{font-size:13px;margin-bottom:6px}
+.c3p-liste{display:flex;flex-wrap:wrap;gap:6px}
+.c3p{border:1.5px dashed var(--border);background:#fff;color:var(--muted);border-radius:999px;padding:6px 12px;font:inherit;font-size:12px;font-weight:600;cursor:pointer}
+.c3p.on{border:1.5px solid var(--purple);background:var(--purple);color:#fff}
 .pbij-row{padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px;display:flex;gap:6px;align-items:baseline;flex-wrap:wrap}
 .pbij-row:hover{background:var(--purpleP)}
 .pbij-ref{color:var(--purple);font-weight:600}
@@ -694,6 +699,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
     </div>
   </div>
   <div id="c3panel-cfg">
+    <div id="c3-proposes" class="c3-proposes"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:8px 12px;font-size:12px">
       <span style="color:var(--muted)">Aperçu de la page client (comme dans Wix)</span>
       <span style="flex:1"></span>
@@ -3784,7 +3790,23 @@ function switchCreatTab(tab, numeroPerso) {
 const ouvrirPerso = numero => switchCreatTab('perso', numero);
 /* ── Conception 3D : configurateur, modèles, références, ruptures (pages du dossier configurateur/) ── */
 const C3D_PAGES = { cfg: 'configurateur-3d.html?apercu=1', m3d: 'editeur-perles.html', ref: 'references-configurateur.html', rup: 'stock-configurateur.html' };
+// Breloques proposées aux clientes : un clic pour afficher / masquer un modèle dans la personnalisation
+async function renderModelesProposes(){
+  const el=document.getElementById('c3-proposes'); if(!el) return;
+  let l=[]; try{ const {data,error}=await SB.from('modeles_3d').select('slug,nom,publie').order('nom'); if(error) throw error; l=data||[]; }
+  catch(e){ el.innerHTML=`<span class="dim">Modèles : ${escA(e.message)}</span>`; return; }
+  if(!l.length){ el.innerHTML='<span class="dim">Aucun modèle 3D enregistré pour l\'instant (onglet 🧊 Modèles).</span>'; return; }
+  const vus=l.filter(m=>m.publie).length;
+  el.innerHTML=`<div class="c3p-tete"><b>Breloques proposées aux clientes</b> <span class="dim">${vus}/${l.length} affichées · touche pour afficher ou masquer</span></div>
+    <div class="c3p-liste">${l.map(m=>`<button type="button" class="c3p ${m.publie?'on':''}" onclick="basculerModele('${escA(m.slug)}',${!m.publie})" title="${m.publie?'Affichée : touche pour la masquer':'Masquée : touche pour l\'afficher'}">${m.publie?'👁':'🚫'} ${escA(m.nom||m.slug)}</button>`).join('')}</div>`;
+}
+async function basculerModele(slug, publie){
+  const {error}=await SB.from('modeles_3d').update({publie, updated_at:new Date().toISOString()}).eq('slug',slug);
+  if(error) return toast('Modèles : '+error.message,'err');
+  toast(publie?'Breloque affichée ✓':'Breloque masquée ✓','ok'); await renderModelesProposes(); switchC3dTab('cfg', true);
+}
 function switchC3dTab(tab, recharger) {
+  if(tab==='cfg') renderModelesProposes();
   Object.keys(C3D_PAGES).forEach(t => {
     document.getElementById('c3panel-'+t).style.display = t===tab ? 'block' : 'none';
     document.getElementById('c3tab-'+t).className = 'gtab'+(t===tab?' gtab-on':'');
@@ -4183,7 +4205,11 @@ function openBijModal(editId=null) {
     const noSellRow=document.getElementById('no-sell-toggle');
     if(noSellEl){noSellEl.checked=b.no_sell||false; if(noSellRow) noSellRow.className='toggle-row '+(b.no_sell?'on':'off');}
     document.getElementById('bij-mats-list').innerHTML='';
-    (b.mats||[]).forEach(m=>addMatRow(m.sc,m.ref,m.qty,m.qty_unite||'native'));
+    // variante : on montre sa composition complète (modèle + couleurs changées) ; à l'enregistrement,
+    // seules les différences de couleur sont gardées et les quantités suivent le modèle
+    const parent=b.parent_id?getBij(b.parent_id):null;
+    (parent?getMatsEffectifs(b):(b.mats||[])).forEach(m=>addMatRow(m.sc,m.ref,m.qty,m.qty_unite||'native'));
+    bandeauVarianteBij(parent,b);
   } else {
     ['bij-coll','bij-nom','bij-var','bij-pv','bij-desc'].forEach(i=>document.getElementById(i).value='');
     resetBijPhoto(null);
@@ -4197,6 +4223,7 @@ function openBijModal(editId=null) {
     if(nsEl){nsEl.checked=false; if(nsRow) nsRow.className='toggle-row off';}
     document.getElementById('bij-mats-list').innerHTML='';
     addMatRow();
+    bandeauVarianteBij(null);
   }
   setTimeout(majCoutLive,120);
   document.querySelectorAll('#bij-etapes button').forEach((b,i)=>b.classList.toggle('on',i===0));
@@ -4263,10 +4290,18 @@ function majCoutLive(){
 }
 document.addEventListener('input',e=>{ if(e.target.closest?.('#m-bij')) majCoutLive(); });
 document.addEventListener('change',e=>{ if(e.target.closest?.('#m-bij')) setTimeout(majCoutLive,60); });
+function bandeauVarianteBij(parent,b){
+  let el=document.getElementById('bij-var-info');
+  if(!el){ el=document.createElement('div'); el.id='bij-var-info'; const l=document.getElementById('bij-mats-list'); l.parentNode.insertBefore(el,l); }
+  el.innerHTML=parent?`<div class="info-box">🎨 Variante <b>${escA(b.variante||b.ref)}</b> du modèle <b>${escA(parent.nom)}${parent.variante?' · '+escA(parent.variante):''}</b> : sa composition complète est affichée. Change seulement la référence de couleur qui diffère (même catégorie, même quantité) ; elle suivra ensuite les quantités du modèle.</div>`:'';
+}
 function addMatRow(sc='',ref='',qty='',qty_unite='native') {
   const c=document.getElementById('bij-mats-list');
+  // nouvelle ligne vide : on reprend la catégorie de la ligne du dessus (perles → perles, pas la laine)
+  if(!sc&&!ref){ const der=[...c.querySelectorAll('.bij-sc')].pop()?.value; if(der) sc=der.split('|||')[1]||''; }
   // mc peut être passé séparément, ou déduit depuis MATS
   let initMC = '', initSC = sc;
+  if(!ref&&sc){ const m0=MATS.find(m=>m.sc===sc); if(m0) initMC=m0.mc; }
   if(ref) {
     const matFound = MATS.find(m=>m.ref===ref);
     if(matFound) { initMC=matFound.mc; initSC=matFound.sc; }
@@ -4435,6 +4470,9 @@ async function saveBij() {
     no_sell:document.getElementById('bij-no-sell')?.checked||false,
     draft:mats.some(m=>!m.qty)||!nom,
   };
+  // variante d'un modèle : on n'enregistre que les couleurs changées (sinon, composition complète gardée telle quelle)
+  const par=avant?.parent_id?getBij(avant.parent_id):null;
+  if(par){ const d=diffCouleur(par,{mats}); if(d){ obj.mats=[]; obj.variante_overrides=d; } else { obj.variante_overrides=COMPO_PROPRE; } }
   let ok;
   if(editId){ok=await sbUpdate('bijoux',editId,obj);if(ok){const i=BIJS.findIndex(b=>b.id===editId);BIJS[i]={...BIJS[i],...obj};}}
   else{ok=await sbInsert('bijoux',obj);if(ok)BIJS.push(obj);}
@@ -5797,11 +5835,12 @@ function modalVolante(id, html){
 // (ligne en plus ou en moins, quantité différente pour une même référence).
 function diffCouleur(base, fiche){
   const B=getMatsEffectifs(base).map(m=>({...m})), M=getMatsEffectifs(fiche).map(m=>({...m}));
-  const scDe=m=>getMat(m.ref)?.sc||m.sc||'', u=m=>m.qty_unite||'native';
-  for(let i=B.length-1;i>=0;i--){ const j=M.findIndex(m=>m.ref===B[i].ref&&+m.qty===+B[i].qty&&u(m)===u(B[i])); if(j>=0){ B.splice(i,1); M.splice(j,1); } }
+  const scDe=m=>getMat(m.ref)?.sc||String(m.sc||'').split('|||').pop(), u=m=>m.qty_unite||'native';
+  // même référence et même quantité = ligne identique (l'unité affichée peut différer : « pcs » / « — unité — »)
+  for(let i=B.length-1;i>=0;i--){ const j=M.findIndex(m=>m.ref===B[i].ref&&+m.qty===+B[i].qty); if(j>=0){ B.splice(i,1); M.splice(j,1); } }
   const ov=[];
   for(const b of B){
-    const j=M.findIndex(m=>m.ref!==b.ref&&!B.some(x=>x.ref===m.ref)&&scDe(m)===scDe(b)&&u(m)===u(b));
+    const j=M.findIndex(m=>m.ref!==b.ref&&!B.some(x=>x.ref===m.ref)&&scDe(m)===scDe(b)&&(u(m)===u(b)||+m.qty===+b.qty));
     if(j<0) return null;
     const m=M.splice(j,1)[0]; ov.push({ref_parent:b.ref, ref_variante:m.ref, qty:+m.qty===+b.qty?null:(+m.qty||null), sc:scDe(m)});
   }
@@ -6031,7 +6070,7 @@ function openVarianteModal(parentId, editId=null) {
       </div>
       <div class="var-override-row" style="display:none">
         <div style="display:grid;grid-template-columns:1fr 1fr 80px;gap:6px">
-          <select class="var-new-sc" onchange="filterVarRefs(this)" style="font-size:12px;padding:8px">${buildSCOptions('','')}</select>
+          <select class="var-new-sc" onchange="filterVarRefs(this)" style="font-size:12px;padding:8px">${buildSCOptions(mat?.mc||'',mat?.sc||'')}</select>
           <select class="var-new-ref" style="font-size:12px;padding:8px"><option value="">-- Nouvelle réf --</option></select>
           <input class="var-new-qty" type="number" placeholder="Qté" value="${m.qty||''}" style="padding:8px;font-size:12px">
         </div>
@@ -6039,6 +6078,7 @@ function openVarianteModal(parentId, editId=null) {
     </div>`;
   }).join('');
   document.getElementById('var-mats-list').innerHTML=matsHtml||'<div class="dim">Aucun matériau dans le parent</div>';
+  document.querySelectorAll('#var-mats-list .var-new-sc').forEach(sel=>{ if(sel.value) filterVarRefs(sel); });   // déjà la bonne catégorie
   // Champs variante
   document.getElementById('var-nom').value=parent.nom;
   document.getElementById('var-variante').value=ed?.variante||'';
@@ -6236,7 +6276,7 @@ function buildVariationMatsList() {
       </div>
       <div class="pv-override-row" style="display:none">
         <div style="display:grid;grid-template-columns:1fr 1fr 70px;gap:6px">
-          <select class="pv-new-sc" onchange="filterPVRefs(this)" style="font-size:12px;padding:8px">${buildSCOptions('','')}</select>
+          <select class="pv-new-sc" onchange="filterPVRefs(this)" style="font-size:12px;padding:8px">${buildSCOptions(mat?.mc||'',mat?.sc||'')}</select>
           <select class="pv-new-ref" style="font-size:12px;padding:8px"><option value="">-- Nouvelle réf --</option></select>
           <input class="pv-new-qty" type="number" placeholder="Qté" value="${m.qty||''}" style="padding:8px;font-size:12px">
         </div>
@@ -6244,6 +6284,7 @@ function buildVariationMatsList() {
     </div>`;
   }).join('');
   document.getElementById('pv-mats-list').innerHTML=html||'<div class="dim">Aucun matériau dans ce produit</div>';
+  document.querySelectorAll('#pv-mats-list .pv-new-sc').forEach(sel=>{ if(sel.value) filterPVRefs(sel); });
   document.getElementById('pv-pv').value='';
   document.getElementById('pv-variante').value='';
   document.getElementById('pv-ref').value='';

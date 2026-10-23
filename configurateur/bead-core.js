@@ -366,7 +366,7 @@ export function apercuArgile(motif, hex) {
 export const PLANCHE_ROCAILLES = [
   // Teintes et finitions d'après ta description de chaque rocaille (prioritaires sur les photos)
   ['rouge 1', '#c8101a', 'opaque'],              ['rouge 2', '#b3141f', 'transparent'],         ['rouge 3', '#c8182c', 'transparent-irise-violet'],  ['rouge 4', '#6e1024', 'transparent-metal'],
-  ['orange 1', '#ff6a00', 'opaque-fluo'],             ['orange 2', '#d8480c', 'transparent-metal'],  ['orange 3', '#ff8c2e', 'translucide'],       ['marron', '#a3622c', 'brun-reflet'],
+  ['orange 1', '#ff6a00', 'opaque-fluo'],             ['orange 2', '#d8480c', 'transparent-metal'],  ['orange 3', '#ff8c2e', 'translucide'],       ['marron', '#9c5a22', 'brun-reflet'],
   ['jaune 1', '#ffb300', 'opaque-pep'],              ['jaune 2', '#f2d21e', 'translucide'],         ['pêche 1', '#f4a07a', 'translucide-metal'],        ['pêche 2', '#ee8a66', 'opaque'],
   ['bleu 1', '#00c9be', 'opaque-vif'],               ['bleu 2', '#2fa6cc', 'transparent-metal'],    ['bleu 3', '#1a36aa', 'opaque'],              ['bleu 4', '#15246e', 'opaque'],
   ['rose 1', '#f0288f', 'opaque'],               ['rose 2', '#f04ab8', 'translucide'],          ['vert 1', '#93b02a', 'transparent-metal'],   ['vert 2', '#2f7f3a', 'transparent'],
@@ -376,6 +376,12 @@ export const PLANCHE_ROCAILLES = [
 ];
 const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
 const PLANCHE = new Map(PLANCHE_ROCAILLES.map(([n, hex, finition], i) => [norm(n), { hex, finition, ordre: i }]));
+// « marron 1 » = « marron », « argent » = « argent 1 »… : un numéro en trop ou en moins ne fait plus perdre la teinte de la planche
+export function plancheDe(nom, rocaille = true) {
+  const k = norm(nom);
+  if (!rocaille) return PLANCHE.get(k) || null;            // autres perles (heishi…) : seulement le nom exact
+  return PLANCHE.get(k) || PLANCHE.get(k.replace(/\s*0?1$/, '')) || PLANCHE.get(k + ' 1') || PLANCHE.get(k.replace(/^brun\b/, 'marron')) || null;
+}
 export const COULEURS_PAR_NOM = {
   ...Object.fromEntries(PLANCHE_ROCAILLES.map(([n, hex]) => [norm(n), hex])),
   'rouge': '#c0392b', 'orange': '#e2470e', 'jaune': '#f1c40f', 'peche': '#ff9a7a', 'bleu': '#1f86a8', 'rose': '#e91e8c',
@@ -661,6 +667,7 @@ export function catalogueDepuisMateriaux(lignes, perlesImages = {}) {
     meta = meta || {};
     const img = perlesImages?.[l.id] || {};
     const nom = l.variante || l.designation || l.sc || l.ref;
+    const roc = /rocaille/i.test([l.mc, l.sc, l.designation].join(' ')), pl = plancheDe(nom, roc);
     const argile = /argile/i.test([l.mc, l.sc, l.designation].join(' ')) || meta.finition === 'argile';
     const motif = argile ? (meta.motif || motifArgile(nom) || null) : null;
     if (argile) return {
@@ -670,11 +677,12 @@ export function catalogueDepuisMateriaux(lignes, perlesImages = {}) {
     };
     return {
       ref: l.ref || String(l.id), mat_id: l.id, nom, designation: l.designation || '',
-      hex: meta.hex || meta.couleur || null,
+      // ta planche passe avant une couleur saisie à la main ou relevée sur une photo : c'est elle qu'on règle ensemble
+      hex: pl?.hex || meta.hex || meta.couleur || null,
       hexNom: couleurParNom(nom),
-      finition: meta.finition || PLANCHE.get(norm(nom))?.finition || (/[ée]toile/i.test([l.sc, l.designation].join(' ')) ? (/p[ée]trole|iris/i.test(nom) ? 'petrole' : /nacr/i.test(nom) ? 'nacre' : /m[ée]tal|argent|h[ée]matite/i.test(nom) ? 'hematite' : null) : null)
+      finition: pl?.finition || meta.finition || (/[ée]toile/i.test([l.sc, l.designation].join(' ')) ? (/p[ée]trole|iris/i.test(nom) ? 'petrole' : /nacr/i.test(nom) ? 'nacre' : /m[ée]tal|argent|h[ée]matite/i.test(nom) ? 'hematite' : null) : null)
         || devinerFinition([l.designation, l.variante].join(' ')),
-      ordre: PLANCHE.get(norm(nom))?.ordre ?? 999,
+      ordre: pl?.ordre ?? 999, planche: !!pl,
       texture: meta.texture || null,
       swatch: img.swatch || meta.image || l.image_url || null,      // photo de la référence (fiche matériau de l'app)
       perle: meta.perle || (/[ée]toile/i.test([l.sc, l.designation, l.variante].join(' ')) ? (/nacr/i.test(nom + ' ' + (l.designation || '')) ? 'etoile-nacre-6' : 'etoile-8') : undefined),
@@ -684,7 +692,7 @@ export function catalogueDepuisMateriaux(lignes, perlesImages = {}) {
       stock: l.qty ?? null,
       enStock: l.qty == null ? true : l.qty > 0,
     };
-  }).filter(c => c.visible).map(c => c.finition === 'argile' ? c : ({ ...c, hexManuel: !!c.hex, hex: c.hex || c.hexNom, teinteFixe: !!c.hex || PLANCHE.has(norm(c.nom)) }))
+  }).filter(c => c.visible).map(c => c.finition === 'argile' ? c : ({ ...c, hexManuel: !!c.hex, hex: c.hex || c.hexNom, teinteFixe: !!c.hex || c.planche }))
     .sort((a, b) => a.ordre - b.ordre);
 }
 
@@ -851,8 +859,10 @@ export function creerMateriau(couleur) {
       break;
     case 'brun-reflet':            // marron transparent avec reflets caramel clairs (on lit bien le brun)
       // sans transparence (elle assombrissait la perle jusqu'au noir) : brun lumineux + reflets caramel clairs bien visibles
-      Object.assign(p, { roughness: 0.16, metalness: 0.45, clearcoat: 1, clearcoatRoughness: 0.05,
-        emissive: c.clone().multiplyScalar(0.42), sheen: 1, sheenRoughness: 0.25, sheenColor: new THREE.Color('#ffd8a0'), envMapIntensity: 1.6 });
+      Object.assign(p, { roughness: 0.14, metalness: 0.55, clearcoat: 1, clearcoatRoughness: 0.05,
+        specularColor: new THREE.Color('#ffc861'), specularIntensity: 1,
+        emissive: c.clone().multiplyScalar(0.45), sheen: 1, sheenRoughness: 0.22, sheenColor: new THREE.Color('#ffbe55'),
+        iridescence: 0.35, iridescenceIOR: 1.45, iridescenceThicknessRange: [520, 640], envMapIntensity: 1.7 });
       break;
     case 'translucide-metal':      // verre teinté peu transparent avec reflet métal (pêche 1, marron) : la teinte reste lisible
       Object.assign(p, { transmission: 0.2, thickness: 1.2, ior: 1.55, roughness: 0.05, metalness: 0.74,
