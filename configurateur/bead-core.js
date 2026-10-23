@@ -366,7 +366,7 @@ export function apercuArgile(motif, hex) {
 export const PLANCHE_ROCAILLES = [
   // Teintes et finitions d'après ta description de chaque rocaille (prioritaires sur les photos)
   ['rouge 1', '#c8101a', 'opaque'],              ['rouge 2', '#b3141f', 'transparent'],         ['rouge 3', '#c8182c', 'transparent-irise-violet'],  ['rouge 4', '#6e1024', 'transparent-metal'],
-  ['orange 1', '#ff6a00', 'opaque-fluo'],             ['orange 2', '#d8480c', 'transparent-metal'],  ['orange 3', '#ff8c2e', 'translucide'],       ['marron', '#9c5a22', 'brun-reflet'],
+  ['orange 1', '#ff6a00', 'opaque-fluo'],             ['orange 2', '#d8480c', 'transparent-metal'],  ['orange 3', '#ff8c2e', 'translucide'],       ['marron', '#4e2a10', 'brun-reflet'],
   ['jaune 1', '#ffb300', 'opaque-pep'],              ['jaune 2', '#f2d21e', 'translucide'],         ['pêche 1', '#f4a07a', 'translucide-metal'],        ['pêche 2', '#ee8a66', 'opaque'],
   ['bleu 1', '#00c9be', 'opaque-vif'],               ['bleu 2', '#2fa6cc', 'transparent-metal'],    ['bleu 3', '#1a36aa', 'opaque'],              ['bleu 4', '#15246e', 'opaque'],
   ['rose 1', '#f0288f', 'opaque'],               ['rose 2', '#f04ab8', 'translucide'],          ['vert 1', '#93b02a', 'transparent-metal'],   ['vert 2', '#2f7f3a', 'transparent'],
@@ -861,7 +861,7 @@ export function creerMateriau(couleur) {
       // sans transparence (elle assombrissait la perle jusqu'au noir) : brun lumineux + reflets caramel clairs bien visibles
       Object.assign(p, { roughness: 0.14, metalness: 0.55, clearcoat: 1, clearcoatRoughness: 0.05,
         specularColor: new THREE.Color('#ffc861'), specularIntensity: 1,
-        emissive: c.clone().multiplyScalar(0.45), sheen: 1, sheenRoughness: 0.22, sheenColor: new THREE.Color('#ffbe55'),
+        emissive: c.clone().multiplyScalar(0.3), sheen: 1, sheenRoughness: 0.22, sheenColor: new THREE.Color('#ffbe55'),
         iridescence: 0.35, iridescenceIOR: 1.45, iridescenceThicknessRange: [520, 640], envMapIntensity: 1.7 });
       break;
     case 'translucide-metal':      // verre teinté peu transparent avec reflet métal (pêche 1, marron) : la teinte reste lisible

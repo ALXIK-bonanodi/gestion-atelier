@@ -54,7 +54,7 @@ import {
   completerCatalogue, resoudreDefauts, couleursProposees, correspondCategorie, texteCatalogue, ordreModeles, bijouBreloque,
   chargerRuptures, enregistrerRuptures, apercuArgile, apercuChainmail, estLettres, accrochesProposees,
   chargerLiens, appliquerLiens, relierModele, chargerMateriauxParRefs,
-} from './bead-core.js?v=352f7d91';
+} from './bead-core.js?v=be0c9568';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './perles-config.js?v=e5e86015';
 
 const $ = s => document.querySelector(s);
@@ -134,7 +134,8 @@ function rendre() {
   }));
 }
 rendre();
-$('#etat').textContent = ruptures.size ? ruptures.size + ' élément(s) en rupture' : 'Tout est disponible';
+{ const nb = [...ruptures].filter(k => !/^(breloque|bundle):/.test(k)).length;   // « breloque: / bundle: » = choix des breloques proposées, pas des ruptures
+  $('#etat').textContent = nb ? nb + ' élément(s) en rupture' : 'Tout est disponible'; }
 $('#btEnregistrer').addEventListener('click', async () => {
   $('#btEnregistrer').disabled = true; $('#etat').textContent = 'Enregistrement…';
   try { await enregistrerRuptures(sb, [...ruptures]); $('#etat').textContent = 'Enregistré ✓ — le configurateur en tient compte au prochain chargement'; }

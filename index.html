@@ -127,6 +127,9 @@ main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0;backgr
 .stat{background:var(--white);border-radius:var(--r);padding:12px 8px;box-shadow:var(--sh);text-align:center}
 .stat .v{font-family:var(--serif);font-size:17px;line-height:1.1;font-weight:700}
 .stat .l{font-size:9px;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.4px}
+#creat-rent-stats.stats-prod{grid-template-columns:repeat(4,1fr)}
+@media (max-width:700px){ #creat-rent-stats.stats-prod{grid-template-columns:repeat(2,1fr)} }
+.stat .s{font-size:10px;color:var(--muted);margin-top:3px;line-height:1.3}
 .stat.red .v{color:var(--red)}.stat.grn .v{color:var(--green)}.stat.pur .v{color:var(--purple)}
 
 /* CAT BAR */
@@ -477,7 +480,9 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
 .rg-l input{padding:6px 8px;font-size:12px}
 .c3-proposes{padding:10px 12px 0}
 .c3p-tete{font-size:13px;margin-bottom:6px}
-.c3p-liste{display:flex;flex-wrap:wrap;gap:6px}
+.c3p-tab{display:grid;gap:6px}
+.c3p-l{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.c3p-nom{min-width:150px;font-size:13px;font-weight:600;color:var(--purple)}
 .c3p{border:1.5px dashed var(--border);background:#fff;color:var(--muted);border-radius:999px;padding:6px 12px;font:inherit;font-size:12px;font-weight:600;cursor:pointer}
 .c3p.on{border:1.5px solid var(--purple);background:var(--purple);color:#fff}
 .pbij-row{padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px;display:flex;gap:6px;align-items:baseline;flex-wrap:wrap}
@@ -3790,20 +3795,33 @@ function switchCreatTab(tab, numeroPerso) {
 const ouvrirPerso = numero => switchCreatTab('perso', numero);
 /* ── Conception 3D : configurateur, modèles, références, ruptures (pages du dossier configurateur/) ── */
 const C3D_PAGES = { cfg: 'configurateur-3d.html?apercu=1', m3d: 'editeur-perles.html', ref: 'references-configurateur.html', rup: 'stock-configurateur.html' };
-// Breloques proposées aux clientes : un clic pour afficher / masquer un modèle dans la personnalisation
+// Breloques proposées aux clientes, séparément pour « breloque seule » et « bundle ».
+// Masquée dans un parcours = entrée « breloque:<slug> » / « bundle:<slug> » dans configurateur_ruptures (déjà lisible par le configurateur) ;
+// masquée partout = modèle non publié.
+let MODELES_3D=[], RUPTURES_3D=[];
 async function renderModelesProposes(){
   const el=document.getElementById('c3-proposes'); if(!el) return;
-  let l=[]; try{ const {data,error}=await SB.from('modeles_3d').select('slug,nom,publie').order('nom'); if(error) throw error; l=data||[]; }
+  try{ const {data,error}=await SB.from('modeles_3d').select('slug,nom,publie').order('nom'); if(error) throw error; MODELES_3D=data||[];
+    const r=await SB.from('config').select('value').eq('key','configurateur_ruptures').maybeSingle(); let v=r.data?.value;
+    if(typeof v==='string'){ try{ v=JSON.parse(v); }catch(e){ v=[]; } } RUPTURES_3D=Array.isArray(v)?v.map(String):[]; }
   catch(e){ el.innerHTML=`<span class="dim">Modèles : ${escA(e.message)}</span>`; return; }
-  if(!l.length){ el.innerHTML='<span class="dim">Aucun modèle 3D enregistré pour l\'instant (onglet 🧊 Modèles).</span>'; return; }
-  const vus=l.filter(m=>m.publie).length;
-  el.innerHTML=`<div class="c3p-tete"><b>Breloques proposées aux clientes</b> <span class="dim">${vus}/${l.length} affichées · touche pour afficher ou masquer</span></div>
-    <div class="c3p-liste">${l.map(m=>`<button type="button" class="c3p ${m.publie?'on':''}" onclick="basculerModele('${escA(m.slug)}',${!m.publie})" title="${m.publie?'Affichée : touche pour la masquer':'Masquée : touche pour l\'afficher'}">${m.publie?'👁':'🚫'} ${escA(m.nom||m.slug)}</button>`).join('')}</div>`;
+  if(!MODELES_3D.length){ el.innerHTML='<span class="dim">Aucun modèle 3D enregistré pour l\'instant (onglet 🧊 Modèles).</span>'; return; }
+  const vu=(m,p)=>m.publie&&!RUPTURES_3D.includes(p+':'+m.slug);
+  const bouton=(m,p)=>`<button type="button" class="c3p ${vu(m,p)?'on':''}" onclick="basculerModele('${escA(m.slug)}','${p}')">${vu(m,p)?'👁':'🚫'} ${p==='breloque'?'Breloque seule':'Bundle'}</button>`;
+  el.innerHTML=`<div class="c3p-tete"><b>Breloques proposées aux clientes</b> <span class="dim">touche pour afficher (👁) ou masquer (🚫) dans chaque parcours</span></div>
+    <div class="c3p-tab">${MODELES_3D.map(m=>`<div class="c3p-l"><span class="c3p-nom">${escA(m.nom||m.slug)}</span>${bouton(m,'breloque')}${bouton(m,'bundle')}</div>`).join('')}</div>`;
 }
-async function basculerModele(slug, publie){
-  const {error}=await SB.from('modeles_3d').update({publie, updated_at:new Date().toISOString()}).eq('slug',slug);
-  if(error) return toast('Modèles : '+error.message,'err');
-  toast(publie?'Breloque affichée ✓':'Breloque masquée ✓','ok'); await renderModelesProposes(); switchC3dTab('cfg', true);
+async function basculerModele(slug, parcours){
+  const m=MODELES_3D.find(x=>x.slug===slug); if(!m) return;
+  const vu=p=>m.publie&&!RUPTURES_3D.includes(p+':'+slug);
+  const etat={breloque:vu('breloque'), bundle:vu('bundle')}; etat[parcours]=!etat[parcours];
+  const publie=etat.breloque||etat.bundle;
+  let rup=RUPTURES_3D.filter(k=>k!=='breloque:'+slug&&k!=='bundle:'+slug);
+  if(publie){ if(!etat.breloque) rup.push('breloque:'+slug); if(!etat.bundle) rup.push('bundle:'+slug); }
+  if(publie!==!!m.publie){ const {error}=await SB.from('modeles_3d').update({publie, updated_at:new Date().toISOString()}).eq('slug',slug); if(error) return toast('Modèles : '+error.message,'err'); }
+  await sbUpsertConfig('configurateur_ruptures', rup);
+  toast(`${m.nom||slug} : ${etat.breloque?'👁':'🚫'} breloque seule · ${etat.bundle?'👁':'🚫'} bundle`,'ok');
+  await renderModelesProposes(); switchC3dTab('cfg', true);
 }
 function switchC3dTab(tab, recharger) {
   if(tab==='cfg') renderModelesProposes();
@@ -5449,7 +5467,6 @@ async function saveTVA() {
 }
 
 // Proxy pour renderRent (compat)
-function renderRent() { renderCompta(); }
 
 
 // ═══════════════════════════════════════════════════════
@@ -6982,14 +6999,26 @@ async function saveRentEdit() {
 }
 
 function renderRent() {
-  const depTotal=MATS.reduce((s,m)=>s+(+m.prix||0),0)+REAPPROS.reduce((s,r)=>s+(+r.prix||0),0);
-  const ca=VENTES.reduce((s,v)=>s+(+v.qty||0)*(+v.prix||0),0);
-  const ben=ca-depTotal;
-  const rsEl=document.getElementById('rent-stats');
-  if(rsEl) rsEl.innerHTML=`
-    <div class="stat red"><div class="v">${eur(depTotal)}</div><div class="l">Dépenses</div></div>
-    <div class="stat grn"><div class="v">${eur(ca)}</div><div class="l">CA total</div></div>
-    <div class="stat ${ben>=0?'grn':'red'}"><div class="v">${eur(ben)}</div><div class="l">Bénéfice net</div></div>`;
+  // ── En-tête de l'onglet Productions : ce que valent tes productions (la Comptabilité garde ses propres chiffres)
+  const rsEl=document.getElementById('creat-rent-stats');
+  if(rsEl){
+    const estP=p=>!p.statut||p.statut==='produit';
+    const prixDe=b=>+(b.pv||(b.parent_id&&getBij(b.parent_id)?.pv)||prixMin(b)||0);
+    let qProd=0, vProd=0, qStock=0, vStock=0, cStock=0, qLigne=0, vLigne=0, qAilleurs=0, qEnc=0;
+    const parBij={};
+    PRODS.forEach(p=>{ const b=getBij(p.bij_id); if(!b) return; const q=+p.qty||0;
+      if(!estP(p)){ qEnc+=q; return; }
+      qProd+=q; vProd+=q*prixDe(b); (parBij[b.id] ||= {b,q:0}).q+=q;
+      const l=lireMiseEnVente(p).lieux; const en=+l['Boutique en ligne']||0; qLigne+=en; vLigne+=en*prixDe(b);
+      qAilleurs+=Object.entries(l).filter(([k])=>k!=='Boutique en ligne').reduce((t,[,v])=>t+(+v||0),0); });
+    Object.values(parBij).forEach(({b,q})=>{ const st=Math.max(0,q-venteTot(b.id).qty); qStock+=st; vStock+=st*prixDe(b); cStock+=st*coutBijou(b); });
+    rsEl.className='stats stats-prod';
+    rsEl.innerHTML=`
+      <div class="stat pur"><div class="v">${n(qProd)}</div><div class="l">pièces produites</div><div class="s">≈ ${eur(vProd)} au prix de vente</div></div>
+      <div class="stat grn"><div class="v">${n(qStock)}</div><div class="l">en stock</div><div class="s">valeur ≈ ${eur(vStock)} · coût mat. ${eur(cStock)}</div></div>
+      <div class="stat pur"><div class="v">${n(qLigne)}</div><div class="l">dispo boutique en ligne</div><div class="s">≈ ${eur(vLigne)}</div></div>
+      <div class="stat"><div class="v">${n(qAilleurs)}</div><div class="l">en point de vente / dépôts</div><div class="s">${qEnc?'🔧 '+n(qEnc)+' en cours de fabrication':'rien en cours'}</div></div>`;
+  }
   // ── Productions : regroupées par bijou, avec recherche, filtre et tri
   const estProd=p=>!p.statut||p.statut==='produit';
   const aVendre=p=>estProd(p)&&!Object.keys(lireMiseEnVente(p).lieux).length;
@@ -7072,9 +7101,6 @@ function renderRent() {
     const el=document.getElementById(id);
     if(el) el.innerHTML=prodHtml;
   });
-  const rentStats=document.getElementById('rent-stats');
-  const creatStats=document.getElementById('creat-rent-stats');
-  if(creatStats&&rentStats) creatStats.innerHTML=rentStats.innerHTML;
 
   // ── Ventes
   if(!VENTES.length){document.getElementById('rent-body').innerHTML=`<div class="empty"><div class="empty-icon">💰</div><p>Aucune vente enregistrée</p></div>`;return;}
