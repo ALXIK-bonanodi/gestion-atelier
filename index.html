@@ -3901,8 +3901,11 @@ function buildCatBar() {
   if(!bar||!flt) return;
   const cur=flt.value;
   let html='', opts='<option value="">Toutes catégories</option>';
-  // Catégories fusionnées config + MATS pour le type courant
-  const effectiveCats = getCatsForType(CUR_MAT_TYPE);
+  // Uniquement les catégories de tes éditions (Familles › Catégories) ; les références rangées ailleurs → « Hors catégories »
+  const effectiveCats = {};
+  (CUR_MAT_TYPE==='tout'?famIds():[CUR_MAT_TYPE]).forEach(t=>Object.entries(CATS_BY_TYPE[t]||{}).forEach(([mc,scs])=>{ const l=(effectiveCats[mc] ||= []); (scs||[]).forEach(sc=>{ if(!l.includes(sc)) l.push(sc); }); }));
+  const connues=new Set(Object.values(effectiveCats).flat());
+  const orphelines=[...new Set(MATS.filter(m=>(CUR_MAT_TYPE==='tout'||(m.type||'creation')===CUR_MAT_TYPE)&&m.sc&&!connues.has(m.sc)).map(m=>m.sc))];
   // Envelopper dans le format attendu par la boucle
   const effectiveSource = {[CUR_MAT_TYPE]: effectiveCats};
   Object.entries(effectiveSource).forEach(([typeKey, cats])=>{
@@ -3916,6 +3919,11 @@ function buildCatBar() {
       opts+=`<optgroup label="${mc}"><option value="__mc__${mc}">◆ ${mc} (tout)</option>${active.map(sc=>`<option value="${sc}" ${sc===cur?'selected':''}>${sc}</option>`).join('')}</optgroup>`;
     });
   });
+  if(orphelines.length){
+    html+=`<div class="cat-section"><span class="chip" style="background:#c0392b;font-weight:700" title="Sous-catégories de références qui ne sont dans aucune de tes catégories : renomme-les ou ajoute-les dans Catégories">⚠ Hors catégories</span>
+      ${orphelines.map(sc=>`<span class="chip" style="background:#fbe3e0;color:#8a2a1f" onclick="jumpToSC('${escA(sc)}')">${escA(sc)}</span>`).join('')}</div>`;
+    opts+=`<optgroup label="⚠ Hors catégories">${orphelines.map(sc=>`<option value="${escA(sc)}" ${sc===cur?'selected':''}>${escA(sc)}</option>`).join('')}</optgroup>`;
+  }
   bar.innerHTML=html||'';
   flt.innerHTML=opts;
 }
@@ -7135,7 +7143,8 @@ async function assemblerLot(id){
 let DERNIERES_FICHES_CFG='';
 async function publierFichesConfigurateur(){
   const fiches={};
-  BIJS.forEach(b=>{ const mats=getMatsEffectifs(b), refs=[...new Set(mats.map(m=>m.ref).filter(r=>getMat(r)))];
+  BIJS.forEach(b=>{ const mats=getMatsEffectifs(b), qte={}; mats.forEach(m=>{ if(getMat(m.ref)) qte[m.ref]=(qte[m.ref]||0)+(parseFloat(m.qty)||0); });
+    const refs=Object.keys(qte).sort((x,y)=>qte[y]-qte[x]);   // la plus utilisée d'abord : couleur principale de la fiche pour le configurateur
     const pieces=[...(LOTS[b.id]||[]).map(i=>({bij_id:i.bij_id,qty:+i.qty||1})),
       ...mats.map(m=>{ if(getMat(m.ref)) return null; const c=BIJS.find(x=>x.ref===m.ref); return c?{bij_id:c.id,qty:+m.qty||1}:null; }).filter(Boolean)];
     if(refs.length||pieces.length) fiches[b.id]=pieces.length?{refs,pieces}:{refs}; });

@@ -628,8 +628,11 @@ export function trouverBijou(bijoux, motif) {
   const rang = b => { const x = norm(b.nom), i = x.search(re); return (b.is_mat ? 1000 : 0) + (b.parent_id ? 100 : 0) + (i === 0 ? 0 : i < 0 ? 50 : 20) + x.length / 100; };
   return ok.sort((a, b) => rang(a) - rang(b))[0] || null;
 }
+// « #BIJ-001 » et « BIJ-001 » : la même fiche
+export const cleRefBijou = r => String(r || '').replace(/^#/, '').replace(/\s+/g, '').toUpperCase();
 export function bijouBreloque(modele, { couleurs = {}, texte = null, bijoux = [] } = {}) {
   const parRef = new Map(bijoux.map(b => [b.ref, b]));
+  const refSouple = r => { if (!r) return null; if (parRef.has(r)) return parRef.get(r); const n = cleRefBijou(r); return bijoux.find(b => cleRefBijou(b.ref) === n) || null; };
   const mode = texte?.mode === 2 ? 2 : 1;
   let row = null, ref = '';
   if (modele.bijZone) {
@@ -638,8 +641,9 @@ export function bijouBreloque(modele, { couleurs = {}, texte = null, bijoux = []
     if (!row) ref = '';                                       // motif d'exemple : pas encore de fiche
   }
   if (!row && modele.bijParMode) row = trouverBijou(bijoux, modele.bijParMode[mode]);
-  if (!row && modele.bij_ref) row = parRef.get(modele.bij_ref) || null;
+  if (!row && modele.bij_ref) row = refSouple(modele.bij_ref);
   if (!row && modele.bijNom) row = trouverBijou(bijoux, modele.bijNom);
+  if (!row && !modele.bijZone && !modele.bijParMode && modele.nom) row = trouverBijou(bijoux, '^' + norm(modele.nom).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));   // à défaut : la fiche du même nom
   // la fiche trouvée est un modèle : on prend sa variante de couleur qui correspond aux couleurs choisies (ex. Sardine)
   const base = row; row = ficheSelonCouleurs(row, bijoux, couleurs) || varianteSelonCouleurs(row, bijoux, couleurs);
   if (row && row !== base && (row.pv == null || row.pv === '')) row = { ...row, pv: base.pv };
@@ -815,11 +819,12 @@ export function refParNom(nom, liste) {
 const MOTS_TEINTE = ['argent', 'dore', 'bronze', 'noir', 'blanc', 'rose', 'bleu', 'rouge', 'vert', 'jaune', 'violet', 'orange', 'marron', 'gris', 'peche', 'cuivre'];
 let LIENS_FIXES = {};
 /* liens « fixe:<nom de la perle> » → vraie référence, choisis dans l'onglet 🔗 Références (Matériaux utilisés) */
+export const fixeIncluse = nom => !!nom && LIENS_FIXES[norm(nom)] === 'inclus';     // déjà comptée dans une composition (ex. pampille de la croix)
 export function definirLiensFixes(liens = {}) { LIENS_FIXES = Object.fromEntries(Object.entries(liens || {}).filter(([k, v]) => k.startsWith('fixe:') && v).map(([k, v]) => [k.slice(5), v])); }
 export const cleFixe = nom => 'fixe:' + norm(nom);
 export function refFixe(ref, nom, catalogue) {
   const lie = nom && LIENS_FIXES[norm(nom)];
-  if (lie && (!catalogue?.length || catalogue.some(x => x.ref === lie))) return lie;
+  if (lie && lie !== 'inclus' && (!catalogue?.length || catalogue.some(x => x.ref === lie))) return lie;
   if (!nom || !catalogue?.length) return ref;
   const c = catalogue.find(x => x.ref === ref);
   const teintes = norm(nom).split(/[^a-z0-9]+/).map(w => MOTS_TEINTE.find(t => w.startsWith(t))).filter(Boolean);
@@ -2586,12 +2591,13 @@ export function lignesCommande(modele, { catalogue = [], fermoirs = [], couleurs
   const cpt = new Map();
   for (const g of modele.groupes || []) for (const b of g.perles) {
     if (b.option) continue;                              // compté avec son option
+    if (b.kNom && fixeIncluse(b.kNom)) continue;         // déjà dans la composition (fiche bijou) de la breloque
     const ref = b.k || couleurs[b.z] || zones[b.z]?.defaut || '—';
     const partie = b.lettre ? 'Lettres « ' + (modele.texte || '') + ' »' : b.k ? (b.partie || 'Détail fixe') : (zones[b.z]?.nom || 'Sans zone');
     const cle = partie + '|' + ref + '|' + b.t;
     cpt.set(cle, (cpt.get(cle) || 0) + 1);
     const d = zones[b.z]?.double;
-    if (b.s === 'oeil' && d && parRef[ref]?.double) {           // petite perle plate blanche de l'œil double
+    if (b.s === 'oeil' && d && parRef[ref]?.double && !fixeIncluse(d.kNom)) {           // petite perle plate blanche de l'œil double
       const k2 = d.kNom ? refFixe(d.k, d.kNom, catalogue) : d.k;
       const c2 = 'Yeux (petite perle plate)|' + k2 + '|' + d.t;
       cpt.set(c2, (cpt.get(c2) || 0) + 1);

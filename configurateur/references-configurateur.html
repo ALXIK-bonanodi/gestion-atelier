@@ -69,7 +69,7 @@ import {
   completerCatalogue, resoudreDefauts, couleursProposees, correspondCategorie, ordreModeles, estLettres, accrochesProposees,
   chargerLiens, enregistrerLiens, estExemple, exemplesParRef, apercuArgile, apercuChainmail, baseRef,
   appliquerLiens, relierModele, definirLiensFixes, cleFixe, refFixe, catalogueDepuisMateriaux, perlesFixesDe, allureFixe,
-} from './bead-core.js?v=f4f9cffd';
+} from './bead-core.js?v=10757366';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './perles-config.js?v=e5e86015';
 
 const $ = s => document.querySelector(s);
@@ -262,7 +262,9 @@ function rendreUtilises() {
   definirLiensFixes(liens);
   const { catalogue: cL, fermoirs: fL } = appliquerLiens(liens, { catalogue, fermoirs, bijoux, lignesEnPlus: mats });
   const enPlus = catalogueDepuisMateriaux(mats.filter(l => Object.entries(liens).some(([k, v]) => k.startsWith('fixe:') && v === l.ref) && !cL.some(c => c.ref === l.ref)));
-  const cat = [...cL, ...enPlus];
+  const enPlusBij = Object.entries(liens).filter(([k, v]) => k.startsWith('fixe:') && v && v !== 'inclus' && !cL.some(c => c.ref === v) && !enPlus.some(c => c.ref === v))
+    .map(([, v]) => bijoux.find(b => b.ref === v)).filter(Boolean).map(b => ({ ref: b.ref, nom: [b.nom, b.variante].filter(Boolean).join(' · '), categorie: 'Composition', bijou: true }));
+  const cat = [...cL, ...enPlus, ...enPlusBij];
   const parRef = new Map([...cat, ...fL].map(x => [x.ref, x]));
   const nomDe = r => { const x = parRef.get(r); if (x) return x.nom || x.designation || r;
     const l = mats.find(y => y.ref === r); if (l) return [l.designation, l.variante].filter(Boolean).join(' · ');
@@ -275,16 +277,25 @@ function rendreUtilises() {
     if (t.length) { const tn = teintesDe(n); if (!t.every(x => tn.includes(x)) || tn.some(x => !t.includes(x))) return ['⚠', 'teinte différente de « ' + attendu + ' »', 'alerte']; }
     return ['✓', '', 'ok'];
   };
-  const perles = groupesMats().filter(g => /^perles|perle/i.test(g.sc || ''));
+  // perle fixe : composition (fiche bijou), n'importe quel matériau (toutes familles), ou « déjà comprise dans la composition »
   const selFixe = (kNom, ref) => {
-    const cle = cleFixe(kNom), lie = liens[cle] || '', mc = norm(kNom).split(/[^a-z0-9]+/).filter(w => w.length > 2 && !/^(mm|perle|perles)$/.test(w));
-    const score = g => mc.filter(w => norm([g.designation, g.variante, g.sc].join(' ')).includes(w)).length;
-    const tri = [...perles].sort((a, b) => score(b) - score(a) || String(a.ref).localeCompare(b.ref));
-    const opt = g => `<option value="${esc(g.ref)}" ${g.ref === lie ? 'selected' : ''}>${esc(g.ref)} · ${esc([g.designation, g.variante].filter(Boolean).join(' · '))}</option>`;
-    return `<select data-fixe="${esc(cle)}"><option value="">${lie ? '— retirer le lien (automatique) —' : 'automatique : ' + esc(ref) + ' · ' + esc(nomDe(ref) || '?')}</option>`
-      + `<optgroup label="Les plus proches">${tri.slice(0, 12).map(opt).join('')}</optgroup><optgroup label="Toutes les perles">${tri.slice(12).map(opt).join('')}</optgroup></select>`;
+    const cle = cleFixe(kNom), lie = liens[cle] || '', mc = norm(kNom).split(/[^a-z0-9]+/).filter(w => w.length > 1 && !/^(mm|perle|perles|de|la)$/.test(w));
+    const txt = g => norm([g.designation, g.variante, g.sc, g.nom].join(' '));
+    const score = g => mc.filter(w => txt(g).includes(w)).length;
+    const tous = groupesMats(), proches = [...tous].filter(g => score(g)).sort((a, b) => score(b) - score(a)).slice(0, 8);
+    const optM = g => `<option value="${esc(g.ref)}" ${g.ref === lie ? 'selected' : ''}>${esc(g.ref)} · ${esc([g.designation, g.variante].filter(Boolean).join(' · '))}</option>`;
+    const parSc = new Map(); for (const g of tous) { const k = g.sc || 'Autre'; if (!parSc.has(k)) parSc.set(k, []); parSc.get(k).push(g); }
+    return `<select data-fixe="${esc(cle)}">
+      <option value="">${lie ? '— retirer le lien (automatique) —' : 'automatique : ' + esc(ref) + ' · ' + esc(nomDe(ref) || '?')}</option>
+      <option value="inclus" ${lie === 'inclus' ? 'selected' : ''}>✓ Déjà comprise dans la composition (pas comptée à part)</option>
+      ${compositions().length ? `<optgroup label="Compositions (fiches bijoux)">${compositions().map(b => optBijou(b, lie)).join('')}</optgroup>` : ''}
+      ${proches.length ? `<optgroup label="Les plus proches">${proches.map(optM).join('')}</optgroup>` : ''}
+      ${[...parSc].sort((a, b) => a[0].localeCompare(b[0], 'fr')).map(([sc, gs]) => `<optgroup label="${esc(sc)}">${gs.map(optM).join('')}</optgroup>`).join('')}
+    </select>`;
   };
   const ligne = (role, r, attendu, extra = '', fixe = false) => {
+    if (fixe && liens[cleFixe(attendu)] === 'inclus') return `<div class="ligne liee"><span class="pastille" style="background:${allureFixe(attendu)?.hex || '#cfd0d4'}"></span>
+      <span>${esc(role)} <span class="ref">« ${esc(attendu)} »</span></span><span><b class="ok">✓</b> comprise dans la composition de la breloque (pas comptée à part)</span><span>${extra}</span></div>`;
     const x = parRef.get(r), [ic, msg, cls] = etat(r, fixe ? null : attendu);
     const al = fixe && allureFixe(attendu);
     const fondL = al ? al.hex : x ? (x.finition === 'argile' || x.finition === 'chainmail' ? fond(x) : (x.hex || '#cfd0d4')) : '#eee';

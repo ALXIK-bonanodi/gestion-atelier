@@ -416,7 +416,7 @@ import {
   correspondCategorie, texteCatalogue, ordreModeles, chargerRuptures, appliquerRuptures,
   chargerLiens, appliquerLiens, relierModele, chargerMateriauxParRefs,
   chargerFichesConfig, definirFichesConfig, ficheCfg, refsCouleurFiche, famillesFiche,
-} from './bead-core.js?v=f4f9cffd';
+} from './bead-core.js?v=10757366';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER, PANIER_SHOPIFY } from './perles-config.js?v=e5e86015';
 
 const $ = s => document.querySelector(s);
@@ -473,6 +473,10 @@ if (sb) {
   // perles fixes reliées à la main (onglet 🔗 Références › « Matériaux utilisés ») : leur ref doit être dans le catalogue pour la 3D
   const fixesManquantes = enPlus.filter(l => Object.entries(liens).some(([k, v]) => k.startsWith('fixe:') && v === l.ref) && !catalogue.some(c => c.ref === l.ref));
   if (fixesManquantes.length) catalogue = [...catalogue, ...catalogueDepuisMateriaux(fixesManquantes)];
+  // perle fixe reliée à une composition (fiche bijou, ex. « Perle de culture · Tige boule ») : connue du configurateur pour la fiche atelier
+  for (const [k, v] of Object.entries(liens)) if (k.startsWith('fixe:') && v && v !== 'inclus' && !catalogue.some(c => c.ref === v)) {
+    const b = bijoux.find(x => x.ref === v); if (b) catalogue = [...catalogue, { ref: b.ref, nom: [b.nom, b.variante].filter(Boolean).join(' · '), categorie: 'Composition', bijou: true, bij_id: b.id, hex: '#d6d8dd', finition: 'metallique', enStock: true }];
+  }
 }
 definirLiensFixes(liens);
 if (!modeles.length) modeles = [modeleDemo(), modeleAreteDemo(), modeleLettresDemo(), modeleArgileDemo(), modeleChainmailDemo(), modelePerleCultureDemo()];
@@ -759,27 +763,40 @@ function rendreListeBreloques() {
 // fiche modèle d'un modèle 3D (celle reliée par sa référence ou son nom)
 const ficheModele = m => { const base = bijouBreloque(m, { couleurs: {}, texte: { mode: 1 }, bijoux }); return bijoux.find(b => b.id === base.id) || null; };
 // couleurs d'une fiche posées sur les bonnes zones du modèle
+// couleurs d'une fiche d'après ses références publiées par l'app (rangées de la plus utilisée à la moins utilisée) :
+// chaque zone dont la couleur de départ n'est pas dans la fiche prend la couleur principale de la fiche (même catégorie)
+function couleursSelonRefs(m, id) {
+  const def = nouvelleBreloque(m.slug).couleurs;
+  const cats = new Set(Object.values(def).map(r => parRef[r]?.categorie)), R = refsCouleurFiche(id, cats);
+  if (!R.length) return null;
+  const c = { ...def };
+  for (const [z, d] of Object.entries(def)) {
+    if (!d || R.some(r => memeRefCouleur(r, d))) continue;
+    const cat = parRef[d]?.categorie, r = R.find(x => !cat || parRef[x]?.categorie === cat);
+    if (r) c[z] = r;
+  }
+  return c;
+}
+const memesRefs = (a, b) => { const A = refsCouleurFiche(a), B = refsCouleurFiche(b); return A.length === B.length && A.every(r => B.includes(r)); };
 function couleursDeFiche(m, row, f, voisins = true) {
   const def = nouvelleBreloque(m.slug).couleurs;
-  if (f.id === row.id) return { ...def };                                         // la fiche modèle = les couleurs de départ du modèle
-  // remplacements de la variante (même si elle est rattachée à une autre fiche de la famille)
+  const finir = c => {                                                            // couleurs de la fiche gardées ; les autres zones vérifiées
+    const v = validerConfiguration(m, catalogue, c, parties);
+    for (const z of Object.keys(c)) if (c[z] !== def[z] && parRef[c[z]]) v[z] = c[z];
+    return v;
+  };
+  const base = couleursSelonRefs(m, row.id) || { ...def };                        // la fiche modèle (ex. arête toute en argent 1)
+  if (f.id === row.id) return finir(base);
+  // la variante : ses propres références si elles diffèrent de celles de la fiche modèle, sinon celles du modèle
+  const propres = !memesRefs(f.id, row.id) ? couleursSelonRefs(m, f.id) : null;
+  const c = { ...(propres || base) };
   const ov = (f.variante_overrides || []).filter(o => o && o.ref_parent && o.ref_variante);
-  let c = { ...def }, touche = false; const touchees = new Set();
-  // variante sans ses propres remplacements de couleur : celles de la variante du même nom d'un autre modèle (arête Sardine ← poisson Sardine)
-  const voisin = voisins && !ov.some(o => Object.values(def).some(d => memeRefCouleur(d, o.ref_parent))) ? couleursMemeVariante(m, f) : null;
-  if (voisin) { Object.assign(c, voisin); Object.keys(voisin).forEach(z => touchees.add(z)); touche = true; }
+  let applique = false;
   for (const o of ov) { const rv = refCatalogue(o.ref_variante); if (!rv) continue;
-    for (const [z, d] of Object.entries(def)) if (memeRefCouleur(d, o.ref_parent)) { c[z] = rv; touchees.add(z); touche = true; } }
-  if (!touche) {                                                                  // sinon : couleurs de la fiche, même catégorie
-    const cats = new Set(Object.values(def).map(r => parRef[r]?.categorie)), R = refsCouleurFiche(f.id, cats); if (!R.length) return null;
-    const Rs = new Set(R), defs = new Set(Object.values(def)), libres = R.filter(r => !defs.has(r)), rempl = {};
-    for (const d of defs) { if (!d || Rs.has(d)) continue; const cat = parRef[d]?.categorie, i = libres.findIndex(r => !cat || parRef[r]?.categorie === cat); if (i >= 0) rempl[d] = libres.splice(i, 1)[0]; }
-    for (const [z, d] of Object.entries(def)) if (rempl[d]) { c[z] = rempl[d]; touchees.add(z); }
-  }
-  // les couleurs de la fiche sont gardées telles quelles (même hors des choix proposés au client) ; les autres zones sont vérifiées
-  const v = validerConfiguration(m, catalogue, c, parties);
-  for (const z of touchees) if (parRef[c[z]]) v[z] = c[z];
-  return v;
+    for (const z of Object.keys(c)) if (memeRefCouleur(c[z], o.ref_parent) || memeRefCouleur(def[z], o.ref_parent)) { c[z] = rv; applique = true; } }
+  // pas de remplacement utilisable : les couleurs de la variante du même nom d'un autre modèle (arête Sardine ← dos, ventre, queue du petit poisson Sardine)
+  if (!applique && !propres && voisins) { const v = couleursMemeVariante(m, f); if (v) Object.assign(c, v); }
+  return finir(c);
 }
 // même couleur : même ref, même ref de base (#PR014 / #PR014b = un seul stock) ou même nom de couleur (« bleu 2 »)
 function memeRefCouleur(a, b) {
@@ -808,9 +825,10 @@ function couleursMemeVariante(m, f) {
     const f2 = famillesFiche(row2, bijoux).find(x => x.id !== row2.id && normNom(x.variante || '') === v && (x.variante_overrides || []).some(o => o && o.ref_parent));
     if (!f2) continue;
     const c2 = couleursDeFiche(m2, row2, f2, false); if (!c2) continue;
+    const b2 = couleursDeFiche(m2, row2, row2, false) || {};                        // seulement les zones que la variante change
     const z2 = Object.fromEntries((m2.zones || []).map(z => [z.id, z])), c = {};
     for (const z of m.zones || []) { const zz = z2[z.id] || (m2.zones || []).find(y => normNom(y.nom).split(/[^a-z]+/).some(w => w.length > 3 && normNom(z.nom).includes(w)));
-      if (zz && c2[zz.id]) c[z.id] = c2[zz.id]; }
+      if (zz && c2[zz.id] && c2[zz.id] !== b2[zz.id]) c[z.id] = c2[zz.id]; }
     if (Object.keys(c).length) return c;
   }
   return null;
@@ -825,9 +843,10 @@ function calculerIdees(m) {
     }) : [];
   }
   const row = ficheModele(m); if (!row) return [];
-  return famillesFiche(row, bijoux).filter(f => !f.is_mat).map(f => {
+  const classique = couleursDeFiche(m, row, row);
+  return famillesFiche(row, bijoux).map(f => {                                    // fiches bijoux et compositions
     const c = couleursDeFiche(m, row, f); if (!c) return null;
-    if (f.id !== row.id && memeCouleurs(c, nouvelleBreloque(m.slug).couleurs)) return null;   // variante qu'on ne sait pas encore dessiner
+    if (f.id !== row.id && memeCouleurs(c, classique)) return null;                // variante qu'on ne sait pas encore dessiner
     return { fiche: f, nom: f.variante || (f.id === row.id ? 'Classique' : f.nom), prix: f.pv != null && f.pv !== '' ? +f.pv : (row.pv != null ? +row.pv : null),
       breloque: { ...nouvelleBreloque(m.slug), couleurs: c } };
   }).filter(Boolean);
@@ -846,7 +865,7 @@ const normNom = t => String(t || '').toLowerCase().normalize('NFD').replace(/[̀
 function ideesBundle() {
   if (!accroches) return [];
   const connues = new Set([...catalogue.map(c => c.ref), ...fermoirs.map(f => f.ref)]), liste = modelesDu('bundle');
-  return bijoux.filter(b => !b.is_mat && ficheCfg(b.id)?.pieces?.length).map(f => {
+  return bijoux.filter(b => ficheCfg(b.id)?.pieces?.length).map(f => {
     const cfg = ficheCfg(f.id), refs = cfg.refs || [];
     if (refs.some(r => !connues.has(r))) return null;                             // ex. crochet de boucle d'oreille absent du configurateur
     const aRef = r => refs.includes(r) || refs.some(x => baseRef(x) === baseRef(r));
@@ -1282,11 +1301,11 @@ if (new URLSearchParams(location.search).get('diag')) {
       for (const f of famillesFiche(row, bijoux)) {
         const ov = (f.variante_overrides || []).filter(o => o && o.ref_parent);
         const c = couleursDeFiche(m, row, f);
-        const diff = c ? Object.entries(c).filter(([z, r]) => def[z] !== r).map(([z, r]) => z + '→' + r + (parRef[r] ? ' ' + parRef[r].nom : '')).join(', ') : null;
+        const diff = c ? Object.entries(c).filter(([z, r]) => (f.id === row.id ? def[z] : couleursDeFiche(m, row, row)[z]) !== r).map(([z, r]) => z + '→' + r + (parRef[r] ? ' ' + parRef[r].nom : '')).join(', ') : null;
         lignes.push('  · ' + (f.variante || f.nom) + ' ' + f.ref + ' (id ' + f.id + (f.parent_id ? ', parent ' + f.parent_id : '') + ', ' + (f.pv ?? '—') + ' €)'
           + '\n      refs fiche : ' + (refsCouleurFiche(f.id).join(' ') || 'aucune publiée')
           + '\n      remplacements : ' + (ov.map(o => o.ref_parent + (parRef[o.ref_parent] ? ' ' + parRef[o.ref_parent].nom : ' ?') + ' → ' + o.ref_variante + (parRef[o.ref_variante] ? ' ' + parRef[o.ref_variante].nom : ' ?(hors configurateur)')).join(' ; ') || 'aucun')
-          + '\n      résultat : ' + (f.id === row.id ? 'fiche modèle (couleurs de départ)' : c === null ? 'AUCUNE couleur trouvée' : diff ? diff : 'mêmes couleurs que le départ → idée NON proposée'));
+          + '\n      résultat : ' + (f.id === row.id ? 'fiche modèle' + (diff ? ' : ' + diff : ' (couleurs de départ)') : c === null ? 'AUCUNE couleur trouvée' : diff ? diff : 'mêmes couleurs que la fiche modèle → idée NON proposée'));
       }
     }
     lignes.push('  idées : ' + (calculerIdees(m).map(x => x.nom + (ideeVisible(x.fiche) ? '' : ' (masquée)')).join(', ') || 'aucune'));
