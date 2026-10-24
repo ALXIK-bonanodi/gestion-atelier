@@ -17,6 +17,12 @@ h1 { font-size: 18px; font-family: "Fredoka", sans-serif; font-weight: 500; colo
 .ligne { display: grid; grid-template-columns: 26px minmax(150px, 1fr) minmax(220px, 1.4fr) auto; gap: 10px; align-items: center; padding: 9px 14px; border-bottom: 1px solid var(--ligne); }
 .ligne:last-child { border-bottom: 0; }
 .ligne.liee { background: #f1f8f3; }
+.nav-u { position: sticky; top: 0; z-index: 5; display: flex; gap: 6px; flex-wrap: wrap; padding: 8px 14px; background: var(--carte); border-bottom: 1px solid var(--ligne); }
+.nav-u button { border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1.5px solid var(--ligne); background: #fff; color: var(--prune); }
+.nav-u button.a { border-color: #c0392b; color: #c0392b; } .nav-u button.o { border-color: #2e7d4f; color: #2e7d4f; } .nav-u button.r { border-style: dashed; }
+details.groupe > summary { cursor: pointer; list-style: none; } details.groupe > summary::-webkit-details-marker { display: none; }
+details.groupe > summary h2::before { content: '▸ '; } details.groupe[open] > summary h2::before { content: '▾ '; }
+details.groupe { scroll-margin-top: 110px; } .groupe.utilises { overflow: visible; }
 .pastille { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--ligne); }
 .ref { font: 11px ui-monospace, monospace; color: var(--doux); }
 select, input { font: inherit; font-size: 13px; padding: 6px 8px; border: 1px solid var(--ligne); border-radius: 8px; background: #fff; width: 100%; min-width: 0; }
@@ -43,7 +49,7 @@ button:disabled { opacity: .5; cursor: default; }
 </head>
 <body>
 <main>
-  <h1>🔗 Références du configurateur</h1>
+  <h1>🔗 Références du configurateur <button type="button" onclick="location.reload()" style="font-size:12px;vertical-align:middle;border-radius:999px;padding:3px 10px;border:1.5px solid currentColor;background:none;cursor:pointer">↻ Actualiser</button></h1>
   <p class="aide">Les éléments ci-dessous utilisent encore une <b>référence d'exemple</b> (#…-ex…). Pour chacun, choisis la vraie référence de ta base
     (un matériau ou une <b>composition</b> de tes fiches bijoux), ou crée-la. La vraie référence prend alors sa place partout : choix proposés au client, note atelier, fiche de fabrication.<br>
     Les variantes d'une même référence (ex. <b>#AI001</b> moyen A et <b>#AI001b</b> moyen B) ne sont qu'<b>un seul stock</b> : elles apparaissent sur une seule ligne.</p>
@@ -62,8 +68,8 @@ import {
   listerModelesPublies, chargerCatalogueBoutique, chargerFermoirsBoutique, chargerPartiesConfigurateur, chargerBijouxBoutique,
   completerCatalogue, resoudreDefauts, couleursProposees, correspondCategorie, ordreModeles, estLettres, accrochesProposees,
   chargerLiens, enregistrerLiens, estExemple, exemplesParRef, apercuArgile, apercuChainmail, baseRef,
-  appliquerLiens, relierModele, definirLiensFixes, cleFixe, refFixe, catalogueDepuisMateriaux,
-} from './bead-core.js?v=8d580724';
+  appliquerLiens, relierModele, definirLiensFixes, cleFixe, refFixe, catalogueDepuisMateriaux, perlesFixesDe, allureFixe,
+} from './bead-core.js?v=f4f9cffd';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './perles-config.js?v=e5e86015';
 
 const $ = s => document.querySelector(s);
@@ -278,37 +284,39 @@ function rendreUtilises() {
     return `<select data-fixe="${esc(cle)}"><option value="">${lie ? '— retirer le lien (automatique) —' : 'automatique : ' + esc(ref) + ' · ' + esc(nomDe(ref) || '?')}</option>`
       + `<optgroup label="Les plus proches">${tri.slice(0, 12).map(opt).join('')}</optgroup><optgroup label="Toutes les perles">${tri.slice(12).map(opt).join('')}</optgroup></select>`;
   };
-  const ligne = (role, r, attendu, extra = '') => {
-    const x = parRef.get(r), [ic, msg, cls] = etat(r, attendu);
-    const fondL = x ? (x.finition === 'argile' || x.finition === 'chainmail' ? fond(x) : (x.hex || '#cfd0d4')) : '#eee';
+  const ligne = (role, r, attendu, extra = '', fixe = false) => {
+    const x = parRef.get(r), [ic, msg, cls] = etat(r, fixe ? null : attendu);
+    const al = fixe && allureFixe(attendu);
+    const fondL = al ? al.hex : x ? (x.finition === 'argile' || x.finition === 'chainmail' ? fond(x) : (x.hex || '#cfd0d4')) : '#eee';
     return `<div class="ligne ${cls === 'ok' ? 'liee' : ''}"><span class="pastille" style="background:${fondL}"></span>
       <span>${esc(role)}${attendu ? ` <span class="ref">« ${esc(attendu)} »</span>` : ''}</span>
       <span><b class="${cls}">${ic}</b> <span class="ref">${esc(r || '—')}</span> ${esc(nomDe(r) || '')}${msg ? `<br><span class="${cls}" style="font-size:12px">${esc(msg)}</span>` : ''}</span>
       <span>${extra}</span></div>`;
   };
-  $('#utilises').innerHTML = modelesBruts.map(m0 => {
+  const ouverts = new Set([...document.querySelectorAll('#utilises details[open]')].map(d => d.dataset.slug)), premier = !document.querySelector('#utilises details'), y = scrollY;
+  const blocs = modelesBruts.map(m0 => {
     const mo = resoudreDefauts(relierModele(m0, liens), cat, fL), L = [];
     for (const z of mo.zones || []) {
       if (z.defaut) L.push(ligne('Couleur par défaut · ' + (z.nom || z.id), z.defaut, z.defautNom));
-      if (z.double) L.push(ligne('Perle fixe · ' + (z.nom || z.id) + ' (petite plate)', z.double.k, z.double.kNom, z.double.kNom ? selFixe(z.double.kNom, z.double.k) : ''));
     }
-    const fixes = new Map();
-    for (const g of mo.groupes || []) {
-      for (const b of g.perles || []) if (b.kNom && !fixes.has(b.kNom)) fixes.set(b.kNom, { r: b.k, role: 'Perle fixe · ' + (b.partie || g.nom || 'perle') });
-      if (g.pampille?.kNom && !fixes.has(g.pampille.kNom)) fixes.set(g.pampille.kNom, { r: g.pampille.k, role: 'Perle fixe · pampille' });
-    }
-    if (mo.lettres) { const Lt = mo.lettres;
-      if (Lt.ref) L.push(ligne('Perle lettre', Lt.ref, Lt.refNom));
-      for (const h of [...(Lt.haut || []), ...(Lt.bas || [])]) if (h.kNom && !fixes.has(h.kNom)) fixes.set(h.kNom, { r: refFixe(h.k, h.kNom, cat), role: 'Perle fixe · intercalaire' }); }
-    for (const [kNom, f] of fixes) L.push(ligne(f.role, f.r, kNom, selFixe(kNom, f.r)));
+    if (mo.lettres?.ref) L.push(ligne('Perle lettre', mo.lettres.ref, mo.lettres.refNom));
+    // perles fixes : la référence reliée (stock, fiche atelier) ; le rendu 3D reste celui du modèle
+    for (const f of perlesFixesDe(mo, cat)) L.push(ligne(f.role, f.ref, f.kNom, selFixe(f.kNom, f.ref) + '<br><span class="ref">rendu 3D : celui du modèle</span>', true));
     for (const o of mo.options || []) {
       if (o.type === 'fermoir') (o.choix || []).forEach(ch => L.push(ligne('Fermoir · ' + (ch.nom || ch.id || ''), ch.ref)));
       if (o.type === 'accroche') (accrochesProposees(mo, fL)?.choix || []).forEach(ch => (ch.pieces || []).forEach((r, i) => L.push(ligne('Porte-clés « ' + (ch.nom || ch.id) + ' »' + (ch.pieces.length > 1 ? ' · pièce ' + (i + 1) : ''), r))));
     }
     for (const g of mo.groupes || []) for (const a of g.accessoires || []) L.push(ligne('Fermoir de la breloque', a.ref));
     const nbA = L.filter(x => x.includes('class="alerte"')).length;
-    return `<details class="groupe" ${nbA ? 'open' : ''}><summary><h2 style="display:inline">${esc(mo.nom || mo.slug)} ${nbA ? `<span class="alerte" style="padding:1px 6px">⚠ ${nbA}</span>` : '✓'}</h2></summary>${L.join('') || '<p class="aide" style="padding:0 14px">Aucun matériau fixe.</p>'}</details>`;
-  }).join('');
+    const ouvert = premier ? false : ouverts.has(mo.slug);
+    return { slug: mo.slug, nom: mo.nom || mo.slug, nbA, html: `<details class="groupe" id="u-${esc(mo.slug)}" data-slug="${esc(mo.slug)}" ${ouvert ? 'open' : ''}><summary><h2 style="display:inline">${esc(mo.nom || mo.slug)} ${nbA ? `<span class="alerte" style="padding:1px 6px">⚠ ${nbA}</span>` : '✓'}</h2></summary>${L.join('') || '<p class="aide" style="padding:0 14px">Aucun matériau fixe.</p>'}</details>` };
+  });
+  // navigation : une pastille par breloque (ouvre et amène à sa liste), « Tout replier »
+  $('#utilises').innerHTML = `<nav class="nav-u">${blocs.map(b => `<button type="button" data-aller="${esc(b.slug)}" class="${b.nbA ? 'a' : 'o'}">${esc(b.nom)} ${b.nbA ? '⚠ ' + b.nbA : '✓'}</button>`).join('')}<button type="button" data-replier="1" class="r">Tout replier</button></nav>` + blocs.map(b => b.html).join('');
+  scrollTo(0, y);
+  $('#utilises').querySelectorAll('[data-aller]').forEach(bt => bt.addEventListener('click', () => {
+    const d = document.getElementById('u-' + bt.dataset.aller); d.open = true; d.scrollIntoView({ behavior: 'smooth', block: 'start' }); }));
+  $('#utilises').querySelector('[data-replier]').addEventListener('click', () => $('#utilises').querySelectorAll('details').forEach(d => d.open = false));
   $('#utilises').querySelectorAll('[data-fixe]').forEach(sel => sel.addEventListener('change', () => {
     sel.value ? liens[sel.dataset.fixe] = sel.value : delete liens[sel.dataset.fixe];
     modifie(); rendreUtilises();

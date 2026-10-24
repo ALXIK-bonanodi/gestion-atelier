@@ -679,18 +679,12 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
       <!-- Sous-onglets matériaux -->
       <div id="subnav-mat" style="display:flex;border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none">
         <div id="mtype-tout" onclick="switchMatType('tout')" class="sub-tab sub-tab-on">🗂 Tout</div>
-        <div id="mtype-creation" onclick="switchMatType('creation')" class="sub-tab">🧵 Création</div>
-        <div id="mtype-envoi" onclick="switchMatType('envoi')" class="sub-tab">📬 Envois</div>
-        <div id="mtype-consommable" onclick="switchMatType('consommable')" class="sub-tab">🧪 Consommables</div>
-        <div id="mtype-outil" onclick="switchMatType('outil')" class="sub-tab">🔧 Outils</div>
+        <span id="fam-subnav-mat" style="display:contents"></span>
       </div>
       <!-- Sous-onglets stock -->
       <div id="subnav-stock" style="display:none;border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:6px 10px;gap:6px;flex-wrap:wrap">
         <button id="sflt-all" class="btn btn-p btn-sm" onclick="switchStockFlt('all')">Tout</button>
-        <button id="sflt-creation" class="btn btn-ghost btn-sm" onclick="switchStockFlt('creation')">🧵 Création</button>
-        <button id="sflt-envoi" class="btn btn-ghost btn-sm" onclick="switchStockFlt('envoi')">📬 Envois</button>
-        <button id="sflt-consommable" class="btn btn-ghost btn-sm" onclick="switchStockFlt('consommable')">🧪 Consommables</button>
-        <button id="sflt-outil" class="btn btn-ghost btn-sm" onclick="switchStockFlt('outil')">🔧 Outils</button>
+        <span id="fam-subnav-stock" style="display:contents"></span>
       </div>
     </div>
   </div>
@@ -1143,12 +1137,12 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
     <div class="card-hd"><h2>🗂 Catégories matériaux</h2></div>
     <div class="card-bd">
       <!-- Sélecteur de type -->
-      <div style="display:flex;gap:4px;margin-bottom:14px;flex-wrap:wrap">
-        <button id="p-type-creation" class="btn btn-p btn-sm" onclick="setCfgType('creation')">🧵 Création</button>
-        <button id="p-type-envoi" class="btn btn-ghost btn-sm" onclick="setCfgType('envoi')">📬 Envois</button>
-        <button id="p-type-consommable" class="btn btn-ghost btn-sm" onclick="setCfgType('consommable')">🧪 Consommables</button>
-        <button id="p-type-outil" class="btn btn-ghost btn-sm" onclick="setCfgType('outil')">🔧 Outils</button>
+      <div style="margin-bottom:14px">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Familles</div>
+        <div id="p-fam-list"></div>
       </div>
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">Catégories de la famille</div>
+      <div id="p-fam-boutons" style="display:flex;gap:4px;margin-bottom:14px;flex-wrap:wrap"></div>
       <div style="margin-bottom:14px">
         <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Catégories principales</div>
         <div id="p-cfg-mc-list"></div>
@@ -1214,12 +1208,9 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
   <div class="drag"></div>
   <div class="modal-title" id="mat-modal-title">Nouveau matériau</div>
   <input type="hidden" id="mat-edit-id">
-  <div class="fg"><label>Type</label>
+  <div class="fg"><label>Famille</label>
    <select id="mat-type" onchange="onMatTypeChange()">
-    <option value="creation">🧵 Matériau de création</option>
-    <option value="envoi">📬 Matériau d'envoi</option>
-    <option value="consommable">🧪 Consommable de production</option>
-    <option value="outil">🔧 Outil / Équipement</option>
+    <option value="creation">🧵 Création</option>
    </select>
   </div>
   <div class="r2">
@@ -1499,18 +1490,16 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
   <div class="modal-title">⚙ Catégories & Fournisseurs</div>
 
   <div class="mtabs" id="cfg-tabs">
-   <div class="mtab on" onclick="switchCfgTab(this,'cfg-cats')">Catégories</div>
-   <div class="mtab" onclick="switchCfgTab(this,'cfg-fours')">Fournisseurs</div>
+   <div class="mtab" onclick="switchCatModalTab(this,'cfg-fams')">Familles</div>
+   <div class="mtab on" onclick="switchCatModalTab(this,'cfg-cats')">Catégories</div>
+   <div class="mtab" onclick="switchCatModalTab(this,'cfg-fours')">Fournisseurs</div>
   </div>
 
   <!-- TAB CATÉGORIES -->
   <div id="cfg-cats">
    <!-- Sélecteur de type dans le modal -->
    <div style="display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap">
-    <button id="mcat-type-creation" class="btn btn-p btn-sm" onclick="setModalCatType('creation')">🧵 Création</button>
-    <button id="mcat-type-envoi" class="btn btn-ghost btn-sm" onclick="setModalCatType('envoi')">📬 Envois</button>
-    <button id="mcat-type-consommable" class="btn btn-ghost btn-sm" onclick="setModalCatType('consommable')">🧪 Consommables</button>
-    <button id="mcat-type-outil" class="btn btn-ghost btn-sm" onclick="setModalCatType('outil')">🔧 Outils</button>
+    <span id="m-fam-boutons" style="display:contents"></span>
    </div>
    <div style="margin-bottom:12px">
     <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Catégories principales</div>
@@ -1534,6 +1523,12 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
     <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Sous-catégories existantes</div>
     <div id="m-cfg-sc-list"></div>
    </div>
+  </div>
+
+  <!-- TAB FAMILLES -->
+  <div id="cfg-fams" style="display:none">
+   <div class="dim" style="font-size:12px;margin-bottom:10px">Les familles regroupent tes catégories (Création, Envois, Consommables, Outils…). Chaque famille a ses propres catégories et sous-catégories.</div>
+   <div id="m-fam-list"></div>
   </div>
 
   <!-- TAB FOURNISSEURS -->
@@ -2068,6 +2063,9 @@ async function loadAll() {
     consommable: (rawCBT.consommable && Object.keys(rawCBT.consommable).length>0) ? rawCBT.consommable : {"Consommables":["Colle","Fil de montage","Vernis","Autre consommable"]},
     outil:       (rawCBT.outil       && Object.keys(rawCBT.outil).length>0)       ? rawCBT.outil       : {"Outils":["Pince","Ciseau","Matériel photo","Abonnement","Autre outil"]}
   };
+  { const fa=cfg.find(cc=>cc.key==='familles_mat')?.value; if(Array.isArray(fa)&&fa.length) FAMILLES=fa.filter(f=>f&&f.id); }
+  famIds().forEach(id=>{ if(!CATS_BY_TYPE[id]) CATS_BY_TYPE[id]=(rawCBT[id]&&typeof rawCBT[id]==='object')?rawCBT[id]:{}; });
+  renderFamillesUI();
   // Si cats_by_type.creation était vide mais main_cats ne l'est pas → réparer
   if(Object.keys(CATS_BY_TYPE.creation).length===0 && Object.keys(legacyCats).length>0) {
     CATS_BY_TYPE.creation = legacyCats;
@@ -3600,10 +3598,11 @@ async function delRA(id) {
   if(ok){REAPPROS=REAPPROS.filter(r=>r.id!==id);renderDep();toast('Supprimé','ok');}
 }
 
-function switchCfgTab(el, showId) {
+function switchCatModalTab(el, showId) {
   el.closest('#cfg-tabs').querySelectorAll('.mtab').forEach(t=>t.classList.remove('on'));
   el.classList.add('on');
-  ['cfg-cats','cfg-fours'].forEach(id=>{
+  if(showId==='cfg-fams') renderFamilles();
+  ['cfg-fams','cfg-cats','cfg-fours'].forEach(id=>{
     const d=document.getElementById(id); if(d) d.style.display=id===showId?'block':'none';
   });
   if(showId==='cfg-fours') renderFourList();
@@ -3614,7 +3613,7 @@ function setModalCatType(type) {
   // Mettre à jour le type actif dans le modal catégorie
   CUR_MAT_TYPE=type;
   MAIN_CATS=CATS_BY_TYPE[type]||{};
-  ['creation','envoi','consommable','outil'].forEach(t=>{
+  famIds().forEach(t=>{
     const btn=document.getElementById('mcat-type-'+t);
     if(btn) btn.className=t===type?'btn btn-p btn-sm':'btn btn-ghost btn-sm';
   });
@@ -3628,15 +3627,17 @@ function openAddCat() {
   CUR_MAT_TYPE=type;
   MAIN_CATS=CATS_BY_TYPE[type]||{};
   // Activer le bon bouton de type dans le modal
-  ['creation','envoi','consommable','outil'].forEach(t=>{
+  famIds().forEach(t=>{
     const btn=document.getElementById('mcat-type-'+t);
     if(btn) btn.className=t===type?'btn btn-p btn-sm':'btn btn-ghost btn-sm';
   });
   ['m-addcat-name','m-new-mc-name','new-four-name'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
-  document.querySelectorAll('#cfg-tabs .mtab').forEach((t,i)=>t.classList.toggle('on',i===0));
-  const cc=document.getElementById('cfg-cats'), cf=document.getElementById('cfg-fours');
+  document.querySelectorAll('#cfg-tabs .mtab').forEach(t=>t.classList.toggle('on',t.textContent.trim()==='Catégories'));
+  const cc=document.getElementById('cfg-cats'), cf=document.getElementById('cfg-fours'), cfa=document.getElementById('cfg-fams');
   if(cc) cc.style.display='block';
   if(cf) cf.style.display='none';
+  if(cfa) cfa.style.display='none';
+  renderFamilles();
   renderCatListCtx("modal");
   openModal('m-addcat');
 }
@@ -3649,10 +3650,57 @@ function getCatCtxType(ctx) {
 function getCatCtxPrefix(ctx) { return ctx==='params' ? 'p-' : 'm-'; }
 
 let ADDCAT_CFG_TYPE = 'creation';
+/* ── Familles (Création, Envois, Consommables, Outils… + les tiennes) ── */
+const FAMILLES_DEFAUT=[{id:'creation',nom:'Création',emoji:'🧵'},{id:'envoi',nom:'Envois',emoji:'📬'},{id:'consommable',nom:'Consommables',emoji:'🧪'},{id:'outil',nom:'Outils',emoji:'🔧'}];
+let FAMILLES=FAMILLES_DEFAUT.map(f=>({...f}));
+const famIds=()=>FAMILLES.map(f=>f.id);
+const famLib=f=>`${f.emoji?f.emoji+' ':''}${escA(f.nom)}`;
+function renderFamillesUI(){
+  const sm=document.getElementById('fam-subnav-mat'); if(sm) sm.innerHTML=FAMILLES.map(f=>`<div id="mtype-${f.id}" onclick="switchMatType('${f.id}')" class="sub-tab${CUR_MAT_TYPE===f.id?' sub-tab-on':''}">${famLib(f)}</div>`).join('');
+  const ss=document.getElementById('fam-subnav-stock'); if(ss) ss.innerHTML=FAMILLES.map(f=>`<button id="sflt-${f.id}" class="btn ${CUR_STOCK_FLT===f.id?'btn-p':'btn-ghost'} btn-sm" onclick="switchStockFlt('${f.id}')">${famLib(f)}</button>`).join('');
+  const pb=document.getElementById('p-fam-boutons'); if(pb) pb.innerHTML=FAMILLES.map(f=>`<button id="p-type-${f.id}" class="btn ${ADDCAT_CFG_TYPE===f.id?'btn-p':'btn-ghost'} btn-sm" onclick="setCfgType('${f.id}')">${famLib(f)}</button>`).join('');
+  const mb=document.getElementById('m-fam-boutons'); if(mb) mb.innerHTML=FAMILLES.map(f=>`<button id="mcat-type-${f.id}" class="btn ${(CUR_MAT_TYPE==='tout'?'creation':CUR_MAT_TYPE)===f.id?'btn-p':'btn-ghost'} btn-sm" onclick="setModalCatType('${f.id}')">${famLib(f)}</button>`).join('');
+  const sel=document.getElementById('mat-type'); if(sel){ const v=sel.value; sel.innerHTML=FAMILLES.map(f=>`<option value="${f.id}">${famLib(f)}</option>`).join(''); if(famIds().includes(v)) sel.value=v; }
+  renderFamilles();
+}
+function renderFamilles(){
+  const html=FAMILLES.map((f,i)=>{ const nb=MATS.filter(m=>(m.type||'creation')===f.id).length, nbc=Object.keys(CATS_BY_TYPE[f.id]||{}).length;
+    return `<div style="display:flex;align-items:center;gap:6px;padding:5px 8px;background:var(--bg);border-radius:var(--rx);margin-bottom:4px">
+      <span style="flex:1;font-size:13px;font-weight:600">${famLib(f)}</span>
+      <span style="font-size:10px;color:var(--muted)">${nbc} catégorie${nbc>1?'s':''} · ${nb} réf.</span>
+      <button class="btn btn-xs btn-ghost" title="Monter" onclick="deplacerFamille(${i},-1)" ${i?'':'disabled'}>↑</button>
+      <button class="btn btn-xs btn-ghost" onclick="renommerFamille('${f.id}')">✎</button>
+      ${FAMILLES_DEFAUT.some(d=>d.id===f.id)||nb?'':`<button class="btn btn-xs btn-red" onclick="supprimerFamille('${f.id}')">✕</button>`}
+    </div>`; }).join('')+`<div style="display:flex;gap:6px;margin-top:8px"><input class="fam-new-emoji" placeholder="🙂" style="width:52px;text-align:center"><input class="fam-new-nom" placeholder="Nouvelle famille" style="flex:1"><button class="btn btn-p btn-sm" onclick="ajouterFamille(this)">＋ Ajouter</button></div>`;
+  ['p-fam-list','m-fam-list'].forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML=html; });
+}
+async function sauverFamilles(){ await sbUpsertConfig('familles_mat', FAMILLES); renderFamillesUI(); }
+async function ajouterFamille(bt){
+  const box=bt.parentNode, nom=box.querySelector('.fam-new-nom').value.trim(), emoji=box.querySelector('.fam-new-emoji').value.trim();
+  if(!nom) return toast('Nom obligatoire','err');
+  let id=nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'famille';
+  if(['tout','all'].includes(id)) id+='-1'; while(famIds().includes(id)) id+='-2';
+  FAMILLES.push({id,nom,emoji}); CATS_BY_TYPE[id]={};
+  await sauverFamilles(); await saveCatsByType(); toast(`Famille « ${nom} » créée`,'ok');
+}
+async function renommerFamille(id){
+  const f=FAMILLES.find(x=>x.id===id); if(!f) return;
+  const nom=prompt('Nom de la famille',f.nom); if(nom===null||!nom.trim()) return;
+  const emoji=prompt('Emoji (facultatif)',f.emoji||''); f.nom=nom.trim(); if(emoji!==null) f.emoji=emoji.trim();
+  await sauverFamilles(); toast('Famille renommée','ok');
+}
+async function deplacerFamille(i,d){ const j=i+d; if(j<0||j>=FAMILLES.length) return; [FAMILLES[i],FAMILLES[j]]=[FAMILLES[j],FAMILLES[i]]; await sauverFamilles(); }
+async function supprimerFamille(id){
+  if(MATS.some(m=>(m.type||'creation')===id)) return toast('Des références sont dans cette famille : change-les de famille d\'abord','err');
+  if(Object.keys(CATS_BY_TYPE[id]||{}).length&&!confirm('Supprimer aussi ses catégories ?')) return;
+  FAMILLES=FAMILLES.filter(f=>f.id!==id); delete CATS_BY_TYPE[id];
+  if(CUR_MAT_TYPE===id) CUR_MAT_TYPE='tout'; if(ADDCAT_CFG_TYPE===id) ADDCAT_CFG_TYPE='creation';
+  await sauverFamilles(); await saveCatsByType();
+}
 
 function setCfgType(type) {
   ADDCAT_CFG_TYPE = type;
-  ['creation','envoi','consommable','outil'].forEach(t=>{
+  famIds().forEach(t=>{
     const btn=document.getElementById('p-type-'+t);
     if(btn) btn.className=t===type?'btn btn-p btn-sm':'btn btn-ghost btn-sm';
   });
@@ -3699,12 +3747,7 @@ function renderCatListCtx(ctx) {
 
 async function saveCatsByType() {
   // Sauvegarder seulement les 4 types valides — jamais 'tout'
-  const toSave = {
-    creation:    CATS_BY_TYPE.creation    || {},
-    envoi:       CATS_BY_TYPE.envoi       || {},
-    consommable: CATS_BY_TYPE.consommable || {},
-    outil:       CATS_BY_TYPE.outil       || {}
-  };
+  const toSave = Object.fromEntries(famIds().map(id=>[id, CATS_BY_TYPE[id]||{}]));
   await sbUpsertConfig('cats_by_type', toSave);
   await sbUpsertConfig('main_cats', toSave.creation);
   buildCatBar();
@@ -3864,11 +3907,11 @@ function buildCatBar() {
   const effectiveSource = {[CUR_MAT_TYPE]: effectiveCats};
   Object.entries(effectiveSource).forEach(([typeKey, cats])=>{
     Object.entries(cats||{}).forEach(([mc,scs])=>{
-      const active=scs.filter(sc=>MATS.some(m=>m.sc===sc&&(CUR_MAT_TYPE==='tout'||(m.type||'creation')===CUR_MAT_TYPE)));
-      if(!active.length) return;
+      // toutes les catégories créées s'affichent, même encore vides (pastille plus pâle)
+      const active=scs, plein=sc=>MATS.some(m=>m.sc===sc&&(CUR_MAT_TYPE==='tout'||(m.type||'creation')===CUR_MAT_TYPE));
       html+=`<div class="cat-section">
-        <span class="chip" style="background:${MAIN_CLR[mc]||couleurMC(mc)};font-weight:700" onclick="jumpToMC('${mc}')">${mc}</span>
-        ${active.map(sc=>`<span class="chip" style="background:${SC_CLR[sc]||couleurSC(sc)};color:var(--purple)" onclick="jumpToSC('${sc}')">${sc}</span>`).join('')}
+        <span class="chip" style="background:${MAIN_CLR[mc]||couleurMC(mc)};font-weight:700" onclick="jumpToMC('${escA(mc)}')">${escA(mc)}</span>
+        ${active.map(sc=>`<span class="chip" style="background:${SC_CLR[sc]||couleurSC(sc)};color:var(--purple);${plein(sc)?'':'opacity:.5'}" onclick="jumpToSC('${escA(sc)}')" title="${plein(sc)?'':'aucune référence pour l\'instant'}">${escA(sc)}</span>`).join('')}
       </div>`;
       opts+=`<optgroup label="${mc}"><option value="__mc__${mc}">◆ ${mc} (tout)</option>${active.map(sc=>`<option value="${sc}" ${sc===cur?'selected':''}>${sc}</option>`).join('')}</optgroup>`;
     });
@@ -4038,7 +4081,7 @@ function switchC3dTab(tab, recharger) {
   });
   const f = document.getElementById('c3frame-'+tab);
   // références et ruptures : toujours rechargées (données à jour) ; les autres au premier affichage
-  if (recharger || tab==='ref' || tab==='rup' || !f.getAttribute('src'))
+  if (recharger || tab==='rup' || !f.getAttribute('src'))   // références : la page garde sa position (bouton ↻ Actualiser dedans)
     f.setAttribute('src', 'configurateur/' + C3D_PAGES[tab] + (C3D_PAGES[tab].includes('?') ? '&' : '?') + 't=' + Date.now());
 }   // fiche atelier dans l'onglet « Sur mesure »
 const escPerso = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -4156,7 +4199,7 @@ function switchGTab(tab) {
 function switchMatType(type) {
   CUR_MAT_TYPE = type;
   // Mettre à jour sous-onglets
-  ['tout','creation','envoi','consommable','outil'].forEach(t=>{
+  ['tout',...famIds()].forEach(t=>{
     const el=document.getElementById('mtype-'+t);
     if(el) el.className='sub-tab'+(t===type?' sub-tab-on':'');
   });
@@ -4175,7 +4218,7 @@ function switchMatType(type) {
 
 function switchStockFlt(flt) {
   CUR_STOCK_FLT = flt;
-  ['all','creation','envoi','consommable','outil'].forEach(t=>{
+  ['all',...famIds()].forEach(t=>{
     const btn=document.getElementById('sflt-'+t);
     if(btn){btn.className=t===flt?'btn btn-p btn-sm':'btn btn-ghost btn-sm';}
   });
@@ -4278,7 +4321,7 @@ function renderMat() {
           const grp=MATS.filter(x=>baseRef(x.ref)===baseRef(m.ref));
           const tot=grp.reduce((s,x)=>s+stockCumul(x),0), util=grp.reduce((s,x)=>s+stockUtilise(x.ref),0), res=grp.reduce((s,x)=>s+stockReserve(x.ref),0), sc2=tot-util-res;
           const manque=champsManquants(m);
-          const typeLabels={creation:'🪡',envoi:'📬',consommable:'🧪',outil:'🔧'};
+          const typeLabels=Object.fromEntries(FAMILLES.map(f=>[f.id,f.emoji||'•']));
           const typeBadge=CUR_MAT_TYPE==='tout'?`<span style="font-size:9px;opacity:.6">${typeLabels[m.type||'creation']||''}</span>`:'';
           const metaInfo=m.meta&&isFilMC(m.mc)?
             `<div style="font-size:10px;color:var(--muted);margin-top:2px">

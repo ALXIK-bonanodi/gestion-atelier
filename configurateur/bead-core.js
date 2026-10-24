@@ -828,12 +828,35 @@ export function refFixe(ref, nom, catalogue) {
     const autres = motsC.map(w => MOTS_TEINTE.find(t => w.startsWith(t))).filter(t => t && !teintes.includes(t));
     return teintes.every(t => motsC.some(w => w.startsWith(t))) && !autres.length;
   };
-  if (c && (!teintes.length || bonneTeinte(c))) return ref;
+  if (c) return ref;                                   // ta vraie référence (ex. pampilles acier inoxydable) : gardée ; son rendu 3D suit le modèle (apparenceFixes)
   const r = refParNom(nom, catalogue), cr = r && catalogue.find(x => x.ref === r);
   if (cr && (!teintes.length || bonneTeinte(cr))) return r;
   // rien de la bonne teinte sous ce nom : la perle de la même teinte (« argent 1 »), sinon la ref d'origine (gris neutre)
   const t = teintes[0] && refParNom(teintes[0], catalogue), ct = t && catalogue.find(x => x.ref === t);
   return ct && bonneTeinte(ct) ? t : (c && !teintes.length ? ref : (cr && !teintes.length ? r : (c ? (bonneTeinte(c) ? ref : '#gris-neutre') : ref)));
+}
+/* Rendu 3D d'une perle fixe : celui du modèle (« ronde argentée 3 mm » = argent métal), quelle que soit la référence reliée */
+const ALLURE_TEINTE = { argent: { hex: '#d6d8dd', finition: 'metallique' }, dore: { hex: '#d4af37', finition: 'metallique' }, bronze: { hex: '#9c6b3c', finition: 'metallique' },
+  blanc: { hex: '#f4f2ec', finition: 'opaque' }, noir: { hex: '#1b1b1d', finition: 'opaque' } };
+export function allureFixe(nom) {
+  const d = CATALOGUE_DEMO.find(c => norm(c.nom) === norm(nom)); if (d) return { hex: d.hex, finition: d.finition };
+  const t = norm(nom).split(/[^a-z0-9]+/).map(w => MOTS_TEINTE.find(x => w.startsWith(x))).filter(Boolean)[0];
+  return ALLURE_TEINTE[t] || null;
+}
+export function perlesFixesDe(m, catalogue = []) {
+  const L = [], aj = (k, kNom, role) => { if (k && kNom) L.push({ ref: catalogue.length ? refFixe(k, kNom, catalogue) : k, kNom, role }); };
+  for (const z of m.zones || []) if (z.double) aj(z.double.k, z.double.kNom, 'Perle fixe · ' + (z.nom || z.id) + ' (petite plate)');
+  for (const g of m.groupes || []) { for (const b of g.perles || []) aj(b.k, b.kNom, 'Perle fixe · ' + (b.partie || g.nom || 'perle')); if (g.pampille) aj(g.pampille.k, g.pampille.kNom, 'Perle fixe · pampille'); }
+  for (const h of [...(m.lettres?.haut || []), ...(m.lettres?.bas || [])]) aj(h.k, h.kNom, 'Perle fixe · intercalaire');
+  const vus = new Set(); return L.filter(x => !vus.has(x.kNom + '|' + x.ref) && vus.add(x.kNom + '|' + x.ref));
+}
+export function apparenceFixes(modeles, catalogue) {
+  const choix = new Set();                                  // une ref aussi proposée comme couleur garde sa propre teinte
+  for (const m of modeles) for (const z of m.zones || []) { if (z.defaut) choix.add(z.defaut); couleursProposees(z, catalogue).forEach(c => choix.add(c.ref)); }
+  const fixes = new Map();
+  for (const m of modeles) for (const f of perlesFixesDe(m, catalogue)) if (!fixes.has(f.ref)) fixes.set(f.ref, f.kNom);
+  return catalogue.map(c => { const kNom = fixes.get(c.ref); if (!kNom || choix.has(c.ref)) return c;
+    const a = allureFixe(kNom); return a ? { ...c, hex: a.hex, finition: a.finition, teinteFixe: true, allureFixe: kNom } : c; });
 }
 export function resoudreDefauts(modele, catalogue, fermoirs = null) {
   const parRef = new Set(catalogue.map(c => c.ref));
