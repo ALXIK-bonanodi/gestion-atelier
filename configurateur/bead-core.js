@@ -383,7 +383,7 @@ const PLANCHE = new Map(PLANCHE_ROCAILLES.map(([n, hex, finition], i) => [norm(n
    et à la toute fin le blanc et le noir, ensemble. */
 const FAMILLES_COULEUR = [...new Set(PLANCHE_ROCAILLES.map(([n]) => norm(n).replace(/\s*\d+$/, '')))]
   .filter(f => !/^(argent|dore|or|bronze|cuivre|blanc|noir)$/.test(f));
-const FAMILLES_METAL = ['argent', 'dore', 'or', 'bronze', 'cuivre', 'hematite', 'gris metal'];
+const FAMILLES_METAL = ['argent', 'dore', 'bronze', 'cuivre', 'hematite', 'gris metal'];
 export function ordreCouleur(nom) {
   const k = norm(nom), fam = k.replace(/\s*\d+$/, ''), num = +(k.match(/(\d+)$/)?.[1] || 0);
   let rang = FAMILLES_COULEUR.indexOf(fam);
@@ -805,23 +805,48 @@ export function refParNom(nom, liste) {
   const proche = liste.filter(c => { const m = motsDe(c); return mots.every(w => m.some(x => /^\d+$/.test(w) ? x === w : x.startsWith(w))); });
   // le plus proche d'abord : nom qui commence par le nom cherché (« argent » → « argent 1 »), puis le moins de mots en plus
   // (sinon une perle « rose doublé argent » rangée avant passait devant et les petites perles argent devenaient roses)
-  const rang = c => { const x = norm(c.nom); return (x.startsWith(n) ? 0 : 1) * 10000 + (+(x.match(/(\d+)$/)?.[1] || 0)) * 100 + motsDe(c).length; };   // puis « argent 1 » avant « argent 2 »
+  const dansNom = c => { const m = norm(c.nom).split(/[^a-z0-9]+/).filter(Boolean); return mots.every(w => m.some(x => /^\d+$/.test(w) ? x === w : x.startsWith(w))); };
+  const rang = c => { const x = norm(c.nom); return (dansNom(c) ? 0 : 1) * 100000 + (x.startsWith(n) ? 0 : 1) * 10000 + (+(x.match(/(\d+)$/)?.[1] || 0)) * 100 + motsDe(c).length; };   // puis « argent 1 » avant « argent 2 »
   proche.sort((a, b) => rang(a) - rang(b));
   return (proche.find(c => c.enStock !== false) || proche[0])?.ref || null;
+}
+/* Perle fixe d'un modèle (« ronde argentée 3 mm », « argent 1 »…) : si la ref enregistrée pointe
+   vers une perle d'une autre couleur (ancienne résolution « rose doublé argent »), on la refait par le nom. */
+const MOTS_TEINTE = ['argent', 'dore', 'bronze', 'noir', 'blanc', 'rose', 'bleu', 'rouge', 'vert', 'jaune', 'violet', 'orange', 'marron', 'gris', 'peche', 'cuivre'];
+export function refFixe(ref, nom, catalogue) {
+  if (!nom || !catalogue?.length) return ref;
+  const c = catalogue.find(x => x.ref === ref);
+  const teintes = norm(nom).split(/[^a-z0-9]+/).map(w => MOTS_TEINTE.find(t => w.startsWith(t))).filter(Boolean);
+  const bonneTeinte = x => {
+    const motsC = norm(x.nom).split(/[^a-z0-9]+/);
+    const autres = motsC.map(w => MOTS_TEINTE.find(t => w.startsWith(t))).filter(t => t && !teintes.includes(t));
+    return teintes.every(t => motsC.some(w => w.startsWith(t))) && !autres.length;
+  };
+  if (c && (!teintes.length || bonneTeinte(c))) return ref;
+  const r = refParNom(nom, catalogue), cr = r && catalogue.find(x => x.ref === r);
+  if (cr && (!teintes.length || bonneTeinte(cr))) return r;
+  // rien de la bonne teinte sous ce nom : la perle de la même teinte (« argent 1 »), sinon la ref d'origine (gris neutre)
+  const t = teintes[0] && refParNom(teintes[0], catalogue), ct = t && catalogue.find(x => x.ref === t);
+  return ct && bonneTeinte(ct) ? t : (c && !teintes.length ? ref : (cr && !teintes.length ? r : (c ? (bonneTeinte(c) ? ref : '#gris-neutre') : ref)));
 }
 export function resoudreDefauts(modele, catalogue, fermoirs = null) {
   const parRef = new Set(catalogue.map(c => c.ref));
   const fix = (ref, nom) => parRef.has(ref) ? ref : refParNom(nom, catalogue) || ref;
+  const fixe = (ref, nom) => nom ? refFixe(ref, nom, catalogue) : fix(ref, nom);
   const m = JSON.parse(JSON.stringify(modele));
   for (const z of m.zones || []) {
     z.defaut = fix(z.defaut, z.defautNom);
-    if (z.double) z.double.k = fix(z.double.k, z.double.kNom);
+    if (z.double) z.double.k = fixe(z.double.k, z.double.kNom);
     if (!parRef.has(z.defaut) && z.choixNoms?.length) {                // yeux : la perle plate noire par défaut
       const l = couleursProposees(z, catalogue);
       z.defaut = (l.find(c => /noir/.test(norm(c.nom))) || l.find(c => /noir/.test(texteCatalogue(c))) || l[0])?.ref || z.defaut;
     }
   }
-  for (const g of m.groupes || []) for (const b of g.perles) if (b.k && !parRef.has(b.k) && b.kNom) b.k = fix(b.k, b.kNom);
+  for (const g of m.groupes || []) {
+    for (const b of g.perles || []) if (b.k && b.kNom) b.k = fixe(b.k, b.kNom);
+    if (g.pampille?.kNom) g.pampille.k = fixe(g.pampille.k, g.pampille.kNom);
+  }
+  if (m.lettres) for (const h of [...(m.lettres.haut || []), ...(m.lettres.bas || [])]) if (h.kNom) h.k = fixe(h.k, h.kNom);
   if (fermoirs?.length) {
     // fermoir d'exemple -> fermoir réel de même type et de taille la plus proche
     const proche = a => fermoirs.filter(f => f.type === (a.type || 'mousqueton'))
@@ -2073,7 +2098,7 @@ export class ScenePerles {
       const o = (this.modele.options || []).find(x => x.type === 'perle' && x.place === 'pampille' && (x.gi ?? 0) === gi);
       const ref = o && this.choixOptions?.[o.id];
       const t = ref ? (this.parRef[ref]?.perle || o.perle || 'culture-8') : g.pampille.t;
-      const k = ref || (this.parRef[g.pampille.k] ? g.pampille.k : this.catalogue.find(c => norm(c.nom) === norm(g.pampille.kNom || ''))?.ref || g.pampille.k);
+      const k = ref || refFixe(g.pampille.k, g.pampille.kNom, this.catalogue);
       const T = typePerle(t), A = this._anneaux(g) || [];
       const zBas = A.length ? Math.max(...A.map(a => a.p[2] + a.R)) - 0.3 : 0;
       const z = zBas + 1.6 + T.H / 2;
@@ -2139,7 +2164,7 @@ export class ScenePerles {
     for (const e of [...this.plates]) {
       if (e.b.s !== 'oeil' || !this.parRef[this.refPour(e.b)]?.double) continue;
       const d = this.zonesParId?.[e.b.z]?.double || { t: 'plate-4' };
-      const k = this.parRef[d.k] ? d.k : this.catalogue.find(c => norm(c.nom) === norm(d.kNom || 'plate blanche 4 mm'))?.ref || d.k;
+      const k = refFixe(d.k, d.kNom || 'plate blanche 4 mm', this.catalogue);
       const pup = this.plates.find(p => p.gi === e.gi && p.b.s === 'pupille' && p.b.r === e.b.r && p.b.c === e.b.c && p.b.l === e.b.l);
       const T = typePerle(e.b.t), T2 = typePerle(d.t);
       po.setFromMatrixPosition(e.m);
@@ -2538,7 +2563,7 @@ export function lignesCommande(modele, { catalogue = [], fermoirs = [], couleurs
     cpt.set(cle, (cpt.get(cle) || 0) + 1);
     const d = zones[b.z]?.double;
     if (b.s === 'oeil' && d && parRef[ref]?.double) {           // petite perle plate blanche de l'œil double
-      const k2 = parRef[d.k] ? d.k : catalogue.find(c => norm(c.nom) === norm(d.kNom || ''))?.ref || d.k;
+      const k2 = d.kNom ? refFixe(d.k, d.kNom, catalogue) : d.k;
       const c2 = 'Yeux (petite perle plate)|' + k2 + '|' + d.t;
       cpt.set(c2, (cpt.get(c2) || 0) + 1);
     }
@@ -2868,7 +2893,7 @@ export function construireLettres(gabarit, texte, options = {}, catalogue = []) 
   const m = JSON.parse(JSON.stringify(gabarit));
   const L = m.lettres || {};
   const parRef = new Map(catalogue.map(c => [c.ref, c])), parNom = new Map(catalogue.map(c => [norm(c.nom), c.ref]));
-  const ref = (r, nom) => (!catalogue.length || parRef.has(r)) ? r : (nom && parNom.get(norm(nom))) || r;
+  const ref = (r, nom) => !catalogue.length ? r : nom ? refFixe(r, nom, catalogue) : parRef.has(r) ? r : r;
   const refLettre = ref(L.ref, L.refNom) || catalogue.find(c => /lettre/i.test(c.categorie || ''))?.ref || L.ref;
   const { mots } = verifierTexte(texte, L.max || 8);
   const etoile = (m.options || []).find(o => o.type === 'perle' && o.place === 'texte');

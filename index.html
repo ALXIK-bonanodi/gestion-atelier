@@ -3983,12 +3983,40 @@ async function renderModelesProposes(){
     const r=await SB.from('config').select('value').eq('key','configurateur_ruptures').maybeSingle(); let v=r.data?.value;
     if(typeof v==='string'){ try{ v=JSON.parse(v); }catch(e){ v=[]; } } RUPTURES_3D=Array.isArray(v)?v.map(String):[]; }
   catch(e){ el.innerHTML=`<span class="dim">Modèles : ${escA(e.message)}</span>`; return; }
-  if(!MODELES_3D.length){ el.innerHTML='<span class="dim">Aucun modèle 3D enregistré pour l\'instant (onglet 🧊 Modèles).</span>'; return; }
+  if(!MODELES_3D.length){ el.innerHTML='<span class="dim">Aucun modèle 3D enregistré pour l\'instant (onglet 🧊 Modèles).</span>'+renderIdeesProposees(); return; }
   const vu=(m,p)=>m.publie&&!RUPTURES_3D.includes(p+':'+m.slug);
   const bouton=(m,p)=>`<button type="button" class="c3p ${vu(m,p)?'on':''}" onclick="basculerModele('${escA(m.slug)}','${p}')">${vu(m,p)?'👁':'🚫'} ${p==='breloque'?'Breloque seule':'Bundle'}</button>`;
   const nb=p=>MODELES_3D.filter(m=>vu(m,p)).length, ouvert=el.dataset.ouvert==='1';
   el.innerHTML=`<details class="c3p-det" ${ouvert?'open':''} ontoggle="this.parentNode.dataset.ouvert=this.open?'1':''"><summary><b>Breloques proposées</b> <span class="dim">· breloque seule ${nb('breloque')}/${MODELES_3D.length} · bundle ${nb('bundle')}/${MODELES_3D.length}</span> <span class="c3p-gerer">Gérer ▾</span></summary>
-    <div class="c3p-tab">${MODELES_3D.map(m=>`<div class="c3p-l"><span class="c3p-nom">${escA(m.nom||m.slug)}</span>${bouton(m,'breloque')}${bouton(m,'bundle')}</div>`).join('')}</div></details>`;
+    <div class="c3p-tab">${MODELES_3D.map(m=>`<div class="c3p-l"><span class="c3p-nom">${escA(m.nom||m.slug)}</span>${bouton(m,'breloque')}${bouton(m,'bundle')}</div>`).join('')}</div></details>
+    ${renderIdeesProposees()}`;
+}
+// 💡 Idées du configurateur : variantes de couleurs d'une fiche + lots (porte-clés…) → afficher / masquer
+function candidatesIdees(){
+  const estLot=b=>(LOTS[b.id]||[]).length||getMatsEffectifs(b).some(m=>!getMat(m.ref)&&BIJS.some(x=>x.ref===m.ref));
+  const fam=[], lots=[];
+  BIJS.filter(b=>!b.is_mat&&!b.parent_id).forEach(b=>{
+    const vars=BIJS.filter(x=>x.parent_id===b.id&&!x.is_mat);
+    if(estLot(b)) lots.push(b); else if(vars.length) fam.push({base:b, vars});
+  });
+  return {fam, lots};
+}
+function renderIdeesProposees(){
+  const {fam,lots}=candidatesIdees(); if(!fam.length&&!lots.length) return '';
+  const vu=b=>!RUPTURES_3D.includes('idee:'+b.id);
+  const nomB=b=>escA([b.nom,b.variante].filter(Boolean).join(' · ')||b.ref||'');
+  const bt=b=>`<button type="button" class="c3p ${vu(b)?'on':''}" onclick="basculerIdee('${escA(b.id)}')">${vu(b)?'👁':'🚫'} ${nomB(b)}</button>`;
+  const tous=[...fam.flatMap(f=>[f.base,...f.vars]),...lots], nb=tous.filter(vu).length, ouvert=document.getElementById('c3-proposes')?.dataset.ideesOuvert==='1';
+  return `<details class="c3p-det" style="margin-top:8px" ${ouvert?'open':''} ontoggle="document.getElementById('c3-proposes').dataset.ideesOuvert=this.open?'1':''"><summary><b>💡 Idées proposées</b> <span class="dim">· ${nb}/${tous.length} affichées dans le configurateur</span> <span class="c3p-gerer">Gérer ▾</span></summary>
+    <div class="c3p-tab">${fam.map(f=>`<div class="c3p-l"><span class="c3p-nom">${escA(f.base.nom||f.base.ref)}</span>${[f.base,...f.vars].map(bt).join('')}</div>`).join('')}
+    ${lots.length?`<div class="c3p-l"><span class="c3p-nom">🎁 Bundles / lots</span>${lots.map(bt).join('')}</div>`:''}
+    <div class="dim" style="font-size:11px;margin-top:4px">🚫 = l'idée n'apparaît plus dans la boîte 💡 du configurateur (la fiche reste reconnue si la cliente choisit ces couleurs).</div></div></details>`;
+}
+async function basculerIdee(id){
+  const k='idee:'+id, rup=RUPTURES_3D.includes(k)?RUPTURES_3D.filter(x=>x!==k):[...RUPTURES_3D,k];
+  await sbUpsertConfig('configurateur_ruptures', rup); RUPTURES_3D=rup;
+  const b=BIJS.find(x=>x.id===id); toast(`💡 ${[b?.nom,b?.variante].filter(Boolean).join(' · ')} : ${rup.includes(k)?'masquée':'affichée'}`,'ok');
+  await renderModelesProposes();
 }
 async function basculerModele(slug, parcours){
   const m=MODELES_3D.find(x=>x.slug===slug); if(!m) return;
