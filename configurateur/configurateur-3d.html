@@ -556,6 +556,20 @@ const optionsEffectives = b => {                     // pas d'étoile au milieu 
 const modelePour = b => { const m = modeleDe(b.slug); return estLettres(m) ? construireLettres(m, b.texteValide, b.options, catalogue) : m; };
 
 /* ---------- état ---------- */
+function breloqueOuverture(slug) {
+  const b = nouvelleBreloque(slug);
+  try {
+    const m = modeleDe(slug); if (!m || m.bijZone || estLettres(m)) return b;
+    const L = ideesPour(m), val = c => validerConfiguration(m, catalogue, c, parties);
+    if (!L.length || L.some(x => memeCouleurs(val(x.breloque.couleurs), val(b.couleurs)))) return b;   // le modèle s'ouvre déjà sur une fiche
+    // nom de la variante d'ouverture des autres breloques (ex. « Sardine » pour le petit poisson)
+    const noms = modeles.filter(x => x.slug !== slug && !x.bijZone && !estLettres(x)).map(x => {
+      const d = nouvelleBreloque(x.slug).couleurs; return ideesPour(x).find(i => memeCouleurs(val2(x, i.breloque.couleurs), val2(x, d)))?.nom; }).filter(Boolean).map(n => normNom(n).trim());
+    const i = L.find(x => noms.includes(normNom(x.nom).trim()));
+    return i ? { ...b, ...i.breloque, couleurs: { ...i.breloque.couleurs } } : b;
+  } catch (e) { return b; }
+}
+const val2 = (m, c) => validerConfiguration(m, catalogue, c, parties);
 function nouvelleBreloque(slug) {
   const m = modeleDe(slug), options = {};
   const optF = (m.options || []).find(o => o.type === 'fermoir' && o.choix?.length);
@@ -669,7 +683,7 @@ function resumeBreloque(b) {
 function choisirParcours(p) {
   etat.parcours = p;
   // la breloque en cours doit être proposée dans ce parcours, sinon on part du premier modèle proposé
-  if (!modelesDu(p).some(m => m.slug === brel().slug)) { etat.breloques = [nouvelleBreloque(modelesDu(p)[0].slug)]; etat.actif = 0; }
+  if (!modelesDu(p).some(m => m.slug === brel().slug)) { etat.breloques = [breloqueOuverture(modelesDu(p)[0].slug)]; etat.actif = 0; }
   if (p === 'bundle') {
     if (!etat.accroche) etat.accroche = (choixOffre() || accroches?.choix[0])?.id || null;
   } else { etat.breloques = [brel()]; etat.actif = 0; etat.accroche = null; }
@@ -755,7 +769,7 @@ function rendreListeBreloques() {
     rendre3D({ cadrer: true }); toutRendre();
   }));
   $('#ajouts').querySelectorAll('[data-ajout]').forEach(x => x.addEventListener('click', () => {
-    etat.breloques.push(nouvelleBreloque(x.dataset.ajout)); etat.actif = etat.breloques.length - 1;
+    etat.breloques.push(breloqueOuverture(x.dataset.ajout)); etat.actif = etat.breloques.length - 1;
     rendre3D({ cadrer: true }); toutRendre();
     $('#edition').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }));
@@ -772,6 +786,8 @@ function couleursSelonRefs(m, id) {
   const cats = new Set(Object.values(def).map(r => parRef[r]?.categorie)), R = refsCouleurFiche(id, cats);
   if (!R.length) return null;
   const c = { ...def };
+  // toutes les couleurs de la fiche sont déjà celles du modèle 3D (ex. Petit poisson · Sardine) : c'est le modèle d'ouverture tel quel
+  if (R.every(r => Object.values(def).some(d => memeRefCouleur(r, d)))) return c;
   for (const [z, d] of Object.entries(def)) {
     if (!d || R.some(r => memeRefCouleur(r, d))) continue;
     const cat = parRef[d]?.categorie, r = R.find(x => !cat || parRef[x]?.categorie === cat);
@@ -799,7 +815,7 @@ function couleursDeFiche(m, row, f, voisins = true) {
   // pas de remplacement utilisable : les couleurs de la variante du même nom d'un autre modèle (arête Sardine ← dos, ventre, queue du petit poisson Sardine)
   let voisin = null;
   if (!applique && !propres && voisins) { voisin = couleursMemeVariante(m, f); if (voisin) Object.assign(c, voisin); }
-  if (!applique && !propres && !voisin) return finir(base);                      // rien de connu sur cette variante : pas d'idée à part
+  if (!applique && !propres && !voisin) return voisins ? finir(base) : null;     // rien de connu sur cette variante : pas d'idée à part
   // la bouche d'une variante : sa couleur (ex. orange 1 pour la Sardine) — celle de sa fiche si elle y est,
   // sinon celle de la même variante de l'autre modèle, sinon la couleur de départ du modèle 3D
   const refsF = refsCouleurFiche(f.id), bouchesModeles = modeles.flatMap(x => (x.zones || []).filter(z => /bouche/.test(normNom(z.id + ' ' + (z.nom || '')))).map(z => x.zones && nouvelleBreloque(x.slug).couleurs[z.id])).filter(Boolean);
@@ -834,13 +850,15 @@ function couleursMemeVariante(m, f) {
   for (const m2 of modeles) {
     if (m2.slug === m.slug || m2.bijZone) continue;
     const row2 = ficheModele(m2); if (!row2) continue;
-    const f2 = famillesFiche(row2, bijoux).find(x => x.id !== row2.id && normNom(x.variante || '').trim() === v.trim());
-    if (!f2) continue;
-    const c2 = couleursDeFiche(m2, row2, f2, false); if (!c2) continue;
-    const b2 = couleursDeFiche(m2, row2, row2, false) || {};                        // seulement les zones que la variante change
+    // la fiche du même nom chez l'autre modèle (sa fiche modèle comprise), qui a ses propres couleurs
+    let c2 = null;
+    for (const f2 of famillesFiche(row2, bijoux).filter(x => normNom(x.variante || '').trim() === v.trim()).sort((a, b) => (a.id === row2.id ? 0 : 1) - (b.id === row2.id ? 0 : 1))) {
+      c2 = couleursDeFiche(m2, row2, f2, false); if (c2) break;
+    }
+    if (!c2) continue;
     const z2 = Object.fromEntries((m2.zones || []).map(z => [z.id, z])), c = {};
     for (const z of m.zones || []) { const zz = z2[z.id] || (m2.zones || []).find(y => normNom(y.nom).split(/[^a-z]+/).some(w => w.length > 3 && normNom(z.nom).includes(w)));
-      if (zz && c2[zz.id] && c2[zz.id] !== b2[zz.id]) c[z.id] = c2[zz.id]; }
+      if (zz && c2[zz.id]) c[z.id] = c2[zz.id]; }
     if (Object.keys(c).length) return c;
   }
   return null;
@@ -963,7 +981,7 @@ function rendreModeles() {
       ${ICONES[typeIcone(m)]}<span><b>${esc(nomCourt(m))}</b><span>${(estArgile(m) || estLettres(m)) && new Set(prixVariantes(m)).size > 1 ? 'dès ' : ''}${euros(Math.min(...prixVariantes(m)))}</span></span></button>`).join('');
   $('#modeles').querySelectorAll('[data-slug]').forEach(b => b.addEventListener('click', () => {
     if (b.dataset.slug === brel().slug) return;
-    etat.breloques[etat.actif] = nouvelleBreloque(b.dataset.slug);
+    etat.breloques[etat.actif] = breloqueOuverture(b.dataset.slug);
     rendre3D({ cadrer: true }); toutRendre();
   }));
 }
@@ -1310,10 +1328,11 @@ async function reprendre(cle) {
 }
 function recommencer() {
   try { localStorage.removeItem('bn-perso-brouillon'); } catch {}
-  etat.parcours = null; etat.breloques = [nouvelleBreloque(modeles[0].slug)]; etat.actif = 0; etat.accroche = null;
+  etat.parcours = null; etat.breloques = [breloqueOuverture(modeles[0].slug)]; etat.actif = 0; etat.accroche = null;
   $('#reprise').hidden = true; rendre3D({ cadrer: true }); toutRendre();
 }
 
+etat.breloques[0] = breloqueOuverture(etat.breloques[0].slug);   // ouverture sur la fiche d'ouverture (ex. arête Sardine)
 // démarrage : accueil, ou parcours direct (?parcours=bundle / ?parcours=breloque / ?modele=…)
 const depart = params.get('parcours') || (params.get('modele') ? 'breloque' : null);
 if (depart === 'bundle' || depart === 'breloque') etat.parcours = depart;
