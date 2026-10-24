@@ -813,7 +813,13 @@ export function refParNom(nom, liste) {
 /* Perle fixe d'un modèle (« ronde argentée 3 mm », « argent 1 »…) : si la ref enregistrée pointe
    vers une perle d'une autre couleur (ancienne résolution « rose doublé argent »), on la refait par le nom. */
 const MOTS_TEINTE = ['argent', 'dore', 'bronze', 'noir', 'blanc', 'rose', 'bleu', 'rouge', 'vert', 'jaune', 'violet', 'orange', 'marron', 'gris', 'peche', 'cuivre'];
+let LIENS_FIXES = {};
+/* liens « fixe:<nom de la perle> » → vraie référence, choisis dans l'onglet 🔗 Références (Matériaux utilisés) */
+export function definirLiensFixes(liens = {}) { LIENS_FIXES = Object.fromEntries(Object.entries(liens || {}).filter(([k, v]) => k.startsWith('fixe:') && v).map(([k, v]) => [k.slice(5), v])); }
+export const cleFixe = nom => 'fixe:' + norm(nom);
 export function refFixe(ref, nom, catalogue) {
+  const lie = nom && LIENS_FIXES[norm(nom)];
+  if (lie && (!catalogue?.length || catalogue.some(x => x.ref === lie))) return lie;
   if (!nom || !catalogue?.length) return ref;
   const c = catalogue.find(x => x.ref === ref);
   const teintes = norm(nom).split(/[^a-z0-9]+/).map(w => MOTS_TEINTE.find(t => w.startsWith(t))).filter(Boolean);

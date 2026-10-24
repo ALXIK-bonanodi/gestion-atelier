@@ -56,6 +56,11 @@ button, input, textarea { font: inherit; color: inherit; }
 .idee img, .idee .ph { width: 100%; aspect-ratio: 1; object-fit: contain; border-radius: 10px; background: #fff7c6; display: grid; place-items: center; font-size: 26px; }
 .idee span { color: var(--prune-doux); font-size: 12px; }
 .idee:hover { border-color: var(--prune); }
+.idees-inline { display: grid; gap: 6px; margin: 4px 0 14px; }
+.idees-inline h3 { margin: 0; font: 600 14px var(--f-titre); color: var(--prune); }
+.idees-inline .idees-g { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 6px; scroll-snap-type: x proximity; }
+.idees-inline .idee { flex: 0 0 92px; scroll-snap-align: start; box-shadow: none; }
+.idee.choisie { background: #fff2a8; border-width: 2.5px; }
 .scene-charge { position: absolute; inset: 0; display: grid; place-items: center; font: 500 15px var(--f-titre); color: var(--prune-doux); }
 
 /* ---- en-tête ---- */
@@ -336,6 +341,7 @@ label.champ input:focus, label.champ textarea:focus { border-color: var(--prune)
 
     <!-- Personnalisation d'une breloque (seule, ou celle choisie dans le bundle) -->
     <div class="edition" id="edition" hidden></div>
+    <div class="idees-inline" id="ideesInline" hidden></div>
     <section class="etape" aria-labelledby="t1" id="etapeModele" hidden>
       <h2 id="t1"><span class="num">1</span>Ton modèle</h2>
       <div class="modeles" id="modeles"></div>
@@ -398,7 +404,7 @@ label.champ input:focus, label.champ textarea:focus { border-color: var(--prune)
    URL : configurateur-3d.html   (?parcours=bundle  ou  ?modele=arete)
    ------------------------------------------------------------------ */
 import {
-  ScenePerles, CATALOGUE_DEMO, FERMOIRS_DEMO, modeleDemo, modeleAreteDemo, modeleLettresDemo,
+  ScenePerles, baseRef, definirLiensFixes, catalogueDepuisMateriaux, CATALOGUE_DEMO, FERMOIRS_DEMO, modeleDemo, modeleAreteDemo, modeleLettresDemo,
   couleursProposees, validerConfiguration, couleursEpuisees, listerModelesPublies, chargerCatalogueBoutique, chargerFermoirsBoutique,
   chargerPartiesConfigurateur, chargerPrixBijou, affinerCouleursDepuisPhotos, resoudreDefauts, envoyerDemande,
   composerBundle, lignesCommandeBundle, accrochesProposees, construireLettres, verifierTexte, estLettres, offreApplicable,
@@ -407,7 +413,7 @@ import {
   correspondCategorie, texteCatalogue, ordreModeles, chargerRuptures, appliquerRuptures,
   chargerLiens, appliquerLiens, relierModele, chargerMateriauxParRefs,
   chargerFichesConfig, definirFichesConfig, ficheCfg, refsCouleurFiche, famillesFiche,
-} from './bead-core.js?v=fb6890f2';
+} from './bead-core.js?v=8d580724';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER, PANIER_SHOPIFY } from './perles-config.js?v=e5e86015';
 
 const $ = s => document.querySelector(s);
@@ -461,7 +467,11 @@ if (sb) {
   const manquantes = Object.values(liens).filter(r => !catalogue.some(c => c.ref === r) && !fermoirs.some(x => x.ref === r) && !bijoux.some(b => b.ref === r));
   const enPlus = manquantes.length ? await avecDelai(chargerMateriauxParRefs(sb, manquantes)).catch(() => []) : [];
   ({ catalogue, fermoirs } = appliquerLiens(liens, { catalogue, fermoirs, bijoux, lignesEnPlus: enPlus }));
+  // perles fixes reliées à la main (onglet 🔗 Références › « Matériaux utilisés ») : leur ref doit être dans le catalogue pour la 3D
+  const fixesManquantes = enPlus.filter(l => Object.entries(liens).some(([k, v]) => k.startsWith('fixe:') && v === l.ref) && !catalogue.some(c => c.ref === l.ref));
+  if (fixesManquantes.length) catalogue = [...catalogue, ...catalogueDepuisMateriaux(fixesManquantes)];
 }
+definirLiensFixes(liens);
 if (!modeles.length) modeles = [modeleDemo(), modeleAreteDemo(), modeleLettresDemo(), modeleArgileDemo(), modeleChainmailDemo(), modelePerleCultureDemo()];
 // ruptures de stock cochées dans l'app de gestion : éléments épuisés, breloques retirées
 const breloqueDispo = appliquerRuptures(ruptures, catalogue, fermoirs);
@@ -764,7 +774,8 @@ function couleursDeFiche(m, row, f, voisins = true) {
 }
 const IDEES = new Map();
 const ideeVisible = f => !rupSet.has('idee:' + f.id);              // masquée dans l'app (Conception 3D › 💡 Idées)
-function ideesPour(m) { if (!IDEES.has(m.slug)) IDEES.set(m.slug, calculerIdees(m).filter(x => ideeVisible(x.fiche))); return IDEES.get(m.slug); }
+function ideesPour(m) { if (m.bijZone) return [];                                   // argile, chainmail : le choix du motif / de la forme suffit
+  if (!IDEES.has(m.slug)) IDEES.set(m.slug, calculerIdees(m).filter(x => ideeVisible(x.fiche))); return IDEES.get(m.slug); }
 // couleurs d'une variante du même nom dans un autre modèle (ex. « Sardine » du petit poisson pour l'arête Sardine), zone par zone
 function couleursMemeVariante(m, f) {
   const v = normNom(f.variante || ''); if (!v) return null;
@@ -815,7 +826,8 @@ function ideesBundle() {
   return bijoux.filter(b => !b.is_mat && ficheCfg(b.id)?.pieces?.length).map(f => {
     const cfg = ficheCfg(f.id), refs = cfg.refs || [];
     if (refs.some(r => !connues.has(r))) return null;                             // ex. crochet de boucle d'oreille absent du configurateur
-    const acc = accroches.choix.find(c => c.pieces.length && c.pieces.every(r => refs.includes(r))) || (refs.length ? null : accroches.choix[0]);
+    const aRef = r => refs.includes(r) || refs.some(x => baseRef(x) === baseRef(r));
+    const acc = accroches.choix.filter(c => c.pieces.length && c.pieces.every(aRef)).sort((a, b) => b.pieces.length - a.pieces.length)[0] || (refs.length ? null : accroches.choix[0]);
     if (!acc) return null;
     const brs = [];
     for (const pc of cfg.pieces) {
@@ -824,7 +836,7 @@ function ideesBundle() {
       const idee = calculerIdees(m).find(i => i.fiche.id === piece.id) || { breloque: nouvelleBreloque(m.slug) };
       for (let k = 0; k < Math.max(1, +pc.qty || 1); k++) brs.push({ ...idee.breloque, couleurs: { ...idee.breloque.couleurs } });
     }
-    return brs.length && brs.length <= maxBreloques() ? { fiche: f, accroche: acc.id, breloques: brs, nom: [f.nom, f.variante].filter(Boolean).join(' · '), prix: f.pv } : null;
+    return brs.length && brs.length <= maxBreloques() ? { fiche: f, accroche: acc.id, breloques: brs, nom: f.nom || f.variante || f.ref, prix: f.pv } : null;   // le nom du lot seul, sans sa variante
   }).filter(x => x && ideeVisible(x.fiche));
 }
 // vignette 3D d'une idée (rendue hors écran puis la vue reprend sa place)
@@ -837,7 +849,9 @@ function vignette(cle, regler) {
 }
 function rendreIdees() {
   const bt = $('#btIdees'), el = $('#idees');
-  const liste = etat.parcours ? ideesPour(modeleActif()) : [], lots = etat.parcours === 'bundle' ? ideesBundle() : [];
+  const enB = etat.parcours === 'bundle', modeles_ = etat.parcours ? ideesPour(modeleActif()) : [];
+  const liste = enB ? [] : modeles_, lots = enB ? ideesBundle() : [];      // en bundle : les modèles de la breloque sont proposés sous « Personnalise la breloque »
+  rendreIdeesInline(enB ? modeles_ : []);
   bt.hidden = !(liste.length || lots.length);
   if (bt.hidden || bt.getAttribute('aria-expanded') !== 'true') { el.hidden = true; return; }
   // vignettes : on règle la scène sur chaque idée, on la photographie, puis on remet la vraie personnalisation
@@ -849,7 +863,7 @@ function rendreIdees() {
       pieces: (acc?.pieces || []).map(r => fermParRef[r]).filter(Boolean), fermoirs, catalogue });
     scene.definirModele(comp.modele); scene.definirCouleurs(comp.couleurs); scene.definirOptions(comp.options); }));
   if (imgsL.length || imgsB.length) rendre3D();
-  const carte = (img, nom, prix, attr) => `<button class="idee" type="button" ${attr}>${img ? `<img src="${img}" alt="">` : '<span class="ph">✦</span>'}<b>${esc(nom)}</b><span>${prix != null && prix !== '' ? euros(prix) : ''}</span></button>`;
+  const carte = carteIdee;
   el.hidden = false;
   el.innerHTML = (lots.length ? `<h3>Porte-clés tout prêts</h3><div class="idees-g">${lots.map((x, i) => carte(imgsB[i], x.nom, x.prix, `data-lot="${i}"`)).join('')}</div>` : '')
     + (liste.length ? `<h3>${esc(nomCourt(modeleActif()))} : nos modèles</h3><div class="idees-g">${liste.map((x, i) => carte(imgsL[i], x.nom, x.prix, `data-idee="${i}"`)).join('')}</div>` : '');
@@ -861,6 +875,24 @@ function rendreIdees() {
     const x = lots[+b.dataset.lot]; etat.accroche = x.accroche;
     etat.breloques = x.breloques.map(br => ({ ...br, couleurs: { ...br.couleurs } })); etat.actif = 0;
     bt.setAttribute('aria-expanded', 'false'); rendre3D({ cadrer: true }); toutRendre();
+  }));
+}
+// cartes d'idée (vignette + nom + prix)
+function carteIdee(img, nom, prix, attr) { return `<button class="idee" type="button" ${attr}>${img ? `<img src="${img}" alt="">` : '<span class="ph">✦</span>'}<b>${esc(nom)}</b><span>${prix != null && prix !== '' ? euros(prix) : ''}</span></button>`; }
+const cleVignette = (m, x) => 'b:' + m.slug + ':' + x.fiche.id + ':' + JSON.stringify(x.breloque.couleurs);
+// bundle : les modèles déjà créés de la breloque en cours (petit poisson Sardine, arête Anchois…), juste sous son titre
+function rendreIdeesInline(liste) {
+  const el = $('#ideesInline'), m = liste.length ? modeleActif() : null;
+  el.hidden = !liste.length; if (!liste.length) { el.innerHTML = ''; return; }
+  const nouvelles = liste.some(x => !VIGNETTES.has(cleVignette(m, x)));
+  const imgs = liste.map(x => vignette(cleVignette(m, x), () => { const b = x.breloque; scene.definirModele(modelePour(b)); scene.definirCouleurs(b.couleurs); scene.definirOptions(optionsEffectives(b)); }));
+  if (nouvelles) rendre3D();
+  const actuelles = brel().couleurs;
+  el.innerHTML = `<h3>💡 Idées · ${esc(nomCourt(m))} : nos modèles</h3><div class="idees-g">${liste.map((x, i) =>
+    carteIdee(imgs[i], x.nom, x.prix, `data-idee-b="${i}"`).replace('class="idee"', `class="idee${memeCouleurs(x.breloque.couleurs, actuelles) ? ' choisie' : ''}"`)).join('')}</div>`;
+  el.querySelectorAll('[data-idee-b]').forEach(b => b.addEventListener('click', () => {
+    const x = liste[+b.dataset.ideeB]; etat.breloques[etat.actif] = { ...brel(), ...x.breloque, couleurs: { ...x.breloque.couleurs } };
+    rendre3D(); toutRendre();
   }));
 }
 window.__bnIdees = () => ({ modeles: modelesDu(etat.parcours || 'breloque').map(m => [m.slug, ficheModele(m)?.nom || null, ideesPour(m).map(x => x.nom)]), fiche: bijouDe(brel()), bundle: ideesBundle().map(x => x.nom) });   // diagnostic

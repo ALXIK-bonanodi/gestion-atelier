@@ -47,6 +47,11 @@ button:disabled { opacity: .5; cursor: default; }
   <p class="aide">Les éléments ci-dessous utilisent encore une <b>référence d'exemple</b> (#…-ex…). Pour chacun, choisis la vraie référence de ta base
     (un matériau ou une <b>composition</b> de tes fiches bijoux), ou crée-la. La vraie référence prend alors sa place partout : choix proposés au client, note atelier, fiche de fabrication.<br>
     Les variantes d'une même référence (ex. <b>#AI001</b> moyen A et <b>#AI001b</b> moyen B) ne sont qu'<b>un seul stock</b> : elles apparaissent sur une seule ligne.</p>
+  <details class="groupe utilises" id="utilisesBloc" open><summary><h2 style="display:inline">🧩 Matériaux utilisés par le configurateur (vérification)</h2></summary>
+    <p class="aide" style="padding:8px 14px;margin:0">Pour chaque breloque : la référence réellement utilisée pour chaque couleur par défaut, chaque perle fixe (petites perles argent des lettres, de la pampille chainmail, de la perle de culture…), chaque fermoir et chaque porte-clés du bundle.
+    ✓ = vraie référence de ta base · ⚠ = référence d'exemple ou mauvaise teinte. Une <b>perle fixe</b> se relie directement ici (menu à droite).</p>
+    <div id="utilises"><p class="aide" style="padding:0 14px">Chargement…</p></div></details>
+  <h2 style="font-size:14px;color:var(--prune);margin:18px 0 8px">Références d'exemple à relier</h2>
   <div id="contenu"><p class="aide">Chargement…</p></div>
 </main>
 <div class="barre"><span id="etat"></span><button id="btEnregistrer" disabled>Enregistrer les liens</button></div>
@@ -57,7 +62,8 @@ import {
   listerModelesPublies, chargerCatalogueBoutique, chargerFermoirsBoutique, chargerPartiesConfigurateur, chargerBijouxBoutique,
   completerCatalogue, resoudreDefauts, couleursProposees, correspondCategorie, ordreModeles, estLettres, accrochesProposees,
   chargerLiens, enregistrerLiens, estExemple, exemplesParRef, apercuArgile, apercuChainmail, baseRef,
-} from './bead-core.js?v=fb6890f2';
+  appliquerLiens, relierModele, definirLiensFixes, cleFixe, refFixe, catalogueDepuisMateriaux,
+} from './bead-core.js?v=8d580724';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './perles-config.js?v=e5e86015';
 
 const $ = s => document.querySelector(s);
@@ -78,7 +84,7 @@ const SC_PREFIX = { 'Perles de rocailles': 'PR', 'Perles heishi': 'PH', 'Perles 
 
 let mats = [];
 async function chargerMats() {
-  const { data, error } = await sb.from('materiaux').select('id,ref,mc,sc,designation,variante,qty').order('ref');
+  const { data, error } = await sb.from('materiaux').select('id,ref,mc,sc,designation,variante,qty,meta').order('ref');
   if (error) throw error;
   mats = data || [];
 }
@@ -90,8 +96,9 @@ const liens = { ...(li.value || {}) };
 const catalogue = completerCatalogue(c.value?.length ? c.value : CATALOGUE_DEMO, bijoux);
 const fermoirs = f.value?.length ? f.value : FERMOIRS_DEMO;
 const parties = p.value?.length ? p.value : null;
-const modeles = (m.value?.length ? m.value : [modeleDemo(), modeleAreteDemo(), modeleLettresDemo(), modeleArgileDemo(), modeleChainmailDemo(), modelePerleCultureDemo()])
-  .sort(ordreModeles).map(x => resoudreDefauts(x, catalogue, fermoirs));
+const modelesBruts = (m.value?.length ? m.value : [modeleDemo(), modeleAreteDemo(), modeleLettresDemo(), modeleArgileDemo(), modeleChainmailDemo(), modelePerleCultureDemo()])
+  .sort(ordreModeles);
+const modeles = modelesBruts.map(x => resoudreDefauts(x, catalogue, fermoirs));
 const EX = exemplesParRef();
 
 /* exemples réellement utilisés par le configurateur */
@@ -166,7 +173,7 @@ let doublons = null;                                 // { refEx, liste } : propo
 
 const existe = ref => mats.some(x => x.ref === ref) || bijoux.some(x => x.ref === ref);   // lien vers une réf supprimée ?
 let ouvert = null;                                   // exemple dont le formulaire « créer » est ouvert
-function rendre() {
+let rendre = function () {
   const parFamille = new Map();
   for (const [ref, fa] of utilises) { if (!parFamille.has(fa)) parFamille.set(fa, []); parFamille.get(fa).push(EX.get(ref)); }
   if (!parFamille.size) { $('#contenu').innerHTML = '<p class="aide ok">✓ Le configurateur n\'utilise plus aucune référence d\'exemple.</p>'; return; }
@@ -242,6 +249,73 @@ async function creer(refEx, forcer = false) {
   $('#etat').textContent = ref + ' créée et liée (complète son stock et son prix dans ton app). Pense à enregistrer les liens.';
 }
 
+/* ---------- 🧩 Matériaux utilisés : ce que le configurateur prend vraiment, liens appliqués ---------- */
+const MOTS_TEINTE = ['argent', 'dore', 'bronze', 'noir', 'blanc', 'rose', 'bleu', 'rouge', 'vert', 'jaune', 'violet', 'orange', 'marron', 'gris', 'peche', 'cuivre'];
+const teintesDe = t => norm(t).split(/[^a-z0-9]+/).map(w => MOTS_TEINTE.find(x => w.startsWith(x))).filter(Boolean);
+function rendreUtilises() {
+  definirLiensFixes(liens);
+  const { catalogue: cL, fermoirs: fL } = appliquerLiens(liens, { catalogue, fermoirs, bijoux, lignesEnPlus: mats });
+  const enPlus = catalogueDepuisMateriaux(mats.filter(l => Object.entries(liens).some(([k, v]) => k.startsWith('fixe:') && v === l.ref) && !cL.some(c => c.ref === l.ref)));
+  const cat = [...cL, ...enPlus];
+  const parRef = new Map([...cat, ...fL].map(x => [x.ref, x]));
+  const nomDe = r => { const x = parRef.get(r); if (x) return x.nom || x.designation || r;
+    const l = mats.find(y => y.ref === r); if (l) return [l.designation, l.variante].filter(Boolean).join(' · ');
+    const b = bijoux.find(y => y.ref === r); return b ? [b.nom, b.variante].filter(Boolean).join(' · ') : null; };
+  const etat = (r, attendu) => {
+    const n = nomDe(r);
+    if (!r || !n) return ['⚠', 'introuvable dans ta base', 'alerte'];
+    if (estExemple(r)) return ['⚠', 'référence d\'exemple : relie-la plus bas', 'alerte'];
+    const t = attendu ? teintesDe(attendu) : [];
+    if (t.length) { const tn = teintesDe(n); if (!t.every(x => tn.includes(x)) || tn.some(x => !t.includes(x))) return ['⚠', 'teinte différente de « ' + attendu + ' »', 'alerte']; }
+    return ['✓', '', 'ok'];
+  };
+  const perles = groupesMats().filter(g => /^perles|perle/i.test(g.sc || ''));
+  const selFixe = (kNom, ref) => {
+    const cle = cleFixe(kNom), lie = liens[cle] || '', mc = norm(kNom).split(/[^a-z0-9]+/).filter(w => w.length > 2 && !/^(mm|perle|perles)$/.test(w));
+    const score = g => mc.filter(w => norm([g.designation, g.variante, g.sc].join(' ')).includes(w)).length;
+    const tri = [...perles].sort((a, b) => score(b) - score(a) || String(a.ref).localeCompare(b.ref));
+    const opt = g => `<option value="${esc(g.ref)}" ${g.ref === lie ? 'selected' : ''}>${esc(g.ref)} · ${esc([g.designation, g.variante].filter(Boolean).join(' · '))}</option>`;
+    return `<select data-fixe="${esc(cle)}"><option value="">${lie ? '— retirer le lien (automatique) —' : 'automatique : ' + esc(ref) + ' · ' + esc(nomDe(ref) || '?')}</option>`
+      + `<optgroup label="Les plus proches">${tri.slice(0, 12).map(opt).join('')}</optgroup><optgroup label="Toutes les perles">${tri.slice(12).map(opt).join('')}</optgroup></select>`;
+  };
+  const ligne = (role, r, attendu, extra = '') => {
+    const x = parRef.get(r), [ic, msg, cls] = etat(r, attendu);
+    const fondL = x ? (x.finition === 'argile' || x.finition === 'chainmail' ? fond(x) : (x.hex || '#cfd0d4')) : '#eee';
+    return `<div class="ligne ${cls === 'ok' ? 'liee' : ''}"><span class="pastille" style="background:${fondL}"></span>
+      <span>${esc(role)}${attendu ? ` <span class="ref">« ${esc(attendu)} »</span>` : ''}</span>
+      <span><b class="${cls}">${ic}</b> <span class="ref">${esc(r || '—')}</span> ${esc(nomDe(r) || '')}${msg ? `<br><span class="${cls}" style="font-size:12px">${esc(msg)}</span>` : ''}</span>
+      <span>${extra}</span></div>`;
+  };
+  $('#utilises').innerHTML = modelesBruts.map(m0 => {
+    const mo = resoudreDefauts(relierModele(m0, liens), cat, fL), L = [];
+    for (const z of mo.zones || []) {
+      if (z.defaut) L.push(ligne('Couleur par défaut · ' + (z.nom || z.id), z.defaut, z.defautNom));
+      if (z.double) L.push(ligne('Perle fixe · ' + (z.nom || z.id) + ' (petite plate)', z.double.k, z.double.kNom, z.double.kNom ? selFixe(z.double.kNom, z.double.k) : ''));
+    }
+    const fixes = new Map();
+    for (const g of mo.groupes || []) {
+      for (const b of g.perles || []) if (b.kNom && !fixes.has(b.kNom)) fixes.set(b.kNom, { r: b.k, role: 'Perle fixe · ' + (b.partie || g.nom || 'perle') });
+      if (g.pampille?.kNom && !fixes.has(g.pampille.kNom)) fixes.set(g.pampille.kNom, { r: g.pampille.k, role: 'Perle fixe · pampille' });
+    }
+    if (mo.lettres) { const Lt = mo.lettres;
+      if (Lt.ref) L.push(ligne('Perle lettre', Lt.ref, Lt.refNom));
+      for (const h of [...(Lt.haut || []), ...(Lt.bas || [])]) if (h.kNom && !fixes.has(h.kNom)) fixes.set(h.kNom, { r: refFixe(h.k, h.kNom, cat), role: 'Perle fixe · intercalaire' }); }
+    for (const [kNom, f] of fixes) L.push(ligne(f.role, f.r, kNom, selFixe(kNom, f.r)));
+    for (const o of mo.options || []) {
+      if (o.type === 'fermoir') (o.choix || []).forEach(ch => L.push(ligne('Fermoir · ' + (ch.nom || ch.id || ''), ch.ref)));
+      if (o.type === 'accroche') (accrochesProposees(mo, fL)?.choix || []).forEach(ch => (ch.pieces || []).forEach((r, i) => L.push(ligne('Porte-clés « ' + (ch.nom || ch.id) + ' »' + (ch.pieces.length > 1 ? ' · pièce ' + (i + 1) : ''), r))));
+    }
+    for (const g of mo.groupes || []) for (const a of g.accessoires || []) L.push(ligne('Fermoir de la breloque', a.ref));
+    const nbA = L.filter(x => x.includes('class="alerte"')).length;
+    return `<details class="groupe" ${nbA ? 'open' : ''}><summary><h2 style="display:inline">${esc(mo.nom || mo.slug)} ${nbA ? `<span class="alerte" style="padding:1px 6px">⚠ ${nbA}</span>` : '✓'}</h2></summary>${L.join('') || '<p class="aide" style="padding:0 14px">Aucun matériau fixe.</p>'}</details>`;
+  }).join('');
+  $('#utilises').querySelectorAll('[data-fixe]').forEach(sel => sel.addEventListener('change', () => {
+    sel.value ? liens[sel.dataset.fixe] = sel.value : delete liens[sel.dataset.fixe];
+    modifie(); rendreUtilises();
+  }));
+}
+const rendreSansUtilises = rendre;
+rendre = () => { rendreSansUtilises(); rendreUtilises(); };
 rendre();
 $('#etat').textContent = Object.keys(liens).length ? Object.keys(liens).length + ' lien(s) enregistré(s)' : '';
 $('#btEnregistrer').addEventListener('click', async () => {
