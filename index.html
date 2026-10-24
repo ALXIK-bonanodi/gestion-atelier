@@ -478,6 +478,39 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
 .rg-tete input[type=checkbox]{appearance:auto;-webkit-appearance:checkbox;padding:0}
 .rg-l{display:grid;grid-template-columns:auto minmax(0,1fr) minmax(120px,1fr);gap:6px;align-items:center;margin:4px 0 4px 22px}
 .rg-l input{padding:6px 8px;font-size:12px}
+.cl-l{display:flex;gap:10px;align-items:center;padding:9px 2px;border-top:1px solid var(--border);cursor:pointer}
+.cl-av{width:36px;height:36px;border-radius:50%;background:var(--purpleP);color:var(--purple);display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0}
+.cl-al{padding:8px 0;border-bottom:1px dashed var(--border)}
+.an-l{display:grid;grid-template-columns:minmax(120px,1.2fr) 1fr auto;gap:10px;align-items:center;padding:6px 0;border-bottom:1px dashed var(--border);font-size:13px}
+.an-b{height:8px;background:var(--purpleP);border-radius:4px;overflow:hidden}
+.an-b span{display:block;height:100%;background:var(--purple)}
+.an-v{font-size:12px;white-space:nowrap}
+@media (max-width:600px){ .an-l{grid-template-columns:1fr} }
+.bilan-l > div{display:flex;gap:10px;padding:8px 0;border-bottom:1px dashed var(--border);font-size:13px}
+.bilan-l > div b{min-width:150px;color:var(--purple)}
+.bilan-l > div span{flex:1}
+.seg-bt{display:flex;gap:6px;margin-bottom:10px}
+.seg-bt button{flex:1;border:1.5px solid var(--purple);background:#fff;color:var(--purple);border-radius:999px;padding:9px;font:inherit;font-weight:700;font-size:13px;cursor:pointer}
+.seg-bt button.on{background:var(--purple);color:#fff}
+.wx-l{display:flex;gap:10px;align-items:center;padding:10px 4px;border-top:1px solid var(--border);cursor:pointer}
+.wx-l:first-child{border-top:0}
+.wx-l img,.wx-l .bt-ph{width:42px;height:42px;border-radius:10px;object-fit:cover;flex-shrink:0}
+.wx-barre{height:6px;background:var(--purpleP);border-radius:3px;margin:4px 0;overflow:hidden}
+.wx-barre span{display:block;height:100%;background:var(--purple)}
+.wx-chk{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:11px;color:var(--muted);margin-bottom:10px}
+.wx-chk .ok{color:var(--green);font-weight:600}
+.wx-n{font-weight:700;margin-left:4px;text-transform:none}
+.drop-c .drop-hd{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.drop-nom{font-size:15px;color:var(--purple)}
+.drop-tot{text-align:right;font-size:12px}
+.drop-items{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.drop-it{display:inline-flex;align-items:center;gap:5px;background:var(--purpleP);color:var(--purple);border-radius:999px;padding:3px 10px 3px 4px;font-size:12px;font-weight:600}
+.drop-it img{width:22px;height:22px;border-radius:50%;object-fit:cover}
+.drop-act{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.drop-fait{opacity:.75}
+.drop-choix{max-height:280px;overflow-y:auto;border:1px solid var(--border);border-radius:12px;padding:4px 8px}
+.drop-l{display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px dashed var(--border);font-size:13px}
+.drop-l:last-child{border-bottom:0}
 .c3-proposes{padding:10px 12px 0}
 .c3p-tete{font-size:13px;margin-bottom:6px}
 .c3p-tab{display:grid;gap:6px}
@@ -726,6 +759,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
       <div id="ctab-bij" onclick="switchCreatTab('bij')" class="gtab gtab-on">💎 Bijoux</div>
       <div id="ctab-prod" onclick="switchCreatTab('prod')" class="gtab">🏭 Productions</div>
       <div id="ctab-perso" onclick="switchCreatTab('perso')" class="gtab">✨ Sur mesure</div>
+      <div id="ctab-drops" onclick="switchCreatTab('drops')" class="gtab">🚀 Drops</div>
       <div id="ctab-boutique" onclick="switchCreatTab('boutique')" class="gtab">🛍 Boutique en ligne</div>
     </div>
   </div>
@@ -772,10 +806,12 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
           <select id="prod-tri" onchange="renderRent()" style="width:auto;font-size:12px;padding:8px 26px 8px 10px" title="Trier">
             <option value="recent">Tri : plus récentes</option><option value="ancien">Tri : plus anciennes</option><option value="nom">Tri : bijou A → Z</option>
             <option value="stock">Tri : plus en stock</option><option value="produits">Tri : plus produits</option><option value="vendus">Tri : plus vendus</option><option value="marge">Tri : marge</option>
+            <option value="valeur">Tri : valeur en stock</option><option value="drop">Tri : par drop</option><option value="collection">Tri : par collection</option>
           </select>
           <select id="prod-flt" onchange="renderRent()" style="width:auto;font-size:12px;padding:8px 26px 8px 10px" title="Filtrer">
             <option value="">Toutes</option><option value="produit">✅ Produites</option><option value="en_cours">🔧 En cours</option>
-            <option value="avendre">📍 À mettre en vente</option><option value="stock">📦 Avec du stock</option><option value="perso">✨ Sur mesure</option>
+            <option value="avendre">📍 À mettre en vente</option><option value="horsligne">⏳ Prêtes, pas en ligne</option><option value="drop">🚀 Prévues dans un drop</option>
+            <option value="enligne">🛒 En ligne</option><option value="stock">📦 Avec du stock</option><option value="perso">✨ Sur mesure</option>
           </select>
           <button class="btn btn-ghost btn-sm" onclick="toutProd()" id="bt-tout-prod" title="Déplier / replier tous les détails">⊕ Détails</button>
         </div>
@@ -785,7 +821,11 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
   </div>
 
   <!-- Panel Boutique en ligne : produits Shopify (affichés sur le site Wix) reliés aux fiches, stock partagé -->
-  <div id="cpanel-boutique" style="display:none;padding:12px;max-width:960px;margin:0 auto"><div id="boutique-body"><div class="loading">Chargement…</div></div></div>
+  <div id="cpanel-drops" style="display:none;padding:12px;max-width:960px;margin:0 auto"><div id="drops-body"></div></div>
+  <div id="cpanel-boutique" style="display:none;padding:12px;max-width:960px;margin:0 auto">
+    <div class="seg-bt"><button type="button" data-bv="wix" onclick="vueBoutique('wix')">📝 Fiches Wix (SEO)</button><button type="button" data-bv="shop" onclick="vueBoutique('shop')">🔗 Stock Shopify</button></div>
+    <div id="boutique-wix"></div>
+    <div id="boutique-body" style="display:none"><div class="loading">Chargement…</div></div></div>
 
   <!-- Panel Sur mesure : personnalisations du configurateur 3D (fiches atelier, bons, factures) -->
   <div id="cpanel-perso" style="display:none">
@@ -805,12 +845,14 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
       <div id="rtab-camp" onclick="switchResTab('camp')" class="gtab">🎯 Campagnes</div>
       <div id="rtab-tiktok" onclick="switchResTab('tiktok')" class="gtab">🎵 TikTok</div>
       <div id="rtab-studio" onclick="switchResTab('studio')" class="gtab">🎬 Studio</div>
+      <div id="rtab-clientes" onclick="switchResTab('clientes')" class="gtab">💜 Clientes</div>
     </div>
   </div>
   <div id="rpanel-idees" style="padding:12px;max-width:960px;margin:0 auto"><div id="res-idees"></div></div>
   <div id="rpanel-posts" style="display:none;padding:12px;max-width:960px;margin:0 auto"><div id="res-posts"></div></div>
   <div id="rpanel-camp" style="display:none;padding:12px;max-width:960px;margin:0 auto"><div id="res-camp"></div></div>
   <div id="rpanel-tiktok" style="display:none;padding:12px;max-width:960px;margin:0 auto"><div id="res-tiktok"></div></div>
+  <div id="rpanel-clientes" style="display:none;padding:12px;max-width:960px;margin:0 auto"><div id="res-clientes"></div></div>
   <div id="rpanel-studio" style="display:none"><iframe id="frame-studio" title="Studio réseaux sociaux" style="display:block;width:100%;height:calc(100vh - 56px);border:0" allow="fullscreen"></iframe></div>
 </div>
 
@@ -824,6 +866,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
         <div id="ctab-charges" onclick="switchComptaTab('charges')" class="gtab">🏛 Charges</div>
         <div id="ctab-tva" onclick="switchComptaTab('tva')" class="gtab">🧾 TVA</div>
         <div id="ctab-bilan" onclick="switchComptaTab('bilan')" class="gtab">📊 Bilan</div>
+        <div id="ctab-analyse" onclick="switchComptaTab('analyse')" class="gtab">📈 Ce qui se vend</div>
       </div>
     </div>
   </div>
@@ -920,6 +963,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
   </div>
 
   <!-- BILAN PÉRIODIQUE -->
+  <div id="cpanel-analyse" style="display:none;padding:12px;max-width:960px;margin:0 auto"><div id="analyse-body"></div></div>
   <div id="cpanel-bilan" style="display:none;padding:12px;max-width:960px;margin:0 auto">
     <div class="card">
       <div class="card-hd"><h2>📊 Bilan comptable</h2>
@@ -1064,6 +1108,9 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
       <button class="btn btn-p" onclick="saveHdrConfig()">💾 Enregistrer</button>
     </div>
   </div>
+
+  <!-- Coût de revient -->
+  <div class="card" data-cs="atelier"><div class="card-hd"><h2>💶 Coût de revient et prix conseillé</h2></div><div class="card-bd" id="cfg-couts"></div></div>
 
   <!-- Sauvegarde -->
   <div class="card" data-cs="sauvegarde"><div class="card-hd"><h2>💾 Sauvegarde de tes données</h2></div><div class="card-bd" id="cfg-sauvegarde"></div></div>
@@ -1996,6 +2043,10 @@ async function loadAll() {
     TIKTOK=lireCfg('tiktok_videos'); TIKTOK_HIST=lireCfg('tiktok_historique')||{}; TIKTOK_RELIE=!!lireCfg('tiktok_jetons')?.acces;
     TIKTOK_MANUEL=Array.isArray(lireCfg('tiktok_manuel'))?lireCfg('tiktok_manuel'):[];
     DERNIERE_SAUV=typeof lireCfg('derniere_sauvegarde')==='string'?lireCfg('derniere_sauvegarde'):'';
+    DROPS=Array.isArray(lireCfg('drops'))?lireCfg('drops'):[];
+    { const fw=lireCfg('fiches_wix'); FICHES_WIX=fw&&typeof fw==='object'&&!Array.isArray(fw)?fw:{}; }
+    { const cn=lireCfg('clientes_notes'); CLIENTES_NOTES=cn&&typeof cn==='object'&&!Array.isArray(cn)?cn:{}; }
+    { const cc=lireCfg('couts'); if(cc&&typeof cc==='object') COUTS={reglages:{...COUTS.reglages,...(cc.reglages||{})},temps:cc.temps||{}}; }
     setTimeout(autoTikTok,2500); }
   const fourCfg     = cfg.find(c=>c.key==='fournisseurs');
   const hdrCfg      = cfg.find(c=>c.key==='header');
@@ -2207,6 +2258,39 @@ function prixMin(bij){
   const c=coutBijou(bij);
   return c>0?Math.round((c+c*0.6+5)*100)/100:null;
 }
+// ── 📅 Bilan du mois : une page qui résume ton mois (ventes, productions, réseaux, stock)
+function ouvrirBilanMois(mois){
+  const m=mois||today().slice(0,7), dans=d=>String(d||'').startsWith(m);
+  const ventes=VENTES.filter(v=>dans(v.date)), ca=ventes.reduce((t,v)=>t+(+v.qty||0)*(+v.prix||0),0), nb=ventes.reduce((t,v)=>t+(+v.qty||0),0);
+  const parB={}, parC={}; ventes.forEach(v=>{ parB[v.bij_id]=(parB[v.bij_id]||0)+(+v.qty||0); const c=v.canal||'autre'; parC[c]=(parC[c]||0)+(+v.qty||0)*(+v.prix||0); });
+  const top=Object.entries(parB).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([id,q])=>{ const b=getBij(id); return `${b?escA(b.nom+(b.variante?' · '+b.variante:'')):'?'} (${q})`; });
+  const prods=PRODS.filter(p=>dans(p.date)&&(!p.statut||p.statut==='produit')), nbProd=prods.reduce((t,p)=>t+(+p.qty||0),0);
+  const dep=REAPPROS.filter(r=>dans(r.date)&&(!r.statut||r.statut==='valide')).reduce((t,r)=>t+(+r.prix||0),0)+CHARGES.filter(c=>dans(c.date)&&c.statut==='paye').reduce((t,c)=>t+(+c.montant||0),0);
+  const posts=POSTS.filter(p=>p.statut==='publie'&&dans(p.date)), meilleur=[...posts].sort((a,b)=>(+b.vues||0)-(+a.vues||0))[0];
+  const drops=DROPS.filter(d=>dans(d.en_ligne_le)||dans(d.date)), grp=groupesStock();
+  const moisL=new Date(m+'-15').toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+  const prec=new Date(new Date(m+'-15').getTime()-31*864e5).toISOString().slice(0,7), suiv=new Date(new Date(m+'-15').getTime()+31*864e5).toISOString().slice(0,7);
+  const L=[['💶 Chiffre d\'affaires',eur(ca)+` · ${nb} pièce(s) vendue(s)${nb?' · panier moyen '+eur(ca/Math.max(1,ventes.length)):''}`],
+    ['🏆 Meilleures ventes',top.join(', ')||'—'], ['🛍 Par canal',Object.entries(parC).map(([c,v])=>`${c} ${eur(v)}`).join(' · ')||'—'],
+    ['💸 Dépenses',eur(dep)+' (réappros + charges payées)'], ['📊 Résultat du mois',eur(ca-dep)],
+    ['🏭 Productions',`${nbProd} pièce(s) terminée(s)`], ['🚀 Drops',drops.map(d=>escA(d.nom)+(d.statut==='en_ligne'?' ✅':'')).join(', ')||'—'],
+    ['📣 Réseaux',`${posts.length} post(s) publié(s)${meilleur?' · le plus vu : '+escA(meilleur.titre||'')+' ('+n(meilleur.vues||0)+' vues)':''}${TIKTOK?.videos?.length?' · TikTok '+n(TIKTOK.videos.reduce((t,v)=>t+(+v.vues||0),0))+' vues au total':''}`],
+    ['🛒 À racheter',`${grp.filter(g=>g.bas).length} référence(s) au seuil · ${grp.filter(g=>g.bientot).length} bientôt épuisée(s)`]];
+  modalVolante('m-bilan',`<div class="modal-title" style="display:flex;align-items:center;gap:8px"><button class="btn btn-xs btn-ghost" onclick="ouvrirBilanMois('${prec}')">‹</button><span style="flex:1;text-align:center">📅 Bilan — ${moisL}</span><button class="btn btn-xs btn-ghost" onclick="ouvrirBilanMois('${suiv}')" ${suiv>today().slice(0,7)?'disabled':''}>›</button></div>
+    <div class="bilan-l">${L.map(([t,v])=>`<div><b>${t}</b><span>${v}</span></div>`).join('')}</div>
+    <div class="mfoot"><button class="btn btn-ghost" onclick="copierTexte('Bilan ${moisL}\n'+[...document.querySelectorAll('#m-bilan .bilan-l > div')].map(d=>d.querySelector('b').textContent+' : '+d.querySelector('span').textContent).join('\n'))">📋 Copier</button>
+      <button class="btn btn-p" onclick="closeModal('m-bilan')">Fermer</button></div>`);
+}
+// ── Coût de revient complet : matériaux + temps × taux horaire + emballage ; prix conseillé avec ta marge et les frais de vente
+let COUTS={reglages:{taux:15,emballage:0.8,coef:2,frais:3},temps:{}};
+const tempsBij = b => b ? (COUTS.temps[b.id] ?? (b.parent_id ? COUTS.temps[b.parent_id] : undefined) ?? null) : null;
+function coutComplet(b){ const t=tempsBij(b)||0, r=COUTS.reglages; return Math.round((coutBijou(b)+t/60*(+r.taux||0)+(+r.emballage||0))*100)/100; }
+function prixConseille(b){ const r=COUTS.reglages; const p=coutComplet(b)*(+r.coef||2)/(1-(+r.frais||0)/100); return Math.ceil(p*2)/2; }   // arrondi au 0,50 € au-dessus
+async function enregistrerTemps(id,v){ if(v===''||v==null) delete COUTS.temps[id]; else COUTS.temps[id]=Math.max(0,+v||0);
+  await sbUpsertConfig('couts', COUTS); renderBij(); }
+async function enregistrerReglagesCouts(){ const g=k=>+document.getElementById('cc-'+k).value;
+  COUTS.reglages={taux:g('taux')||0, emballage:g('emballage')||0, coef:g('coef')||2, frais:g('frais')||0};
+  await sbUpsertConfig('couts', COUTS); toast('Réglages du coût de revient enregistrés ✓','ok'); }
 function isDraft(bij){return bij.draft||((bij.mats||[]).some(m=>!m.qty));}
 function venteTot(bijId){return VENTES.filter(v=>v.bij_id===bijId).reduce((a,v)=>({qty:a.qty+(+v.qty||0),ca:a.ca+(+v.qty||0)*(+v.prix||0)}),{qty:0,ca:0});}
 function prodTot(bijId){return PRODS.filter(p=>p.bij_id===bijId).reduce((s,p)=>s+(+p.qty||0),0);}
@@ -2431,14 +2515,20 @@ function restaurerOnglets(){
 // STOCK BAS & LISTE DE COURSES
 // ═══════════════════════════════════════════════════════
 // Un groupe = une réf. et ses variantes (#AI001, #AI001b) : un seul stock, un seul seuil
+// rythme de consommation sur les 60 derniers jours (productions terminées) → nombre de jours avant épuisement
+const JOURS_RYTHME=60;
 function groupesStock() {
-  const g={};
+  const g={}, depuis=new Date(Date.now()-JOURS_RYTHME*864e5).toISOString().slice(0,10);
+  const recentes=p=>estProduite(p)&&String(p.date||'')>=depuis;
   MATS.filter(m=>(m.type||'creation')!=='outil'&&!estAbonnementSC(m.sc)).forEach(m=>{ (g[baseRef(m.ref)] ||= []).push(m); });
   return Object.values(g).map(items=>{
     const tot=items.reduce((t,m)=>t+stockCumul(m),0), dispo=items.reduce((t,m)=>t+stockDispo(m),0);
     const seuil=Math.max(0,...items.map(m=>+m.meta?.seuil||0));
     const m0=items.find(m=>m.ref===baseRef(m.ref))||items[0];
-    return { items, m:m0, tot, dispo, seuil, bas: seuil>0 ? dispo<=seuil : (tot>0 && dispo<=0) };
+    const bas=seuil>0 ? dispo<=seuil : (tot>0 && dispo<=0);
+    const parJour=items.reduce((t,m)=>t+stockPris(m.ref,recentes),0)/JOURS_RYTHME;
+    const jours=parJour>0?Math.max(0,Math.floor(dispo/parJour)):null;
+    return { items, m:m0, tot, dispo, seuil, bas, parJour, jours, bientot: !bas && jours!=null && jours<=30 };
   });
 }
 const stocksBas = () => groupesStock().filter(g=>g.bas);
@@ -2451,18 +2541,18 @@ function ouvrirCourses() {
   if(!ov){ ov=document.createElement('div'); ov.id='m-courses'; ov.className='overlay'; ov.onclick=e=>bgClose(e,ov);
     ov.innerHTML='<div class="modal"><div class="drag"></div><div class="modal-title">🛒 Liste de courses</div><div id="courses-body"></div><div class="mfoot"><button class="btn btn-ghost" onclick="closeModal(\'m-courses\')">Fermer</button><button class="btn btn-p" onclick="copierCourses()">📋 Copier la liste</button></div></div>';
     document.body.appendChild(ov); }
-  const bas=stocksBas(), parF={};
+  const grp=groupesStock(), bas=[...grp.filter(g=>g.bas), ...grp.filter(g=>g.bientot)], parF={};
   bas.forEach(g=>{ const f=g.items.map(m=>m.fournisseur).find(Boolean)||'Sans fournisseur'; (parF[f] ||= []).push(g); });
   document.getElementById('courses-body').innerHTML = !bas.length
-    ? '<div class="empty"><div class="empty-icon">🌟</div><p>Rien à racheter : tous les stocks sont au-dessus de leur seuil.</p></div>'
-    : '<div class="info-box">Stocks au seuil d\'alerte ou épuisés, rangés par fournisseur. Quantité conseillée = ton dernier réappro. Décoche ce que tu ne veux pas, puis copie la liste.</div>'
+    ? '<div class="empty"><div class="empty-icon">🌟</div><p>Rien à racheter : tous les stocks sont au-dessus de leur seuil, et rien ne s\'épuisera dans le mois au rythme actuel.</p></div>'
+    : '<div class="info-box">Stocks au seuil d\'alerte ou épuisés (cochés), et ⏳ ceux qui seront épuisés dans moins de 30 jours au rythme de tes productions des 2 derniers mois (à cocher si tu veux anticiper). Quantité conseillée = ton dernier réappro.</div>'
       + Object.entries(parF).sort(([a],[b])=>a.localeCompare(b,'fr')).map(([f,gs])=>{
         const total=gs.reduce((t,g)=>{ const pu=puMoyen(g.m), q=qteConseillee(g); return t+(pu&&q?pu*q:0); },0);
         return `<div class="courses-f"><div class="courses-f-tete"><b>${f}</b><span>${gs.length} réf.${total?' · ≈ '+eur(total):''}</span></div>
         ${gs.map(g=>{ const q=qteConseillee(g), u=getUniteShort(g.m);
-          return `<label class="courses-l"><input type="checkbox" checked data-ligne="${g.m.ref}" data-f="${f.replace(/"/g,'&quot;')}">
+          return `<label class="courses-l"><input type="checkbox" ${g.bas?'checked':''} data-ligne="${g.m.ref}" data-f="${f.replace(/"/g,'&quot;')}">
             <span class="courses-t">${g.m.meta?.image?`<img src="${g.m.meta.image}" alt="">`:''}<b>${g.m.variante||g.m.designation||g.m.ref}</b> <span class="dim">${g.m.variante?(g.m.designation||''):''} · ${g.items.map(m=>m.ref).join('/')}</span>
-              <span class="courses-s ${g.dispo<=0?'vide':''}">reste ${n(Math.round(g.dispo*100)/100)} ${u}${g.seuil?' / seuil '+n(g.seuil):''}${estPerleAuPoids(g.m)?' (≈ '+n(Math.round(enPieces(g.m,Math.max(0,g.dispo))))+' perles)':''}</span></span>
+              <span class="courses-s ${g.dispo<=0?'vide':''}">${g.bientot?`⏳ épuisé dans ≈ ${g.jours} j · `:''}reste ${n(Math.round(g.dispo*100)/100)} ${u}${g.seuil?' / seuil '+n(g.seuil):''}${estPerleAuPoids(g.m)?' (≈ '+n(Math.round(enPieces(g.m,Math.max(0,g.dispo))))+' perles)':''}</span></span>
             <input type="number" class="courses-q" value="${q||''}" placeholder="qté" title="Quantité à commander (${u})"> <span class="dim">${u}</span>
             <button type="button" class="btn btn-xs btn-ghost" onclick="event.preventDefault();closeModal('m-courses');openReappro('${g.m.id}')">↑ Reçu</button></label>`; }).join('')}</div>`;
       }).join('');
@@ -2806,13 +2896,86 @@ const STATUTS_POST={idee:'💡 Idée',prevu:'🗓 Prévu',publie:'✅ Publié'};
 const jourNum = d => Math.floor(new Date(d+'T12:00:00').getTime()/86400000);
 const ilYa = d => Math.floor(Date.now()/86400000) - jourNum(d);
 function switchResTab(t){
-  ['idees','posts','camp','tiktok','studio'].forEach(x=>{ document.getElementById('rpanel-'+x).style.display=x===t?'block':'none'; document.getElementById('rtab-'+x).className='gtab'+(x===t?' gtab-on':''); });
+  ['idees','posts','camp','tiktok','studio','clientes'].forEach(x=>{ document.getElementById('rpanel-'+x).style.display=x===t?'block':'none'; document.getElementById('rtab-'+x).className='gtab'+(x===t?' gtab-on':''); });
   memoOnglet('reseaux',t);
   if(t==='idees') renderIdees();
   if(t==='posts') renderPosts();
   if(t==='camp') renderCampagnes();
   if(t==='tiktok') renderTikTok();
+  if(t==='clientes') renderClientes();
   if(t==='studio'){ const f=document.getElementById('frame-studio'); if(!f.getAttribute('src')) f.setAttribute('src','configurateur/studio-reseaux.html'); }
+}
+// ═══ 💜 CLIENTES : tirées des commandes (nom), avec tes notes ; + inscrites « préviens-moi » (formulaire du site)
+let CLIENTES_NOTES={}, ALERTES=null;
+function listeClientes(){
+  const m=new Map();
+  COMMANDES.forEach(c=>{ const nom=String(c.client_nom||'').trim(); if(!nom) return; const k=cleNom(nom);
+    const vs=VENTES.filter(v=>v.commande_id===c.id), tot=vs.reduce((t,v)=>t+(+v.qty||0)*(+v.prix||0),0);
+    const x=m.get(k)||{cle:k,nom,cmd:0,pieces:0,total:0,premiere:c.date,derniere:c.date,canaux:new Set(),bij:new Map()};
+    x.cmd++; x.total+=tot; x.pieces+=vs.reduce((t,v)=>t+(+v.qty||0),0); if(String(c.date)<String(x.premiere)) x.premiere=c.date; if(String(c.date)>String(x.derniere)) x.derniere=c.date;
+    if(c.canal) x.canaux.add(c.canal); vs.forEach(v=>x.bij.set(v.bij_id,(x.bij.get(v.bij_id)||0)+(+v.qty||0))); m.set(k,x); });
+  return [...m.values()].sort((a,b)=>b.cmd-a.cmd||b.total-a.total);
+}
+async function chargerAlertes(){ try{ const {data,error}=await SB.from('alertes_clientes').select('*').order('created_at',{ascending:false}); if(error) throw error; ALERTES=data||[]; }catch(e){ ALERTES={erreur:e.message}; } }
+async function renderClientes(){
+  const el=document.getElementById('res-clientes'); if(!el) return;
+  const l=listeClientes(), fid=l.filter(c=>c.cmd>=2), q=(document.getElementById('cl-q')?.value||'');
+  if(ALERTES===null){ el.innerHTML='<div class="loading">Chargement…</div>'; await chargerAlertes(); }
+  const k=cleNom(q), vues=l.filter(c=>!k||c.cle.includes(k));
+  const ligne=c=>{ const n0=CLIENTES_NOTES[c.cle]||{}, jours=c.derniere?Math.round((Date.now()-new Date(c.derniere+'T12:00'))/864e5):null;
+    return `<div class="cl-l" onclick="formCliente('${c.cle}')"><div class="cl-av">${escA(c.nom.slice(0,1).toUpperCase())}</div>
+      <div style="flex:1;min-width:0"><b>${escA(c.nom)}</b> ${c.cmd>=2?'<span class="badge bp">💜 fidèle</span>':''} ${n0.note?'<span class="dim" style="font-size:11px">📝</span>':''}
+        <div class="dim" style="font-size:11px">${c.cmd} commande(s) · ${c.pieces} pièce(s) · ${eur(c.total)} · dernière ${c.derniere||'?'}${jours!=null&&jours>120?' · <span style="color:var(--orange)">pas revenue depuis '+Math.round(jours/30)+' mois</span>':''}</div>
+        <div class="dim" style="font-size:11px">${[...c.bij.entries()].slice(0,3).map(([id,qq])=>{ const b=getBij(id); return b?escA(b.nom+(b.variante?' · '+b.variante:'')):''; }).filter(Boolean).join(', ')}</div></div></div>`; };
+  const al=Array.isArray(ALERTES)?ALERTES:[], parSujet={}; al.forEach(a=>{ const s0=a.sujet==='produit'?('🔁 '+(a.produit||'?')):'🚀 Prochain drop'; (parSujet[s0] ||= []).push(a); });
+  el.innerHTML=`<div class="stats" style="grid-template-columns:repeat(3,1fr)"><div class="stat pur"><div class="v">${l.length}</div><div class="l">clientes</div></div>
+      <div class="stat grn"><div class="v">${fid.length}</div><div class="l">fidèles (2 commandes et +)</div></div>
+      <div class="stat"><div class="v">${al.length}</div><div class="l">inscrites « préviens-moi »</div></div></div>
+    <div class="card"><div class="card-hd"><h2>🔔 Préviens-moi (formulaire du site)</h2></div><div class="card-bd">
+      ${ALERTES?.erreur?`<div class="warn-box">Liste pas encore active : lance <b>sql-alertes-clientes.sql</b> dans Supabase, puis ajoute le formulaire dans Wix (LISEZMOI). <span class="dim">(${escA(ALERTES.erreur)})</span></div>`
+        :Object.keys(parSujet).length?Object.entries(parSujet).map(([s0,as])=>`<div class="cl-al"><div><b>${escA(s0)}</b> <span class="dim">${as.length} personne(s)</span></div>
+          <div class="dim" style="font-size:12px">${as.slice(0,8).map(a=>escA((a.prenom?a.prenom+' · ':'')+a.email)).join(' · ')}${as.length>8?'…':''}</div>
+          <div style="display:flex;gap:6px;margin-top:4px"><button class="btn btn-xs btn-ghost" onclick='copierTexte(${JSON.stringify(as.map(a=>a.email).join(", "))})'>📋 Copier les e-mails</button>
+          <button class="btn btn-xs btn-red" onclick='viderAlertes(${JSON.stringify(as.map(a=>a.id))})' title="Une fois prévenues, retire-les de la liste (RGPD)">✓ Prévenues, retirer</button></div></div>`).join('')
+        :'<div class="dim">Personne pour l\'instant. Ajoute le formulaire « préviens-moi » sur tes pages Wix (LISEZMOI).</div>'}
+    </div></div>
+    <div class="card"><div class="card-hd"><h2>💜 Clientes</h2></div><div class="card-bd">
+      <input id="cl-q" type="search" placeholder="🔍 Chercher une cliente" value="${escA(q)}" oninput="renderClientes()" style="margin-bottom:6px">
+      <div class="info-box">Tirées de tes commandes (nom de la cliente). Touche une cliente pour noter son e-mail, son Instagram, ses goûts… Les fidèles méritent un petit mot ou un code avant un drop.</div>
+      ${vues.map(ligne).join('')||'<div class="dim">Aucune commande avec un nom de cliente pour l\'instant.</div>'}</div></div>`;
+  const i=document.getElementById('cl-q'); if(q&&i){ i.focus(); i.setSelectionRange(q.length,q.length); }
+}
+function formCliente(cle){
+  const c=listeClientes().find(x=>x.cle===cle); if(!c) return; const n0=CLIENTES_NOTES[cle]||{};
+  modalVolante('m-cliente',`<div class="modal-title">💜 ${escA(c.nom)}</div>
+    <div class="dim" style="font-size:12px;margin-bottom:8px">${c.cmd} commande(s) · ${eur(c.total)} · depuis ${c.premiere||'?'} · ${[...c.canaux].join(', ')}</div>
+    <div class="r2"><div class="fg"><label>E-mail</label><input id="cn-email" type="email" value="${escA(n0.email||'')}"></div><div class="fg"><label>Instagram / TikTok</label><input id="cn-insta" value="${escA(n0.insta||'')}" placeholder="@…"></div></div>
+    <div class="fg"><label>Notes (goûts, couleurs préférées, anniversaire…)</label><textarea id="cn-note" rows="3">${escA(n0.note||'')}</textarea></div>
+    <div class="fg"><label>Ses achats</label><div style="font-size:13px">${[...c.bij.entries()].map(([id,q])=>{ const b=getBij(id); return b?escA(b.nom+(b.variante?' · '+b.variante:''))+' × '+q:''; }).filter(Boolean).join('<br>')}</div></div>
+    <div class="mfoot"><button class="btn btn-ghost" onclick="closeModal('m-cliente')">Fermer</button><button class="btn btn-p" onclick="enregistrerCliente('${cle}')">Enregistrer</button></div>`);
+}
+async function enregistrerCliente(cle){ CLIENTES_NOTES[cle]={email:document.getElementById('cn-email').value.trim(), insta:document.getElementById('cn-insta').value.trim(), note:document.getElementById('cn-note').value.trim()};
+  await sbUpsertConfig('clientes_notes', CLIENTES_NOTES); closeModal('m-cliente'); renderClientes(); toast('Fiche cliente enregistrée ✓','ok'); }
+async function viderAlertes(ids){ if(!confirm(`Retirer ${ids.length} inscription(s) de la liste ?`)) return;
+  const {error}=await SB.from('alertes_clientes').delete().in('id',ids); if(error) return toast(error.message,'err'); ALERTES=null; renderClientes(); toast('Liste mise à jour ✓','ok'); }
+
+// ═══ 📈 CE QUI SE VEND : par modèle, par couleur, par canal, sur la période choisie
+function renderAnalyse(){
+  const el=document.getElementById('analyse-body'); if(!el) return;
+  const per=document.getElementById('an-per')?.value||'90', depuis=per==='tout'?'':new Date(Date.now()-(+per)*864e5).toISOString().slice(0,10);
+  const vs=VENTES.filter(v=>!depuis||String(v.date||'')>=depuis), total=vs.reduce((t,v)=>t+(+v.qty||0)*(+v.prix||0),0)||1;
+  const agr=(cle,lib)=>{ const m=new Map(); vs.forEach(v=>{ const b=getBij(v.bij_id); if(!b) return; const k=cle(b,v); if(k==null) return; const x=m.get(k)||{k,l:lib(b,v),q:0,ca:0,marge:0};
+      x.q+=+v.qty||0; x.ca+=(+v.qty||0)*(+v.prix||0); x.marge+=(+v.qty||0)*((+v.prix||0)-coutBijou(b)); m.set(k,x); }); return [...m.values()].sort((a,b)=>b.ca-a.ca); };
+  const modeles=agr(b=>racineDe(b).id,b=>racineDe(b).nom), couleurs=agr(b=>b.parent_id?b.id:null,b=>racineDe(b).nom+' · '+(b.variante||b.ref)), canaux=agr((b,v)=>v.canal||'autre',(b,v)=>v.canal||'autre');
+  const stockDe=b=>Math.max(0,prodTot(b.id)-venteTot(b.id).qty);
+  const dormants=BIJS.filter(b=>venduEnLigne(b)&&stockDe(b)>0&&!vs.some(v=>v.bij_id===b.id));
+  const tab=(t,l)=>`<div class="card"><div class="card-hd"><h2>${t}</h2></div><div class="card-bd">${l.length?l.slice(0,12).map(x=>`<div class="an-l"><span class="an-n">${escA(x.l)}</span>
+      <span class="an-b"><span style="width:${Math.round(x.ca/total*100)}%"></span></span><span class="an-v"><b>${eur(x.ca)}</b> · ${x.q} pce · marge ${eur(x.marge)}</span></div>`).join(''):'<div class="dim">Aucune vente sur la période.</div>'}</div></div>`;
+  el.innerHTML=`<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><b>Période</b><select id="an-per" onchange="renderAnalyse()" style="width:auto">${[['30','30 derniers jours'],['90','3 derniers mois'],['365','12 derniers mois'],['tout','depuis le début']].map(([v,l])=>`<option value="${v}" ${v===per?'selected':''}>${l}</option>`).join('')}</select>
+      <span class="dim" style="font-size:12px">${eur(vs.reduce((t,v)=>t+(+v.qty||0)*(+v.prix||0),0))} · ${vs.reduce((t,v)=>t+(+v.qty||0),0)} pièce(s)</span></div>
+    ${modeles[0]?`<div class="home-bravo">🏆 <b>${escA(modeles[0].l)}</b> est ton modèle n°1 sur la période${couleurs[0]?` · couleur star : <b>${escA(couleurs[0].l)}</b>`:''}. À prévoir dans le prochain drop !</div>`:''}
+    ${tab('💎 Par modèle',modeles)}${tab('🎨 Par couleur (variantes)',couleurs)}${tab('🛍 Par canal',canaux)}
+    <div class="card"><div class="card-hd"><h2>😴 En stock mais pas vendu sur la période</h2></div><div class="card-bd">${dormants.length?dormants.map(b=>`<span class="badge bm" style="margin:2px">${escA(b.nom+(b.variante?' · '+b.variante:''))} · ${stockDe(b)} en stock</span>`).join('')+'<div class="dim" style="font-size:12px;margin-top:6px">Idées : un post dédié, une photo portée, une remise douce, ou les mettre en avant dans un drop.</div>':'<div class="dim">Rien ne dort : tout ce qui est en stock s\'est vendu sur la période 🎉</div>'}</div></div>`;
 }
 async function sauverPosts(){ await sbUpsertConfig('reseaux_posts', POSTS); }
 const postsDe = bijId => POSTS.filter(p=>(p.bij_ids||[]).includes(bijId));
@@ -2992,15 +3155,20 @@ function renderAccueil() {
   const best=Object.entries(top).sort((a,b)=>b[1]-a[1])[0], bestB=best&&getBij(best[0]);
   const serie=serieAtelier();
   const perso=PRODS.filter(p=>p.perso&&p.statut==='en_cours').sort((a,b)=>String(a.date).localeCompare(String(b.date)));
-  const avendre=PRODS.filter(p=>(!p.statut||p.statut==='produit')&&!Object.keys(lireMiseEnVente(p).lieux).length);
-  const bas=stocksBas(), brouillons=BIJS.filter(isDraft), incompl=MATS.filter(m=>champsManquants(m).length), enG=lignesPerlesEnGrammes();
+  const avendre=PRODS.filter(p=>(!p.statut||p.statut==='produit')&&!Object.keys(lireMiseEnVente(p).lieux).length&&!dropDeProd(p.id));
+  const dropsDus=DROPS.filter(d=>d.statut!=='en_ligne'&&d.date&&d.date<=today()&&(d.items||[]).length);
+  const grpS=groupesStock(), bas=grpS.filter(g=>g.bas), bientot=grpS.filter(g=>g.bientot), brouillons=BIJS.filter(isDraft), incompl=MATS.filter(m=>champsManquants(m).length), enG=lignesPerlesEnGrammes();
   const idees1=ideesPosts().filter(x=>x.prio===1), postAuj=POSTS.filter(p=>p.statut==='prevu'&&p.date<=today());
   const sansPhoto=BIJS.filter(b=>b.parent_id&&!b.photo&&!b.is_mat&&!b.no_sell);
   const sauvAFaire=joursDepuisSauv()===null?BIJS.length>0:joursDepuisSauv()>30;
   const missions=[
     {ic:'✨',t:'Sur mesure à fabriquer',nb:perso.length,ids:perso.map(p=>p.id),c:'violet',go:"goTabNom('bij');switchCreatTab('prod')",
       det:perso.slice(0,3).map(p=>{ const b=getBij(p.bij_id); return `<div class="mis-l"><span>${escPerso(p.perso)} · ${b?b.nom:''}</span><button class="btn btn-xs btn-p" onclick="event.stopPropagation();marquerPersoProduite('${p.id}')">✓ Produite</button></div>`; }).join('')},
+    {ic:'🚀',t:'Drop à mettre en ligne',nb:dropsDus.length,ids:dropsDus.map(d=>d.id),c:'violet',go:"goTabNom('bij');switchCreatTab('drops')",
+      det:dropsDus.slice(0,2).map(d=>`<div class="mis-l"><span>${escA(d.nom)} · ${nbPiecesDrop(d)} pièce(s)</span><button class="btn btn-xs btn-p" onclick="event.stopPropagation();mettreEnLigneDrop('${d.id}')">🚀</button></div>`).join('')},
     {ic:'📍',t:'À mettre en vente',nb:avendre.length,ids:avendre.map(p=>p.id),c:'creme',go:"goTabNom('bij');switchCreatTab('prod');document.getElementById('prod-flt').value='avendre';renderRent()"},
+    {ic:'⏳',t:'Bientôt épuisés (≤ 30 j)',nb:bientot.length,ids:bientot.map(g=>g.m.ref),c:'creme',go:'ouvrirCourses()',
+      det:bientot.slice(0,3).map(g=>`<div class="mis-l"><span>${g.m.variante||g.m.designation} <span class="dim">${g.m.ref}</span></span><span class="dim">≈ ${g.jours} j</span></div>`).join('')},
     {ic:'🛒',t:'Stocks bas à racheter',nb:bas.length,ids:bas.map(g=>g.m.ref),c:'rose',go:'ouvrirCourses()',
       det:bas.slice(0,3).map(g=>`<div class="mis-l"><span>${g.m.variante||g.m.designation} <span class="dim">${g.m.ref}</span></span><span class="dim">${n(Math.round(g.dispo))} ${getUniteShort(g.m)}</span></div>`).join('')},
     {ic:'📣',t:postAuj.length?'Post prévu à publier':'Idées de posts du moment',nb:postAuj.length||idees1.length,ids:postAuj.length?postAuj.map(p=>p.id):idees1.map(x=>x.t),c:'violet',go:"goTabNom('res');switchResTab('"+(postAuj.length?'posts':'idees')+"')",
@@ -3074,6 +3242,7 @@ function renderAccueil() {
     <button class="btn btn-ghost" onclick="goTabNom('compta');switchComptaTab('ventes');openVenteModal()">💶 Nouvelle vente</button>
     <button class="btn btn-ghost" onclick="goTabNom('bij');switchCreatTab('bij');openBijModal()">💎 Nouvelle création</button>
     <button class="btn btn-ghost" onclick="ouvrirCourses()">🛒 Liste de courses</button>
+    <button class="btn btn-ghost" onclick="ouvrirBilanMois()">📅 Bilan du mois</button>
   </div>`;
 }
 function goTabNom(p){ const t=document.querySelector('.tab[data-p="'+p+'"]'); if(t) goTab(t); }
@@ -3090,7 +3259,7 @@ function majBadgesOnglets(){
     b.textContent=nb; b.title=titre; };
   try {
     const perso=PRODS.filter(p=>p.perso&&p.statut==='en_cours').length;
-    const avendre=PRODS.filter(p=>(!p.statut||p.statut==='produit')&&!Object.keys(lireMiseEnVente(p).lieux).length).length;
+    const avendre=PRODS.filter(p=>(!p.statut||p.statut==='produit')&&!Object.keys(lireMiseEnVente(p).lieux).length&&!dropDeProd(p.id)).length;
     const brouillons=BIJS.filter(isDraft).length;
     const incompl=MATS.filter(m=>champsManquants(m).length).length, enG=lignesPerlesEnGrammes().length;
     pastille('.tab[data-p="home"]', perso+avendre+stocksBas().length+brouillons+incompl+enG, 'choses à faire');
@@ -3774,12 +3943,13 @@ let CUR_STOCK_FLT = 'all';
 
 function switchCreatTab(tab, numeroPerso) {
   memoOnglet('creation', tab);
-  ['bij','prod','perso','boutique'].forEach(t => {
+  ['bij','prod','perso','drops','boutique'].forEach(t => {
     document.getElementById('cpanel-'+t).style.display = t===tab ? 'block' : 'none';
     document.getElementById('ctab-'+t).className = 'gtab'+(t===tab?' gtab-on':'');
   });
   if(tab==='prod') renderCreatProd();
-  if(tab==='boutique') renderBoutique();
+  if(tab==='boutique') vueBoutique();
+  if(tab==='drops') renderDrops();
   // pages du configurateur, chargées seulement à la première ouverture (ou pour ouvrir une personnalisation précise)
   if(tab==='perso') {
     const f = document.getElementById('frame-perso');
@@ -4711,6 +4881,17 @@ function corpsBij(b) {
             <div class="cell-label">Coût matériel</div>
             <div class="cell-val">${cout>0?eur(cout):'--'}</div>
           </div>
+          <div class="bij-foot-cell" style="background:var(--purpleP);color:var(--purple)" title="Ton temps de fabrication pour une pièce (les couleurs reprennent celui du modèle)">
+            <div class="cell-label">⏱ Temps (min)</div>
+            <div class="cell-val"><input type="number" min="0" step="1" value="${COUTS.temps[b.id]??''}" placeholder="${tempsBij(b)??'--'}"
+              onclick="event.stopPropagation()" onchange="event.stopPropagation();enregistrerTemps('${b.id}',this.value)"
+              style="background:transparent;border:none;color:var(--purple);font-size:17px;font-weight:700;font-family:Georgia,serif;text-align:center;outline:none;width:58px;height:20px;padding:0"></div>
+          </div>
+          ${tempsBij(b)!=null&&cout>0?`<div class="bij-foot-cell" style="background:#F7E3EE;color:#8E3F6E" title="Matériaux + ton temps (${COUTS.reglages.taux} €/h) + emballage (${eur(COUTS.reglages.emballage)}) · prix conseillé = coût × ${COUTS.reglages.coef}, frais de vente (${COUTS.reglages.frais} %) compris">
+            <div class="cell-label">Coût de revient</div>
+            <div class="cell-val">${eur(coutComplet(b))}</div>
+            <div style="font-size:10px">conseillé ${eur(prixConseille(b))}</div>
+          </div>`:''}
           ${noSell
             ? `<div class="bij-foot-cell" style="background:var(--grayP);color:var(--muted)">
                  <div class="cell-label">Prix minimum</div>
@@ -5004,7 +5185,7 @@ let CH_FLT='all';
 
 function switchComptaTab(tab) {
   COMPTA_TAB=tab; memoOnglet('compta', tab);
-  const tabs=['ventes','depenses','charges','tva','bilan'];
+  const tabs=['ventes','depenses','charges','tva','bilan','analyse'];
   tabs.forEach(t=>{
     const el=document.getElementById('ctab-'+t);
     if(el) el.className='gtab'+(t===tab?' gtab-on':'');
@@ -5016,6 +5197,7 @@ function switchComptaTab(tab) {
   if(tab==='charges') renderCharges();
   if(tab==='tva') renderTVA();
   if(tab==='bilan') renderBilan();
+  if(tab==='analyse') renderAnalyse();
 }
 
 function renderCompta() {
@@ -6533,6 +6715,96 @@ async function chargerShopify(force){
     if(SHOPIFY.etat.configure) SHOPIFY.produits=(await appelShopify('produits')).produits; }
   catch(e){ SHOPIFY.erreur=e.message; SHOPIFY.etat=SHOPIFY.etat||{configure:false}; }
 }
+// ═══════════════════════════════════════════════════════
+// FICHES WIX (SEO) : tout ce qu'il faut pour créer la page produit dans Wix, produit par produit
+// config « fiches_wix » = { <clé produit>: { nom, slug, titre, meta, description, alt, motscles, dimensions, entretien, url, statut } }
+// Un produit = un modèle et ses couleurs (même regroupement que la boutique). Le stock reste piloté par l'app (Shopify).
+// ═══════════════════════════════════════════════════════
+let FICHES_WIX={};
+function vueBoutique(v){
+  try{ v=v||localStorage.getItem('vue_boutique')||'wix'; localStorage.setItem('vue_boutique',v); }catch(e){ v=v||'wix'; }
+  document.querySelectorAll('.seg-bt [data-bv]').forEach(b=>b.classList.toggle('on',b.dataset.bv===v));
+  document.getElementById('boutique-wix').style.display=v==='wix'?'':'none';
+  document.getElementById('boutique-body').style.display=v==='shop'?'':'none';
+  if(v==='wix') renderFichesWix(); else renderBoutique();
+}
+const slugDe = t => cleNom(t).replace(/ /g,'-');
+function propositionWix(pr){
+  const r0=racineDe(pr.fiches[0]), nom=pr.nom, coloris=pr.fiches.map(f=>pr.o.valeurs(f).join(' ')).filter(v=>v&&v!=='Classique');
+  const mat=descriptionAuto({...r0,variante:''}).split('\n').find(l=>/^Matériaux/.test(l))?.replace(/^Matériaux : /,'').replace(/\.$/,'')||'';
+  const prix=[...new Set(pr.fiches.map(f=>prixPiece(f)).filter(Boolean))].sort((a,b)=>a-b);
+  return {
+    nom, slug:slugDe(nom),
+    titre:(`${nom} fait main | Bona Nodi`).slice(0,60),
+    meta:(`${nom} fait main à l'atelier Bona Nodi${mat?' : '+mat:''}.${coloris.length>1?' '+coloris.length+' coloris au choix.':''} Pièce artisanale, envoi soigné.`).slice(0,160),
+    description:[descriptionAuto({...r0,variante:''}), coloris.length>1?'Coloris disponibles : '+coloris.join(', ')+'.':'', 'Entretien : à garder au sec, loin des parfums et de l\'eau.'].filter(Boolean).join('\n'),
+    alt:`${nom} – bijou fait main Bona Nodi`,
+    motscles:[nom.toLowerCase(), r0.collection?r0.collection.toLowerCase():'', 'bijou fait main', 'perles', 'cadeau artisanal'].filter(Boolean).join(', '),
+    entretien:'À garder au sec, loin des parfums et de l\'eau.', prix:prix.length?(prix.length>1?eur(prix[0])+' à '+eur(prix[prix.length-1]):eur(prix[0])):'',
+  };
+}
+function controlesWix(pr, f){
+  return [
+    ['Nom du produit', !!f.nom],
+    ['Adresse (URL) courte', !!f.slug],
+    ['Titre SEO (30–60 caractères)', (f.titre||'').length>=30&&(f.titre||'').length<=60],
+    ['Méta-description (70–160 caractères)', (f.meta||'').length>=70&&(f.meta||'').length<=160],
+    ['Description (150 caractères ou plus)', (f.description||'').length>=150],
+    ['Texte alternatif des photos', !!f.alt],
+    ['Une photo par couleur', pr.fiches.every(x=>x.photo)],
+    ['Prix sur chaque fiche', pr.fiches.every(x=>prixPiece(x)>0)],
+    ['Dimensions', !!(f.dimensions||'').trim()],
+    ['Bouton d\'achat Shopify relié', pr.fiches.every(x=>x.shopify_variant_id)],
+    ['Page publiée sur Wix (adresse notée)', !!(f.url||'').trim()],
+  ];
+}
+function renderFichesWix(){
+  const el=document.getElementById('boutique-wix'); if(!el) return;
+  const prods=produitsBoutique(BIJS.filter(venduEnLigne));
+  const ligne=pr=>{ const f={...propositionWix(pr),...(FICHES_WIX[pr.cle]||{})}, c=controlesWix(pr,f), ok=c.filter(x=>x[1]).length, pc=Math.round(ok/c.length*100);
+    const st=FICHES_WIX[pr.cle]?.url?'✅ publiée':FICHES_WIX[pr.cle]?'✍️ en cours':'⏳ à préparer';
+    const ph=pr.fiches.find(x=>x.photo)?.photo;
+    return `<div class="wx-l" onclick="formFicheWix('${pr.cle}')">${ph?`<img src="${ph}" alt="">`:'<span class="bt-ph">💎</span>'}
+      <div style="flex:1;min-width:0"><b>${escA(pr.nom)}</b> <span class="dim" style="font-size:11px">${pr.fiches.length>1?pr.fiches.length+' variantes · ':''}${st}</span>
+        <div class="wx-barre"><span style="width:${pc}%"></span></div><div class="dim" style="font-size:11px">${ok}/${c.length} · manque : ${escA(c.filter(x=>!x[1]).map(x=>x[0]).slice(0,3).join(', ')||'rien 🎉')}</div></div>
+      <span class="btn btn-xs btn-ghost">✎ Fiche</span></div>`; };
+  const nbOk=prods.filter(pr=>{ const f={...propositionWix(pr),...(FICHES_WIX[pr.cle]||{})}; return controlesWix(pr,f).every(x=>x[1]); }).length;
+  el.innerHTML=`<div class="info-box">Pour chaque produit, l'app prépare ce qu'il faut pour sa <b>page Wix</b> (référencement Google) : titre, description, adresse, textes des photos… Copie chaque champ dans Wix › page produit › <b>SEO</b>. L'app reste la référence pour le <b>stock</b> (Shopify, onglet 🔗).</div>
+    <div class="card"><div class="card-hd"><h2>📝 Fiches Wix · ${nbOk}/${prods.length} complètes</h2></div><div class="card-bd" style="padding:0 8px">${prods.map(ligne).join('')||'<div class="empty"><p>Aucune création à vendre.</p></div>'}</div></div>`;
+}
+function formFicheWix(cle){
+  const pr=produitsBoutique(BIJS.filter(venduEnLigne)).find(x=>x.cle===cle); if(!pr) return;
+  const prop=propositionWix(pr), f={...prop,...(FICHES_WIX[cle]||{})};
+  const champ=(k,l,aide,long,max)=>`<div class="fg"><label>${l}${max?` <span class="wx-n" data-k="${k}" data-max="${max}"></span>`:''}</label><div style="display:flex;gap:6px;align-items:flex-start">
+      ${long?`<textarea id="wx-${k}" rows="${long}" style="flex:1" oninput="compteursWix()">${escA(f[k]||'')}</textarea>`:`<input id="wx-${k}" value="${escA(f[k]||'')}" style="flex:1" oninput="compteursWix()">`}
+      <button class="btn btn-xs btn-ghost" title="Copier" onclick="copierChamp('wx-${k}')">📋</button>
+      <button class="btn btn-xs btn-ghost" title="Reprendre la proposition" onclick="document.getElementById('wx-${k}').value=${JSON.stringify(prop[k]||'').replace(/"/g,'&quot;')};compteursWix()">✨</button></div>${aide?`<div class="dim" style="font-size:11px">${aide}</div>`:''}</div>`;
+  const c=controlesWix(pr,f);
+  modalVolante('m-wix',`<div class="modal-title">📝 Fiche Wix — ${escA(pr.nom)}</div>
+    <div class="wx-chk">${c.map(([l,ok])=>`<span class="${ok?'ok':''}">${ok?'✓':'○'} ${l}</span>`).join('')}</div>
+    ${champ('nom','Nom du produit (titre de la page)')}
+    ${champ('slug','Adresse de la page (URL)','Wix › produit › SEO › « URL slug » : minuscules, tirets, sans accents.')}
+    ${champ('titre','Titre SEO','Ce que Google affiche en bleu. Idéal : 50 à 60 caractères, le nom du produit au début.',0,60)}
+    ${champ('meta','Méta-description','Le petit texte sous le titre dans Google. Idéal : 120 à 160 caractères, donne envie de cliquer.',3,160)}
+    ${champ('description','Description du produit','Visible sur la page : matériaux, coloris, taille, entretien.',6)}
+    ${champ('alt','Texte alternatif des photos','À mettre sur chaque photo (Wix › photo › texte alternatif). Ajoute la couleur : « … – Sardine ».')}
+    ${champ('motscles','Mots-clés visés','Pour t\'inspirer dans les textes (Wix n\'utilise plus de champ mots-clés).')}
+    <div class="r2">${champ('dimensions','Dimensions / poids','ex. 3 × 1,5 cm · 4 g')}${champ('prix','Prix affiché','Vient des fiches ; à vérifier dans Shopify.')}</div>
+    ${champ('entretien','Entretien')}
+    ${champ('url','Adresse de la page une fois publiée sur Wix','Sert aux posts et aux drops (lien direct).')}
+    <div class="dim" style="font-size:12px;margin:6px 0">Variantes : ${pr.fiches.map(x=>`${escA(pr.o.valeurs(x).join(' · '))} ${x.photo?'📷':'<span style="color:var(--red)">sans photo</span>'} ${x.shopify_variant_id?'🔗':'<span style="color:var(--orange)">non reliée</span>'}`).join(' · ')}</div>
+    <div class="mfoot"><button class="btn btn-ghost" onclick="copierFicheWix()">📋 Tout copier</button><span style="flex:1"></span>
+      <button class="btn btn-ghost" onclick="closeModal('m-wix')">Fermer</button><button class="btn btn-p" onclick="enregistrerFicheWix('${cle}')">Enregistrer</button></div>`);
+  compteursWix();
+}
+function compteursWix(){ document.querySelectorAll('#m-wix .wx-n').forEach(s=>{ const l=(document.getElementById('wx-'+s.dataset.k)?.value||'').length, m=+s.dataset.max;
+  s.textContent=`${l}/${m}`; s.style.color=l>m?'var(--red)':l>=m*0.6?'var(--green)':'var(--orange)'; }); }
+const CHAMPS_WIX=['nom','slug','titre','meta','description','alt','motscles','dimensions','prix','entretien','url'];
+function copierFicheWix(){ copierTexte(CHAMPS_WIX.map(k=>{ const v=document.getElementById('wx-'+k)?.value||''; return v?document.querySelector(`#wx-${k}`).closest('.fg').querySelector('label').childNodes[0].textContent.trim()+' :\n'+v:''; }).filter(Boolean).join('\n\n')); }
+async function enregistrerFicheWix(cle){
+  const f={}; CHAMPS_WIX.forEach(k=>f[k]=(document.getElementById('wx-'+k)?.value||'').trim()); f.maj=new Date().toISOString();
+  FICHES_WIX[cle]=f; await sbUpsertConfig('fiches_wix', FICHES_WIX); closeModal('m-wix'); renderFichesWix(); toast('Fiche Wix enregistrée ✓','ok');
+}
 async function renderBoutique(force){
   const el=document.getElementById('boutique-body'); if(!el) return;
   if(force||!SHOPIFY.etat) el.innerHTML='<div class="loading">Connexion à la boutique…</div>';
@@ -6714,6 +6986,174 @@ async function retirerDuLieu(lignes) {
 }
 
 let PROD_TOUT_OUVERT=false;
+// ═══════════════════════════════════════════════════════
+// DROPS : préparer une mise en ligne groupée (pièces déjà produites, pas encore en ligne)
+// config « drops » = [{ id, nom, date, heure, note, statut: 'prepa' | 'en_ligne', items: [{ prod_id, qty }], en_ligne_le }]
+// ═══════════════════════════════════════════════════════
+let DROPS=[];
+const sauverDrops = () => sbUpsertConfig('drops', DROPS);
+const dropDeProd = prodId => DROPS.find(d=>d.statut!=='en_ligne'&&(d.items||[]).some(i=>i.prod_id===prodId));
+const dropTri = g => { const d=g.lignes.map(p=>dropDeProd(p.id)).find(Boolean); return d?'0'+(d.date||'9999')+d.nom:'1'; };
+const dateCourte = d => d?new Date(d+'T12:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}):'';
+const nbPiecesDrop = d => (d.items||[]).reduce((t,i)=>t+(+i.qty||0),0);
+const prixPiece = b => +(b?.pv||(b?.parent_id&&getBij(b.parent_id)?.pv)||(b?prixMin(b):0)||0);
+// pièces d'une production encore libres : produites − déjà mises dans un lieu − prévues dans un autre drop
+function libresProd(p, sauf=null){
+  const places=Object.values(lireMiseEnVente(p).lieux).reduce((t,q)=>t+(+q||0),0);
+  const prevues=DROPS.filter(d=>d.statut!=='en_ligne'&&d.id!==sauf).reduce((t,d)=>t+(d.items||[]).filter(i=>i.prod_id===p.id).reduce((u,i)=>u+(+i.qty||0),0),0);
+  // et jamais plus que le stock réel du bijou (pièces déjà vendues sans lieu, ex. au marché)
+  const estP=x=>!x.statut||x.statut==='produit', autres=PRODS.filter(x=>x.bij_id===p.bij_id&&estP(x));
+  const prodB=autres.reduce((t,x)=>t+(+x.qty||0),0), placesB=autres.reduce((t,x)=>t+Object.values(lireMiseEnVente(x).lieux).reduce((u,q)=>u+(+q||0),0),0);
+  const prevuesB=DROPS.filter(d=>d.statut!=='en_ligne'&&d.id!==sauf).reduce((t,d)=>t+(d.items||[]).filter(i=>autres.some(x=>x.id===i.prod_id)).reduce((u,i)=>u+(+i.qty||0),0),0);
+  const libreB=prodB-venteTot(p.bij_id).qty-placesB-prevuesB;
+  return Math.max(0,Math.min((+p.qty||0)-places-prevues, libreB));
+}
+function renderDrops(){
+  const el=document.getElementById('drops-body'); if(!el) return;
+  const aVenir=DROPS.filter(d=>d.statut!=='en_ligne').sort((a,b)=>String(a.date||'9999').localeCompare(String(b.date||'9999')));
+  const passes=DROPS.filter(d=>d.statut==='en_ligne').sort((a,b)=>String(b.en_ligne_le||'').localeCompare(String(a.en_ligne_le||'')));
+  const libres=PRODS.filter(p=>(!p.statut||p.statut==='produit')&&libresProd(p)>0).reduce((t,p)=>t+libresProd(p),0);
+  const carte=d=>{ const items=(d.items||[]).map(i=>({...i,p:PRODS.find(x=>x.id===i.prod_id)})).filter(i=>i.p);
+    const val=items.reduce((t,i)=>t+(+i.qty||0)*prixPiece(getBij(i.p.bij_id)),0), j=d.date?Math.round((new Date(d.date+'T12:00')-new Date(today()+'T12:00'))/864e5):null;
+    const quand=d.statut==='en_ligne'?`✅ en ligne depuis le ${new Date(d.en_ligne_le).toLocaleDateString('fr-FR')}`:j===null?'📝 date à choisir':j<0?`⏰ prévu le ${dateCourte(d.date)} (en retard)`:j===0?'🔥 aujourd\'hui':`📅 ${dateCourte(d.date)}${d.heure?' à '+d.heure:''} · dans ${j} jour${j>1?'s':''}`;
+    return `<div class="card drop-c ${d.statut==='en_ligne'?'drop-fait':''}"><div class="card-bd">
+      <div class="drop-hd"><div><b class="drop-nom">🚀 ${escA(d.nom)}</b><div class="dim" style="font-size:12px">${quand}</div></div>
+        <div class="drop-tot"><b>${nbPiecesDrop(d)}</b> pièce(s)<div class="dim">≈ ${eur(val)}</div></div></div>
+      ${d.note?`<div class="dim" style="font-size:12px;margin:4px 0">${escA(d.note)}</div>`:''}
+      <div class="drop-items">${items.map(i=>{ const b=getBij(i.p.bij_id); return `<span class="drop-it">${b?.photo?`<img src="${b.photo}" alt="">`:'💎'} ${escA(b?b.nom+(b.variante?' · '+b.variante:''):'?')} × ${n(i.qty)}</span>`; }).join('')||'<span class="dim">Aucune pièce : ✎ pour en ajouter</span>'}</div>
+      <div class="drop-act">${d.statut==='en_ligne'?`<button class="btn btn-xs btn-ghost" onclick="annoncerDrop('${d.id}')">📣 Posts</button>`:`
+        <button class="btn btn-xs btn-ghost" onclick="formDrop('${d.id}')">✎ Modifier</button>
+        <button class="btn btn-xs btn-ghost" onclick="annoncerDrop('${d.id}')" title="Ajoute au calendrier des posts : teasing avant, annonce le jour J">📣 Annoncer</button>
+        <button class="btn btn-xs btn-ghost" onclick="visuelDrop('${d.id}')" title="Image prête à poster (story et post carré)">🎨 Visuel</button>
+        <button class="btn btn-xs btn-ghost" onclick="ficheDrop('${d.id}')" title="Liste imprimable pour préparer le drop">🖨 Fiche</button>
+        <button class="btn btn-xs btn-p" onclick="mettreEnLigneDrop('${d.id}')" ${items.length?'':'disabled'}>🚀 Mettre en ligne</button>`}
+        <button class="btn btn-xs btn-red" onclick="supprimerDrop('${d.id}')">✕</button></div></div></div>`; };
+  el.innerHTML=`<div class="card"><div class="card-bd" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <div style="flex:1;min-width:200px"><b>Prépare tes mises en ligne</b><div class="dim" style="font-size:12px">${n(libres)} pièce(s) produite(s) pas encore en ligne ni prévue(s) dans un drop. Regroupe-les, choisis une date, annonce-les, puis mets tout en ligne d'un clic.</div></div>
+      <button class="btn btn-p" onclick="formDrop()">＋ Nouveau drop</button></div></div>
+    ${aVenir.map(carte).join('')||'<div class="empty"><div class="empty-icon">🚀</div><p>Aucun drop prévu.</p></div>'}
+    ${passes.length?`<div class="home-titre" style="margin-top:14px">Drops passés</div>${passes.slice(0,6).map(carte).join('')}`:''}`;
+}
+function formDrop(id){
+  const d=DROPS.find(x=>x.id===id)||{items:[]};
+  const choix=new Map((d.items||[]).map(i=>[i.prod_id,+i.qty||0]));
+  const prods=PRODS.filter(p=>(!p.statut||p.statut==='produit')&&(libresProd(p,d.id)>0||choix.has(p.id)))
+    .sort((a,b)=>{ const A=getBij(a.bij_id), B=getBij(b.bij_id); return String(A?.nom).localeCompare(String(B?.nom),'fr')||String(A?.variante||'').localeCompare(String(B?.variante||''),'fr'); });
+  modalVolante('m-drop',`<div class="modal-title">🚀 ${d.id?'Modifier le drop':'Nouveau drop'}</div>
+    <div class="fg"><label>Nom du drop</label><input id="dr-nom" value="${escA(d.nom||'')}" placeholder="ex. Drop d'automne, Collection Noël…"></div>
+    <div class="r2"><div class="fg"><label>Date de mise en ligne</label><input id="dr-date" type="date" value="${d.date||''}"></div>
+      <div class="fg"><label>Heure (facultatif)</label><input id="dr-heure" type="time" value="${d.heure||''}"></div></div>
+    <div class="fg"><label>Note (idée, thème, code promo…)</label><input id="dr-note" value="${escA(d.note||'')}"></div>
+    <div class="fg"><label>Pièces du drop <span class="dim" style="text-transform:none;font-weight:400">— productions terminées, pas encore en ligne</span></label>
+      <div class="drop-choix">${prods.map(p=>{ const b=getBij(p.bij_id), max=libresProd(p,d.id), q=choix.get(p.id)||0;
+        return `<label class="drop-l"><input type="checkbox" class="dr-chk" data-id="${p.id}" ${q?'checked':''} onchange="const i=this.closest('.drop-l').querySelector('.dr-q'); if(this.checked&&!+i.value) i.value=i.max;">
+          <span style="flex:1;min-width:0">${escA(b?b.nom+(b.variante?' · '+b.variante:''):'?')} <span class="dim">· produite le ${p.date||'?'} · ${max} libre(s)</span></span>
+          <input type="number" class="dr-q" min="1" max="${max}" value="${q||''}" placeholder="qté" style="width:70px;padding:6px"></label>`; }).join('')||'<div class="dim" style="padding:8px">Aucune pièce libre : enregistre d\'abord des productions terminées.</div>'}</div></div>
+    <div class="mfoot"><button class="btn btn-ghost" onclick="closeModal('m-drop')">Annuler</button><button class="btn btn-p" onclick="enregistrerDrop('${d.id||''}')">Enregistrer</button></div>`);
+}
+async function enregistrerDrop(id){
+  const nom=document.getElementById('dr-nom').value.trim(); if(!nom) return toast('Donne un nom au drop','err');
+  const items=[...document.querySelectorAll('#m-drop .dr-chk:checked')].map(c=>{ const q=c.closest('.drop-l').querySelector('.dr-q'); return {prod_id:c.dataset.id, qty:Math.min(+q.max||0,Math.max(1,+q.value||0))}; }).filter(i=>i.qty>0);
+  const d={...(DROPS.find(x=>x.id===id)||{id:uid(),statut:'prepa'}), nom, date:document.getElementById('dr-date').value, heure:document.getElementById('dr-heure').value, note:document.getElementById('dr-note').value.trim(), items};
+  const i=DROPS.findIndex(x=>x.id===d.id); if(i>=0) DROPS[i]=d; else DROPS.push(d);
+  await sauverDrops(); closeModal('m-drop'); renderDrops(); renderRent(); toast('Drop enregistré ✓','ok');
+}
+// depuis une production : la mettre dans un drop existant ou nouveau
+function ajouterAuDrop(prodId){
+  const p=PRODS.find(x=>x.id===prodId), b=getBij(p?.bij_id); if(!p) return;
+  const ouverts=DROPS.filter(d=>d.statut!=='en_ligne');
+  modalVolante('m-drop-add',`<div class="modal-title">🚀 ${escA(b?b.nom+(b.variante?' · '+b.variante:''):'')} dans un drop</div>
+    <div class="fg"><label>Drop</label><select id="da-drop">${ouverts.map(d=>`<option value="${d.id}">${escA(d.nom)}${d.date?' · '+dateCourte(d.date):''}</option>`).join('')}<option value="__nouveau">＋ Nouveau drop…</option></select></div>
+    <div class="fg"><label>Nombre de pièces</label><input id="da-q" type="number" min="1" max="${libresProd(p)}" value="${libresProd(p)}"></div>
+    <div class="mfoot"><button class="btn btn-ghost" onclick="closeModal('m-drop-add')">Annuler</button><button class="btn btn-p" onclick="validerAjoutDrop('${prodId}')">Ajouter</button></div>`);
+}
+async function validerAjoutDrop(prodId){
+  const v=document.getElementById('da-drop').value, q=Math.max(1,+document.getElementById('da-q').value||1);
+  let d=DROPS.find(x=>x.id===v);
+  if(!d){ const nom=prompt('Nom du nouveau drop :','Drop '+new Date().toLocaleDateString('fr-FR',{month:'long'})); if(!nom) return; d={id:uid(),nom,statut:'prepa',date:'',items:[]}; DROPS.push(d); }
+  const it=d.items.find(i=>i.prod_id===prodId); if(it) it.qty+=q; else d.items.push({prod_id:prodId,qty:q});
+  await sauverDrops(); closeModal('m-drop-add'); renderRent(); toast(`Ajouté au drop « ${d.nom} » ✓`,'ok');
+}
+// jour J : les pièces passent « Boutique en ligne » (le stock part tout seul vers Shopify si la boutique est reliée)
+async function mettreEnLigneDrop(id){
+  const d=DROPS.find(x=>x.id===id); if(!d) return;
+  if(!confirm(`Mettre en ligne « ${d.nom} » (${nbPiecesDrop(d)} pièce(s)) maintenant ?`)) return;
+  let nb=0;
+  for(const i of d.items||[]){ const p=PRODS.find(x=>x.id===i.prod_id); if(!p) continue;
+    const v=lireMiseEnVente(p); v.lieux['Boutique en ligne']=(+v.lieux['Boutique en ligne']||0)+(+i.qty||0);
+    if(await sbUpdate('productions',p.id,{mise_en_vente:v})){ p.mise_en_vente=v; planifierSynchro(p.bij_id); nb+=+i.qty||0; } }
+  d.statut='en_ligne'; d.en_ligne_le=new Date().toISOString(); await sauverDrops();
+  renderDrops(); renderRent(); if(document.getElementById('p-home')?.classList.contains('on')) renderAccueil();
+  toast(`🚀 ${nb} pièce(s) en ligne ✓`,'ok');
+}
+// 🖨 Fiche de préparation imprimable (photo, étiquette, fiche Wix, bouton Shopify, emballage)
+function ficheDrop(id){
+  const d=DROPS.find(x=>x.id===id); if(!d) return;
+  const lignes=(d.items||[]).map(i=>{ const p=PRODS.find(x=>x.id===i.prod_id), b=getBij(p?.bij_id); return {b,q:+i.qty||0}; }).filter(x=>x.b);
+  const tot=lignes.reduce((t,x)=>t+x.q*prixPiece(x.b),0), cle=b=>cleNom(racineDe(b).nom);
+  const w=window.open('','_blank'); if(!w) return toast('Autorise les fenêtres pour imprimer','err');
+  w.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Drop ${escA(d.nom)}</title><style>
+    body{font:14px system-ui,sans-serif;color:#2a0c35;margin:24px} h1{color:#3C114B;margin:0} .s{color:#6f5a78;margin:4px 0 16px}
+    table{width:100%;border-collapse:collapse} th,td{border-bottom:1px solid #e3d6ea;padding:8px 6px;text-align:left;vertical-align:middle} th{font-size:11px;text-transform:uppercase;color:#6f5a78}
+    img{width:44px;height:44px;object-fit:cover;border-radius:8px} .c{font-size:18px;text-align:center} button{margin-top:16px;padding:10px 18px;border-radius:999px;border:0;background:#3C114B;color:#FFF7C6;font-weight:700}
+    @media print{button{display:none}}</style></head><body>
+    <h1>🚀 ${escA(d.nom)}</h1><div class="s">${d.date?'Mise en ligne le '+new Date(d.date+'T12:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+(d.heure?' à '+d.heure:''):'Date à choisir'} · ${nbPiecesDrop(d)} pièce(s) · ≈ ${eur(tot)}${d.note?' · '+escA(d.note):''}</div>
+    <table><tr><th></th><th>Création</th><th>Réf.</th><th>Qté</th><th>Prix</th><th>Photo</th><th>Étiquette</th><th>Fiche Wix</th><th>Shopify</th><th>Emballé</th></tr>
+    ${lignes.map(x=>`<tr><td>${x.b.photo?`<img src="${x.b.photo}">`:''}</td><td><b>${escA(x.b.nom)}</b>${x.b.variante?' · '+escA(x.b.variante):''}</td><td>${escA(x.b.ref||'')}</td><td>${x.q}</td><td>${eur(prixPiece(x.b))}</td>
+      <td class="c">${x.b.photo?'✓':'☐'}</td><td class="c">☐</td><td class="c">${FICHES_WIX[cle(x.b)]?.url?'✓':'☐'}</td><td class="c">${x.b.shopify_variant_id?'✓':'☐'}</td><td class="c">☐</td></tr>`).join('')}</table>
+    <button onclick="print()">🖨 Imprimer</button></body></html>`);
+  w.document.close();
+}
+// 🎨 Visuel du drop (story 1080×1920 ou post 1080×1350) : fond violet, logo, nom, date, photos des pièces
+function chargerImage(src){ return new Promise(r=>{ if(!src) return r(null); const i=new Image(); i.crossOrigin='anonymous'; i.onload=()=>r(i); i.onerror=()=>r(null); i.src=src; }); }
+async function visuelDrop(id, format='story'){
+  const d=DROPS.find(x=>x.id===id); if(!d) return;
+  const W=1080, H=format==='story'?1920:1350, cv=document.createElement('canvas'); cv.width=W; cv.height=H; const x=cv.getContext('2d');
+  const VIO='#3C114B', CRE='#FFF7C6';
+  x.fillStyle=VIO; x.fillRect(0,0,W,H);
+  x.globalAlpha=.08; x.fillStyle=CRE; for(let i=0;i<40;i++){ x.beginPath(); x.arc((i*277)%W,(i*491)%H,3+(i%5),0,7); x.fill(); } x.globalAlpha=1;
+  const logo=await chargerImage('logo-app.png'); if(logo) x.drawImage(logo,W/2-110,format==='story'?120:60,220,220);
+  const y0=format==='story'?420:310;
+  x.fillStyle=CRE; x.textAlign='center';
+  x.font='600 46px Figtree, system-ui, sans-serif'; x.fillText('NOUVEAU DROP',W/2,y0);
+  x.font='700 86px Fredoka, Georgia, serif'; const nom=d.nom.length>22?d.nom.slice(0,21)+'…':d.nom; x.fillText(nom,W/2,y0+105);
+  x.font='500 44px Figtree, system-ui, sans-serif';
+  x.fillText(d.date?new Date(d.date+'T12:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+(d.heure?' · '+d.heure.replace(':','h'):''):'Bientôt en ligne',W/2,y0+180);
+  const bijs=[...new Map((d.items||[]).map(i=>{ const b=getBij(PRODS.find(p=>p.id===i.prod_id)?.bij_id); return [b?.id,b]; }).filter(([k])=>k)).values()].slice(0,6);
+  const imgs=await Promise.all(bijs.map(b=>chargerImage(b.photo)));
+  const cols=bijs.length<=2?bijs.length||1:bijs.length<=4?2:3, taille=cols===1?560:cols===2?420:300, gap=36;
+  const rows=Math.ceil(bijs.length/cols), gw=cols*taille+(cols-1)*gap, gy=y0+260;
+  bijs.forEach((b,i)=>{ const c=i%cols, r=Math.floor(i/cols), px=(W-gw)/2+c*(taille+gap), py=gy+r*(taille+90);
+    x.save(); x.beginPath(); x.roundRect?x.roundRect(px,py,taille,taille,36):x.rect(px,py,taille,taille); x.clip();
+    if(imgs[i]){ const im=imgs[i], k=Math.max(taille/im.width,taille/im.height); x.drawImage(im,px+(taille-im.width*k)/2,py+(taille-im.height*k)/2,im.width*k,im.height*k); }
+    else { x.fillStyle='#5B2A73'; x.fillRect(px,py,taille,taille); x.fillStyle=CRE; x.font=`${taille/3}px serif`; x.fillText('✦',px+taille/2,py+taille/1.6); }
+    x.restore(); x.strokeStyle=CRE; x.lineWidth=4; x.beginPath(); x.roundRect?x.roundRect(px,py,taille,taille,36):x.rect(px,py,taille,taille); x.stroke();
+    x.fillStyle=CRE; x.font='500 34px Figtree, system-ui, sans-serif'; const t=(b.nom+(b.variante?' · '+b.variante:'')); x.fillText(t.length>26?t.slice(0,25)+'…':t,px+taille/2,py+taille+50); });
+  x.font='500 36px Figtree, system-ui, sans-serif'; x.globalAlpha=.85; x.fillText('Pièces faites main · quantités limitées',W/2,H-(format==='story'?170:90)); x.globalAlpha=1;
+  x.font='700 40px Figtree, system-ui, sans-serif'; x.fillText('@bonanodi',W/2,H-(format==='story'?110:40));
+  try{ const url=cv.toDataURL('image/png');
+    modalVolante('m-visuel',`<div class="modal-title">🎨 Visuel du drop — ${escA(d.nom)}</div>
+      <div style="display:flex;gap:6px;margin-bottom:8px"><button class="btn btn-xs ${format==='story'?'btn-p':'btn-ghost'}" onclick="visuelDrop('${id}','story')">Story 9:16</button><button class="btn btn-xs ${format!=='story'?'btn-p':'btn-ghost'}" onclick="visuelDrop('${id}','post')">Post 4:5</button></div>
+      <img src="${url}" alt="" style="width:100%;max-height:60vh;object-fit:contain;border-radius:12px;background:#000">
+      <div class="mfoot"><button class="btn btn-ghost" onclick="closeModal('m-visuel')">Fermer</button><a class="btn btn-p" href="${url}" download="drop-${slugDe(d.nom)}-${format}.png">⬇ Télécharger</a></div>`);
+  }catch(e){ toast('Une photo bloque l\'export de l\'image : réessaie sans elle','err'); }
+}
+async function supprimerDrop(id){ const d=DROPS.find(x=>x.id===id); if(!d||!confirm(`Supprimer le drop « ${d.nom} » ? (les productions restent, rien n'est retiré de la boutique)`)) return;
+  DROPS=DROPS.filter(x=>x.id!==id); await sauverDrops(); renderDrops(); renderRent(); }
+// 📣 : posts prévus dans le calendrier (teasing J-3, annonce le jour J), avec les créations du drop
+async function annoncerDrop(id){
+  const d=DROPS.find(x=>x.id===id); if(!d) return;
+  const bij=[...new Set((d.items||[]).map(i=>PRODS.find(p=>p.id===i.prod_id)?.bij_id).filter(Boolean))];
+  const noms=bij.map(getBij).filter(Boolean).map(b=>b.nom+(b.variante?' '+b.variante:'')).slice(0,4).join(', ');
+  const jour=d.date||today(), avant=new Date(new Date(jour+'T12:00').getTime()-3*864e5).toISOString().slice(0,10);
+  const deja=POSTS.filter(p=>p.drop===id).length;
+  if(deja&&!confirm('Des posts existent déjà pour ce drop. En ajouter d\'autres ?')) return;
+  POSTS.push({id:uid(),drop:id,titre:`Teasing : ${d.nom}`,reseau:'instagram',format:'story',statut:'prevu',date:avant<today()?today():avant,bij_ids:bij,
+      note:`✨ Quelque chose se prépare à l'atelier… Rendez-vous le ${dateCourte(jour)}${d.heure?' à '+d.heure:''} 👀\n#bonanodi #faitmain #drop`},
+    {id:uid(),drop:id,titre:`C'est en ligne : ${d.nom}`,reseau:'instagram',format:'reel',statut:'prevu',date:jour,bij_ids:bij,
+      note:`🚀 ${d.nom} est en ligne ! ${noms}${(d.items||[]).length>4?'…':''}\nPièces uniques, faites main, en quantité limitée 💜\n#bonanodi #faitmain #bijouxfaitmain`});
+  await sauverPosts(); toast('2 posts ajoutés au calendrier (📣 Réseaux › Posts) ✓','ok');
+}
 function toutProd(){ PROD_TOUT_OUVERT=!PROD_TOUT_OUVERT; const b=document.getElementById('bt-tout-prod'); if(b) b.textContent=PROD_TOUT_OUVERT?'⊖ Détails':'⊕ Détails'; renderRent(); }
 function toggleProdDetail(id) {
   const el=document.getElementById(id);
@@ -7021,11 +7461,13 @@ function renderRent() {
   }
   // ── Productions : regroupées par bijou, avec recherche, filtre et tri
   const estProd=p=>!p.statut||p.statut==='produit';
-  const aVendre=p=>estProd(p)&&!Object.keys(lireMiseEnVente(p).lieux).length;
+  const aVendre=p=>estProd(p)&&!Object.keys(lireMiseEnVente(p).lieux).length&&!dropDeProd(p.id);
+  const pasEnLigne=p=>estProd(p)&&!(+lireMiseEnVente(p).lieux['Boutique en ligne']>0);
   const q=(document.getElementById('prod-search')?.value||'').toLowerCase().trim();
   const flt=document.getElementById('prod-flt')?.value||'';
   const triP=document.getElementById('prod-tri')?.value||'recent';
-  const filtreLigne={ produit:estProd, en_cours:p=>!estProd(p), avendre:aVendre, perso:p=>!!p.perso }[flt];
+  const filtreLigne={ produit:estProd, en_cours:p=>!estProd(p), avendre:aVendre, perso:p=>!!p.perso,
+    drop:p=>!!dropDeProd(p.id), horsligne:p=>pasEnLigne(p)&&!dropDeProd(p.id), enligne:p=>+lireMiseEnVente(p).lieux['Boutique en ligne']>0 }[flt];
   const groupes={};
   PRODS.forEach(p=>{
     const b=getBij(p.bij_id); if(!b) return;
@@ -7046,6 +7488,9 @@ function renderRent() {
   else if(filtreLigne) liste=liste.filter(g=>g.lignesVues.length);
   const ordre={ recent:(a,b)=>b.derniere.localeCompare(a.derniere), ancien:(a,b)=>a.premiere.localeCompare(b.premiere),
     nom:(a,b)=>String(a.b.nom).localeCompare(String(b.b.nom),'fr')||String(a.b.variante||'').localeCompare(String(b.b.variante||''),'fr'),
+    valeur:(a,b)=>b.stock*(b.pvAff||0)-a.stock*(a.pvAff||0),
+    drop:(a,b)=>(dropTri(a)).localeCompare(dropTri(b))||b.derniere.localeCompare(a.derniere),
+    collection:(a,b)=>String(a.b.collection||'').localeCompare(String(b.b.collection||''),'fr')||String(a.b.nom).localeCompare(String(b.b.nom),'fr'),
     stock:(a,b)=>b.stock-a.stock, produits:(a,b)=>b.qProd-a.qProd, vendus:(a,b)=>b.vendus-a.vendus, marge:(a,b)=>(b.marge??-999)-(a.marge??-999) }[triP];
   liste.sort(ordre);
   liste.forEach(g=>g.lignesVues.sort((a,b)=>triP==='ancien'?String(a.date||'').localeCompare(String(b.date||'')):String(b.date||'').localeCompare(String(a.date||''))));
@@ -7084,6 +7529,8 @@ function renderRent() {
                 <span class="badge ${estProd(p)?'bgn':'bp'}">${estProd(p)?'✅ Produit':'🔧 En cours'}</span>
                 ${p.perso?`<span class="badge bm" style="cursor:pointer" onclick="event.stopPropagation();ouvrirPerso('${escPerso(p.perso)}')" title="${escPerso(p.perso_note||'')}">✨ ${escPerso(p.perso)}</span>`:''}
                 ${badgesMiseEnVente(p)}
+                ${dropDeProd(p.id)?`<span class="badge bp" title="Prévue dans ce drop" style="cursor:pointer" onclick="event.stopPropagation();goTabNom('bij');switchCreatTab('drops')">🚀 ${escA(dropDeProd(p.id).nom)}${dropDeProd(p.id).date?' · '+dateCourte(dropDeProd(p.id).date):''}</span>`:''}
+                ${pasEnLigne(p)&&!dropDeProd(p.id)?`<button class="btn btn-xs btn-ghost" onclick="event.stopPropagation();ajouterAuDrop('${p.id}')" title="Prévoir ces pièces dans un drop (mise en ligne groupée)">🚀 Drop</button>`:''}
                 ${aVendre(p)?`<button class="btn btn-xs btn-ghost" onclick="event.stopPropagation();openEditProd('${p.id}')" title="Indiquer où ces pièces sont mises en vente">📍 Mettre en vente</button>`:''}
                 <button class="btn btn-xs btn-ghost" onclick="event.stopPropagation();openEditProd('${p.id}')">✎ Modifier</button>
                 <button class="btn btn-xs btn-red" onclick="event.stopPropagation();delProd('${p.id}')">✕</button>
@@ -7133,7 +7580,11 @@ function switchCfgTab(t){
   try{ localStorage.setItem('cfg_onglet',t); }catch(e){}
   document.querySelectorAll('#cfg-nav .sub-tab').forEach(x=>x.classList.toggle('sub-tab-on',x.dataset.cs===t));
   document.querySelectorAll('#p-cfg > .card[data-cs]').forEach(c=>c.style.display=c.dataset.cs===t?'':'none');
-  if(t==='sauvegarde') renderSauvegarde(); if(t==='connexions') renderConnexions(); if(t==='lieux') renderLieuxCfg();
+  if(t==='sauvegarde') renderSauvegarde();
+  if(t==='atelier'){ const el=document.getElementById('cfg-couts'), r=COUTS.reglages; if(el) el.innerHTML=`<div class="info-box">Sur chaque fiche bijou, note ton <b>temps de fabrication</b> (case ⏱). L'app calcule le <b>coût de revient</b> (matériaux + ton temps + emballage) et un <b>prix conseillé</b> qui paie ton temps, ta marge et les frais de vente.</div>
+    <div class="r2"><div class="fg"><label>Ton taux horaire (€/h)</label><input id="cc-taux" type="number" step="0.5" value="${r.taux}"></div><div class="fg"><label>Emballage par pièce (€)</label><input id="cc-emballage" type="number" step="0.05" value="${r.emballage}"></div></div>
+    <div class="r2"><div class="fg"><label>Coefficient (marge)</label><input id="cc-coef" type="number" step="0.1" value="${r.coef}"><div class="dim" style="font-size:11px">2 = tu vends le double de ton coût de revient</div></div><div class="fg"><label>Frais de vente (%)</label><input id="cc-frais" type="number" step="0.5" value="${r.frais}"><div class="dim" style="font-size:11px">paiement en ligne, commissions…</div></div></div>
+    <button class="btn btn-p" onclick="enregistrerReglagesCouts()">💾 Enregistrer</button>`; } if(t==='connexions') renderConnexions(); if(t==='lieux') renderLieuxCfg();
 }
 // ── Sauvegarde : tout télécharger en un fichier (rappel tous les 30 jours sur l'Accueil)
 let DERNIERE_SAUV='';
