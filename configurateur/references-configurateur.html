@@ -68,8 +68,8 @@ import {
   listerModelesPublies, chargerCatalogueBoutique, chargerFermoirsBoutique, chargerPartiesConfigurateur, chargerBijouxBoutique,
   completerCatalogue, resoudreDefauts, couleursProposees, correspondCategorie, ordreModeles, estLettres, accrochesProposees,
   chargerLiens, enregistrerLiens, estExemple, exemplesParRef, apercuArgile, apercuChainmail, baseRef,
-  appliquerLiens, relierModele, definirLiensFixes, cleFixe, refFixe, catalogueDepuisMateriaux, perlesFixesDe, allureFixe,
-} from './bead-core.js?v=0ccc12c0';
+  appliquerLiens, relierModele, definirLiensFixes, cleFixe, refFixe, catalogueDepuisMateriaux, perlesFixesDe, allureFixe, bijouBreloque,
+} from './bead-core.js?v=ba79f795';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './perles-config.js?v=e5e86015';
 
 const $ = s => document.querySelector(s);
@@ -307,6 +307,13 @@ function rendreUtilises() {
   const ouverts = new Set([...document.querySelectorAll('#utilises details[open]')].map(d => d.dataset.slug)), premier = !document.querySelector('#utilises details'), y = scrollY;
   const blocs = modelesBruts.map(m0 => {
     const mo = resoudreDefauts(relierModele(m0, liens), cat, fL), L = [];
+    // la fiche bijou sur laquelle la commande est produite (et dont la composition est déduite du stock)
+    const ficheL = (nom, texte) => { const r = bijouBreloque(mo, { couleurs: {}, texte, bijoux }); const b = bijoux.find(x => x.id === r.id);
+      L.push(b ? `<div class="ligne liee"><span class="pastille" style="background:#3c114b"></span><span>${esc(nom)}</span><span><b class="ok">✓</b> <span class="ref">${esc(b.ref)}</span> ${esc([b.nom, b.variante].filter(Boolean).join(' · '))}</span><span class="ref">stock : sa composition</span></div>`
+        : `<div class="ligne"><span class="pastille" style="background:#eee"></span><span>${esc(nom)}</span><span><b class="alerte">⚠</b> aucune fiche bijou trouvée (lien du modèle : ${esc(mo.bij_ref || mo.bijNom || '—')})</span><span></span></div>`); };
+    if (mo.bijZone) L.push(`<div class="ligne liee"><span class="pastille" style="background:#3c114b"></span><span>Fiche bijou</span><span>celle du motif / de la forme choisi(e) par la cliente</span><span></span></div>`);
+    else if (estLettres(mo)) { ficheL('Fiche bijou · 1 mot', { mode: 1 }); ficheL('Fiche bijou · 2 mots', { mode: 2 }); }
+    else ficheL('Fiche bijou de la breloque');
     for (const z of mo.zones || []) {
       if (z.defaut) L.push(ligne('Couleur par défaut · ' + (z.nom || z.id), z.defaut, z.defautNom));
     }
@@ -315,6 +322,7 @@ function rendreUtilises() {
     for (const f of perlesFixesDe(mo, cat)) L.push(ligne(f.role, f.ref, f.kNom, selFixe(f.kNom, f.ref) + '<br><span class="ref">rendu 3D : celui du modèle</span>', true));
     for (const o of mo.options || []) {
       if (o.type === 'fermoir') (o.choix || []).forEach(ch => L.push(ligne('Fermoir · ' + (ch.nom || ch.id || ''), ch.ref)));
+      if (o.type === 'perle') cat.filter(x => !o.categorie || correspondCategorie(x, o.categorie)).forEach(x => L.push(ligne('Option « ' + (o.nom || 'perle') + ' » · choix', x.ref)));
       if (o.type === 'accroche') (accrochesProposees(mo, fL)?.choix || []).forEach(ch => (ch.pieces || []).forEach((r, i) => L.push(ligne('Porte-clés « ' + (ch.nom || ch.id) + ' »' + (ch.pieces.length > 1 ? ' · pièce ' + (i + 1) : ''), r))));
     }
     for (const g of mo.groupes || []) for (const a of g.accessoires || []) L.push(ligne('Fermoir de la breloque', a.ref));

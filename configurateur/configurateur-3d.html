@@ -409,7 +409,7 @@ label.champ input:focus, label.champ textarea:focus { border-color: var(--prune)
    URL : configurateur-3d.html   (?parcours=bundle  ou  ?modele=arete)
    ------------------------------------------------------------------ */
 import {
-  ScenePerles, baseRef, definirLiensFixes, apparenceFixes, catalogueDepuisMateriaux, CATALOGUE_DEMO, FERMOIRS_DEMO, modeleDemo, modeleAreteDemo, modeleLettresDemo,
+  ScenePerles, baseRef, definirLiensFixes, apparenceFixes, lignesCommande, estExemple, catalogueDepuisMateriaux, CATALOGUE_DEMO, FERMOIRS_DEMO, modeleDemo, modeleAreteDemo, modeleLettresDemo,
   couleursProposees, validerConfiguration, couleursEpuisees, listerModelesPublies, chargerCatalogueBoutique, chargerFermoirsBoutique,
   chargerPartiesConfigurateur, chargerPrixBijou, affinerCouleursDepuisPhotos, resoudreDefauts, envoyerDemande,
   composerBundle, lignesCommandeBundle, accrochesProposees, construireLettres, verifierTexte, estLettres, offreApplicable,
@@ -418,7 +418,7 @@ import {
   correspondCategorie, texteCatalogue, ordreModeles, chargerRuptures, appliquerRuptures,
   chargerLiens, appliquerLiens, relierModele, chargerMateriauxParRefs,
   chargerFichesConfig, definirFichesConfig, ficheCfg, refsCouleurFiche, famillesFiche,
-} from './bead-core.js?v=0ccc12c0';
+} from './bead-core.js?v=ba79f795';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER, PANIER_SHOPIFY } from './perles-config.js?v=e5e86015';
 
 const $ = s => document.querySelector(s);
@@ -797,10 +797,17 @@ function couleursDeFiche(m, row, f, voisins = true) {
   for (const o of ov) { const rv = refCatalogue(o.ref_variante); if (!rv) continue;
     for (const z of Object.keys(c)) if (memeRefCouleur(c[z], o.ref_parent) || memeRefCouleur(def[z], o.ref_parent)) { c[z] = rv; applique = true; } }
   // pas de remplacement utilisable : les couleurs de la variante du même nom d'un autre modèle (arête Sardine ← dos, ventre, queue du petit poisson Sardine)
-  if (!applique && !propres && voisins) { const v = couleursMemeVariante(m, f); if (v) Object.assign(c, v); }
-  if (memeCouleurs(c, base)) return finir(base);                                // rien de propre à cette variante : pas d'idée à part
-  // la bouche d'une variante garde la couleur du modèle 3D (ex. orange 1 pour la Sardine)
-  for (const z of m.zones || []) if (/bouche/.test(normNom(z.id + ' ' + (z.nom || ''))) && def[z.id]) c[z.id] = def[z.id];
+  let voisin = null;
+  if (!applique && !propres && voisins) { voisin = couleursMemeVariante(m, f); if (voisin) Object.assign(c, voisin); }
+  if (!applique && !propres && !voisin) return finir(base);                      // rien de connu sur cette variante : pas d'idée à part
+  // la bouche d'une variante : sa couleur (ex. orange 1 pour la Sardine) — celle de sa fiche si elle y est,
+  // sinon celle de la même variante de l'autre modèle, sinon la couleur de départ du modèle 3D
+  const refsF = refsCouleurFiche(f.id), bouchesModeles = modeles.flatMap(x => (x.zones || []).filter(z => /bouche/.test(normNom(z.id + ' ' + (z.nom || '')))).map(z => x.zones && nouvelleBreloque(x.slug).couleurs[z.id])).filter(Boolean);
+  for (const z of m.zones || []) {
+    if (!/bouche/.test(normNom(z.id + ' ' + (z.nom || '')))) continue;
+    const dansFiche = [...bouchesModeles.filter(r => r !== def[z.id]), def[z.id]].find(r => r && refsF.some(x => memeRefCouleur(x, r)));
+    c[z.id] = dansFiche || voisin?.[z.id] || def[z.id] || c[z.id];
+  }
   return finir(c);
 }
 // même couleur : même ref, même ref de base (#PR014 / #PR014b = un seul stock) ou même nom de couleur (« bleu 2 »)
@@ -942,6 +949,7 @@ function rendreIdeesInline(liste) {
     rendre3D(); toutRendre();
   }));
 }
+window.__bnStock = () => etat.breloques.map((b, i) => ({ fiche: bijouDe(b).ref, mats: ecartsStock(b, i) }));   // diagnostic
 window.__bnIdees = () => ({ modeles: modelesDu(etat.parcours || 'breloque').map(m => [m.slug, ficheModele(m)?.nom || null, ideesPour(m).map(x => x.nom)]), fiche: bijouDe(brel()), bundle: ideesBundle().map(x => x.nom) });   // diagnostic
 $('#btIdees .ic-etoile').innerHTML = ETOILE;
 $('#btIdees').addEventListener('click', () => { const o = $('#btIdees').getAttribute('aria-expanded') === 'true'; $('#btIdees').setAttribute('aria-expanded', String(!o)); rendreIdees(); });
@@ -987,7 +995,7 @@ function rendreTexte() {
     if (!v.erreur) b.texteValide = { mode: t.mode, mots: v.mots, sens: t.sens };
     rendreTexte(); rendre3D({ cadrer: true }); rendreListeBreloques(); rendreRecap();
   }));
-  const SENS = [['haut', 'De haut en bas', 'lettres couchées'], ['bas', 'De bas en haut', 'lettres couchées'], ['droit', 'Lettres debout', 'l\'une sous l\'autre']];
+  const SENS = [['haut', 'De haut en bas', 'lettres couchées'], ['bas', 'De bas en haut', 'lettres couchées']];
   $('#sensTexte').innerHTML = SENS.map(([v, l, d]) => `<button class="segment" type="button" data-sens="${v}" aria-pressed="${(t.sens || 'haut') === v}"><b>${l}</b><span>${d}</span></button>`).join('');
   $('#sensTexte').querySelectorAll('[data-sens]').forEach(x => x.addEventListener('click', () => {
     t.sens = x.dataset.sens; const v = verifierTexte(t, max);
@@ -1167,7 +1175,7 @@ async function enregistrer() {
     ({ numero, cle } = await envoyerDemande(sb, { modele: etat.breloques.map(b => b.slug).join('+'), choix,
       lignes: { ...lignes, note: brouillon.texte, noteAtelier: brouillon.texteAtelier,
         // une production « en cours » par breloque dans l'app de gestion, dès que la commande Wix est passée
-        production: etat.breloques.map((b, i) => ({ bij: bijouDe(b).ref, nom: nomCourt(modeleDe(b.slug)),
+        production: etat.breloques.map((b, i) => ({ bij: bijouDe(b).ref, nom: nomCourt(modeleDe(b.slug)), mats: ecartsStock(b, i),
           note: [brouillon.notesAtelier[i].replace(brouillon.titre + ' — ', ''), brouillon.ligneAccAtelier].filter(Boolean).join('\n') })) },
       total: lignes.total }));
   }
@@ -1180,6 +1188,33 @@ async function enregistrer() {
   ecrireLocal('bn-perso-enregistrees', liste.slice(0, 8));
   rendreMesPerso();
   return valide;
+}
+/* Stock : la production est faite sur la fiche reconnue ; ce qui diffère de sa composition est envoyé à l'app
+   { ajout: [{ref, qty}], remplace: [{ref, qty}] } (qty en perles / pièces ; négatif = en moins).
+   - couleurs choisies ≠ couleurs de la fiche : perles en plus / en moins, comptées sur le modèle 3D ;
+   - breloque lettre : nombre réel de perles lettre (remplace la quantité de la fiche) ;
+   - option (perle de culture en pampille, étoile…) absente de la fiche : ajoutée ; même catégorie qu'une perle de la fiche : remplacée ;
+   - bundle : les pièces du porte-clés (sur la 1re breloque). */
+function ecartsStock(b, i) {
+  const m0 = modeleDe(b.slug), m = modelePour(b), fiche = bijouDe(b), refsFiche = ficheCfg(fiche.id)?.refs || [];
+  const ajout = {}, remplace = {};
+  const plus = (r, q) => { if (r && q && !estExemple(r)) ajout[r] = (ajout[r] || 0) + q; };
+  const compte = couleurs => { const a = {}; for (const l of lignesCommande(m, { catalogue, fermoirs, couleurs, options: {} }).creation)
+    if (l.partie !== 'Fermoir' && l.ref && l.ref !== '—') a[l.ref] = (a[l.ref] || 0) + l.quantite; return a; };
+  if (!m0.bijZone && !estLettres(m0)) {
+    const ref = ideesPour(m0).find(x => x.fiche.id === fiche.id) || calculerIdees(m0).find(x => x.fiche.id === fiche.id);
+    if (ref) { const A = compte(b.couleurs), B = compte(ref.breloque.couleurs); for (const r of new Set([...Object.keys(A), ...Object.keys(B)])) plus(r, (A[r] || 0) - (B[r] || 0)); }
+  }
+  if (estLettres(m0)) { const A = compte(b.couleurs); for (const g of m.groupes || []) for (const p of g.perles || []) if (p.lettre && p.k && !estExemple(p.k)) remplace[p.k] = A[p.k] || 0; }
+  const opts = optionsEffectives(b);
+  for (const o of m.options || []) {
+    const r = o.type === 'perle' && opts[o.id]; if (!r || refsFiche.some(x => memeRefCouleur(x, r))) continue;
+    const cat = parRef[r]?.categorie, meme = cat && refsFiche.find(x => parRef[x]?.categorie === cat);
+    plus(r, 1); if (meme) plus(meme, -1);
+  }
+  if (i === 0 && enBundle()) for (const r of accrocheChoisie()?.pieces || []) plus(r, 1);
+  const liste = o => Object.entries(o).filter(([, q]) => q).map(([ref, qty]) => ({ ref, qty, qty_unite: 'unite' }));
+  return { ajout: liste(ajout), remplace: Object.entries(remplace).map(([ref, qty]) => ({ ref, qty, qty_unite: 'unite' })) };
 }
 const lienReprise = cle => cle ? (pageWix || location.href.split(/[?#]/)[0]) + '?perso=' + cle : '';
 function afficherEnregistree(titre, texte) {

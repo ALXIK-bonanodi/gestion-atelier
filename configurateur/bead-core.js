@@ -2960,8 +2960,8 @@ export function construireLettres(gabarit, texte, options = {}, catalogue = []) 
   };
   for (const h of L.haut || []) poser(h.t, { k: ref(h.k, h.kNom), kNom: h.kNom, partie: 'Intercalaire' });
   // sens de lecture : « haut » = de haut en bas (lettres couchées), « bas » = de bas en haut, « droit » = lettres debout, l'une sous l'autre
-  const sens = ['haut', 'bas', 'droit'].includes(texte?.sens) ? texte.sens : 'haut';
-  const rl = sens === 'bas' ? Math.PI : sens === 'droit' ? -Math.PI / 2 : 0;
+  const sens = texte?.sens === 'bas' ? 'bas' : 'haut';
+  const rl = sens === 'bas' ? Math.PI : 0;
   const items = [];
   mots.forEach((mot, i) => {
     if (i === 1 && refEtoile) items.push([parRef.get(refEtoile)?.perle || etoile?.perle || 'etoile-8', { k: refEtoile, option: true }]);
@@ -2976,7 +2976,7 @@ export function construireLettres(gabarit, texte, options = {}, catalogue = []) 
   g.boucles = [[0, 0, 0.05], [0, 0, z + 0.5]];        // boucle du haut (prend l'œillet du fermoir) et arrêt du bas
   m.texte = mots.join(refEtoile ? ' ★ ' : ' ');
   m.nom = (gabarit.nom || 'Breloque lettre').replace(/\s*«.*$/, '') + (m.texte ? ' « ' + m.texte + ' »' : '');
-  if (sens !== 'haut') m.nom += sens === 'bas' ? ' (se lit de bas en haut)' : ' (lettres debout)';
+  if (sens === 'bas') m.nom += ' (se lit de bas en haut)';
   return m;
 }
 export const estLettres = m => !!m?.lettres || m?.groupes?.some(g => g.technique === 'lettres');

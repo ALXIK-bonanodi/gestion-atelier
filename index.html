@@ -2208,9 +2208,23 @@ function qteMat(m, mat) {
 function stockPris(ref, filtre) {
   return PRODS.filter(p=>+p.qty>0&&filtre(p)).reduce((s,p)=>{
     const b=getBij(p.bij_id); if(!b) return s;
-    const consumed=matsConsumedByBij(b,+p.qty||0);
+    const consumed=p.perso_mats?matsConsumedPerso(b,+p.qty||0,p.perso_mats):matsConsumedByBij(b,+p.qty||0);
     return s+(consumed[ref]||0);
   },0);
+}
+// Personnalisation du configurateur : composition de la fiche + ce qui en diffère (couleurs choisies, lettres, options, porte-clés)
+function matsConsumedPerso(bij, qtyProd, pm){
+  let e=pm; if(typeof e==='string'){ try{ e=JSON.parse(e); }catch(x){ e=null; } }
+  const res=matsConsumedByBij(bij,qtyProd); if(!e) return res;
+  const q=(l)=>{ const mat=getMat(l.ref); return mat?qteMat({qty:+l.qty||0,qty_unite:l.qty_unite||'unite'},mat):null; };
+  for(const l of e.remplace||[]){ const v=q(l); if(v!==null) res[l.ref]=v*qtyProd; }
+  for(const l of e.ajout||[]){
+    const v=q(l);
+    if(v!==null){ res[l.ref]=(res[l.ref]||0)+v*qtyProd; continue; }
+    const comp=BIJS.find(x=>x.ref===l.ref);                       // composition (ex. perle de culture · tige boule) : ses matériaux
+    if(comp) for(const [r,x] of Object.entries(matsConsumedByBij(comp,(+l.qty||0)*qtyProd))) res[r]=(res[r]||0)+x;
+  }
+  return res;
 }
 const estProduite = p => !p.statut || p.statut==='produit';
 function stockUtilise(ref) { return stockPris(ref, estProduite); }          // déjà fabriqué : déduit
