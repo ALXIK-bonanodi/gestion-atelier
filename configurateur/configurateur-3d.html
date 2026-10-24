@@ -355,6 +355,8 @@ label.champ input:focus, label.champ textarea:focus { border-color: var(--prune)
         <div class="segments" id="modesTexte"></div>
         <div class="mots" id="mots"></div>
         <div class="compteur" id="compteur"></div>
+        <div class="palette-titre" style="margin-top:6px"><span>Sens des lettres</span></div>
+        <div class="segments" id="sensTexte"></div>
         <div id="etoilesTexte"></div>
       </div>
     </section>
@@ -416,7 +418,7 @@ import {
   correspondCategorie, texteCatalogue, ordreModeles, chargerRuptures, appliquerRuptures,
   chargerLiens, appliquerLiens, relierModele, chargerMateriauxParRefs,
   chargerFichesConfig, definirFichesConfig, ficheCfg, refsCouleurFiche, famillesFiche,
-} from './bead-core.js?v=10757366';
+} from './bead-core.js?v=0ccc12c0';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER, PANIER_SHOPIFY } from './perles-config.js?v=e5e86015';
 
 const $ = s => document.querySelector(s);
@@ -796,6 +798,9 @@ function couleursDeFiche(m, row, f, voisins = true) {
     for (const z of Object.keys(c)) if (memeRefCouleur(c[z], o.ref_parent) || memeRefCouleur(def[z], o.ref_parent)) { c[z] = rv; applique = true; } }
   // pas de remplacement utilisable : les couleurs de la variante du même nom d'un autre modèle (arête Sardine ← dos, ventre, queue du petit poisson Sardine)
   if (!applique && !propres && voisins) { const v = couleursMemeVariante(m, f); if (v) Object.assign(c, v); }
+  if (memeCouleurs(c, base)) return finir(base);                                // rien de propre à cette variante : pas d'idée à part
+  // la bouche d'une variante garde la couleur du modèle 3D (ex. orange 1 pour la Sardine)
+  for (const z of m.zones || []) if (/bouche/.test(normNom(z.id + ' ' + (z.nom || ''))) && def[z.id]) c[z.id] = def[z.id];
   return finir(c);
 }
 // même couleur : même ref, même ref de base (#PR014 / #PR014b = un seul stock) ou même nom de couleur (« bleu 2 »)
@@ -814,7 +819,7 @@ function refCatalogue(r) {
 const nomMateriau = r => null;     // (les noms des refs hors configurateur ne sont pas lus côté client)
 const IDEES = new Map();
 const ideeVisible = f => !rupSet.has('idee:' + f.id);              // masquée dans l'app (Conception 3D › 💡 Idées)
-function ideesPour(m) { if (m.bijZone) return [];                                   // argile, chainmail : le choix du motif / de la forme suffit
+function ideesPour(m) { if (m.bijZone || estLettres(m)) return [];                                   // argile, chainmail : le choix du motif / de la forme suffit
   if (!IDEES.has(m.slug)) IDEES.set(m.slug, calculerIdees(m).filter(x => ideeVisible(x.fiche))); return IDEES.get(m.slug); }
 // couleurs d'une variante du même nom dans un autre modèle (ex. « Sardine » du petit poisson pour l'arête Sardine), zone par zone
 function couleursMemeVariante(m, f) {
@@ -822,7 +827,7 @@ function couleursMemeVariante(m, f) {
   for (const m2 of modeles) {
     if (m2.slug === m.slug || m2.bijZone) continue;
     const row2 = ficheModele(m2); if (!row2) continue;
-    const f2 = famillesFiche(row2, bijoux).find(x => x.id !== row2.id && normNom(x.variante || '') === v && (x.variante_overrides || []).some(o => o && o.ref_parent));
+    const f2 = famillesFiche(row2, bijoux).find(x => x.id !== row2.id && normNom(x.variante || '').trim() === v.trim());
     if (!f2) continue;
     const c2 = couleursDeFiche(m2, row2, f2, false); if (!c2) continue;
     const b2 = couleursDeFiche(m2, row2, row2, false) || {};                        // seulement les zones que la variante change
@@ -974,13 +979,20 @@ function rendreTexte() {
     t.mots[i] = inp.value;
     const v = majCompteur();
     clearTimeout(rendreTexte.t);
-    if (!v.erreur) rendreTexte.t = setTimeout(() => { b.texteValide = { mode: t.mode, mots: v.mots }; rendre3D({ cadrer: true }); rendreListeBreloques(); rendreRecap(); }, 250);
+    if (!v.erreur) rendreTexte.t = setTimeout(() => { b.texteValide = { mode: t.mode, mots: v.mots, sens: t.sens }; rendre3D({ cadrer: true }); rendreListeBreloques(); rendreRecap(); }, 250);
   }));
   $('#modesTexte').querySelectorAll('[data-mode]').forEach(x => x.addEventListener('click', () => {
     t.mode = +x.dataset.mode; if (t.mode === 2 && t.mots.length < 2) t.mots.push('');
     const v = verifierTexte(t, max);
-    if (!v.erreur) b.texteValide = { mode: t.mode, mots: v.mots };
+    if (!v.erreur) b.texteValide = { mode: t.mode, mots: v.mots, sens: t.sens };
     rendreTexte(); rendre3D({ cadrer: true }); rendreListeBreloques(); rendreRecap();
+  }));
+  const SENS = [['haut', 'De haut en bas', 'lettres couchées'], ['bas', 'De bas en haut', 'lettres couchées'], ['droit', 'Lettres debout', 'l\'une sous l\'autre']];
+  $('#sensTexte').innerHTML = SENS.map(([v, l, d]) => `<button class="segment" type="button" data-sens="${v}" aria-pressed="${(t.sens || 'haut') === v}"><b>${l}</b><span>${d}</span></button>`).join('');
+  $('#sensTexte').querySelectorAll('[data-sens]').forEach(x => x.addEventListener('click', () => {
+    t.sens = x.dataset.sens; const v = verifierTexte(t, max);
+    if (!v.erreur) b.texteValide = { mode: t.mode, mots: v.mots, sens: t.sens };
+    rendreTexte(); rendre3D({ cadrer: true }); rendreRecap();
   }));
   $('#etoilesTexte').innerHTML = t.mode === 2 && oe
     ? `<div class="palette-titre"><span>Étoile du milieu</span><b>${esc(parRef[b.options[oe.id]]?.nom || '')}</b></div><div class="pastilles">${pastilles(etoilesDe(oe), b.options[oe.id], 'data-ref')}</div>` : '';
@@ -1121,7 +1133,7 @@ function restaurer(c) {
     const n = nouvelleBreloque(b.modele), m = modeleDe(b.modele);
     n.couleurs = validerConfiguration(m, catalogue, b.couleurs || {}, parties);
     n.options = { ...n.options, ...(b.options || {}) };
-    if (b.texte) { n.texte = { mode: b.texte.mode, mots: [...(b.texte.mots || [])] }; n.texteValide = n.texte; }
+    if (b.texte) { n.texte = { mode: b.texte.mode, mots: [...(b.texte.mots || [])], sens: b.texte.sens }; n.texteValide = n.texte; }
     return n;
   });
   etat.parcours = c.parcours === 'bundle' || etat.breloques.length > 1 || c.accroche ? 'bundle' : 'breloque';
@@ -1305,6 +1317,7 @@ if (new URLSearchParams(location.search).get('diag')) {
         lignes.push('  · ' + (f.variante || f.nom) + ' ' + f.ref + ' (id ' + f.id + (f.parent_id ? ', parent ' + f.parent_id : '') + ', ' + (f.pv ?? '—') + ' €)'
           + '\n      refs fiche : ' + (refsCouleurFiche(f.id).join(' ') || 'aucune publiée')
           + '\n      remplacements : ' + (ov.map(o => o.ref_parent + (parRef[o.ref_parent] ? ' ' + parRef[o.ref_parent].nom : ' ?') + ' → ' + o.ref_variante + (parRef[o.ref_variante] ? ' ' + parRef[o.ref_variante].nom : ' ?(hors configurateur)')).join(' ; ') || 'aucun')
+          + (f.id !== row.id ? '\n      même variante ailleurs : ' + (() => { const v = couleursMemeVariante(m, f); return v ? Object.entries(v).map(([z, r]) => z + '→' + (parRef[r]?.nom || r)).join(', ') : 'aucune (pas de « ' + (f.variante || '') + ' » avec couleurs différentes dans un autre modèle)'; })() : '')
           + '\n      résultat : ' + (f.id === row.id ? 'fiche modèle' + (diff ? ' : ' + diff : ' (couleurs de départ)') : c === null ? 'AUCUNE couleur trouvée' : diff ? diff : 'mêmes couleurs que la fiche modèle → idée NON proposée'));
       }
     }

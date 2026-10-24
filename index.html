@@ -431,9 +431,10 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
 .cout-live .ok{color:#7ee2a8}.cout-live .moyen{color:#f5c26b}.cout-live .bas{color:#ff9a9a}
 .cout-live .dim{color:rgba(255,247,198,.7)}
 /* ── Actions groupées ── */
-.barre-groupe{display:flex;gap:6px;flex-wrap:wrap;align-items:center;background:var(--purple);color:var(--gold);border-radius:14px;padding:8px 10px;margin-bottom:10px}
+.barre-groupe{display:flex;gap:6px;flex-wrap:wrap;align-items:center;background:var(--purple);color:var(--gold);border-radius:14px;padding:8px 10px;margin-bottom:10px;position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom));z-index:60;width:min(940px,calc(100vw - 24px));box-shadow:0 8px 24px #3c114b55}
 .barre-groupe input,.barre-groupe select{width:auto;max-width:150px;font-size:12px;padding:6px 8px}
 .barre-groupe[hidden]{display:none}
+body.selection-active #gpanel-mat{padding-bottom:150px!important}
 .grp-nb{font-weight:700;font-size:12px;margin-right:4px}
 .sel-mat{width:18px;height:18px;appearance:auto;-webkit-appearance:checkbox;vertical-align:middle;padding:0}
 /* ── Réseaux : calendrier, légendes, campagnes ── */
@@ -3921,7 +3922,7 @@ function buildCatBar() {
   });
   if(orphelines.length){
     html+=`<div class="cat-section"><span class="chip" style="background:#c0392b;font-weight:700" title="Sous-catégories de références qui ne sont dans aucune de tes catégories : renomme-les ou ajoute-les dans Catégories">⚠ Hors catégories</span>
-      ${orphelines.map(sc=>`<span class="chip" style="background:#fbe3e0;color:#8a2a1f" onclick="jumpToSC('${escA(sc)}')">${escA(sc)}</span>`).join('')}</div>`;
+      ${orphelines.map(sc=>`<span class="chip" style="background:#fbe3e0;color:#8a2a1f" onclick="rangerOrphelins('${escA(sc).replace(/'/g,"\\'")}')" title="Cocher ses références pour les ranger">${escA(sc)} ✎</span>`).join('')}</div>`;
     opts+=`<optgroup label="⚠ Hors catégories">${orphelines.map(sc=>`<option value="${escA(sc)}" ${sc===cur?'selected':''}>${escA(sc)}</option>`).join('')}</optgroup>`;
   }
   bar.innerHTML=html||'';
@@ -4240,32 +4241,46 @@ let MODE_SELECTION=false; const SEL_MATS=new Set();
 function basculerSelection(){ MODE_SELECTION=!MODE_SELECTION; SEL_MATS.clear(); document.getElementById('bt-selection').classList.toggle('btn-p',MODE_SELECTION); renderMat(); }
 function cocherMat(id,on){ on?SEL_MATS.add(id):SEL_MATS.delete(id); majBarreGroupe(); }
 function cocherTout(on){ document.querySelectorAll('#mat-body .sel-mat').forEach(c=>{ c.checked=on; on?SEL_MATS.add(c.dataset.id):SEL_MATS.delete(c.dataset.id); }); majBarreGroupe(); }
+// « Hors catégories » : coche les références de cette sous-catégorie et ouvre la barre pour les ranger
+function rangerOrphelins(sc){
+  if(!MODE_SELECTION){ MODE_SELECTION=true; document.getElementById('bt-selection')?.classList.add('btn-p'); }
+  SEL_MATS.clear(); MATS.filter(m=>m.sc===sc&&(CUR_MAT_TYPE==='tout'||(m.type||'creation')===CUR_MAT_TYPE)).forEach(m=>SEL_MATS.add(m.id));
+  renderMat(); majBarreGroupe(); jumpToSC(sc);
+  setTimeout(()=>document.getElementById('grp-cat')?.focus(),300);
+  toast(`${SEL_MATS.size} référence(s) « ${sc} » cochée(s) : choisis leur catégorie en bas puis Appliquer`,'ok');
+}
 function majBarreGroupe(){
   const b=document.getElementById('barre-groupe'); if(!b) return;
-  b.hidden=!MODE_SELECTION; if(!MODE_SELECTION) return;
-  const cats=getCatsForType('tout'), fours=[...new Set([...FOURNISSEURS,...MATS.map(m=>m.fournisseur).filter(Boolean)])].sort();
+  b.hidden=!MODE_SELECTION; document.body.classList.toggle('selection-active',MODE_SELECTION); if(!MODE_SELECTION) return;
+  const fours=[...new Set([...FOURNISSEURS,...MATS.map(m=>m.fournisseur).filter(Boolean)])].sort();
+  // catégories de tes éditions, par famille ; « garder son nom » ajoute la sous-catégorie de la référence à la catégorie choisie
+  const optsCat=`<option value="">Catégorie…</option>`+FAMILLES.map(f=>Object.entries(CATS_BY_TYPE[f.id]||{}).map(([mc,scs])=>`<optgroup label="${famLib(f)} › ${escA(mc)}">${scs.map(sc=>`<option value="${f.id}|||${escA(mc)}|||${escA(sc)}">${escA(sc)}</option>`).join('')}<option value="${f.id}|||${escA(mc)}|||__garder__">＋ garder son nom de sous-catégorie ici</option></optgroup>`).join('')).join('');
   if(!b.dataset.pret){ b.dataset.pret=1;
     b.innerHTML=`<span id="grp-nb" class="grp-nb"></span>
       <button class="btn btn-xs btn-ghost" onclick="cocherTout(true)">Tout cocher</button><button class="btn btn-xs btn-ghost" onclick="cocherTout(false)">Aucune</button>
       <input id="grp-four" list="dl-fournisseurs" placeholder="Fournisseur…" title="Fournisseur à mettre">
       <input id="grp-seuil" type="number" min="0" step="any" placeholder="Seuil…" title="Seuil d'alerte stock bas">
-      <select id="grp-cat" title="Déplacer dans la catégorie"><option value="">Catégorie…</option>${Object.entries(cats).map(([mc,scs])=>`<optgroup label="${mc}">${scs.map(sc=>`<option value="${mc}|||${sc}">${sc}</option>`).join('')}</optgroup>`).join('')}</select>
-      <button class="btn btn-xs btn-p" onclick="appliquerGroupe()">Appliquer</button>`; }
+      <select id="grp-cat" title="Déplacer dans la catégorie"></select>
+      <button class="btn btn-xs btn-p" onclick="appliquerGroupe()">Appliquer</button>
+      <button class="btn btn-xs" style="background:none;border:1.5px solid var(--gold);color:var(--gold)" onclick="basculerSelection()">✕ Fermer</button>`; }
+  { const sel=document.getElementById('grp-cat'), v=sel.value; sel.innerHTML=optsCat; sel.value=v; }
   document.getElementById('grp-nb').textContent=SEL_MATS.size+' sélectionnée'+(SEL_MATS.size>1?'s':'');
 }
 async function appliquerGroupe(){
   if(!SEL_MATS.size) return toast('Coche au moins une référence','err');
   const four=document.getElementById('grp-four').value.trim(), seuil=document.getElementById('grp-seuil').value, cat=document.getElementById('grp-cat').value;
   if(!four&&seuil===''&&!cat) return toast('Choisis ce qu\'il faut changer','err');
-  let ok=0;
+  let ok=0, garderCat=false;
   for(const id of SEL_MATS){ const m=MATS.find(x=>x.id===id); if(!m) continue;
     const maj={};
     if(four) maj.fournisseur=four;
     if(seuil!==''){ maj.meta={...(m.meta&&typeof m.meta==='object'?m.meta:{}), seuil:+seuil}; }
-    if(cat){ const [mc,sc]=cat.split('|||'); maj.mc=mc; maj.sc=sc; }
+    if(cat){ const [type,mc,sc]=cat.split('|||'); maj.mc=mc; maj.type=type; maj.sc=sc==='__garder__'?m.sc:sc;
+      if(sc==='__garder__'&&m.sc){ const l=((CATS_BY_TYPE[type] ||= {})[mc] ||= []); if(!l.includes(m.sc)){ l.push(m.sc); garderCat=true; } } }
     if(await sbUpdate('materiaux',id,maj)){ Object.assign(m,maj); ok++; }
   }
-  toast(ok+' référence(s) modifiée(s) ✓','ok'); SEL_MATS.clear(); renderMat(); majBarreGroupe();
+  if(garderCat) await saveCatsByType();
+  toast(ok+' référence(s) modifiée(s) ✓','ok'); SEL_MATS.clear(); renderMat(); majBarreGroupe(); buildCatBar();
 }
 // Catégories de matériaux repliées (mémorisé sur cet appareil)
 const MAT_FERMES=(()=>{ try{ return new Set(JSON.parse(localStorage.getItem('mat_fermes')||'[]')); }catch(e){ return new Set(); } })();

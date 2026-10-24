@@ -192,6 +192,7 @@ function geoDecalLettre(type) {
   cacheDecal.set(type, g);
   return g;
 }
+const estBlanchatre = hex => { const n = parseInt(String(hex).replace('#', ''), 16); if (isNaN(n)) return false; const r = n >> 16 & 255, g = n >> 8 & 255, b = n & 255; return Math.min(r, g, b) > 225; };
 function matLettre(ch, couleur = '#c9ccd2') {
   const cle = ch + couleur;
   if (cacheMatLettre.has(cle)) return cacheMatLettre.get(cle);
@@ -2138,7 +2139,15 @@ export class ScenePerles {
       const z = zBas + 1.6 + T.H / 2;
       const m = new THREE.Matrix4().compose(new THREE.Vector3(0, 0, z), new THREE.Quaternion().fromArray(quatDe(new THREE.Vector3(0, 0, 1))), new THREE.Vector3(1, 1, 1)).premultiply(mg);
       this.plates.push({ gi: -1, bi: -1, b: { t, k, z: null, s: 'option', l: 'option' }, m });
-      this.filsPampille.push({ gi, de: zBas - 0.4, a: z + T.H / 2 + 0.3 });
+      let fin = z + T.H / 2 + 0.3;
+      if (ref) {                                     // perle de culture choisie : la boule argentée (tige boule) en dessous, comme sur la breloque perle de culture
+        const tb = g.pampille.t || 'ronde-3', TB = typePerle(tb), zb = z + T.H / 2 + 0.15 + TB.H / 2;
+        const kb = refFixe(g.pampille.k, g.pampille.kNom, this.catalogue);
+        const mb = new THREE.Matrix4().compose(new THREE.Vector3(0, 0, zb), new THREE.Quaternion().fromArray(quatDe(new THREE.Vector3(0, 0, 1))), new THREE.Vector3(1, 1, 1)).premultiply(mg);
+        this.plates.push({ gi: -1, bi: -1, b: { t: tb, k: kb, kNom: g.pampille.kNom, z: null, s: 'option', l: 'option' }, m: mb });
+        fin = zb + TB.H / 2 + 0.2;
+      }
+      this.filsPampille.push({ gi, de: zBas - 0.4, a: fin });
     });
     for (const o of this.modele?.options || []) {
       if (o.type !== 'perle' || o.place === 'texte' || o.place === 'pampille') continue;
@@ -2169,6 +2178,8 @@ export class ScenePerles {
     if (cle.startsWith('zone:')) {
       const z = this.zonesParId?.[cle.slice(5)];
       mat = new THREE.MeshStandardMaterial({ color: z?.repere || '#9a9a9a', roughness: 0.55 });
+    } else if (cle === 'corps-lettre') {
+      mat = new THREE.MeshPhysicalMaterial({ color: '#f6f4ee', roughness: 0.35, clearcoat: 0.5, clearcoatRoughness: 0.2 });
     } else if (cle === 'aucune' || !this.parRef[cle]) {
       mat = new THREE.MeshStandardMaterial({ color: '#b9b6b0', roughness: 0.6 });
     } else {
@@ -2330,17 +2341,20 @@ export class ScenePerles {
       const ref = this.vueZones
         ? (e.b.k ? e.b.k : 'zone:' + (e.b.z || ''))
         : (this.refPour(e.b) || 'aucune');
-      const cle = e.b.t + '|' + ref;
+      const cle = e.b.t + '|' + (e.b.lettre && !this.vueZones ? 'corps-lettre' : ref);
       if (!paquets.has(cle)) paquets.set(cle, []);
       paquets.get(cle).push(i);
     });
     // lettres imprimées sur les perles lettre
     const parLettre = new Map();
-    this.plates.forEach(e => { if (e.b.lettre) { const k = e.b.t + '|' + e.b.lettre; if (!parLettre.has(k)) parLettre.set(k, []); parLettre.get(k).push(e.m); } });
+    // la lettre prend la couleur de la référence (argent, or…) ; la perle elle-même reste blanche
+    this.plates.forEach(e => { if (e.b.lettre) { const k = e.b.t + '|' + e.b.lettre + '|' + (this.refPour(e.b) || '') + '|' + (e.b.rl || 0); if (!parLettre.has(k)) parLettre.set(k, []); parLettre.get(k).push(e.m); } });
     for (const [k, ms] of parLettre) {
-      const [type, ch] = k.split('|');
-      const mesh = new THREE.InstancedMesh(geoDecalLettre(type), matLettre(ch), ms.length);
-      ms.forEach((mm, i) => mesh.setMatrixAt(i, mm));
+      const [type, ch, refL, rl] = k.split('|');
+      const c = this.parRef[refL], hex = c?.hex && !estBlanchatre(c.hex) ? c.hex : '#c9ccd2';
+      const rot = +rl ? new THREE.Matrix4().makeRotationZ(+rl) : null;
+      const mesh = new THREE.InstancedMesh(geoDecalLettre(type), matLettre(ch, hex), ms.length);
+      ms.forEach((mm, i) => mesh.setMatrixAt(i, rot ? mm.clone().multiply(rot) : mm));
       mesh.instanceMatrix.needsUpdate = true; mesh.computeBoundingSphere();
       this.racine.add(mesh); this.maillagesPonts.push(mesh);
     }
@@ -2945,10 +2959,16 @@ export function construireLettres(gabarit, texte, options = {}, catalogue = []) 
     z += long + 0.12;
   };
   for (const h of L.haut || []) poser(h.t, { k: ref(h.k, h.kNom), kNom: h.kNom, partie: 'Intercalaire' });
+  // sens de lecture : « haut » = de haut en bas (lettres couchées), « bas » = de bas en haut, « droit » = lettres debout, l'une sous l'autre
+  const sens = ['haut', 'bas', 'droit'].includes(texte?.sens) ? texte.sens : 'haut';
+  const rl = sens === 'bas' ? Math.PI : sens === 'droit' ? -Math.PI / 2 : 0;
+  const items = [];
   mots.forEach((mot, i) => {
-    if (i === 1 && refEtoile) poser(parRef.get(refEtoile)?.perle || etoile?.perle || 'etoile-8', { k: refEtoile, option: true });
-    for (const ch of mot) poser('lettre-7', { k: refLettre, lettre: ch });
+    if (i === 1 && refEtoile) items.push([parRef.get(refEtoile)?.perle || etoile?.perle || 'etoile-8', { k: refEtoile, option: true }]);
+    for (const ch of mot) items.push(['lettre-7', { k: refLettre, lettre: ch, rl }]);
   });
+  (sens === 'bas' ? items.reverse() : items).forEach(([t, x]) => poser(t, x));
+  m.lettres = { ...(m.lettres || {}), sens };
   for (const b of L.bas || []) poser(b.t, { k: ref(b.k, b.kNom), kNom: b.kNom, partie: 'Intercalaire' });
   const g = m.groupes[0];
   g.perles = perles;
@@ -2956,6 +2976,7 @@ export function construireLettres(gabarit, texte, options = {}, catalogue = []) 
   g.boucles = [[0, 0, 0.05], [0, 0, z + 0.5]];        // boucle du haut (prend l'œillet du fermoir) et arrêt du bas
   m.texte = mots.join(refEtoile ? ' ★ ' : ' ');
   m.nom = (gabarit.nom || 'Breloque lettre').replace(/\s*«.*$/, '') + (m.texte ? ' « ' + m.texte + ' »' : '');
+  if (sens !== 'haut') m.nom += sens === 'bas' ? ' (se lit de bas en haut)' : ' (lettres debout)';
   return m;
 }
 export const estLettres = m => !!m?.lettres || m?.groupes?.some(g => g.technique === 'lettres');
