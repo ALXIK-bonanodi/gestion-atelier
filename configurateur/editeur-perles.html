@@ -518,7 +518,7 @@ import {
   couleursProposees, chargerCatalogueBoutique, affinerCouleursDepuisPhotos, resoudreDefauts, TAILLES_MOUSQUETON,
   FERMOIRS_DEMO, chargerFermoirsBoutique, prixConfiguration,
   genArete, PATRON_TETE_ARETE, estAccroche, modeleAreteDemo, modeleLettresDemo, modeleArgileDemo, modeleChainmailDemo, modelePerleCultureDemo, chargerModeleBoutique, listerModelesBoutique, enregistrerModeleBoutique,
-} from './bead-core.js?v=0c67098a';
+} from './bead-core.js?v=0e9f110d';
 const raisonConnexion = e => /invalid login/i.test(e.message) ? 'e-mail ou mot de passe incorrect'
   : /not confirmed/i.test(e.message) ? 'adresse e-mail pas encore confirmée (Supabase › Authentication › Users)'
   : e.message;
@@ -576,6 +576,7 @@ function fondEchantillon(c) {
     case 'translucide-metal': return `radial-gradient(circle at 35% 30%, #fffc 0%, ${c.hex}ee 36%, ${c.hex} 62%, #ffffff55 80%, ${c.hex} 100%)`;
     case 'transparent-irise-violet': return `radial-gradient(circle at 35% 30%, #fffc, transparent 40%), conic-gradient(from 200deg, ${c.hex}, #8a3cffaa, ${c.hex}, #c08aff99, ${c.hex})`;
     case 'opaque-vif': return `radial-gradient(circle at 35% 30%, #ffffff88, ${c.hex} 50%)`;
+    case 'lustre-metal': return `radial-gradient(circle at 35% 30%, #fffd 0%, ${c.hex}e8 36%, ${c.hex} 62%, #ffffff66 80%, ${c.hex} 100%)`;
     case 'opaque-pep':
     case 'opaque-fluo': return `radial-gradient(circle at 35% 30%, #ffffffaa, ${c.hex} 45%)`;
     case 'brun-reflet': return `radial-gradient(circle at 35% 30%, #f3cf9c 0%, ${c.hex} 42%, ${c.hex} 66%, #e0a86888 82%, ${c.hex} 100%)`;

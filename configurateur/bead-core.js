@@ -220,7 +220,7 @@ export const FINITIONS = {
   argente: 'Intérieur argenté', nacre: 'Nacré / ceylan',
   'transparent-metal': 'Transparent, reflet métal à l\'intérieur', 'transparent-metal-fort': 'Transparent métallisé (terne)',
   translucide: 'Translucide (moins transparent)', 'transparent-irise': 'Transparent irisé (reflets)',
-  metallise: 'Métallisé doux', 'metallise-fort': 'Métallisé', 'opaque-vif': 'Opaque lumineux', 'opaque-fluo': 'Opaque presque fluo', 'opaque-pep': 'Opaque très vif', 'brun-reflet': 'Brun à reflets clairs',
+  metallise: 'Métallisé doux', 'metallise-fort': 'Métallisé', 'opaque-vif': 'Opaque lumineux', 'opaque-fluo': 'Opaque presque fluo', 'opaque-pep': 'Opaque très vif', 'lustre-metal': 'Lustré métallisé', 'brun-reflet': 'Brun à reflets clairs',
   'translucide-metal': 'Translucide métallisé', 'transparent-irise-violet': 'Transparent, reflets métal violets', oeil: 'Perle œil (motif)', argile: 'Argile peinte (motif)',
 };
 
@@ -368,7 +368,7 @@ export const PLANCHE_ROCAILLES = [
   // d'après tes photos des bocaux : rouge 2 framboise métallisé, rouge 3 doublé argent vif, rouge 4 irisé à reflets violets ;
   // orange 2 = orange clair lustré, orange 3 = orange-rouge doublé argent (références inversées)
   ['rouge 1', '#c8101a', 'opaque'],              ['rouge 2', '#a3122e', 'transparent-metal'],   ['rouge 3', '#cc1420', 'transparent-metal'],  ['rouge 4', '#c8182c', 'transparent-irise-violet'],
-  ['orange 1', '#ff6a00', 'opaque-fluo'],             ['orange 2', '#ff8c2e', 'translucide'],       ['orange 3', '#d8480c', 'transparent-metal'],  ['marron', '#4e2a10', 'brun-reflet'],
+  ['orange 1', '#ff6a00', 'opaque-fluo'],             ['orange 2', '#ff8c2e', 'lustre-metal'],       ['orange 3', '#d8480c', 'transparent-metal'],  ['marron', '#4e2a10', 'brun-reflet'],
   ['jaune 1', '#ffb300', 'opaque-pep'],              ['jaune 2', '#f2d21e', 'translucide'],         ['pêche 1', '#f4a07a', 'translucide-metal'],        ['pêche 2', '#ee8a66', 'opaque'],
   ['bleu 1', '#00c9be', 'opaque-vif'],               ['bleu 2', '#2fa6cc', 'transparent-metal'],    ['bleu 3', '#1a36aa', 'opaque'],              ['bleu 4', '#15246e', 'opaque'],
   ['rose 1', '#f0288f', 'opaque'],               ['rose 2', '#f04ab8', 'translucide'],          ['vert 1', '#93b02a', 'transparent-metal'],   ['vert 2', '#2f7f3a', 'transparent'],
@@ -573,6 +573,42 @@ export async function chargerBijouxBoutique(sb) {
 const lireOverrides = v => { if (typeof v === 'string') { try { v = JSON.parse(v); } catch { v = []; } } return Array.isArray(v) ? v : []; };
 /* Variante de couleur d'une fiche modèle qui correspond aux couleurs choisies :
    une variante convient si chaque référence qu'elle remplace est parmi les couleurs choisies (la plus précise gagne). */
+/* Compositions des fiches bijoux publiées par l'app (config « configurateur_fiches ») :
+   { <id fiche>: { refs: [refs des matériaux], pieces: [{ bij_id, qty }] } } — sert à reconnaître la fiche qui correspond
+   aux couleurs choisies (ex. arête tout argent = fiche « Arête » ; poisson aux couleurs sardine = « Petit poisson · Sardine »). */
+export const CLE_FICHES = 'configurateur_fiches';
+let FICHES_CFG = {}, REFS_COULEUR = null;
+export async function chargerFichesConfig(sb) {
+  const { data, error } = await sb.from('config').select('value').eq('key', CLE_FICHES).maybeSingle();
+  if (error) throw error;
+  let v = data?.value; if (typeof v === 'string') { try { v = JSON.parse(v); } catch { v = {}; } }
+  return v?.fiches || {};
+}
+// catalogue : [{ ref, categorie }] des pastilles du configurateur (la catégorie sert à ne comparer que des perles avec des perles)
+export function definirFichesConfig(fiches, catalogue) { FICHES_CFG = fiches || {}; REFS_COULEUR = catalogue ? new Map(catalogue.map(c => [c.ref, c.categorie || ''])) : null; }
+export const ficheCfg = id => FICHES_CFG[id] || null;
+export const categorieRef = r => REFS_COULEUR?.get(r) ?? null;
+// refs de couleur d'une fiche (pastilles du configurateur), éventuellement limitées à certaines catégories (celles des zones du modèle)
+export const refsCouleurFiche = (id, cats = null) => (FICHES_CFG[id]?.refs || []).filter(r => (!REFS_COULEUR || REFS_COULEUR.has(r)) && (!cats || cats.has(categorieRef(r))));
+// fiches de la même famille que la fiche modèle : ses variantes et les fiches du même nom (« Petit poisson sardine »)
+export function famillesFiche(row, bijoux) {
+  if (!row) return [];
+  const k = norm(row.nom);
+  return bijoux.filter(b => b.id === row.id || (b.parent_id && b.parent_id === row.id) || norm(b.nom) === k || norm(b.nom).startsWith(k + ' '));
+}
+function ficheSelonCouleurs(row, bijoux, couleurs) {
+  const choisis = new Set(Object.values(couleurs || {}).filter(Boolean));
+  if (!row || !choisis.size || !Object.keys(FICHES_CFG).length) return null;
+  const cats = new Set([...choisis].map(categorieRef));               // on ne compare que les catégories choisies (perles…), pas les anneaux
+  let meilleur = null, score = -1;
+  for (const b of famillesFiche(row, bijoux)) {
+    const R = refsCouleurFiche(b.id, cats); if (!R.length) continue;
+    if (!R.every(r => choisis.has(r))) continue;                      // toutes ses couleurs doivent être choisies
+    const sc = R.length * 10 + (b.id === row.id ? 0 : 1);             // la plus précise ; à égalité, la variante
+    if (sc > score) { meilleur = b; score = sc; }
+  }
+  return meilleur;
+}
 export function varianteSelonCouleurs(row, bijoux, couleurs = {}) {
   if (!row) return row;
   const choisis = new Set(Object.values(couleurs || {}).filter(Boolean));
@@ -603,7 +639,7 @@ export function bijouBreloque(modele, { couleurs = {}, texte = null, bijoux = []
   if (!row && modele.bij_ref) row = parRef.get(modele.bij_ref) || null;
   if (!row && modele.bijNom) row = trouverBijou(bijoux, modele.bijNom);
   // la fiche trouvée est un modèle : on prend sa variante de couleur qui correspond aux couleurs choisies (ex. Sardine)
-  const base = row; row = varianteSelonCouleurs(row, bijoux, couleurs);
+  const base = row; row = ficheSelonCouleurs(row, bijoux, couleurs) || varianteSelonCouleurs(row, bijoux, couleurs);
   if (row && row !== base && (row.pv == null || row.pv === '')) row = { ...row, pv: base.pv };
   const pv = row?.pv != null && row.pv !== '' ? parseFloat(row.pv) : NaN;
   const prix = pv > 0 ? pv : (modele.prixParMode?.[mode] ?? modele.prix ?? 0);
@@ -869,15 +905,20 @@ export function creerMateriau(couleur) {
       Object.assign(p, { roughness: 0.2, clearcoat: 0.9, clearcoatRoughness: 0.08, emissive: c.clone().multiplyScalar(0.38),
         envMapIntensity: 0.7, toneMapped: false });
       break;
+    case 'lustre-metal':           // verre teinté lustré, plus métallisé que transparent (orange 2)
+      Object.assign(p, { transmission: 0.28, thickness: 1.2, ior: 1.55, roughness: 0.08, metalness: 0.55,
+        attenuationColor: c, attenuationDistance: 1, clearcoat: 1, clearcoatRoughness: 0.04,
+        emissive: c.clone().multiplyScalar(0.28), iridescence: 0.15, iridescenceIOR: 1.4, envMapIntensity: 1.6 });
+      break;
     case 'opaque-pep':             // très vif mais moins fluo (jaune 1 tirant sur l'orangé)
       Object.assign(p, { roughness: 0.2, clearcoat: 0.9, clearcoatRoughness: 0.08, emissive: c.clone().multiplyScalar(0.24),
         envMapIntensity: 0.8, toneMapped: false });
       break;
     case 'brun-reflet':            // marron transparent avec reflets caramel clairs (on lit bien le brun)
       // sans transparence (elle assombrissait la perle jusqu'au noir) : brun lumineux + reflets caramel clairs bien visibles
-      Object.assign(p, { roughness: 0.14, metalness: 0.55, clearcoat: 1, clearcoatRoughness: 0.05,
-        specularColor: new THREE.Color('#f2a63c'), specularIntensity: 1,
-        emissive: c.clone().multiplyScalar(0.3), sheen: 1, sheenRoughness: 0.22, sheenColor: new THREE.Color('#e9a13e'),
+      Object.assign(p, { roughness: 0.1, metalness: 0.78, clearcoat: 1, clearcoatRoughness: 0.04,
+        specularColor: new THREE.Color('#d98a3a'), specularIntensity: 1,
+        emissive: c.clone().multiplyScalar(0.3), sheen: 1, sheenRoughness: 0.2, sheenColor: new THREE.Color('#d9883a'),
         iridescence: 0.35, iridescenceIOR: 1.45, iridescenceThicknessRange: [520, 640], envMapIntensity: 1.7 });
       break;
     case 'translucide-metal':      // verre teinté peu transparent avec reflet métal (pêche 1, marron) : la teinte reste lisible
