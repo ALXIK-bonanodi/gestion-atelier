@@ -2045,7 +2045,10 @@ async function loadAll() {
     TIKTOK_MANUEL=Array.isArray(lireCfg('tiktok_manuel'))?lireCfg('tiktok_manuel'):[];
     DERNIERE_SAUV=typeof lireCfg('derniere_sauvegarde')==='string'?lireCfg('derniere_sauvegarde'):'';
     DROPS=Array.isArray(lireCfg('drops'))?lireCfg('drops'):[];
-    { const fc=lireCfg('configurateur_fiches'); if(fc?.fiches) DERNIERES_FICHES_CFG=JSON.stringify(fc.fiches); }
+    { const fc=lireCfg('configurateur_fiches'); if(fc?.fiches) DERNIERES_FICHES_CFG=JSON.stringify({fiches:fc.fiches,alternatives:fc.alternatives||[]}); }
+    { const al=lireCfg('configurateur_alternatives');
+      if(Array.isArray(al)) ALTERNATIVES=al;
+      else if(cfg.length&&!cfg.some(c=>c.key==='configurateur_alternatives')){ ALTERNATIVES=ALTERNATIVES_DEPART.map(a=>({...a})); sbUpsertConfig('configurateur_alternatives',ALTERNATIVES); } }   // première fois : l'idée « Rose & violet »
     { const lt=lireCfg('lots'); LOTS=lt&&typeof lt==='object'&&!Array.isArray(lt)?lt:{}; }
     { const fw=lireCfg('fiches_wix'); FICHES_WIX=fw&&typeof fw==='object'&&!Array.isArray(fw)?fw:{}; }
     { const cn=lireCfg('clientes_notes'); CLIENTES_NOTES=cn&&typeof cn==='object'&&!Array.isArray(cn)?cn:{}; }
@@ -4068,16 +4071,24 @@ function candidatesIdees(){
   return {fam, lots};
 }
 function renderIdeesProposees(){
-  const {fam,lots}=candidatesIdees(); if(!fam.length&&!lots.length) return '';
+  const {fam,lots}=candidatesIdees(); const estLotB=b=>lots.includes(b);
   const vu=b=>!RUPTURES_3D.includes('idee:'+b.id);
   const nomB=b=>escA([b.nom,b.variante].filter(Boolean).join(' · ')||b.ref||'');
-  const bt=b=>`<button type="button" class="c3p ${vu(b)?'on':''}" onclick="basculerIdee('${escA(b.id)}')">${vu(b)?'👁':'🚫'} ${nomB(b)}</button>`;
+  const bt=b=>`<span style="display:inline-flex;gap:2px"><button type="button" class="c3p ${vu(b)?'on':''}" onclick="basculerIdee('${escA(b.id)}')">${vu(b)?'👁':'🚫'} ${nomB(b)}</button><button class="btn btn-xs btn-ghost" title="Copier le lien direct" onclick="copierLienIdee('${escA(b.id)}'${estLotB(b)?",1":''})">🔗</button></span>`;
   const tous=[...fam.flatMap(f=>[f.base,...f.vars]),...lots], nb=tous.filter(vu).length, ouvert=document.getElementById('c3-proposes')?.dataset.ideesOuvert==='1';
   return `<details class="c3p-det" style="margin-top:8px" ${ouvert?'open':''} ontoggle="document.getElementById('c3-proposes').dataset.ideesOuvert=this.open?'1':''"><summary><b>💡 Idées proposées</b> <span class="dim">· ${nb}/${tous.length} affichées dans le configurateur</span> <span class="c3p-gerer">Gérer ▾</span></summary>
     <div class="c3p-tab">${fam.map(f=>`<div class="c3p-l"><span class="c3p-nom">${escA(f.base.nom||f.base.ref)}</span>${[f.base,...f.vars].map(bt).join('')}</div>`).join('')}
     ${lots.length?`<div class="c3p-l"><span class="c3p-nom">🎁 Bundles / lots</span>${lots.map(bt).join('')}</div>`:''}
+    <div class="c3p-l" style="align-items:flex-start"><span class="c3p-nom">⭐ Alternatives</span><span style="display:grid;gap:4px">${ALTERNATIVES.map(a=>{ const k='idee:alt:'+a.id, on=!RUPTURES_3D.includes(k);
+      return `<span style="display:flex;gap:4px;align-items:center;flex-wrap:wrap"><button type="button" class="c3p ${on?'on':''}" onclick="basculerIdee('alt:${escA(a.id)}')">${on?'👁':'🚫'} ${escA(a.nom)}</button><span class="dim" style="font-size:11px">${escA((MODELES_3D.find(m=>m.slug===a.modele)?.nom)||a.modele)}</span>
+        <button class="btn btn-xs btn-ghost" title="Renommer" onclick="renommerAlternative('${escA(a.id)}')">✎</button><button class="btn btn-xs btn-ghost" title="Copier le lien direct (bouton « Personnaliser » d'une fiche Wix…)" onclick="copierLienIdee('alt:${escA(a.id)}')">🔗</button><button class="btn btn-xs btn-red" title="Supprimer" onclick="supprimerAlternative('${escA(a.id)}')">✕</button></span>`; }).join('')||'<span class="dim" style="font-size:12px">aucune</span>'}
+      <span class="dim" style="font-size:11px">Pour en créer une : onglet Configurateur, choisis le modèle, ses couleurs et finitions, puis « ＋ Enregistrer ces couleurs comme nouvelle idée ».</span></span></div>
     <div class="dim" style="font-size:11px;margin-top:4px">🚫 = l'idée n'apparaît plus dans la boîte 💡 du configurateur (la fiche reste reconnue si la cliente choisit ces couleurs).</div></div></details>`;
 }
+async function renommerAlternative(id){ const a=ALTERNATIVES.find(x=>x.id===id); if(!a) return; const n=prompt('Nom de l\'idée',a.nom); if(!n||!n.trim()) return; a.nom=n.trim(); await sauverAlternatives(); renderModelesProposes(); }
+async function supprimerAlternative(id){ const a=ALTERNATIVES.find(x=>x.id===id); if(!a||!confirm(`Supprimer l'idée « ${a.nom} » ?`)) return; ALTERNATIVES=ALTERNATIVES.filter(x=>x.id!==id); await sauverAlternatives(); renderModelesProposes(); }
+function copierLienIdee(id,lot){ const u=location.origin+location.pathname.replace(/[^/]*$/,'')+'configurateur/configurateur-3d.html?'+(lot?'lot=':'idee=')+encodeURIComponent(id);
+  (navigator.clipboard?.writeText(u)||Promise.reject()).then(()=>toast('Lien copié : '+u,'ok'),()=>prompt('Lien direct vers cette idée :',u)); }
 async function basculerIdee(id){
   const k='idee:'+id, rup=RUPTURES_3D.includes(k)?RUPTURES_3D.filter(x=>x!==k):[...RUPTURES_3D,k];
   await sbUpsertConfig('configurateur_ruptures', rup); RUPTURES_3D=rup;
@@ -7170,6 +7181,10 @@ async function assemblerLot(id){
 // ═══ Compositions publiées pour le configurateur 3D (clé « configurateur_fiches ») : seulement les références de chaque fiche
 // et les pièces des lots / porte-clés — pour reconnaître la fiche d'après les couleurs choisies et proposer « 💡 Idées »
 let DERNIERES_FICHES_CFG='';
+/* ⭐ Alternatives du configurateur : idées (couleurs + finitions) sans fiche bijou à part, produites sur la fiche du modèle */
+const ALTERNATIVES_DEPART=[{id:'rose-violet',nom:'Rose & violet',modele:'poisson-sardine',couleurs:{dos:'rose 2',ventre:'violet 1',queue:'violet 4',bouche:'rose 1'},finitions:['métal pétrole']}];
+let ALTERNATIVES=[];
+const sauverAlternatives=async()=>{ await sbUpsertConfig('configurateur_alternatives',ALTERNATIVES); await publierFichesConfigurateur(); };
 async function publierFichesConfigurateur(){
   const fiches={};
   BIJS.forEach(b=>{ const mats=getMatsEffectifs(b), qte={}; mats.forEach(m=>{ if(getMat(m.ref)) qte[m.ref]=(qte[m.ref]||0)+(parseFloat(m.qty)||0); });
@@ -7177,8 +7192,8 @@ async function publierFichesConfigurateur(){
     const pieces=[...(LOTS[b.id]||[]).map(i=>({bij_id:i.bij_id,qty:+i.qty||1})),
       ...mats.map(m=>{ if(getMat(m.ref)) return null; const c=BIJS.find(x=>x.ref===m.ref); return c?{bij_id:c.id,qty:+m.qty||1}:null; }).filter(Boolean)];
     if(refs.length||pieces.length) fiches[b.id]=pieces.length?{refs,pieces}:{refs}; });
-  const v=JSON.stringify(fiches); if(v===DERNIERES_FICHES_CFG) return;
-  DERNIERES_FICHES_CFG=v; await sbUpsertConfig('configurateur_fiches',{maj:new Date().toISOString(),fiches});
+  const v=JSON.stringify({fiches,alternatives:ALTERNATIVES}); if(v===DERNIERES_FICHES_CFG) return;
+  DERNIERES_FICHES_CFG=v; await sbUpsertConfig('configurateur_fiches',{maj:new Date().toISOString(),fiches,alternatives:ALTERNATIVES});
 }
 const planifierFichesCfg = () => { clearTimeout(planifierFichesCfg.t); planifierFichesCfg.t=setTimeout(publierFichesConfigurateur,3000); };
 let DROPS=[];

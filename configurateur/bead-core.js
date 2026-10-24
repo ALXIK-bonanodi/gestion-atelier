@@ -583,8 +583,12 @@ export async function chargerFichesConfig(sb) {
   const { data, error } = await sb.from('config').select('value').eq('key', CLE_FICHES).maybeSingle();
   if (error) throw error;
   let v = data?.value; if (typeof v === 'string') { try { v = JSON.parse(v); } catch { v = {}; } }
+  ALTERNATIVES_CFG = Array.isArray(v?.alternatives) ? v.alternatives : [];
   return v?.fiches || {};
 }
+/* Alternatives : modèles d'idées créés dans le configurateur (couleurs + finitions), sans fiche bijou à part */
+let ALTERNATIVES_CFG = [];
+export const alternativesConfig = () => ALTERNATIVES_CFG;
 // catalogue : [{ ref, categorie }] des pastilles du configurateur (la catégorie sert à ne comparer que des perles avec des perles)
 export function definirFichesConfig(fiches, catalogue) { FICHES_CFG = fiches || {}; REFS_COULEUR = catalogue ? new Map(catalogue.map(c => [c.ref, c.categorie || ''])) : null; }
 export const ficheCfg = id => FICHES_CFG[id] || null;
@@ -2987,12 +2991,12 @@ export const estLettres = m => !!m?.lettres || m?.groupes?.some(g => g.technique
        les noms de couleurs et les références, + les articles du panier.
    -------------------------------------------------------------------------- */
 const nomBreloque = m => (m.nom || 'Breloque').replace(/\s*\(exemple\)\s*$/i, '').replace(/\s*Bona Nodi\s*$/i, '');
-export function noteBreloque(modele, { couleurs = {}, options = {}, catalogue = [], fermoirs = [], refs = true } = {}) {
+export function noteBreloque(modele, { couleurs = {}, options = {}, catalogue = [], fermoirs = [], refs = true, sansCouleurs = false } = {}) {
   const parRef = Object.fromEntries(catalogue.map(c => [c.ref, c]));
   const fermParRef = Object.fromEntries(fermoirs.map(f => [f.ref, f]));
   const avec = ref => { const c = parRef[ref]; return (c?.nom || (refs ? ref : 'couleur choisie') || '—') + (refs && ref ? ' (' + ref + ')' : ''); };
   const morceaux = [nomBreloque(modele)];
-  for (const z of modele.zones || []) {
+  for (const z of (sansCouleurs ? [] : modele.zones || [])) {
     const ref = couleurs[z.id] || z.defaut;
     const nom = z.groupe ? z.groupe + ' ' + (z.libelle || '').toLowerCase() : z.nom;
     morceaux.push(nom.trim() + ' : ' + avec(ref));
@@ -3022,7 +3026,8 @@ export function notePersonnalisation({ breloques, accroche = null, catalogue = [
     // la fiche bijou reconnue (ex. « Petit poisson · Sardine », #BIJ-013) : production et fiche atelier sur la bonne référence
     const fiche = b.ficheNom ? ' — Fiche : ' + b.ficheNom + (b.bijRef ? ' (' + b.bijRef + ')' : '') : '';
     notesAtelier.push(pre + noteBreloque(b.modele, { ...b, catalogue, fermoirs, refs: true }) + fiche);
-    const note = pre + noteBreloque(b.modele, { ...b, catalogue, fermoirs, refs: false }) + (b.ficheNom ? ' — Modèle : ' + b.ficheNom : '');   // le client ne voit que les noms
+    // modèle déjà existant (idée choisie telle quelle) : juste son nom ; sinon le détail des couleurs
+    const note = pre + noteBreloque(b.modele, { ...b, catalogue, fermoirs, refs: false, sansCouleurs: !!b.modeleIdee }) + (b.ficheNom ? ' — Modèle : ' + b.ficheNom : '');   // le client ne voit que les noms
     ajouter({ cle: b.modele.slug, bij: b.bijRef || b.modele.bij_ref || '', libelle: nomBreloque(b.modele), prix: +(b.prixBase ?? b.modele.prix ?? 0), note });
     const optF = (b.modele.options || []).find(o => o.type === 'fermoir');
     const cF = optF?.choix?.find(c => c.ref === b.options?.[optF.id]);
@@ -3037,7 +3042,7 @@ export function notePersonnalisation({ breloques, accroche = null, catalogue = [
     const remise = offre ? Math.min(+accroche.offre.remise || 0, +accroche.supplement || 0) : 0;
     const prix = Math.max(0, (+accroche.supplement || 0) - remise);
     ajouter({ cle: 'accroche:' + accroche.id + (offre ? ':offre' : ''), libelle: accroche.libelle + (offre ? ' (offre)' : ''), prix });
-    ligneAcc = 'Porte-clés : ' + accroche.libelle + (offre ? ' — ' + (accroche.offre.libelle || 'offre') : '');
+    ligneAcc = (accroche.lotNom ? 'Porte-clés tout prêt : ' + accroche.lotNom + ' — ' : 'Porte-clés : ') + accroche.libelle + (offre ? ' — ' + (accroche.offre.libelle || 'offre') : '');
     ligneAccAtelier = 'Porte-clés : ' + accroche.libelle + ' — ' + (accroche.pieces || []).map(r => (fermParRef[r]?.nom || r) + ' (' + r + ')').join(' + ')
       + (offre ? ' — ' + (accroche.offre.libelle || 'offre') : '');
   }

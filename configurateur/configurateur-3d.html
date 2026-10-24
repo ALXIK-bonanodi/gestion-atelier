@@ -64,6 +64,7 @@ button, input, textarea { font: inherit; color: inherit; }
 .idees-inline .idees-g { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 6px; scroll-snap-type: x proximity; }
 .idees-inline .idee { flex: 0 0 92px; scroll-snap-align: start; box-shadow: none; }
 .idee.choisie { background: #fff2a8; border-width: 2.5px; }
+.bt-alt { justify-self: start; border: 1.5px dashed var(--prune); background: none; color: var(--prune); border-radius: 999px; padding: 6px 12px; font: 600 13px var(--f-titre); cursor: pointer; }
 .scene-charge { position: absolute; inset: 0; display: grid; place-items: center; font: 500 15px var(--f-titre); color: var(--prune-doux); }
 
 /* ---- en-tête ---- */
@@ -344,11 +345,11 @@ label.champ input:focus, label.champ textarea:focus { border-color: var(--prune)
 
     <!-- Personnalisation d'une breloque (seule, ou celle choisie dans le bundle) -->
     <div class="edition" id="edition" hidden></div>
-    <div class="idees-inline" id="ideesInline" hidden></div>
     <section class="etape" aria-labelledby="t1" id="etapeModele" hidden>
       <h2 id="t1"><span class="num">1</span>Ton modèle</h2>
       <div class="modeles" id="modeles"></div>
     </section>
+    <div class="idees-inline" id="ideesInline" hidden></div>
     <section class="etape" aria-labelledby="tT" id="etapeTexte" hidden>
       <h2 id="tT"><span class="num">2</span>Ton texte</h2>
       <div class="texte">
@@ -409,7 +410,7 @@ label.champ input:focus, label.champ textarea:focus { border-color: var(--prune)
    URL : configurateur-3d.html   (?parcours=bundle  ou  ?modele=arete)
    ------------------------------------------------------------------ */
 import {
-  ScenePerles, baseRef, definirLiensFixes, apparenceFixes, lignesCommande, estExemple, catalogueDepuisMateriaux, CATALOGUE_DEMO, FERMOIRS_DEMO, modeleDemo, modeleAreteDemo, modeleLettresDemo,
+  ScenePerles, alternativesConfig, refParNom, baseRef, definirLiensFixes, apparenceFixes, lignesCommande, estExemple, catalogueDepuisMateriaux, CATALOGUE_DEMO, FERMOIRS_DEMO, modeleDemo, modeleAreteDemo, modeleLettresDemo,
   couleursProposees, validerConfiguration, couleursEpuisees, listerModelesPublies, chargerCatalogueBoutique, chargerFermoirsBoutique,
   chargerPartiesConfigurateur, chargerPrixBijou, affinerCouleursDepuisPhotos, resoudreDefauts, envoyerDemande,
   composerBundle, lignesCommandeBundle, accrochesProposees, construireLettres, verifierTexte, estLettres, offreApplicable,
@@ -418,7 +419,7 @@ import {
   correspondCategorie, texteCatalogue, ordreModeles, chargerRuptures, appliquerRuptures,
   chargerLiens, appliquerLiens, relierModele, chargerMateriauxParRefs,
   chargerFichesConfig, definirFichesConfig, ficheCfg, refsCouleurFiche, famillesFiche,
-} from './bead-core.js?v=ba79f795';
+} from './bead-core.js?v=a6088530';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER, PANIER_SHOPIFY } from './perles-config.js?v=e5e86015';
 
 const $ = s => document.querySelector(s);
@@ -440,6 +441,8 @@ const ICONES = {
 // Sinon le client Supabase tente de restaurer/rafraîchir cette session, se bloque sur le verrou partagé
 // avec les autres onglets, et plus aucune requête ne répond. Il travaille donc toujours comme un client.
 window.__etape = 'connexion à la base';
+// dans l'app de gestion (?apercu) et connectée : peut enregistrer des alternatives
+let sbAdmin = null;
 const sb = supabaseConfigure() && window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false,
           storageKey: 'bn-configurateur-public', lock: async (_nom, _delai, fn) => fn() },
@@ -450,6 +453,9 @@ const avecDelai = (promesse, ms = 12000) => Promise.race([promesse,
 let alerteBase = '';
 window.__etape = 'lecture de la base (modèles, couleurs, bijoux)';
 let modeles = [], catalogue = completerCatalogue(CATALOGUE_DEMO), fermoirs = FERMOIRS_DEMO, parties = null, bijoux = [], ruptures = [], liens = {}, fichesCfg = {};
+if (sb && new URLSearchParams(location.search).has('apercu')) {
+  try { const c = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); const { data } = await c.auth.getSession(); if (data?.session) sbAdmin = c; } catch { sbAdmin = null; }
+}
 if (sb) {
   const res = await Promise.allSettled([
     listerModelesPublies(sb), chargerCatalogueBoutique(sb), chargerFermoirsBoutique(sb), chargerPartiesConfigurateur(sb), chargerBijouxBoutique(sb),
@@ -505,7 +511,8 @@ const bijouDe = b => {
   const m = modeleDe(b.slug);
   if (!m.bijZone && !estLettres(m)) {                     // couleurs identiques à une de tes fiches (ex. arête Sardine) → cette fiche
     const i = ideesPour(m).find(x => memeCouleurs(validerConfiguration(m, catalogue, x.breloque.couleurs, parties), validerConfiguration(m, catalogue, b.couleurs, parties)));
-    if (i) return { ref: i.fiche.ref, id: i.fiche.id, nom: [i.fiche.nom, i.fiche.variante].filter(Boolean).join(' · '), prix: i.prix ?? bijouBreloque(m, { couleurs: b.couleurs, texte: b.texteValide, bijoux }).prix };
+    if (i?.alternative) { const r = ficheModele(m); return { ref: r?.ref || '', id: r?.id || null, nom: nomCourt(m) + ' · ' + i.nom, prix: i.prix ?? bijouBreloque(m, { couleurs: b.couleurs, texte: b.texteValide, bijoux }).prix, idee: i.nom }; }
+    if (i) return { ref: i.fiche.ref, id: i.fiche.id, nom: [i.fiche.nom, i.fiche.variante].filter(Boolean).join(' · '), prix: i.prix ?? bijouBreloque(m, { couleurs: b.couleurs, texte: b.texteValide, bijoux }).prix, idee: i.nom };
   }
   return bijouBreloque(m, { couleurs: b.couleurs, texte: b.texteValide, bijoux });
 };
@@ -874,12 +881,31 @@ function calculerIdees(m) {
   }
   const row = ficheModele(m); if (!row) return [];
   const classique = couleursDeFiche(m, row, row);
-  return famillesFiche(row, bijoux).map(f => {                                    // fiches bijoux et compositions
+  return [...famillesFiche(row, bijoux).map(f => {                                    // fiches bijoux et compositions
     const c = couleursDeFiche(m, row, f); if (!c) return null;
     if (f.id !== row.id && memeCouleurs(c, classique)) return null;                // variante qu'on ne sait pas encore dessiner
     return { fiche: f, nom: f.variante || (f.id === row.id ? 'Classique' : f.nom), prix: f.pv != null && f.pv !== '' ? +f.pv : (row.pv != null ? +row.pv : null),
       breloque: { ...nouvelleBreloque(m.slug), couleurs: c } };
-  }).filter(Boolean);
+  }).filter(Boolean), ...alternativesDe(m, row)];
+}
+// ⭐ alternatives (créées dans le configurateur) : couleurs et finitions par nom ou par ref ; produites sur la fiche du modèle
+function refDeNom(v, liste = catalogue) { if (!v) return null; if (liste.some(c => c.ref === v)) return v; return refParNom(v, liste); }
+function alternativesDe(m, row) {
+  return alternativesConfig().filter(a => a && a.modele === m.slug).map(a => {
+    const b = nouvelleBreloque(m.slug), c = { ...b.couleurs }, o = { ...b.options };
+    for (const [z, v] of Object.entries(a.couleurs || {})) { const r = refDeNom(v); if (r && (m.zones || []).some(x => x.id === z)) c[z] = r; }
+    for (const [id, v] of Object.entries(a.options || {})) if ((m.options || []).some(x => x.id === id)) o[id] = v;
+    for (const n of a.finitions || []) {                                           // ex. « métal pétrole » : la perle / le fermoir de ce nom
+      for (const op of m.options || []) {
+        const choix = op.type === 'perle' ? catalogue.filter(x => !op.categorie || correspondCategorie(x, op.categorie)).map(x => ({ ref: x.ref, nom: x.nom + ' ' + (x.designation || '') }))
+          : op.type === 'fermoir' ? (op.choix || []).map(x => ({ ref: x.ref, nom: (fermParRef[x.ref]?.nom || '') + ' ' + (x.libelle || '') })) : [];
+        const t = choix.find(x => normNom(x.nom).includes(normNom(n).trim())); if (t) { o[op.id] = t.ref; break; }
+      }
+    }
+    const v = validerConfiguration(m, catalogue, c, parties); for (const z of Object.keys(c)) if (parRef[c[z]]) v[z] = c[z];
+    return { fiche: { id: 'alt:' + a.id, ref: row?.ref || '', nom: nomCourt(m), variante: a.nom, pv: row?.pv }, alternative: a, nom: a.nom,
+      prix: row?.pv != null && row.pv !== '' ? +row.pv : null, breloque: { ...b, couleurs: v, options: o } };
+  });
 }
 // quel modèle 3D correspond à une fiche (pièce d'un porte-clés) ?
 function modeleDeFiche(piece, liste) {
@@ -922,8 +948,8 @@ function vignette(cle, regler) {
 function rendreIdees() {
   const bt = $('#btIdees'), el = $('#idees');
   const enB = etat.parcours === 'bundle', modeles_ = etat.parcours ? ideesPour(modeleActif()) : [];
-  const liste = enB ? [] : modeles_, lots = enB ? ideesBundle() : [];      // en bundle : les modèles de la breloque sont proposés sous « Personnalise la breloque »
-  rendreIdeesInline(enB ? modeles_ : []);
+  const liste = [], lots = enB ? ideesBundle() : [];      // les modèles de la breloque : sous l'étape « modèle » ; l'arche ne garde que les porte-clés tout prêts
+  rendreIdeesInline(modeles_);
   bt.hidden = !(liste.length || lots.length);
   if (bt.hidden || bt.getAttribute('aria-expanded') !== 'true') { el.hidden = true; return; }
   // vignettes : on règle la scène sur chaque idée, on la photographie, puis on remet la vraie personnalisation
@@ -954,18 +980,38 @@ function carteIdee(img, nom, prix, attr) { return `<button class="idee" type="bu
 const cleVignette = (m, x) => 'b:' + m.slug + ':' + x.fiche.id + ':' + JSON.stringify(x.breloque.couleurs);
 // bundle : les modèles déjà créés de la breloque en cours (petit poisson Sardine, arête Anchois…), juste sous son titre
 function rendreIdeesInline(liste) {
-  const el = $('#ideesInline'), m = liste.length ? modeleActif() : null;
-  el.hidden = !liste.length; if (!liste.length) { el.innerHTML = ''; return; }
+  const el = $('#ideesInline'), mA = etat.parcours ? modeleActif() : null;
+  const peutCreer = !!(sbAdmin && mA && !mA.bijZone && !estLettres(mA));          // dans l'app (aperçu, connectée) : créer une alternative
+  const m = liste.length || peutCreer ? mA : null;
+  el.hidden = !m; if (!m) { el.innerHTML = ''; return; }
   const nouvelles = liste.some(x => !VIGNETTES.has(cleVignette(m, x)));
   const imgs = liste.map(x => vignette(cleVignette(m, x), () => { const b = x.breloque; scene.definirModele(modelePour(b)); scene.definirCouleurs(b.couleurs); scene.definirOptions(optionsEffectives(b)); }));
   if (nouvelles) rendre3D();
   const actuelles = brel().couleurs;
   el.innerHTML = `<h3><span class="ic-etoile">${ETOILE}</span>Idées · ${esc(nomCourt(m))} : nos modèles</h3><div class="idees-g">${liste.map((x, i) =>
-    carteIdee(imgs[i], x.nom, x.prix, `data-idee-b="${i}"`).replace('class="idee"', `class="idee${memeCouleurs(x.breloque.couleurs, actuelles) ? ' choisie' : ''}"`)).join('')}</div>`;
+    carteIdee(imgs[i], x.nom, x.prix, `data-idee-b="${i}"`).replace('class="idee"', `class="idee${memeCouleurs(x.breloque.couleurs, actuelles) ? ' choisie' : ''}"`)).join('')}</div>`
+    + (peutCreer ? `<button type="button" class="bt-alt" id="btAlt">＋ Enregistrer ces couleurs comme nouvelle idée</button>` : '');
+  $('#btAlt')?.addEventListener('click', enregistrerAlternative);
   el.querySelectorAll('[data-idee-b]').forEach(b => b.addEventListener('click', () => {
     const x = liste[+b.dataset.ideeB]; etat.breloques[etat.actif] = { ...brel(), ...x.breloque, couleurs: { ...x.breloque.couleurs } };
     rendre3D(); toutRendre();
   }));
+}
+/* ⭐ Créer une alternative (dans l'app, Conception 3D › Configurateur) : les couleurs et finitions choisies deviennent une idée */
+async function enregistrerAlternative() {
+  const m = modeleActif(), b = brel();
+  const nom = prompt('Nom de cette idée (ex. Rose & violet) :'); if (!nom || !nom.trim()) return;
+  const lire = async cle => { const { data, error } = await sbAdmin.from('config').select('value').eq('key', cle).maybeSingle(); if (error) throw error;
+    let v = data?.value; if (typeof v === 'string') { try { v = JSON.parse(v); } catch { v = null; } } return v; };
+  try {
+    let l = await lire('configurateur_alternatives'); if (!Array.isArray(l)) l = [];
+    l.push({ id: Date.now().toString(36), nom: nom.trim(), modele: m.slug, couleurs: { ...b.couleurs }, options: { ...optionsEffectives(b) } });
+    let e = await sbAdmin.from('config').upsert({ key: 'configurateur_alternatives', value: l }); if (e.error) throw e.error;
+    const f = await lire('configurateur_fiches');
+    e = await sbAdmin.from('config').upsert({ key: 'configurateur_fiches', value: { ...(f || {}), alternatives: l } }); if (e.error) throw e.error;
+    alternativesConfig().splice(0, Infinity, ...l); IDEES.clear(); rendre3D(); toutRendre();
+    alert('Idée « ' + nom.trim() + ' » enregistrée ✓');
+  } catch (x) { alert('Enregistrement impossible : ' + (x.message || x)); }
 }
 window.__bnStock = () => etat.breloques.map((b, i) => ({ fiche: bijouDe(b).ref, mats: ecartsStock(b, i) }));   // diagnostic
 window.__bnIdees = () => ({ modeles: modelesDu(etat.parcours || 'breloque').map(m => [m.slug, ficheModele(m)?.nom || null, ideesPour(m).map(x => x.nom)]), fiche: bijouDe(brel()), bundle: ideesBundle().map(x => x.nom) });   // diagnostic
@@ -1135,10 +1181,17 @@ function entreesNote() {
   const acc = enBundle() ? accrocheChoisie() : null;
   return {
     breloques: etat.breloques.map(b => ({ modele: modelePour(b), couleurs: validerConfiguration(modeleDe(b.slug), catalogue, b.couleurs, parties),
-      options: optionsEffectives(b), prixBase: prixDe(b), bijRef: bijouDe(b).ref, ficheNom: bijouDe(b).nom })),
-    accroche: acc ? { id: acc.id, libelle: acc.libelle, pieces: acc.pieces, supplement: acc.supplement, offre } : null,
+      options: optionsEffectives(b), prixBase: prixDe(b), bijRef: bijouDe(b).ref, ficheNom: bijouDe(b).nom, modeleIdee: bijouDe(b).idee || null })),
+    accroche: acc ? { id: acc.id, libelle: acc.libelle, pieces: acc.pieces, supplement: acc.supplement, offre, lotNom: lotCorrespondant()?.nom || null } : null,
     catalogue, fermoirs,
   };
+}
+// le bundle est-il exactement un porte-clés tout prêt (Mix'n Match…) ?
+function lotCorrespondant() {
+  if (!enBundle()) return null;
+  const val = b => validerConfiguration(modeleDe(b.slug), catalogue, b.couleurs, parties);
+  return ideesBundle().find(x => x.accroche === etat.accroche && x.breloques.length === etat.breloques.length
+    && x.breloques.every((br, i) => br.slug === etat.breloques[i].slug && memeCouleurs(val(br), val(etat.breloques[i])))) || null;
 }
 const construireNote = (numero = '') => notePersonnalisation({ ...entreesNote(), numero });
 
@@ -1333,6 +1386,13 @@ function recommencer() {
 }
 
 etat.breloques[0] = breloqueOuverture(etat.breloques[0].slug);   // ouverture sur la fiche d'ouverture (ex. arête Sardine)
+// lien direct vers une idée : ?idee=<id de fiche ou alt:id> (breloque) · ?lot=<id de fiche> (porte-clés tout prêt)
+{ const q = new URLSearchParams(location.search), id = q.get('idee'), lot = q.get('lot');
+  if (id) for (const m of modeles) { const i = ideesPour(m).find(x => x.fiche.id === id || x.fiche.id === 'alt:' + id);
+    if (i) { etat.breloques = [{ ...nouvelleBreloque(m.slug), ...i.breloque, couleurs: { ...i.breloque.couleurs } }]; etat.actif = 0; if (!params.get('parcours')) params.set('parcours', 'breloque'); break; } }
+  if (lot) { etat.parcours = 'bundle'; const x = ideesBundle().find(y => y.fiche.id === lot);
+    if (x) { etat.accroche = x.accroche; etat.breloques = x.breloques.map(br => ({ ...br, couleurs: { ...br.couleurs } })); etat.actif = 0; params.set('parcours', 'bundle'); } }
+}
 // démarrage : accueil, ou parcours direct (?parcours=bundle / ?parcours=breloque / ?modele=…)
 const depart = params.get('parcours') || (params.get('modele') ? 'breloque' : null);
 if (depart === 'bundle' || depart === 'breloque') etat.parcours = depart;
