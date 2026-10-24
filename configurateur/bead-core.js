@@ -365,17 +365,33 @@ export function apercuArgile(motif, hex) {
    renseignés dans materiaux. Le nom doit correspondre à la colonne variante. */
 export const PLANCHE_ROCAILLES = [
   // Teintes et finitions d'après ta description de chaque rocaille (prioritaires sur les photos)
-  ['rouge 1', '#c8101a', 'opaque'],              ['rouge 2', '#b3141f', 'transparent'],         ['rouge 3', '#c8182c', 'transparent-irise-violet'],  ['rouge 4', '#6e1024', 'transparent-metal'],
-  ['orange 1', '#ff6a00', 'opaque-fluo'],             ['orange 2', '#d8480c', 'transparent-metal'],  ['orange 3', '#ff8c2e', 'translucide'],       ['marron', '#4e2a10', 'brun-reflet'],
+  // d'après tes photos des bocaux : rouge 2 framboise métallisé, rouge 3 doublé argent vif, rouge 4 irisé à reflets violets ;
+  // orange 2 = orange clair lustré, orange 3 = orange-rouge doublé argent (références inversées)
+  ['rouge 1', '#c8101a', 'opaque'],              ['rouge 2', '#a3122e', 'transparent-metal'],   ['rouge 3', '#cc1420', 'transparent-metal'],  ['rouge 4', '#c8182c', 'transparent-irise-violet'],
+  ['orange 1', '#ff6a00', 'opaque-fluo'],             ['orange 2', '#ff8c2e', 'translucide'],       ['orange 3', '#d8480c', 'transparent-metal'],  ['marron', '#4e2a10', 'brun-reflet'],
   ['jaune 1', '#ffb300', 'opaque-pep'],              ['jaune 2', '#f2d21e', 'translucide'],         ['pêche 1', '#f4a07a', 'translucide-metal'],        ['pêche 2', '#ee8a66', 'opaque'],
   ['bleu 1', '#00c9be', 'opaque-vif'],               ['bleu 2', '#2fa6cc', 'transparent-metal'],    ['bleu 3', '#1a36aa', 'opaque'],              ['bleu 4', '#15246e', 'opaque'],
   ['rose 1', '#f0288f', 'opaque'],               ['rose 2', '#f04ab8', 'translucide'],          ['vert 1', '#93b02a', 'transparent-metal'],   ['vert 2', '#2f7f3a', 'transparent'],
-  ['violet 1', '#722a66', 'opaque'],             ['violet 2', '#9a78c0', 'metallise'],          ['violet 3', '#b07892', 'transparent-metal-fort'], ['violet 4', '#ab98c6', 'metallise-fort'],
+  ['violet 1', '#ab98c6', 'metallise-fort'],     ['violet 2', '#9a78c0', 'metallise'],          ['violet 3', '#b07892', 'transparent-metal-fort'], ['violet 4', '#722a66', 'opaque'],
   ['blanc', '#eef2ec', 'opaque'],                ['noir', '#0a0c10', 'opaque'],
   ['argent 1', '#cfd0ca', 'metallique'],         ['argent 2', '#8c8d8a', 'metallique'],         ['doré', '#d9ad48', 'metallique'],
 ];
 const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
 const PLANCHE = new Map(PLANCHE_ROCAILLES.map(([n, hex, finition], i) => [norm(n), { hex, finition, ordre: i }]));
+/* Ordre des pastilles : chaque famille de couleur dans l'ordre de ta planche, numéros croissants (un « vert 3 » ajouté
+   se range après le vert 2 et avant le violet 1) ; puis les familles inconnues ; puis les métaux (argent, doré, bronze…) ;
+   et à la toute fin le blanc et le noir, ensemble. */
+const FAMILLES_COULEUR = [...new Set(PLANCHE_ROCAILLES.map(([n]) => norm(n).replace(/\s*\d+$/, '')))]
+  .filter(f => !/^(argent|dore|or|bronze|cuivre|blanc|noir)$/.test(f));
+const FAMILLES_METAL = ['argent', 'dore', 'or', 'bronze', 'cuivre', 'hematite', 'gris metal'];
+export function ordreCouleur(nom) {
+  const k = norm(nom), fam = k.replace(/\s*\d+$/, ''), num = +(k.match(/(\d+)$/)?.[1] || 0);
+  let rang = FAMILLES_COULEUR.indexOf(fam);
+  if (rang < 0) rang = FAMILLES_COULEUR.findIndex(f => fam.startsWith(f + ' ') || fam === f);
+  if (rang < 0) rang = FAMILLES_METAL.some(m => fam.startsWith(m)) ? 80 + FAMILLES_METAL.findIndex(m => fam.startsWith(m))
+    : fam.startsWith('blanc') ? 95 : fam.startsWith('noir') ? 96 : 60;
+  return rang * 1000 + num;
+}
 // « marron 1 » = « marron », « argent » = « argent 1 »… : un numéro en trop ou en moins ne fait plus perdre la teinte de la planche
 export function plancheDe(nom, rocaille = true) {
   const k = norm(nom);
@@ -454,7 +470,7 @@ export function catalogueArgileDepuisBijoux(bijoux = []) {
     const texte = [b.nom, b.variante].filter(Boolean).join(' '), motif = motifArgile(texte);
     const nom = motif || String(b.variante || b.nom).replace(/breloque|argile/gi, '').trim() || texte;
     return { ref: b.ref, bij_id: b.id, nom, hex: (motif && MOTIFS_ARGILE[motif].hex) || couleurParNom(nom), finition: 'argile', motif,
-      perle: 'argile-30', categorie: 'Breloques argile', bijou: true, pv: b.pv, enStock: true, ordre: 1000 };
+      perle: 'argile-30', categorie: 'Breloques argile', bijou: true, pv: b.pv, enStock: true, ordre: 1e6 };
   });
 }
 /* Formes chainmail : la fiche bijou (composition) dont le nom contient la forme (« croix »…)
@@ -478,7 +494,7 @@ export function catalogueChainmailDepuisBijoux(bijoux = []) {
   }
   return [...parForme.values()].map(({ b, forme }) => ({
     ref: b.ref, bij_id: b.id, nom: FORMES_CHAINMAIL[forme].nom, hex: '#b4b6ba', finition: 'chainmail', forme,
-    categorie: 'Breloques chainmail', bijou: true, pv: b.pv, enStock: true, ordre: 1001 }));
+    categorie: 'Breloques chainmail', bijou: true, pv: b.pv, enStock: true, ordre: 1e6 + 1 }));
 }
 export function completerCatalogue(catalogue, bijoux = []) {
   let base = catalogue.filter(c => !['argile', 'chainmail'].includes(c.finition) || !/-ex\d/.test(c.ref));
@@ -672,7 +688,7 @@ export function catalogueDepuisMateriaux(lignes, perlesImages = {}) {
     const motif = argile ? (meta.motif || motifArgile(nom) || null) : null;
     if (argile) return {
       ref: l.ref || String(l.id), mat_id: l.id, nom, hex: meta.hex || (motif && MOTIFS_ARGILE[motif].hex) || couleurParNom(nom),
-      finition: 'argile', motif, perle: meta.perle || 'argile-30', ordre: 1000, visible: img.visible !== false,
+      finition: 'argile', motif, perle: meta.perle || 'argile-30', ordre: 1e6, visible: img.visible !== false,
       categorie: l.sc || 'Breloques argile', stock: l.qty ?? null, enStock: l.qty == null ? true : l.qty > 0, teinteFixe: true,
     };
     return {
@@ -682,7 +698,7 @@ export function catalogueDepuisMateriaux(lignes, perlesImages = {}) {
       hexNom: couleurParNom(nom),
       finition: pl?.finition || meta.finition || (/[ée]toile/i.test([l.sc, l.designation].join(' ')) ? (/p[ée]trole|iris/i.test(nom) ? 'petrole' : /nacr/i.test(nom) ? 'nacre' : /m[ée]tal|argent|h[ée]matite/i.test(nom) ? 'hematite' : null) : null)
         || devinerFinition([l.designation, l.variante].join(' ')),
-      ordre: pl?.ordre ?? 999, planche: !!pl,
+      ordre: ordreCouleur(nom), planche: !!pl,
       texture: meta.texture || null,
       swatch: img.swatch || meta.image || l.image_url || null,      // photo de la référence (fiche matériau de l'app)
       perle: meta.perle || (/[ée]toile/i.test([l.sc, l.designation, l.variante].join(' ')) ? (/nacr/i.test(nom + ' ' + (l.designation || '')) ? 'etoile-nacre-6' : 'etoile-8') : undefined),
@@ -693,7 +709,7 @@ export function catalogueDepuisMateriaux(lignes, perlesImages = {}) {
       enStock: l.qty == null ? true : l.qty > 0,
     };
   }).filter(c => c.visible).map(c => c.finition === 'argile' ? c : ({ ...c, hexManuel: !!c.hex, hex: c.hex || c.hexNom, teinteFixe: !!c.hex || c.planche }))
-    .sort((a, b) => a.ordre - b.ordre);
+    .sort((a, b) => a.ordre - b.ordre || String(a.nom).localeCompare(String(b.nom), 'fr'));
 }
 
 /* Remplace la couleur « par nom » par la couleur médiane de la photo de la perle
@@ -860,8 +876,8 @@ export function creerMateriau(couleur) {
     case 'brun-reflet':            // marron transparent avec reflets caramel clairs (on lit bien le brun)
       // sans transparence (elle assombrissait la perle jusqu'au noir) : brun lumineux + reflets caramel clairs bien visibles
       Object.assign(p, { roughness: 0.14, metalness: 0.55, clearcoat: 1, clearcoatRoughness: 0.05,
-        specularColor: new THREE.Color('#ffc861'), specularIntensity: 1,
-        emissive: c.clone().multiplyScalar(0.3), sheen: 1, sheenRoughness: 0.22, sheenColor: new THREE.Color('#ffbe55'),
+        specularColor: new THREE.Color('#f2a63c'), specularIntensity: 1,
+        emissive: c.clone().multiplyScalar(0.3), sheen: 1, sheenRoughness: 0.22, sheenColor: new THREE.Color('#e9a13e'),
         iridescence: 0.35, iridescenceIOR: 1.45, iridescenceThicknessRange: [520, 640], envMapIntensity: 1.7 });
       break;
     case 'translucide-metal':      // verre teinté peu transparent avec reflet métal (pêche 1, marron) : la teinte reste lisible

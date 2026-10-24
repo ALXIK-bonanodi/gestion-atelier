@@ -784,6 +784,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
           <button id="bij-view-grid" class="btn btn-ghost btn-sm ico" onclick="setBijView('grid')" title="Vue grille">⊞</button>
           <button class="btn btn-ghost btn-sm ico" onclick="showBijDiag()" title="Chercher les doublons de référence">🔍</button>
           <button class="btn btn-ghost btn-sm" onclick="ouvrirRegroupement()" title="Regrouper les créations du même nom en un produit avec des variantes">🧩 Regrouper</button>
+          <button class="btn btn-ghost btn-sm" onclick="formLot()" title="Plusieurs créations vendues ensemble sous une seule fiche (ex. lot de 3 breloques)">🎁 Lot</button>
         </div>
         <div id="bij-coll-bar" class="chips-defile"></div>
         <div id="bij-diag-banner" style="display:none;margin-bottom:8px"></div>
@@ -2044,6 +2045,7 @@ async function loadAll() {
     TIKTOK_MANUEL=Array.isArray(lireCfg('tiktok_manuel'))?lireCfg('tiktok_manuel'):[];
     DERNIERE_SAUV=typeof lireCfg('derniere_sauvegarde')==='string'?lireCfg('derniere_sauvegarde'):'';
     DROPS=Array.isArray(lireCfg('drops'))?lireCfg('drops'):[];
+    { const lt=lireCfg('lots'); LOTS=lt&&typeof lt==='object'&&!Array.isArray(lt)?lt:{}; }
     { const fw=lireCfg('fiches_wix'); FICHES_WIX=fw&&typeof fw==='object'&&!Array.isArray(fw)?fw:{}; }
     { const cn=lireCfg('clientes_notes'); CLIENTES_NOTES=cn&&typeof cn==='object'&&!Array.isArray(cn)?cn:{}; }
     { const cc=lireCfg('couts'); if(cc&&typeof cc==='object') COUTS={reglages:{...COUTS.reglages,...(cc.reglages||{})},temps:cc.temps||{}}; }
@@ -2200,7 +2202,7 @@ function qteMat(m, mat) {
 // « produit » = déduit du stock ; « en cours » (dont les commandes sur mesure) = réservé / pré-compté.
 // Le disponible retire les deux : ce qui est réservé n'est plus utilisable ailleurs.
 function stockPris(ref, filtre) {
-  return PRODS.filter(filtre).reduce((s,p)=>{
+  return PRODS.filter(p=>+p.qty>0&&filtre(p)).reduce((s,p)=>{
     const b=getBij(p.bij_id); if(!b) return s;
     const consumed=matsConsumedByBij(b,+p.qty||0);
     return s+(consumed[ref]||0);
@@ -2237,6 +2239,7 @@ function getMatsEffectifs(bij) {
 
 function coutBijou(bij, depth=0) {
   if(depth>4) return 0;
+  if(LOTS[bij.id]) return LOTS[bij.id].reduce((t,i)=>{ const c=getBij(i.bij_id); return t+(c?coutBijou(c,depth+1)*(+i.qty||1):0); },0);   // lot = ses pièces
   return getMatsEffectifs(bij).reduce((s,m)=>{
     // Matériau simple
     const mat=getMat(m.ref);
@@ -3155,7 +3158,7 @@ function renderAccueil() {
   const best=Object.entries(top).sort((a,b)=>b[1]-a[1])[0], bestB=best&&getBij(best[0]);
   const serie=serieAtelier();
   const perso=PRODS.filter(p=>p.perso&&p.statut==='en_cours').sort((a,b)=>String(a.date).localeCompare(String(b.date)));
-  const avendre=PRODS.filter(p=>(!p.statut||p.statut==='produit')&&!Object.keys(lireMiseEnVente(p).lieux).length&&!dropDeProd(p.id));
+  const avendre=PRODS.filter(p=>(!p.statut||p.statut==='produit')&&+p.qty>0&&!Object.keys(lireMiseEnVente(p).lieux).length&&!dropDeProd(p.id));
   const dropsDus=DROPS.filter(d=>d.statut!=='en_ligne'&&d.date&&d.date<=today()&&(d.items||[]).length);
   const grpS=groupesStock(), bas=grpS.filter(g=>g.bas), bientot=grpS.filter(g=>g.bientot), brouillons=BIJS.filter(isDraft), incompl=MATS.filter(m=>champsManquants(m).length), enG=lignesPerlesEnGrammes();
   const idees1=ideesPosts().filter(x=>x.prio===1), postAuj=POSTS.filter(p=>p.statut==='prevu'&&p.date<=today());
@@ -3259,7 +3262,7 @@ function majBadgesOnglets(){
     b.textContent=nb; b.title=titre; };
   try {
     const perso=PRODS.filter(p=>p.perso&&p.statut==='en_cours').length;
-    const avendre=PRODS.filter(p=>(!p.statut||p.statut==='produit')&&!Object.keys(lireMiseEnVente(p).lieux).length&&!dropDeProd(p.id)).length;
+    const avendre=PRODS.filter(p=>(!p.statut||p.statut==='produit')&&+p.qty>0&&!Object.keys(lireMiseEnVente(p).lieux).length&&!dropDeProd(p.id)).length;
     const brouillons=BIJS.filter(isDraft).length;
     const incompl=MATS.filter(m=>champsManquants(m).length).length, enG=lignesPerlesEnGrammes().length;
     pastille('.tab[data-p="home"]', perso+avendre+stocksBas().length+brouillons+incompl+enG, 'choses à faire');
@@ -4844,6 +4847,7 @@ function toutBij(ouvrir){
 function margeBij(b){ const c=coutBijou(b), pv=b.pv||prixMin(b); return pv&&c>0?(pv-c)/pv:-1; }
 // Détail d'une fiche (matériaux, coût, prix) — affiché quand la fiche est dépliée
 function corpsBij(b) {
+  if(LOTS[b.id]) return corpsLot(b);
   const cout=coutBijou(b),pm=prixMin(b),noSell=b.no_sell||false;
   return `<div style="padding:10px 14px">
           <div class="tbl-wrap"><table>
@@ -6990,6 +6994,63 @@ let PROD_TOUT_OUVERT=false;
 // DROPS : préparer une mise en ligne groupée (pièces déjà produites, pas encore en ligne)
 // config « drops » = [{ id, nom, date, heure, note, statut: 'prepa' | 'en_ligne', items: [{ prod_id, qty }], en_ligne_le }]
 // ═══════════════════════════════════════════════════════
+// ═══ 🎁 LOTS : plusieurs créations vendues ensemble sous une seule fiche (prix, photo, boutique, Wix comme une création)
+// config « lots » = { <id fiche lot>: [{ bij_id, qty }] }. « Assembler » N lots : production du lot (+N) et, pour chaque pièce,
+// une ligne « 🎁 utilisées dans le lot » (−N × qté) qui la retire du stock (sans toucher aux matériaux, déjà comptés).
+let LOTS={};
+const sauverLots = () => sbUpsertConfig('lots', LOTS);
+function libreBij(bijId){        // pièces finies réellement disponibles : produites − lots − vendues − mises en vente − prévues en drop
+  const ps=PRODS.filter(x=>x.bij_id===bijId&&(!x.statut||x.statut==='produit'));
+  const net=ps.reduce((t,x)=>t+(+x.qty||0),0), places=ps.reduce((t,x)=>t+Object.values(lireMiseEnVente(x).lieux).reduce((u,q)=>u+(+q||0),0),0);
+  const drops=DROPS.filter(d=>d.statut!=='en_ligne').reduce((t,d)=>t+(d.items||[]).filter(i=>ps.some(x=>x.id===i.prod_id)).reduce((u,i)=>u+(+i.qty||0),0),0);
+  return Math.max(0,net-venteTot(bijId).qty-places-drops);
+}
+const lotsAssemblables = lotId => Math.min(...(LOTS[lotId]||[]).map(i=>Math.floor(libreBij(i.bij_id)/Math.max(1,+i.qty||1))), 999);
+function corpsLot(b){
+  const it=LOTS[b.id]||[], max=it.length?lotsAssemblables(b.id):0, cout=coutBijou(b);
+  return `<div style="padding:10px 14px"><div class="info-box">🎁 <b>Lot</b> : ces créations sont vendues ensemble sous cette fiche (prix, photo, boutique en ligne, fiche Wix). « Assembler » retire les pièces de leur stock et ajoute des lots prêts.</div>
+    <div class="drop-items">${it.map(i=>{ const c=getBij(i.bij_id); return `<span class="drop-it">${c?.photo?`<img src="${c.photo}" alt="">`:'💎'} ${escA(c?c.nom+(c.variante?' · '+c.variante:''):'?')} × ${i.qty} <span class="dim">(${c?libreBij(c.id):0} dispo)</span></span>`; }).join('')}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px">
+      <span class="dim" style="font-size:12px">Coût des pièces ${eur(cout)} · prix du lot ${b.pv?eur(b.pv):'à fixer'}${b.pv&&cout?' · marge '+Math.round((b.pv-cout)/b.pv*100)+' %':''} · <b>${max}</b> lot(s) assemblable(s) avec tes pièces disponibles</span>
+      <span style="flex:1"></span>
+      <button class="btn btn-xs btn-ghost" onclick="event.stopPropagation();formLot('${b.id}')">✎ Pièces du lot</button>
+      <button class="btn btn-xs btn-p" onclick="event.stopPropagation();assemblerLot('${b.id}')" ${max?'':'disabled title="Pas assez de pièces disponibles"'}>🎁 Assembler</button>
+      <button class="btn btn-xs btn-ghost" onclick="event.stopPropagation();ficheBoutique('${b.id}')">🛒 Fiche boutique</button></div></div>`;
+}
+function formLot(id){
+  const b=id?getBij(id):null, it=new Map((LOTS[id]||[]).map(i=>[i.bij_id,+i.qty||0]));
+  const crea=BIJS.filter(x=>!x.is_mat&&!LOTS[x.id]&&x.id!==id&&!(x.no_sell&&BIJS.some(v=>v.parent_id===x.id)))
+    .sort((a,c)=>String(a.nom).localeCompare(String(c.nom),'fr')||String(a.variante||'').localeCompare(String(c.variante||''),'fr'));
+  modalVolante('m-lot',`<div class="modal-title">🎁 ${b?'Lot « '+escA(b.nom)+' »':'Nouveau lot'}</div>
+    <div class="r2"><div class="fg"><label>Nom du lot</label><input id="lot-nom" value="${escA(b?.nom||'')}" placeholder="ex. Lot 3 petits poissons, Duo sardine + arête"></div>
+      <div class="fg"><label>Prix du lot (€)</label><input id="lot-pv" type="number" step="0.5" value="${b?.pv||''}"></div></div>
+    <div class="fg"><label>Pièces du lot <span class="dim" style="text-transform:none;font-weight:400">— quantité de chaque création dans un lot</span></label>
+      <input type="search" placeholder="🔍 Chercher" oninput="const k=cleNom(this.value);document.querySelectorAll('#m-lot .drop-l').forEach(l=>l.style.display=!k||l.dataset.q.includes(k)?'':'none')" style="margin-bottom:6px">
+      <div class="drop-choix">${crea.map(c=>`<label class="drop-l" data-q="${escA(cleNom(c.nom+' '+(c.variante||'')))}"><span style="flex:1;min-width:0">${escA(c.nom)}${c.variante?' · '+escA(c.variante):''} <span class="dim">· ${c.ref||''} · ${libreBij(c.id)} dispo</span></span>
+        <input type="number" class="lot-q" data-id="${c.id}" min="0" value="${it.get(c.id)||''}" placeholder="0" style="width:64px;padding:6px"></label>`).join('')}</div></div>
+    <div class="dim" style="font-size:12px" id="lot-recap"></div>
+    <div class="mfoot"><button class="btn btn-ghost" onclick="closeModal('m-lot')">Annuler</button><button class="btn btn-p" onclick="enregistrerLot('${id||''}')">Enregistrer</button></div>`);
+}
+async function enregistrerLot(id){
+  const nom=document.getElementById('lot-nom').value.trim(), pv=+document.getElementById('lot-pv').value||null;
+  const items=[...document.querySelectorAll('#m-lot .lot-q')].filter(i=>+i.value>0).map(i=>({bij_id:i.dataset.id, qty:Math.round(+i.value)}));
+  if(!nom) return toast('Donne un nom au lot','err'); if(items.length<1||items.reduce((t,i)=>t+i.qty,0)<2) return toast('Un lot contient au moins 2 pièces','err');
+  let b=id?getBij(id):null;
+  if(b){ if(await sbUpdate('bijoux',b.id,{nom,pv})) Object.assign(b,{nom,pv}); }
+  else { b={id:uid(), collection:'Lots', nom, variante:'', ref:autoRefBij(), pv, mats:[], draft:false, is_mat:false, no_sell:false, created_at:new Date().toISOString()};
+    if(!(await sbInsert('bijoux',b))) return; BIJS.push(b); }
+  LOTS[b.id]=items; await sauverLots(); closeModal('m-lot'); BIJ_OUVERTS.add(b.id); renderBij(); toast('Lot enregistré ✓ — ajoute sa photo 📷 et assemble-le','ok');
+}
+async function assemblerLot(id){
+  const b=getBij(id), it=LOTS[id]||[], max=lotsAssemblables(id); if(!b||!max) return;
+  const nb=+prompt(`Combien de lots « ${b.nom} » assembler ? (${max} possible${max>1?'s':''})`, '1'); if(!nb||nb<1) return;
+  if(nb>max) return toast(`Pas assez de pièces : ${max} lot(s) au maximum`,'err');
+  const date=today();
+  for(const i of it){ const p={id:uid(), bij_id:i.bij_id, qty:-(nb*(+i.qty||1)), date, statut:'produit', perso_note:'🎁 utilisées dans le lot « '+b.nom+' »'};
+    if(await sbInsert('productions',p)) PRODS.push(p); }
+  const pl={id:uid(), bij_id:id, qty:nb, date, statut:'produit'}; if(await sbInsert('productions',pl)) PRODS.push(pl);
+  renderBij(); renderRent(); toast(`🎁 ${nb} lot(s) assemblé(s) — à mettre en vente dans Productions ou dans un drop`,'ok');
+}
 let DROPS=[];
 const sauverDrops = () => sbUpsertConfig('drops', DROPS);
 const dropDeProd = prodId => DROPS.find(d=>d.statut!=='en_ligne'&&(d.items||[]).some(i=>i.prod_id===prodId));
@@ -7448,6 +7509,7 @@ function renderRent() {
     const parBij={};
     PRODS.forEach(p=>{ const b=getBij(p.bij_id); if(!b) return; const q=+p.qty||0;
       if(!estP(p)){ qEnc+=q; return; }
+      if(q<0){ (parBij[b.id] ||= {b,q:0}).q+=q; return; }      // pièces assemblées dans un lot
       qProd+=q; vProd+=q*prixDe(b); (parBij[b.id] ||= {b,q:0}).q+=q;
       const l=lireMiseEnVente(p).lieux; const en=+l['Boutique en ligne']||0; qLigne+=en; vLigne+=en*prixDe(b);
       qAilleurs+=Object.entries(l).filter(([k])=>k!=='Boutique en ligne').reduce((t,[,v])=>t+(+v||0),0); });
@@ -7461,8 +7523,8 @@ function renderRent() {
   }
   // ── Productions : regroupées par bijou, avec recherche, filtre et tri
   const estProd=p=>!p.statut||p.statut==='produit';
-  const aVendre=p=>estProd(p)&&!Object.keys(lireMiseEnVente(p).lieux).length&&!dropDeProd(p.id);
-  const pasEnLigne=p=>estProd(p)&&!(+lireMiseEnVente(p).lieux['Boutique en ligne']>0);
+  const aVendre=p=>estProd(p)&&+p.qty>0&&!Object.keys(lireMiseEnVente(p).lieux).length&&!dropDeProd(p.id);
+  const pasEnLigne=p=>estProd(p)&&+p.qty>0&&!(+lireMiseEnVente(p).lieux['Boutique en ligne']>0);
   const q=(document.getElementById('prod-search')?.value||'').toLowerCase().trim();
   const flt=document.getElementById('prod-flt')?.value||'';
   const triP=document.getElementById('prod-tri')?.value||'recent';
@@ -7475,12 +7537,13 @@ function renderRent() {
     (groupes[p.bij_id] ||= {b, lignes:[]}).lignes.push(p);
   });
   let liste=Object.values(groupes).map(g=>{
-    const qProd=g.lignes.filter(estProd).reduce((t,p)=>t+(+p.qty||0),0);
+    const qProd=g.lignes.filter(p=>estProd(p)&&+p.qty>0).reduce((t,p)=>t+(+p.qty||0),0);
+    const qLot=-g.lignes.filter(p=>estProd(p)&&+p.qty<0).reduce((t,p)=>t+(+p.qty||0),0);
     const qEnc=g.lignes.filter(p=>!estProd(p)).reduce((t,p)=>t+(+p.qty||0),0);
     const vt=venteTot(g.b.id), cout=coutBijou(g.b), pvAff=g.b.pv||prixMin(g.b);
     const derniere=g.lignes.reduce((d,p)=>String(p.date||'')>d?String(p.date||''):d,'');
     const premiere=g.lignes.reduce((d,p)=>!d||String(p.date||'')<d?String(p.date||''):d,'');
-    return {...g, qProd, qEnc, vendus:vt.qty, stock:qProd-vt.qty, cout, pvAff, derniere, premiere,
+    return {...g, qProd, qLot, qEnc, vendus:vt.qty, stock:qProd-qLot-vt.qty, cout, pvAff, derniere, premiere,
       marge:pvAff&&cout>0?Math.round(((pvAff-cout)/pvAff)*100):null,
       lignesVues:filtreLigne?g.lignes.filter(filtreLigne):g.lignes};
   });
@@ -7510,7 +7573,7 @@ function renderRent() {
       prodHtml+=`<tr style="cursor:pointer" onclick="toggleProdDetail('pd_${bijId}')">
         <td style="font-size:12px;font-weight:600">${b.nom}${b.variante?' · '+b.variante:''}<div class="dim" style="font-weight:400;font-size:10px">${g.derniere?'dernière : '+g.derniere:''}</div></td>
         <td class="ref">${b.ref||'--'}</td>
-        <td><b>${n(g.qProd)}</b>${g.qEnc?` <span class="badge bp" title="En cours">🔧 ${n(g.qEnc)}</span>`:''}</td>
+        <td><b>${n(g.qProd)}</b>${g.qEnc?` <span class="badge bp" title="En cours">🔧 ${n(g.qEnc)}</span>`:''}${g.qLot?` <span class="badge bm" title="Pièces assemblées dans des lots">🎁 −${n(g.qLot)}</span>`:''}</td>
         <td>${(()=>{ const t={}; g.lignes.forEach(p=>Object.entries(lireMiseEnVente(p).lieux).forEach(([l,qq])=>t[l]=(t[l]||0)+(+qq||0)));
           const e=Object.entries(t).filter(([,qq])=>qq>0); return e.length?e.map(([l,qq])=>`<span title="${l}">${iconeLieu(l)} ${n(qq)}</span>`).join(' '):'<span class="dim">--</span>'; })()}</td>
         <td style="color:var(--green)">${n(g.vendus)}</td>
@@ -7525,12 +7588,12 @@ function renderRent() {
             ${g.lignesVues.map(p=>`
               <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;font-size:12px">
                 <span class="badge bm">${p.date||'--'}</span>
-                <span><b>${n(p.qty)}</b> pcs</span>
-                <span class="badge ${estProd(p)?'bgn':'bp'}">${estProd(p)?'✅ Produit':'🔧 En cours'}</span>
+                ${+p.qty<0?`<span><b>${n(-p.qty)}</b> pcs</span><span class="badge bm">🎁 ${escA(String(p.perso_note||'utilisées dans un lot').replace(/^🎁 /,''))}</span>`:`<span><b>${n(p.qty)}</b> pcs</span>
+                <span class="badge ${estProd(p)?'bgn':'bp'}">${estProd(p)?'✅ Produit':'🔧 En cours'}</span>`}
                 ${p.perso?`<span class="badge bm" style="cursor:pointer" onclick="event.stopPropagation();ouvrirPerso('${escPerso(p.perso)}')" title="${escPerso(p.perso_note||'')}">✨ ${escPerso(p.perso)}</span>`:''}
                 ${badgesMiseEnVente(p)}
                 ${dropDeProd(p.id)?`<span class="badge bp" title="Prévue dans ce drop" style="cursor:pointer" onclick="event.stopPropagation();goTabNom('bij');switchCreatTab('drops')">🚀 ${escA(dropDeProd(p.id).nom)}${dropDeProd(p.id).date?' · '+dateCourte(dropDeProd(p.id).date):''}</span>`:''}
-                ${pasEnLigne(p)&&!dropDeProd(p.id)?`<button class="btn btn-xs btn-ghost" onclick="event.stopPropagation();ajouterAuDrop('${p.id}')" title="Prévoir ces pièces dans un drop (mise en ligne groupée)">🚀 Drop</button>`:''}
+                ${pasEnLigne(p)&&!dropDeProd(p.id)&&libresProd(p)>0?`<button class="btn btn-xs btn-ghost" onclick="event.stopPropagation();ajouterAuDrop('${p.id}')" title="Prévoir ces pièces dans un drop (mise en ligne groupée)">🚀 Drop</button>`:''}
                 ${aVendre(p)?`<button class="btn btn-xs btn-ghost" onclick="event.stopPropagation();openEditProd('${p.id}')" title="Indiquer où ces pièces sont mises en vente">📍 Mettre en vente</button>`:''}
                 <button class="btn btn-xs btn-ghost" onclick="event.stopPropagation();openEditProd('${p.id}')">✎ Modifier</button>
                 <button class="btn btn-xs btn-red" onclick="event.stopPropagation();delProd('${p.id}')">✕</button>
