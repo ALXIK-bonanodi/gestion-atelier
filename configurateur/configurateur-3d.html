@@ -382,6 +382,11 @@ label.champ input:focus, label.champ textarea:focus { border-color: var(--prune)
       <p id="suiteTexte">Garde cette breloque et ajoutes-en d'autres sur un mousqueton ou un fermoir rond.</p>
       <button class="btn-second" type="button" id="btVersBundle">Créer un bundle avec cette breloque</button>
     </div>
+    <div class="suite" id="suiteChaine" hidden>
+      <b>Envie de la porter sur ton sac ?</b>
+      <p>Accroche ta création sur une chaîne de sac en double byzantine.</p>
+      <button class="btn-second" type="button" id="btVersChaine">Ajouter une chaîne de sac</button>
+    </div>
 
     <section class="etape" aria-labelledby="t5" id="etapeCommande" hidden>
       <h2 id="t5"><span class="num">5</span>Ta personnalisation</h2>
@@ -415,7 +420,7 @@ label.champ input:focus, label.champ textarea:focus { border-color: var(--prune)
    URL : configurateur-3d.html   (?parcours=bundle  ou  ?modele=arete)
    ------------------------------------------------------------------ */
 import {
-  ScenePerles, modeleChaineSacDemo, estChaineSac, alternativesConfig, refParNom, baseRef, definirLiensFixes, apparenceFixes, lignesCommande, estExemple, catalogueDepuisMateriaux, CATALOGUE_DEMO, FERMOIRS_DEMO, modeleDemo, modeleAreteDemo, modeleLettresDemo,
+  ScenePerles, composerChaine, modeleChaineSacDemo, estChaineSac, alternativesConfig, refParNom, baseRef, definirLiensFixes, apparenceFixes, lignesCommande, estExemple, catalogueDepuisMateriaux, CATALOGUE_DEMO, FERMOIRS_DEMO, modeleDemo, modeleAreteDemo, modeleLettresDemo,
   couleursProposees, validerConfiguration, couleursEpuisees, listerModelesPublies, chargerCatalogueBoutique, chargerFermoirsBoutique,
   chargerPartiesConfigurateur, chargerPrixBijou, affinerCouleursDepuisPhotos, resoudreDefauts, envoyerDemande,
   composerBundle, lignesCommandeBundle, accrochesProposees, construireLettres, verifierTexte, estLettres, offreApplicable,
@@ -424,7 +429,7 @@ import {
   correspondCategorie, texteCatalogue, ordreModeles, chargerRuptures, appliquerRuptures,
   chargerLiens, appliquerLiens, relierModele, chargerMateriauxParRefs,
   chargerFichesConfig, definirFichesConfig, ficheCfg, refsCouleurFiche, famillesFiche,
-} from './bead-core.js?v=3b913e55';
+} from './bead-core.js?v=47cd6f64';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER, PANIER_SHOPIFY } from './perles-config.js?v=e5e86015';
 
 const $ = s => document.querySelector(s);
@@ -622,8 +627,13 @@ scene.definirFermoirs(fermoirs);
 scene.controls.addEventListener('start', () => scene.controls.autoRotate = false);
 window.__bnStudio = { scene, total: 0, titre: '', detail: [] };   // studio réseaux (app de gestion)
 const enBundle = () => etat.parcours === 'bundle';
+const multi = () => etat.parcours === 'bundle' || etat.parcours === 'chaine';   // plusieurs pièces (bundle, chaîne + breloques)
 function rendre3D({ cadrer = false } = {}) {
-  if (!enBundle()) {
+  if (etat.parcours === 'chaine') {                   // la chaîne (pièce 1) + les breloques accrochées près du premier mousqueton
+    const [ch, ...brs] = etat.breloques, ent = b => ({ modele: modelePour(b), couleurs: b.couleurs, options: optionsEffectives(b) });
+    const comp = composerChaine({ chaine: ent(ch), breloques: brs.map(ent), fermoirs, catalogue });
+    scene.definirModele(comp.modele); scene.definirCouleurs(comp.couleurs); scene.definirOptions(comp.options);
+  } else if (!enBundle()) {
     const b = brel();
     scene.definirModele(modelePour(b)); scene.definirCouleurs(b.couleurs); scene.definirOptions(optionsEffectives(b));
   } else {
@@ -636,7 +646,7 @@ function rendre3D({ cadrer = false } = {}) {
   }
   if (cadrer) { scene.deFace(); scene.cadrer(); }     // nouveau modèle : la rotation repart de face
 }
-const zoneScene = z => enBundle() ? 'b' + etat.actif + ':' + z : z;
+const zoneScene = z => multi() ? 'b' + etat.actif + ':' + z : z;
 function montrerZones(ids) {
   const cles = ids.map(zoneScene);
   const idx = scene.plates.map((p, i) => cles.includes(p.b.z) && !p.b.k ? i : -1).filter(i => i >= 0);
@@ -698,7 +708,13 @@ function resumeBreloque(b) {
 }
 
 /* ---------- parcours ---------- */
-function choisirParcours(p) {
+function choisirParcours(p, garder = false) {
+  if (p === 'chaine') {                                 // pièce 1 = la chaîne ; garder : les breloques du parcours précédent s'y accrochent
+    const brs = garder ? etat.breloques.filter(b => !estChaineSac(modeleDe(b.slug))) : [];
+    etat.parcours = p; etat.breloques = [breloqueOuverture(modelesDu('chaine')[0].slug), ...brs]; etat.actif = 0; etat.accroche = null;
+    rendre3D({ cadrer: true }); toutRendre(); $('#page').scrollIntoView({ behavior: 'smooth', block: 'start' }); return;
+  }
+  if (etat.parcours === 'chaine') { etat.breloques = etat.breloques.slice(1); if (!etat.breloques.length) etat.breloques = [breloqueOuverture(modelesDu(p)[0].slug)]; etat.actif = 0; }
   etat.parcours = p;
   // la breloque en cours doit être proposée dans ce parcours, sinon on part du premier modèle proposé
   if (!modelesDu(p).some(m => m.slug === brel().slug)) { etat.breloques = [breloqueOuverture(modelesDu(p)[0].slug)]; etat.actif = 0; }
@@ -711,6 +727,7 @@ function choisirParcours(p) {
 document.querySelectorAll('[data-parcours]').forEach(b => b.addEventListener('click', () => choisirParcours(b.dataset.parcours)));
 $('#btParcours').addEventListener('click', () => { etat.parcours = null; etat.breloques = [brel()]; etat.actif = 0; etat.accroche = null; rendre3D({ cadrer: true }); toutRendre(); });
 $('#btVersBundle').addEventListener('click', () => choisirParcours('bundle'));
+$('#btVersChaine').addEventListener('click', () => choisirParcours('chaine', true));
 $('#btAltBundle').addEventListener('click', () => enregistrerAlternative(true));
 
 function rendreCadre() {
@@ -724,16 +741,19 @@ function rendreCadre() {
     : p === 'breloque' || p === 'chaine' ? 'Choisis ton modèle et tes couleurs, ton bijou se met à jour en direct.'
     : 'Choisis comment commencer, tout se met à jour en direct.';
   $('#arianeTexte').textContent = p === 'bundle' ? '2. Bundle' : p === 'chaine' ? '3. Chaîne de sac' : '1. Breloque seule';
-  $('#etapeAccroche').hidden = $('#etapeBreloques').hidden = p !== 'bundle' || !accroches;
-  $('#etapeModele').hidden = !p || p === 'bundle' || modelesDu(p).length < 2;   // bundle : on choisit le modèle avec « + ajouter »
+  $('#etapeAccroche').hidden = p !== 'bundle' || !accroches;
+  $('#etapeBreloques').hidden = !(p === 'chaine' || (p === 'bundle' && accroches));
+  $('#tB').lastChild.textContent = p === 'chaine' ? 'Ta chaîne et tes breloques' : 'Tes breloques';
+  $('#etapeModele').hidden = !p || p === 'bundle' || (p === 'chaine' && etat.actif > 0) || modelesDu(p).length < 2;   // bundle : on choisit le modèle avec « + ajouter »
   // bundle : 1 porte-clés · 2 modèle de la breloque choisie (cartes, une seule fois) · 3 tes breloques · puis couleurs et finitions
   const em = $('#etapeModele');
   if (p === 'bundle') { if (em.nextElementSibling !== $('#etapeBreloques')) $('#etapeBreloques').before(em); }
   else if (em.previousElementSibling !== $('#edition')) $('#edition').after(em);
   $('#t1').lastChild.textContent = p === 'bundle' ? `Modèle de la breloque ${etat.actif + 1}` : 'Ton modèle';
-  $('#edition').hidden = p !== 'bundle';
-  if (p === 'bundle') $('#edition').innerHTML = `Personnalise la breloque ${etat.actif + 1} · ${esc(nomCourt(modeleActif()))}`;
+  $('#edition').hidden = !multi();
+  if (multi()) $('#edition').innerHTML = p === 'chaine' && etat.actif === 0 ? `Personnalise ta chaîne · ${esc(nomCourt(modeleActif()))}` : `Personnalise la breloque ${etat.actif + (p === 'chaine' ? 0 : 1)} · ${esc(nomCourt(modeleActif()))}`;
   $('#suite').hidden = p !== 'breloque' || !accroches;
+  $('#suiteChaine').hidden = !(CHAINE_ACTIVE && modelesDu('chaine').length && (p === 'breloque' || p === 'bundle'));
   if (offre) $('#suiteTexte').textContent = `Garde cette breloque et ajoutes-en d'autres sur un porte-clés. Offre : le ${nomFermoir(offre.piece).toLowerCase()} est offert dès ${offre.min} breloques à ${euros(offre.prixMin)}.`;
   $('#etapeCommande').hidden = !p;
 }
@@ -766,19 +786,21 @@ function rendreAccroches() {
   }));
 }
 function rendreListeBreloques() {
-  if (!enBundle()) return;
-  $('#btAltBundle').hidden = !sbAdmin;
-  const n = etat.breloques.length, max = maxBreloques();
+  if (!multi()) return;
+  const ch = etat.parcours === 'chaine';
+  $('#btAltBundle').hidden = !sbAdmin || ch;
+  const n = etat.breloques.length, max = ch ? Infinity : maxBreloques();
   $('#listeBreloques').innerHTML = etat.breloques.map((b, i) => { const m = modeleDe(b.slug); return `
     <div class="carte-breloque" role="button" tabindex="0" data-i="${i}" aria-pressed="${i === etat.actif}">
       <span style="--trait:#3c114b">${ICONES[typeIcone(m)]}</span>
       <span><b>${i + 1} · ${esc(nomCourt(m))} · ${euros(prixDe(b))}</b><span>${esc(resumeBreloque(b))}</span></span>
-      ${n > 1 ? `<button class="x" type="button" data-suppr="${i}" aria-label="Retirer la breloque ${i + 1}">×</button>` : '<span></span>'}
+      ${n > 1 && !(ch && i === 0) ? `<button class="x" type="button" data-suppr="${i}" aria-label="Retirer la breloque ${i + 1}">×</button>` : '<span></span>'}
     </div>`; }).join('');
   // ajouter une breloque : mêmes cartes que le choix du modèle d'une breloque seule
   $('#ajouts').className = 'ajouts';
-  $('#ajouts').innerHTML = n < max ? modelesDu('bundle').map(m => `<button class="ajout" type="button" data-ajout="${esc(m.slug)}">+ ${esc(nomCourt(m))} <span class="px">${prixModeleTxt(m)}</span></button>`).join('') : '';
-  $('#noteBundle').textContent = n >= max ? `Ton porte-clés est complet (${max} breloques).`
+  $('#ajouts').innerHTML = n < max ? modelesDu(ch ? 'breloque' : 'bundle').map(m => `<button class="ajout" type="button" data-ajout="${esc(m.slug)}">+ ${esc(nomCourt(m))} <span class="px">${prixModeleTxt(m)}</span></button>`).join('') : '';
+  $('#noteBundle').textContent = ch ? 'Ajoute des breloques : elles s\'accrochent près du premier mousqueton. Touche une pièce pour la personnaliser.'
+    : n >= max ? `Ton porte-clés est complet (${max} breloques).`
     : (max === Infinity ? 'Ajoute autant de breloques que tu veux. ' : `Jusqu'à ${max} breloques. `) + 'Touche une breloque pour la personnaliser.';
   $('#listeBreloques').querySelectorAll('[data-i]').forEach(el => {
     const choisir = () => { etat.actif = +el.dataset.i; toutRendre(); $('#edition').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
@@ -1177,7 +1199,7 @@ function rendreRecap() {
   if (acc) lignes.push([acc.libelle, acc.pieces.map(nomFermoir).filter(Boolean).join(' + ') + (offreActive(acc) ? ' · rond offert' : '')]);
   etat.breloques.forEach((b, i) => {
     const m = modeleDe(b.slug);
-    lignes.push([(enBundle() ? (i + 1) + ' · ' : '') + nomCourt(m), resumeBreloque(b)]);
+    lignes.push([(multi() ? (i + 1) + ' · ' : '') + nomCourt(m), resumeBreloque(b)]);
   });
   $('#recap').innerHTML = `
     <ul>${lignes.map(([a, b]) => `<li><span>${esc(a)}</span><span>${esc(b)}</span></li>`).join('')}</ul>
@@ -1423,6 +1445,7 @@ etat.breloques[0] = breloqueOuverture(etat.breloques[0].slug);   // ouverture su
 // démarrage : accueil, ou parcours direct (?parcours=bundle / ?parcours=breloque / ?modele=…)
 const depart = params.get('parcours') || (params.get('modele') ? (estChaineSac(modeleDe(params.get('modele'))) ? 'chaine' : 'breloque') : null);
 if (depart === 'bundle' || depart === 'breloque' || (depart === 'chaine' && CHAINE_ACTIVE)) etat.parcours = depart;
+if (etat.parcours === 'chaine' && !estChaineSac(modeleDe(brel().slug))) { etat.breloques = [breloqueOuverture(modelesDu('chaine')[0].slug)]; etat.actif = 0; }
 if (etat.parcours === 'bundle' && !etat.accroche) etat.accroche = (choixOffre() || accroches?.choix[0])?.id || null;
 rendre3D({ cadrer: true });
 window.__etape = 'terminé';
