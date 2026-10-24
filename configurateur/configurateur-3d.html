@@ -223,7 +223,7 @@ label.champ input:focus, label.champ textarea:focus { border-color: var(--prune)
 .segment s { opacity: .7; }
 .segment .cadeau { font-weight: 600; }
 /* ---- accueil : deux parcours ---- */
-.parcours { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.parcours { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
 .carte-parcours { display: grid; gap: 8px; align-content: start; text-align: left; padding: 18px; border-radius: 22px; cursor: pointer;
   border: 1.5px solid var(--prune); background: var(--creme-clair); transition: transform .15s, background .15s; }
 .carte-parcours:hover { transform: translateY(-2px); background: #fff3b0; }
@@ -325,6 +325,10 @@ label.champ input:focus, label.champ textarea:focus { border-color: var(--prune)
         <span class="n">2.</span><b>Crée ton bundle</b>
         <span>Un porte-clés avec plusieurs breloques (poisson, arête, lettre, argile…), chacune personnalisée.</span>
       </button>
+      <button class="carte-parcours" type="button" data-parcours="chaine" hidden>
+        <span class="n">3.</span><b>Ta chaîne de sac</b>
+        <span>Une chaîne de sac en perles, aux couleurs de ton choix.</span>
+      </button>
     </section>
 
     <div class="reprise" id="reprise" hidden></div>
@@ -341,6 +345,7 @@ label.champ input:focus, label.champ textarea:focus { border-color: var(--prune)
       <div class="liste-breloques" id="listeBreloques"></div>
       <div class="ajouts" id="ajouts"></div>
       <p class="note-bundle" id="noteBundle"></p>
+      <button type="button" class="bt-alt" id="btAltBundle" hidden>＋ Enregistrer ce bundle comme nouvelle idée</button>
     </section>
 
     <!-- Personnalisation d'une breloque (seule, ou celle choisie dans le bundle) -->
@@ -410,7 +415,7 @@ label.champ input:focus, label.champ textarea:focus { border-color: var(--prune)
    URL : configurateur-3d.html   (?parcours=bundle  ou  ?modele=arete)
    ------------------------------------------------------------------ */
 import {
-  ScenePerles, alternativesConfig, refParNom, baseRef, definirLiensFixes, apparenceFixes, lignesCommande, estExemple, catalogueDepuisMateriaux, CATALOGUE_DEMO, FERMOIRS_DEMO, modeleDemo, modeleAreteDemo, modeleLettresDemo,
+  ScenePerles, modeleChaineSacDemo, estChaineSac, alternativesConfig, refParNom, baseRef, definirLiensFixes, apparenceFixes, lignesCommande, estExemple, catalogueDepuisMateriaux, CATALOGUE_DEMO, FERMOIRS_DEMO, modeleDemo, modeleAreteDemo, modeleLettresDemo,
   couleursProposees, validerConfiguration, couleursEpuisees, listerModelesPublies, chargerCatalogueBoutique, chargerFermoirsBoutique,
   chargerPartiesConfigurateur, chargerPrixBijou, affinerCouleursDepuisPhotos, resoudreDefauts, envoyerDemande,
   composerBundle, lignesCommandeBundle, accrochesProposees, construireLettres, verifierTexte, estLettres, offreApplicable,
@@ -419,7 +424,7 @@ import {
   correspondCategorie, texteCatalogue, ordreModeles, chargerRuptures, appliquerRuptures,
   chargerLiens, appliquerLiens, relierModele, chargerMateriauxParRefs,
   chargerFichesConfig, definirFichesConfig, ficheCfg, refsCouleurFiche, famillesFiche,
-} from './bead-core.js?v=a6088530';
+} from './bead-core.js?v=3b913e55';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER, PANIER_SHOPIFY } from './perles-config.js?v=e5e86015';
 
 const $ = s => document.querySelector(s);
@@ -488,13 +493,19 @@ if (sb) {
 }
 definirLiensFixes(liens);
 if (!modeles.length) modeles = [modeleDemo(), modeleAreteDemo(), modeleLettresDemo(), modeleArgileDemo(), modeleChainmailDemo(), modelePerleCultureDemo()];
+// 3e parcours « Chaîne de sac » : allumé dans l'app (Conception 3D) ; modèle d'exemple tant que tu n'en as pas publié
+const CHAINE_ACTIVE = ruptures.includes('activer:chaine');
+if (CHAINE_ACTIVE && !modeles.some(estChaineSac)) modeles = [...modeles, modeleChaineSacDemo()];
 // ruptures de stock cochées dans l'app de gestion : éléments épuisés, breloques retirées
 const breloqueDispo = appliquerRuptures(ruptures, catalogue, fermoirs);
 definirFichesConfig(fichesCfg, catalogue.map(c => ({ ref: c.ref, categorie: c.categorie })));      // reconnaître la fiche bijou d'après les couleurs choisies
 if (modeles.some(breloqueDispo)) modeles = modeles.filter(breloqueDispo);
 // breloques proposées selon le parcours (app de gestion › Conception 3D) : « breloque:<slug> » / « bundle:<slug> » = masquée dans ce parcours
 const rupSet = new Set(ruptures);
-const modelesDu = p => { const l = modeles.filter(m => !rupSet.has((p === 'bundle' ? 'bundle:' : 'breloque:') + m.slug)); return l.length ? l : modeles; };
+const modelesDu = p => {
+  if (p === 'chaine') return modeles.filter(m => estChaineSac(m) && !rupSet.has('chaine:' + m.slug));
+  const tous = modeles.filter(m => !estChaineSac(m));                                   // les chaînes de sac ont leur propre parcours
+  const l = tous.filter(m => !rupSet.has((p === 'bundle' ? 'bundle:' : 'breloque:') + m.slug)); return l.length ? l : tous; };
 const aDesEtoiles = catalogue.some(c => texteCatalogue(c).includes('etoile'));
 modeles.sort(ordreModeles);                                    // le petit poisson en premier
 modeles = modeles.map(m0 => {
@@ -700,17 +711,19 @@ function choisirParcours(p) {
 document.querySelectorAll('[data-parcours]').forEach(b => b.addEventListener('click', () => choisirParcours(b.dataset.parcours)));
 $('#btParcours').addEventListener('click', () => { etat.parcours = null; etat.breloques = [brel()]; etat.actif = 0; etat.accroche = null; rendre3D({ cadrer: true }); toutRendre(); });
 $('#btVersBundle').addEventListener('click', () => choisirParcours('bundle'));
+$('#btAltBundle').addEventListener('click', () => enregistrerAlternative(true));
 
 function rendreCadre() {
   const p = etat.parcours;
   $('#accueil').hidden = !!p;
   document.querySelector('[data-parcours="bundle"]').hidden = !accroches;
+  document.querySelector('[data-parcours="chaine"]').hidden = !(CHAINE_ACTIVE && modelesDu('chaine').length);
   $('#ariane').hidden = !p;
-  $('#titre').textContent = p === 'bundle' ? 'Crée ton bundle' : p === 'breloque' ? 'Personnalise ta breloque' : 'Crée ta breloque';
+  $('#titre').textContent = p === 'bundle' ? 'Crée ton bundle' : p === 'breloque' ? 'Personnalise ta breloque' : p === 'chaine' ? 'Personnalise ta chaîne de sac' : 'Crée ta breloque';
   $('#sousTitre').textContent = p === 'bundle' ? 'Choisis ton porte-clés, ajoute tes breloques et personnalise chacune.'
-    : p === 'breloque' ? 'Choisis ton modèle et tes couleurs, ton bijou se met à jour en direct.'
+    : p === 'breloque' || p === 'chaine' ? 'Choisis ton modèle et tes couleurs, ton bijou se met à jour en direct.'
     : 'Choisis comment commencer, tout se met à jour en direct.';
-  $('#arianeTexte').textContent = p === 'bundle' ? '2. Bundle' : '1. Breloque seule';
+  $('#arianeTexte').textContent = p === 'bundle' ? '2. Bundle' : p === 'chaine' ? '3. Chaîne de sac' : '1. Breloque seule';
   $('#etapeAccroche').hidden = $('#etapeBreloques').hidden = p !== 'bundle' || !accroches;
   $('#etapeModele').hidden = !p || p === 'bundle' || modelesDu(p).length < 2;   // bundle : on choisit le modèle avec « + ajouter »
   // bundle : 1 porte-clés · 2 modèle de la breloque choisie (cartes, une seule fois) · 3 tes breloques · puis couleurs et finitions
@@ -754,6 +767,7 @@ function rendreAccroches() {
 }
 function rendreListeBreloques() {
   if (!enBundle()) return;
+  $('#btAltBundle').hidden = !sbAdmin;
   const n = etat.breloques.length, max = maxBreloques();
   $('#listeBreloques').innerHTML = etat.breloques.map((b, i) => { const m = modeleDe(b.slug); return `
     <div class="carte-breloque" role="button" tabindex="0" data-i="${i}" aria-pressed="${i === etat.actif}">
@@ -935,7 +949,18 @@ function ideesBundle() {
       for (let k = 0; k < Math.max(1, +pc.qty || 1); k++) brs.push({ ...idee.breloque, couleurs: { ...idee.breloque.couleurs } });
     }
     return brs.length && brs.length <= maxBreloques() ? { fiche: f, accroche: acc.id, breloques: brs, nom: f.nom || f.variante || f.ref, prix: f.pv } : null;   // le nom du lot seul, sans sa variante
-  }).filter(x => x && ideeVisible(x.fiche));
+  }).filter(x => x && ideeVisible(x.fiche)).concat(bundlesAlternatifs());
+}
+// ⭐ bundles alternatifs (enregistrés depuis le configurateur, sans fiche bijou à part)
+function bundlesAlternatifs() {
+  if (!accroches) return [];
+  return alternativesConfig().filter(a => a?.type === 'bundle' && Array.isArray(a.breloques) && ideeVisible({ id: 'alt:' + a.id })).map(a => {
+    const acc = accroches.choix.find(c => c.id === a.accroche) || accroches.choix[0];
+    const brs = a.breloques.filter(b => modeles.some(m => m.slug === b.slug)).map(b => ({ ...nouvelleBreloque(b.slug), ...b, couleurs: { ...nouvelleBreloque(b.slug).couleurs, ...(b.couleurs || {}) }, options: { ...nouvelleBreloque(b.slug).options, ...(b.options || {}) } }));
+    if (!brs.length || brs.length > maxBreloques()) return null;
+    const prix = Math.round((brs.reduce((s, b) => s + (+prixDe(b) || 0), 0) + (+acc?.supplement || 0)) * 100) / 100;
+    return { fiche: { id: 'alt:' + a.id, ref: '', nom: a.nom }, accroche: acc?.id, breloques: brs, nom: a.nom, prix, alternative: a };
+  }).filter(Boolean);
 }
 // vignette 3D d'une idée (rendue hors écran puis la vue reprend sa place)
 const VIGNETTES = new Map();
@@ -991,21 +1016,23 @@ function rendreIdeesInline(liste) {
   el.innerHTML = `<h3><span class="ic-etoile">${ETOILE}</span>Idées · ${esc(nomCourt(m))} : nos modèles</h3><div class="idees-g">${liste.map((x, i) =>
     carteIdee(imgs[i], x.nom, x.prix, `data-idee-b="${i}"`).replace('class="idee"', `class="idee${memeCouleurs(x.breloque.couleurs, actuelles) ? ' choisie' : ''}"`)).join('')}</div>`
     + (peutCreer ? `<button type="button" class="bt-alt" id="btAlt">＋ Enregistrer ces couleurs comme nouvelle idée</button>` : '');
-  $('#btAlt')?.addEventListener('click', enregistrerAlternative);
+  $('#btAlt')?.addEventListener('click', () => enregistrerAlternative(false));
   el.querySelectorAll('[data-idee-b]').forEach(b => b.addEventListener('click', () => {
     const x = liste[+b.dataset.ideeB]; etat.breloques[etat.actif] = { ...brel(), ...x.breloque, couleurs: { ...x.breloque.couleurs } };
     rendre3D(); toutRendre();
   }));
 }
 /* ⭐ Créer une alternative (dans l'app, Conception 3D › Configurateur) : les couleurs et finitions choisies deviennent une idée */
-async function enregistrerAlternative() {
+async function enregistrerAlternative(bundle = false) {
   const m = modeleActif(), b = brel();
-  const nom = prompt('Nom de cette idée (ex. Rose & violet) :'); if (!nom || !nom.trim()) return;
+  const nom = prompt(bundle ? 'Nom de ce bundle (ex. Mix\'n Match océan) :' : 'Nom de cette idée (ex. Rose & violet) :'); if (!nom || !nom.trim()) return;
   const lire = async cle => { const { data, error } = await sbAdmin.from('config').select('value').eq('key', cle).maybeSingle(); if (error) throw error;
     let v = data?.value; if (typeof v === 'string') { try { v = JSON.parse(v); } catch { v = null; } } return v; };
   try {
     let l = await lire('configurateur_alternatives'); if (!Array.isArray(l)) l = [];
-    l.push({ id: Date.now().toString(36), nom: nom.trim(), modele: m.slug, couleurs: { ...b.couleurs }, options: { ...optionsEffectives(b) } });
+    l.push(bundle
+      ? { id: Date.now().toString(36), nom: nom.trim(), type: 'bundle', accroche: etat.accroche, breloques: etat.breloques.map(x => ({ slug: x.slug, couleurs: { ...x.couleurs }, options: { ...optionsEffectives(x) }, ...(x.texte ? { texte: x.texte, texteValide: x.texteValide } : {}) })) }
+      : { id: Date.now().toString(36), nom: nom.trim(), modele: m.slug, couleurs: { ...b.couleurs }, options: { ...optionsEffectives(b) } });
     let e = await sbAdmin.from('config').upsert({ key: 'configurateur_alternatives', value: l }); if (e.error) throw e.error;
     const f = await lire('configurateur_fiches');
     e = await sbAdmin.from('config').upsert({ key: 'configurateur_fiches', value: { ...(f || {}), alternatives: l } }); if (e.error) throw e.error;
@@ -1389,13 +1416,13 @@ etat.breloques[0] = breloqueOuverture(etat.breloques[0].slug);   // ouverture su
 // lien direct vers une idée : ?idee=<id de fiche ou alt:id> (breloque) · ?lot=<id de fiche> (porte-clés tout prêt)
 { const q = new URLSearchParams(location.search), id = q.get('idee'), lot = q.get('lot');
   if (id) for (const m of modeles) { const i = ideesPour(m).find(x => x.fiche.id === id || x.fiche.id === 'alt:' + id);
-    if (i) { etat.breloques = [{ ...nouvelleBreloque(m.slug), ...i.breloque, couleurs: { ...i.breloque.couleurs } }]; etat.actif = 0; if (!params.get('parcours')) params.set('parcours', 'breloque'); break; } }
-  if (lot) { etat.parcours = 'bundle'; const x = ideesBundle().find(y => y.fiche.id === lot);
+    if (i) { etat.breloques = [{ ...nouvelleBreloque(m.slug), ...i.breloque, couleurs: { ...i.breloque.couleurs } }]; etat.actif = 0; if (!params.get('parcours')) params.set('parcours', estChaineSac(m) ? 'chaine' : 'breloque'); break; } }
+  if (lot) { etat.parcours = 'bundle'; const x = ideesBundle().find(y => y.fiche.id === lot || y.fiche.id === 'alt:' + lot);
     if (x) { etat.accroche = x.accroche; etat.breloques = x.breloques.map(br => ({ ...br, couleurs: { ...br.couleurs } })); etat.actif = 0; params.set('parcours', 'bundle'); } }
 }
 // démarrage : accueil, ou parcours direct (?parcours=bundle / ?parcours=breloque / ?modele=…)
-const depart = params.get('parcours') || (params.get('modele') ? 'breloque' : null);
-if (depart === 'bundle' || depart === 'breloque') etat.parcours = depart;
+const depart = params.get('parcours') || (params.get('modele') ? (estChaineSac(modeleDe(params.get('modele'))) ? 'chaine' : 'breloque') : null);
+if (depart === 'bundle' || depart === 'breloque' || (depart === 'chaine' && CHAINE_ACTIVE)) etat.parcours = depart;
 if (etat.parcours === 'bundle' && !etat.accroche) etat.accroche = (choixOffre() || accroches?.choix[0])?.id || null;
 rendre3D({ cadrer: true });
 window.__etape = 'terminé';

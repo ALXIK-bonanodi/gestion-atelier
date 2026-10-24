@@ -1581,7 +1581,7 @@ function matMetal(metal) {
    se rejoignent en V au départ des tiges puis traversent chaque tige jusqu'à la pointe. */
 export function cheminsFil(g) {
   const P = b => new THREE.Vector3().fromArray(b.p);
-  if (g.technique === 'lettres' || g.technique === 'pampille') return [[new THREE.Vector3(0, 0, 0.3), new THREE.Vector3(0, 0, g.finFil || 0)]];
+  if (g.technique === 'lettres' || g.technique === 'pampille' || g.technique === 'chaine') return [[new THREE.Vector3(0, 0, 0.3), new THREE.Vector3(0, 0, g.finFil || 0)]];
   const flancs = g.perles.filter(b => b.l === 'gauche' || b.l === 'droite');
   if (!flancs.length) return [];
   const rMax = Math.max(...flancs.map(b => b.r));
@@ -1961,6 +1961,34 @@ export function modelePerleCultureDemo() {
     ],
   };
 }
+/* Chaîne de sac (exemple) : un rang de perles enfilées, motif 3 perles couleur A + 1 perle couleur B + intercalaire métal,
+   mousqueton à chaque bout. type: 'chaine' = proposée dans le parcours « 3. Chaîne de sac ». */
+export function modeleChaineSacDemo() {
+  const R6 = typePerle('rocaille-6'), M = typePerle('ronde-4'), q = quatDe(new THREE.Vector3(0, 0, 1));
+  const perles = []; let z = 1.2, c = 0;
+  const poser = (t, extra) => { const T = typePerle(t); perles.push({ t, p: [0, 0, +(z + T.H / 2).toFixed(3)], q, r: 0, c: c++, n: 0, l: 'chaine', s: null, a: null, ...extra }); z += T.H + 0.15; };
+  for (let i = 0; i < 12; i++) {
+    poser('ronde-4', { z: null, k: '#PM-ex01', kNom: 'ronde argentée 4 mm', partie: 'Intercalaire' });
+    for (let j = 0; j < 3; j++) poser('rocaille-6', { z: 'principale' });
+    poser('rocaille-6', { z: 'accent' });
+  }
+  poser('ronde-4', { z: null, k: '#PM-ex01', kNom: 'ronde argentée 4 mm', partie: 'Intercalaire' });
+  void R6; void M;
+  return {
+    version: 1, nom: 'Chaîne de sac', slug: 'chaine-sac', type: 'chaine', unite: 'mm', prix: 25, bij_ref: '', bijNom: 'cha[iî]ne.*sac',
+    zones: [
+      { id: 'principale', nom: 'Perles principales', defaut: '#PR-ex27', defautNom: 'argent 1', repere: '#c9ccd2', categorie: 'rocaille' },
+      { id: 'accent', nom: 'Perles d\'accent', defaut: '#PR-ex05', defautNom: 'orange 1', repere: '#ff6a00', categorie: 'rocaille' },
+    ],
+    options: [
+      { id: 'fermoir', type: 'fermoir', nom: 'Mousquetons', defaut: '#MP-ex01', choix: [{ ref: '#MP-ex01', libelle: 'Mousquetons argent', supplement: 0 }] },
+    ],
+    groupes: [{ id: 'g-chaine', nom: 'Chaîne', technique: 'chaine', pos: [0, 0, 0], rot: [0, 0, 0],
+      accessoires: [{ ref: '#MP-ex01', type: 'mousqueton-pivot', metal: 'argent', taille: 34, pos: [0, 0, 0], rot: [0, 0, 0] }],
+      fil: { actif: true, metal: 'argent' }, comblement: false, boucles: [[0, 0, 0.05], [0, 0, +(z + 0.3).toFixed(3)]], finFil: +(z + 0.2).toFixed(3), perles }],
+  };
+}
+export const estChaineSac = m => m?.type === 'chaine' || !!m?.groupes?.some(g => g.technique === 'chaine');
 export const estPerleCulture = m => !!m?.groupes?.some(g => g.technique === 'pampille');
 
 /* Anciens exemples encore enregistrés dans le navigateur ? */

@@ -4050,7 +4050,8 @@ async function renderModelesProposes(){
   const el=document.getElementById('c3-proposes'); if(!el) return;
   try{ const {data,error}=await SB.from('modeles_3d').select('slug,nom,publie').order('nom'); if(error) throw error; MODELES_3D=data||[];
     const r=await SB.from('config').select('value').eq('key','configurateur_ruptures').maybeSingle(); let v=r.data?.value;
-    if(typeof v==='string'){ try{ v=JSON.parse(v); }catch(e){ v=[]; } } RUPTURES_3D=Array.isArray(v)?v.map(String):[]; }
+    if(typeof v==='string'){ try{ v=JSON.parse(v); }catch(e){ v=[]; } } RUPTURES_3D=Array.isArray(v)?v.map(String):[];
+    { const a=await SB.from('config').select('value').eq('key','configurateur_alternatives').maybeSingle(); let w=a.data?.value; if(typeof w==='string'){ try{ w=JSON.parse(w); }catch(e){ w=null; } } if(Array.isArray(w)) ALTERNATIVES=w; } }
   catch(e){ el.innerHTML=`<span class="dim">Modèles : ${escA(e.message)}</span>`; return; }
   if(!MODELES_3D.length){ el.innerHTML='<span class="dim">Aucun modèle 3D enregistré pour l\'instant (onglet 🧊 Modèles).</span>'+renderIdeesProposees(); return; }
   const vu=(m,p)=>m.publie&&!RUPTURES_3D.includes(p+':'+m.slug);
@@ -4058,14 +4059,21 @@ async function renderModelesProposes(){
   const nb=p=>MODELES_3D.filter(m=>vu(m,p)).length, ouvert=el.dataset.ouvert==='1';
   el.innerHTML=`<details class="c3p-det" ${ouvert?'open':''} ontoggle="this.parentNode.dataset.ouvert=this.open?'1':''"><summary><b>Breloques proposées</b> <span class="dim">· breloque seule ${nb('breloque')}/${MODELES_3D.length} · bundle ${nb('bundle')}/${MODELES_3D.length}</span> <span class="c3p-gerer">Gérer ▾</span></summary>
     <div class="c3p-tab">${MODELES_3D.map(m=>`<div class="c3p-l"><span class="c3p-nom">${escA(m.nom||m.slug)}</span>${bouton(m,'breloque')}${bouton(m,'bundle')}</div>`).join('')}</div></details>
-    ${renderIdeesProposees()}`;
+    ${renderIdeesProposees()}
+    <div class="c3p-l" style="margin-top:8px"><span class="c3p-nom">3e parcours · Chaîne de sac</span><button type="button" class="c3p ${RUPTURES_3D.includes('activer:chaine')?'on':''}" onclick="basculerChaine()">${RUPTURES_3D.includes('activer:chaine')?'👁 affiché':'🚫 masqué'}</button>
+      <span class="dim" style="font-size:11px">Crée tes modèles dans 🧊 Modèles (champ « Parcours : Chaîne de sac » ou « Exemple chaîne de sac ») et relie-les à leur fiche bijou.</span></div>`;
+}
+async function basculerChaine(){
+  const k='activer:chaine', rup=RUPTURES_3D.includes(k)?RUPTURES_3D.filter(x=>x!==k):[...RUPTURES_3D,k];
+  await sbUpsertConfig('configurateur_ruptures', rup); RUPTURES_3D=rup;
+  toast('Chaîne de sac : '+(rup.includes(k)?'affichée dans le configurateur':'masquée'),'ok'); renderModelesProposes();
 }
 // 💡 Idées du configurateur : variantes de couleurs d'une fiche + lots (porte-clés…) → afficher / masquer
 function candidatesIdees(){
   const estLot=b=>(LOTS[b.id]||[]).length||getMatsEffectifs(b).some(m=>!getMat(m.ref)&&BIJS.some(x=>x.ref===m.ref));
   const fam=[], lots=[];
-  BIJS.filter(b=>!b.is_mat&&!b.parent_id).forEach(b=>{
-    const vars=BIJS.filter(x=>x.parent_id===b.id&&!x.is_mat);
+  BIJS.filter(b=>!b.parent_id).forEach(b=>{                      // fiches bijoux ET compositions (petit poisson, arête…)
+    const vars=BIJS.filter(x=>x.parent_id===b.id);
     if(estLot(b)) lots.push(b); else if(vars.length) fam.push({base:b, vars});
   });
   return {fam, lots};
@@ -4080,11 +4088,12 @@ function renderIdeesProposees(){
     <div class="c3p-tab">${fam.map(f=>`<div class="c3p-l"><span class="c3p-nom">${escA(f.base.nom||f.base.ref)}</span>${[f.base,...f.vars].map(bt).join('')}</div>`).join('')}
     ${lots.length?`<div class="c3p-l"><span class="c3p-nom">🎁 Bundles / lots</span>${lots.map(bt).join('')}</div>`:''}
     <div class="c3p-l" style="align-items:flex-start"><span class="c3p-nom">⭐ Alternatives</span><span style="display:grid;gap:4px">${ALTERNATIVES.map(a=>{ const k='idee:alt:'+a.id, on=!RUPTURES_3D.includes(k);
-      return `<span style="display:flex;gap:4px;align-items:center;flex-wrap:wrap"><button type="button" class="c3p ${on?'on':''}" onclick="basculerIdee('alt:${escA(a.id)}')">${on?'👁':'🚫'} ${escA(a.nom)}</button><span class="dim" style="font-size:11px">${escA((MODELES_3D.find(m=>m.slug===a.modele)?.nom)||a.modele)}</span>
-        <button class="btn btn-xs btn-ghost" title="Renommer" onclick="renommerAlternative('${escA(a.id)}')">✎</button><button class="btn btn-xs btn-ghost" title="Copier le lien direct (bouton « Personnaliser » d'une fiche Wix…)" onclick="copierLienIdee('alt:${escA(a.id)}')">🔗</button><button class="btn btn-xs btn-red" title="Supprimer" onclick="supprimerAlternative('${escA(a.id)}')">✕</button></span>`; }).join('')||'<span class="dim" style="font-size:12px">aucune</span>'}
-      <span class="dim" style="font-size:11px">Pour en créer une : onglet Configurateur, choisis le modèle, ses couleurs et finitions, puis « ＋ Enregistrer ces couleurs comme nouvelle idée ».</span></span></div>
+      return `<span style="display:flex;gap:4px;align-items:center;flex-wrap:wrap"><button type="button" class="c3p ${on?'on':''}" onclick="basculerIdee('alt:${escA(a.id)}')">${on?'👁':'🚫'} ${escA(a.nom)}</button><span class="dim" style="font-size:11px">${a.type==='bundle'?'🎁 bundle · '+(a.breloques||[]).length+' breloque(s)':escA((MODELES_3D.find(m=>m.slug===a.modele)?.nom)||a.modele)}</span>
+        <button class="btn btn-xs btn-ghost" title="Renommer" onclick="renommerAlternative('${escA(a.id)}')">✎</button><button class="btn btn-xs btn-ghost" title="Copier le lien direct (bouton « Personnaliser » d'une fiche Wix…)" onclick="copierLienIdee('alt:${escA(a.id)}'${a.type==='bundle'?',1':''})">🔗</button><button class="btn btn-xs btn-red" title="Supprimer" onclick="supprimerAlternative('${escA(a.id)}')">✕</button></span>`; }).join('')||'<span class="dim" style="font-size:12px">aucune</span>'}
+      <span class="dim" style="font-size:11px">Pour en créer une : onglet Configurateur, choisis le modèle, ses couleurs et finitions, puis « ＋ Enregistrer ces couleurs comme nouvelle idée » (ou, dans « Crée ton bundle », « ＋ Enregistrer ce bundle comme nouvelle idée »). <a href="#" onclick="event.preventDefault();rechargerAlternatives()">↻ actualiser</a></span></span></div>
     <div class="dim" style="font-size:11px;margin-top:4px">🚫 = l'idée n'apparaît plus dans la boîte 💡 du configurateur (la fiche reste reconnue si la cliente choisit ces couleurs).</div></div></details>`;
 }
+async function rechargerAlternatives(){ const {data}=await SB.from('config').select('value').eq('key','configurateur_alternatives').maybeSingle(); let v=data?.value; if(typeof v==='string'){ try{v=JSON.parse(v);}catch(e){v=null;} } if(Array.isArray(v)) ALTERNATIVES=v; renderModelesProposes(); }
 async function renommerAlternative(id){ const a=ALTERNATIVES.find(x=>x.id===id); if(!a) return; const n=prompt('Nom de l\'idée',a.nom); if(!n||!n.trim()) return; a.nom=n.trim(); await sauverAlternatives(); renderModelesProposes(); }
 async function supprimerAlternative(id){ const a=ALTERNATIVES.find(x=>x.id===id); if(!a||!confirm(`Supprimer l'idée « ${a.nom} » ?`)) return; ALTERNATIVES=ALTERNATIVES.filter(x=>x.id!==id); await sauverAlternatives(); renderModelesProposes(); }
 function copierLienIdee(id,lot){ const u=location.origin+location.pathname.replace(/[^/]*$/,'')+'configurateur/configurateur-3d.html?'+(lot?'lot=':'idee=')+encodeURIComponent(id);
@@ -4520,7 +4529,7 @@ function openBijModal(editId=null) {
     const noSellEl=document.getElementById('bij-no-sell');
     const noSellRow=document.getElementById('no-sell-toggle');
     if(noSellEl){noSellEl.checked=b.no_sell||false; if(noSellRow) noSellRow.className='toggle-row '+(b.no_sell?'on':'off');}
-    document.getElementById('bij-mats-list').innerHTML='';
+    document.getElementById('bij-mats-list').innerHTML=''; listeRefsBij();
     // variante : on montre sa composition complète (modèle + couleurs changées) ; à l'enregistrement,
     // seules les différences de couleur sont gardées et les quantités suivent le modèle
     const parent=b.parent_id?getBij(b.parent_id):null;
@@ -4537,7 +4546,7 @@ function openBijModal(editId=null) {
     const nsEl=document.getElementById('bij-no-sell');
     const nsRow=document.getElementById('no-sell-toggle');
     if(nsEl){nsEl.checked=false; if(nsRow) nsRow.className='toggle-row off';}
-    document.getElementById('bij-mats-list').innerHTML='';
+    document.getElementById('bij-mats-list').innerHTML=''; listeRefsBij();
     addMatRow();
     bandeauVarianteBij(null);
   }
@@ -4553,12 +4562,14 @@ function buildSCOptions(selectedMC, selectedSC) {
   const selectedVal = selectedMC&&selectedSC ? selectedMC+'|||'+selectedSC : '';
   let opts = '';
   // Catégories fusionnées config + MATS (inclut celles sans matériaux)
-  // matériaux de création + consommables de production (fil métallique, colle…)
-  const mcMap = getCatsForType('creation');
-  Object.entries(getCatsForType('consommable')).forEach(([mc,scs])=>{
+  // toutes les familles (création, consommables, envois, outils, les tiennes) + catégories des références existantes
+  const mcMap = {};
+  famIds().forEach(t=>Object.entries(getCatsForType(t)).forEach(([mc,scs])=>{
     if(!mcMap[mc]) mcMap[mc]=[];
     scs.forEach(sc=>{ if(!mcMap[mc].includes(sc)) mcMap[mc].push(sc); });
-  });
+  }));
+  MATS.forEach(m=>{ if(!m.sc) return; const mc=m.mc||'Autre'; if(!mcMap[mc]) mcMap[mc]=[]; if(!mcMap[mc].includes(m.sc)) mcMap[mc].push(m.sc); });
+  if(selectedSC && selectedSC!=='Bijou (composition)' && !(mcMap[selectedMC||'Autre']||[]).includes(selectedSC)) (mcMap[selectedMC||'Autre'] ||= []).push(selectedSC);
   Object.entries(mcMap).forEach(([mc,scs])=>{
     if(!scs.length) return;
     opts+=`<optgroup label="◆ ${mc}">`;
@@ -4619,14 +4630,17 @@ function addMatRow(sc='',ref='',qty='',qty_unite='native') {
   let initMC = '', initSC = sc;
   if(!ref&&sc){ const m0=MATS.find(m=>m.sc===sc); if(m0) initMC=m0.mc; }
   if(ref) {
+    // la référence enregistrée décide de sa catégorie (matériau, ou composition = fiche bijou)
     const matFound = MATS.find(m=>m.ref===ref);
-    if(matFound) { initMC=matFound.mc; initSC=matFound.sc; }
+    if(matFound) { initMC=matFound.mc||'Autre'; initSC=matFound.sc; }
+    else if(BIJS.some(b=>b.ref===ref)) { initMC=''; initSC='Bijou (composition)'; }
   }
   const scOpts=buildSCOptions(initMC, initSC);
   const div=document.createElement('div');
   div.className='mat-row-item';
   div.style.cssText='margin-bottom:10px;padding:10px;background:var(--bg);border-radius:var(--rs);border:1px solid var(--border)';
   div.innerHTML=`
+    <input class="bij-ref-tape" list="dl-refs-bij" placeholder="Taper une référence ou un nom (#PR026, argent 1…)" onchange="choisirRefTapee(this)" style="width:100%;font-size:13px;padding:9px;margin-bottom:6px">
     <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:6px;margin-bottom:6px">
       <select class="bij-sc" onchange="filterBijRefs(this)" style="font-size:13px;padding:10px 8px">${scOpts}</select>
       <select class="bij-ref" onchange="onBijRefChange(this)" style="font-size:13px;padding:10px 8px"><option value="">-- Réf --</option></select>
@@ -4663,12 +4677,12 @@ function filterBijRefs(sel,preselectRef='') {
   const sc=parts[1]||'';
   let opts='<option value="">-- Réf --</option>';
   if(sc==='Bijou (composition)') {
-    BIJS.filter(b=>b.is_mat).forEach(b=>{
+    BIJS.filter(b=>b.is_mat||b.ref===preselectRef).forEach(b=>{
       opts+=`<option value="${b.ref}" ${b.ref===preselectRef?'selected':''}>${b.ref} · ${b.nom}${b.variante?' · '+b.variante:''}</option>`;
     });
   } else {
     // Filtrer par mc ET sc pour éviter les doublons inter-catégories
-    MATS.filter(m=>m.sc===sc&&(!mc||m.mc===mc)).forEach(m=>{
+    MATS.filter(m=>m.sc===sc&&(!mc||(m.mc||'Autre')===mc)).forEach(m=>{
       opts+=`<option value="${m.ref}" ${m.ref===preselectRef?'selected':''}>${libMatOption(m)}</option>`;
     });
   }
@@ -4684,6 +4698,24 @@ function filterBijRefs(sel,preselectRef='') {
   }
 }
 
+// Saisie directe d'une référence (ou d'un nom) : la catégorie et la liste se règlent toutes seules
+function listeRefsBij(){
+  let dl=document.getElementById('dl-refs-bij'); if(!dl){ dl=document.createElement('datalist'); dl.id='dl-refs-bij'; document.body.appendChild(dl); }
+  dl.innerHTML=MATS.map(m=>`<option value="${escA(m.ref)}">${escA(libMatOption(m))}</option>`).join('')+BIJS.filter(b=>b.is_mat).map(b=>`<option value="${escA(b.ref)}">💎 ${escA([b.nom,b.variante].filter(Boolean).join(' · '))}</option>`).join('');
+}
+function choisirRefTapee(inp){
+  const t=inp.value.trim(); if(!t) return;
+  const n=x=>String(x||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+  const m=MATS.find(x=>n(x.ref)===n(t)||n(x.ref)==='#'+n(t)) || MATS.find(x=>n([x.variante,x.designation].join(' ')).includes(n(t))||n(libMatOption(x))===n(t));
+  const b=!m&&(BIJS.find(x=>n(x.ref)===n(t))||BIJS.find(x=>x.is_mat&&n([x.nom,x.variante].join(' ')).includes(n(t))));
+  if(!m&&!b) return toast('Référence introuvable : '+t,'err');
+  const row=inp.closest('.mat-row-item'), sc=row.querySelector('.bij-sc');
+  const val=m?(m.mc||'Autre')+'|||'+m.sc:'|||Bijou (composition)';
+  if(![...sc.options].some(o=>o.value===val)) sc.insertAdjacentHTML('beforeend',`<option value="${escA(val)}">${escA(m?m.sc:'Bijou (composition)')}</option>`);
+  sc.value=val; filterBijRefs(sc,m?m.ref:b.ref);
+  const r=row.querySelector('.bij-ref'); r.value=m?m.ref:b.ref; onBijRefChange(r);
+  inp.value=''; inp.placeholder='✓ '+(m?libMatOption(m):b.ref+' · '+b.nom); majCoutLive();
+}
 function onBijRefChange(sel) {
   const row=sel.closest('.mat-row-item');
   delete row.dataset.uniteSauvee;                        // nouvelle réf. : unité par défaut (perles → pcs)
@@ -7186,6 +7218,8 @@ const ALTERNATIVES_DEPART=[{id:'rose-violet',nom:'Rose & violet',modele:'poisson
 let ALTERNATIVES=[];
 const sauverAlternatives=async()=>{ await sbUpsertConfig('configurateur_alternatives',ALTERNATIVES); await publierFichesConfigurateur(); };
 async function publierFichesConfigurateur(){
+  // alternatives : toujours la version enregistrée (elles peuvent avoir été créées depuis le configurateur)
+  try{ const a=await SB.from('config').select('value').eq('key','configurateur_alternatives').maybeSingle(); let w=a.data?.value; if(typeof w==='string'){ try{ w=JSON.parse(w); }catch(e){ w=null; } } if(Array.isArray(w)) ALTERNATIVES=w; }catch(e){}
   const fiches={};
   BIJS.forEach(b=>{ const mats=getMatsEffectifs(b), qte={}; mats.forEach(m=>{ if(getMat(m.ref)) qte[m.ref]=(qte[m.ref]||0)+(parseFloat(m.qty)||0); });
     const refs=Object.keys(qte).sort((x,y)=>qte[y]-qte[x]);   // la plus utilisée d'abord : couleur principale de la fiche pour le configurateur

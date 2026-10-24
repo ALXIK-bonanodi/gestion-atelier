@@ -404,6 +404,7 @@ details summary { cursor: pointer; font-weight: 700; font-size: 13.5px; }
             <h2>Prix<span class="aide">Le prix de base vient du bijou (colonne pv) si tu indiques sa référence ; sinon du prix saisi ici. Les options ajoutent leur supplément.</span></h2>
             <div class="ligne">
               <label>Réf. du bijou<input type="text" id="cBijRef" placeholder="ex. BIJ-SARDINE"></label>
+              <label>Parcours<select id="cType"><option value="">Breloque (1. breloque · 2. bundle)</option><option value="chaine">Chaîne de sac (3e parcours)</option></select></label>
               <label>Prix de base (€)<input type="number" id="cPrix" step="0.5" min="0"></label>
             </div>
           </section>
@@ -494,6 +495,7 @@ details summary { cursor: pointer; font-weight: 700; font-size: 13.5px; }
                 <button class="btn" id="btExempleArgile">Exemple breloque argile</button>
                 <button class="btn" id="btExempleCroix">Exemple breloque chainmail</button>
                 <button class="btn" id="btExempleCulture">Exemple perle de culture</button>
+                <button class="btn" id="btExempleChaine">Exemple chaîne de sac</button>
                 <button class="btn danger" id="btVide">Modèle vide</button>
               </div>
             </div>
@@ -517,8 +519,8 @@ import {
   genPoisson, lireRangsPoisson, ecrireRangsPoisson, zonerPoisson, METAUX, TYPES_ACCESSOIRES,
   couleursProposees, chargerCatalogueBoutique, affinerCouleursDepuisPhotos, resoudreDefauts, TAILLES_MOUSQUETON,
   FERMOIRS_DEMO, chargerFermoirsBoutique, prixConfiguration,
-  genArete, PATRON_TETE_ARETE, estAccroche, modeleAreteDemo, modeleLettresDemo, modeleArgileDemo, modeleChainmailDemo, modelePerleCultureDemo, chargerModeleBoutique, listerModelesBoutique, enregistrerModeleBoutique,
-} from './bead-core.js?v=a6088530';
+  genArete, PATRON_TETE_ARETE, estAccroche, modeleAreteDemo, modeleLettresDemo, modeleArgileDemo, modeleChainmailDemo, modelePerleCultureDemo, modeleChaineSacDemo, chargerModeleBoutique, listerModelesBoutique, enregistrerModeleBoutique,
+} from './bead-core.js?v=3b913e55';
 const raisonConnexion = e => /invalid login/i.test(e.message) ? 'e-mail ou mot de passe incorrect'
   : /not confirmed/i.test(e.message) ? 'adresse e-mail pas encore confirmée (Supabase › Authentication › Users)'
   : e.message;
@@ -1166,6 +1168,7 @@ $('#btExempleLettres').addEventListener('click', () => chargerModele(modeleLettr
 $('#btExempleArgile').addEventListener('click', () => chargerModele(modeleArgileDemo()));
 $('#btExempleCroix').addEventListener('click', () => chargerModele(modeleChainmailDemo()));
 $('#btExempleCulture').addEventListener('click', () => chargerModele(modelePerleCultureDemo()));
+$('#btExempleChaine').addEventListener('click', () => chargerModele(modeleChaineSacDemo()));
 armerSuppression($('#btVide'), () => chargerModele({ version: 1, nom: 'Nouveau modèle', unite: 'mm', zones: [], groupes: [] }));
 $('#nomModele').addEventListener('change', e => { modele.nom = e.target.value.trim() || 'Sans nom'; ecrire(CLE_MODELE, modele); });
 
@@ -1181,6 +1184,7 @@ function majPrixApercu() {
 }
 function afficherClient() {
   $('#cBijRef').value = modele.bij_ref || '';
+  $('#cType').value = modele.type === 'chaine' ? 'chaine' : '';
   $('#cPrix').value = modele.prix ?? '';
   $('#cZones').innerHTML = modele.zones.map(z => `
     <div class="zone-carte" data-z="${esc(z.id)}">
@@ -1265,6 +1269,7 @@ function afficherClient() {
   majPrixApercu();
 }
 $('#cBijRef').addEventListener('change', e => { modele.bij_ref = e.target.value.trim(); sauverClient(); });
+$('#cType').addEventListener('change', e => { if (e.target.value) modele.type = e.target.value; else delete modele.type; sauverClient(); });
 $('#cPrix').addEventListener('change', e => { modele.prix = e.target.value === '' ? undefined : +e.target.value; sauverClient(); });
 $('#cFermoirOn').addEventListener('change', e => {
   modele.options ||= [];
