@@ -47,15 +47,15 @@ button, input, textarea { font: inherit; color: inherit; }
 .scene::before { content: ""; position: absolute; inset: 12%; background: url('./logo-fond.png') center / contain no-repeat; opacity: .3; pointer-events: none; }
 #vue3d { position: absolute; inset: 0; }
 .scene-aide { position: absolute; left: 0; right: 0; bottom: 46px; text-align: center; font: 500 13px var(--f-titre); color: var(--prune-doux); pointer-events: none; }
-.bt-idees { position: absolute; top: 18%; right: 6%; z-index: 3; padding: 8px 14px; border-radius: 999px; border: 1.5px solid var(--prune); background: var(--creme-clair); color: var(--prune); font: 600 14px var(--f-titre); cursor: pointer; box-shadow: 0 4px 14px #3c114b22; }
+.bt-idees { position: absolute; top: 9%; left: 50%; transform: translateX(-50%); z-index: 3; padding: 8px 14px; border-radius: 999px; border: 1.5px solid var(--prune); background: var(--creme-clair); color: var(--prune); font: 600 14px var(--f-titre); cursor: pointer; box-shadow: 0 4px 14px #3c114b22; }
 .bt-idees[aria-expanded="true"] { background: var(--prune); color: var(--creme); }
-.idees { position: absolute; left: 6%; right: 6%; bottom: 74px; z-index: 3; max-height: 55%; overflow-y: auto; padding: 10px; border-radius: 18px; background: #fffbe3f2; border: 1.5px solid var(--prune); display: grid; gap: 6px; }
+.idees { position: absolute; left: 7%; right: 7%; top: calc(9% + 46px); z-index: 3; max-height: 70%; overflow-y: auto; padding: 10px; border-radius: 18px; background: #fffbe3f5; border: 1.5px solid var(--prune); display: grid; gap: 6px; }
+.idees-g { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
 .idees h3 { margin: 0 0 2px; font: 600 14px var(--f-titre); }
-.idee { display: flex; gap: 8px; align-items: center; text-align: left; padding: 8px 10px; border-radius: 14px; border: 1.5px solid var(--ligne-forte); background: var(--creme-clair); cursor: pointer; font: 500 14px var(--f-titre); color: var(--prune); }
+.idee { display: grid; gap: 2px; justify-items: center; text-align: center; padding: 6px; border-radius: 14px; border: 1.5px solid var(--ligne-forte); background: var(--creme-clair); cursor: pointer; font: 500 13px var(--f-titre); color: var(--prune); }
+.idee img, .idee .ph { width: 100%; aspect-ratio: 1; object-fit: contain; border-radius: 10px; background: #fff7c6; display: grid; place-items: center; font-size: 26px; }
+.idee span { color: var(--prune-doux); font-size: 12px; }
 .idee:hover { border-color: var(--prune); }
-.idee .pts { display: inline-flex; gap: 2px; }
-.idee .pts i { width: 14px; height: 14px; border-radius: 50%; border: 1px solid #3c114b33; display: inline-block; }
-.idee .px { margin-left: auto; color: var(--prune-doux); font-size: 13px; white-space: nowrap; }
 .scene-charge { position: absolute; inset: 0; display: grid; place-items: center; font: 500 15px var(--f-titre); color: var(--prune-doux); }
 
 /* ---- en-tête ---- */
@@ -406,7 +406,7 @@ import {
   correspondCategorie, texteCatalogue, ordreModeles, chargerRuptures, appliquerRuptures,
   chargerLiens, appliquerLiens, relierModele, chargerMateriauxParRefs,
   chargerFichesConfig, definirFichesConfig, ficheCfg, refsCouleurFiche, famillesFiche,
-} from './bead-core.js?v=0e9f110d';
+} from './bead-core.js?v=0d443706';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER, PANIER_SHOPIFY } from './perles-config.js?v=e5e86015';
 
 const $ = s => document.querySelector(s);
@@ -732,65 +732,106 @@ function rendreListeBreloques() {
   }));
 }
 
-/* ---------- 💡 Idées : tes fiches bijoux déjà créées, prêtes à choisir (couleurs de la fiche appliquées au modèle) ---------- */
-function ideesPour(m) {
-  const base = bijouBreloque(m, { couleurs: {}, texte: { mode: 1 }, bijoux }), row = bijoux.find(b => b.id === base.id);
-  if (!row) return [];
+/* ---------- 💡 Idées : tes fiches bijoux déjà créées, prêtes à choisir ---------- */
+// fiche modèle d'un modèle 3D (celle reliée par sa référence ou son nom)
+const ficheModele = m => { const base = bijouBreloque(m, { couleurs: {}, texte: { mode: 1 }, bijoux }); return bijoux.find(b => b.id === base.id) || null; };
+// couleurs d'une fiche posées sur les bonnes zones du modèle
+function couleursDeFiche(m, row, f) {
   const def = nouvelleBreloque(m.slug).couleurs;
+  if (f.id === row.id) return { ...def };                                         // la fiche modèle = les couleurs de départ du modèle
+  const ov = (f.parent_id === row.id ? f.variante_overrides || [] : []).filter(o => o && o.ref_parent && o.ref_variante);
+  let c = { ...def }, touche = false;
+  for (const o of ov) for (const [z, d] of Object.entries(def)) if (d === o.ref_parent && parRef[o.ref_variante]) { c[z] = o.ref_variante; touche = true; }
+  if (!touche) {                                                                  // fiche sans remplacements connus : couleurs de la fiche, même catégorie
+    const cats = new Set(Object.values(def).map(r => parRef[r]?.categorie)), R = refsCouleurFiche(f.id, cats); if (!R.length) return null;
+    const Rs = new Set(R), defs = new Set(Object.values(def)), libres = R.filter(r => !defs.has(r)), rempl = {};
+    for (const d of defs) { if (!d || Rs.has(d)) continue; const cat = parRef[d]?.categorie, i = libres.findIndex(r => !cat || parRef[r]?.categorie === cat); if (i >= 0) rempl[d] = libres.splice(i, 1)[0]; }
+    for (const [z, d] of Object.entries(def)) if (rempl[d]) c[z] = rempl[d];
+  }
+  return validerConfiguration(m, catalogue, c, parties);
+}
+function ideesPour(m) {
+  if (m.bijZone) {                                                                // argile, chainmail : chaque motif / forme = une fiche
+    const z = (m.zones || []).find(x => x.id === m.bijZone);
+    return z ? couleursProposees(z, catalogue, parties).filter(c => c.enStock !== false && bijoux.some(b => b.ref === c.ref)).map(c => {
+      const f = bijoux.find(b => b.ref === c.ref);
+      return { fiche: f, nom: [f.nom, f.variante].filter(Boolean).join(' · '), prix: f.pv != null && f.pv !== '' ? +f.pv : null,
+        breloque: { ...nouvelleBreloque(m.slug), couleurs: validerConfiguration(m, catalogue, { ...nouvelleBreloque(m.slug).couleurs, [m.bijZone]: c.ref }, parties) } };
+    }) : [];
+  }
+  const row = ficheModele(m); if (!row) return [];
   return famillesFiche(row, bijoux).filter(f => !f.is_mat).map(f => {
-    let c = { ...def };
-    if (m.bijZone) { if (!parRef[f.ref]) return null; c[m.bijZone] = f.ref; }        // argile : la fiche est le motif choisi
-    else {
-      const R = refsCouleurFiche(f.id, new Set(Object.values(def).map(r => parRef[r]?.categorie))); if (!R.length) return null;
-      const Rs = new Set(R), defs = new Set(Object.values(def)), libres = R.filter(r => !defs.has(r)), rempl = {};
-      for (const d of new Set(Object.values(def))) {                                // couleur de départ absente de la fiche → sa couleur
-        if (!d || Rs.has(d)) continue;
-        const cat = parRef[d]?.categorie, i = libres.findIndex(r => !cat || parRef[r]?.categorie === cat);
-        if (i >= 0) rempl[d] = libres.splice(i, 1)[0];
-      }
-      for (const [z, d] of Object.entries(def)) if (rempl[d]) c[z] = rempl[d];
-    }
-    c = validerConfiguration(m, catalogue, c, parties);
-    return { fiche: f, couleurs: c, nom: f.variante || (f.id === row.id ? 'Classique' : f.nom), prix: f.pv != null && f.pv !== '' ? +f.pv : (row.pv != null ? +row.pv : null) };
+    const c = couleursDeFiche(m, row, f); if (!c) return null;
+    return { fiche: f, nom: f.variante || (f.id === row.id ? 'Classique' : f.nom), prix: f.pv != null && f.pv !== '' ? +f.pv : (row.pv != null ? +row.pv : null),
+      breloque: { ...nouvelleBreloque(m.slug), couleurs: c } };
   }).filter(Boolean);
 }
-// bundle : porte-clés déjà créés (lots et fiches qui contiennent des breloques)
+// quel modèle 3D correspond à une fiche (pièce d'un porte-clés) ?
+function modeleDeFiche(piece, liste) {
+  for (const m of liste) {
+    if (m.bijZone) { const z = (m.zones || []).find(x => x.id === m.bijZone); if (z && couleursProposees(z, catalogue, parties).some(c => c.ref === piece.ref)) return m; continue; }
+    if (m.bijParMode) { if (Object.values(m.bijParMode).some(t => new RegExp(t).test(normNom(piece.nom + ' ' + (piece.variante || ''))))) return m; continue; }
+    const row = ficheModele(m); if (row && famillesFiche(row, bijoux).some(x => x.id === piece.id)) return m;
+  }
+  return null;
+}
+const normNom = t => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+// bundle : porte-clés déjà créés, seulement s'ils sont entièrement réalisables ici (accroche proposée, toutes les références disponibles, chaque pièce = un modèle)
 function ideesBundle() {
   if (!accroches) return [];
+  const connues = new Set([...catalogue.map(c => c.ref), ...fermoirs.map(f => f.ref)]), liste = modelesDu('bundle');
   return bijoux.filter(b => !b.is_mat && ficheCfg(b.id)?.pieces?.length).map(f => {
-    const cfg = ficheCfg(f.id), refs = new Set(cfg.refs || []);
-    const acc = accroches.choix.find(c => c.pieces.every(r => refs.has(r)));
-    const brs = cfg.pieces.flatMap(pc => {
-      const piece = bijoux.find(b => b.id === pc.bij_id); if (!piece) return [];
-      const m = modelesDu('bundle').find(mm => { const base = bijouBreloque(mm, { couleurs: {}, texte: { mode: 1 }, bijoux }), row = bijoux.find(b => b.id === base.id);
-        return row && famillesFiche(row, bijoux).some(x => x.id === piece.id); });
-      if (!m) return [];
-      const idee = ideesPour(m).find(i => i.fiche.id === piece.id);
-      return Array.from({ length: Math.max(1, +pc.qty || 1) }, () => ({ ...nouvelleBreloque(m.slug), ...(idee ? { couleurs: { ...idee.couleurs } } : {}) }));
-    });
-    return brs.length ? { fiche: f, accroche: acc?.id || null, breloques: brs, nom: f.nom + (f.variante ? ' · ' + f.variante : ''), prix: f.pv } : null;
+    const cfg = ficheCfg(f.id), refs = cfg.refs || [];
+    if (refs.some(r => !connues.has(r))) return null;                             // ex. crochet de boucle d'oreille absent du configurateur
+    const acc = accroches.choix.find(c => c.pieces.length && c.pieces.every(r => refs.includes(r))) || (refs.length ? null : accroches.choix[0]);
+    if (!acc) return null;
+    const brs = [];
+    for (const pc of cfg.pieces) {
+      const piece = bijoux.find(b => b.id === pc.bij_id), m = piece && modeleDeFiche(piece, liste);
+      if (!m) return null;                                                        // une pièce sans modèle 3D : le porte-clés n'est pas proposé
+      const idee = ideesPour(m).find(i => i.fiche.id === piece.id) || { breloque: nouvelleBreloque(m.slug) };
+      for (let k = 0; k < Math.max(1, +pc.qty || 1); k++) brs.push({ ...idee.breloque, couleurs: { ...idee.breloque.couleurs } });
+    }
+    return brs.length && brs.length <= maxBreloques() ? { fiche: f, accroche: acc.id, breloques: brs, nom: [f.nom, f.variante].filter(Boolean).join(' · '), prix: f.pv } : null;
   }).filter(Boolean);
 }
-const pointsCouleurs = c => Object.values(c).filter(Boolean).filter((r, i, a) => a.indexOf(r) === i).slice(0, 5).map(r => `<i style="background:${fond(parRef[r] || { hex: '#ccc' })}"></i>`).join('');
+// vignette 3D d'une idée (rendue hors écran puis la vue reprend sa place)
+const VIGNETTES = new Map();
+function vignette(cle, regler) {
+  if (VIGNETTES.has(cle)) return VIGNETTES.get(cle);
+  let url = '';
+  try { regler(); url = scene.rendreVue({ largeur: 220, hauteur: 220, deFace: true, marge: 1.05 }).toDataURL('image/png'); } catch (e) { url = ''; }
+  VIGNETTES.set(cle, url); return url;
+}
 function rendreIdees() {
   const bt = $('#btIdees'), el = $('#idees');
   const liste = etat.parcours ? ideesPour(modeleActif()) : [], lots = etat.parcours === 'bundle' ? ideesBundle() : [];
   bt.hidden = !(liste.length || lots.length);
   if (bt.hidden || bt.getAttribute('aria-expanded') !== 'true') { el.hidden = true; return; }
+  // vignettes : on règle la scène sur chaque idée, on la photographie, puis on remet la vraie personnalisation
+  const imgsL = liste.map(x => vignette('b:' + modeleActif().slug + ':' + x.fiche.id + ':' + JSON.stringify(x.breloque.couleurs), () => {
+    const b = x.breloque; scene.definirModele(modelePour(b)); scene.definirCouleurs(b.couleurs); scene.definirOptions(optionsEffectives(b)); }));
+  const imgsB = lots.map(x => vignette('p:' + x.fiche.id, () => {
+    const acc = accroches.choix.find(c => c.id === x.accroche);
+    const comp = composerBundle({ breloques: x.breloques.map(b => ({ modele: modelePour(b), couleurs: b.couleurs, options: optionsEffectives(b) })),
+      pieces: (acc?.pieces || []).map(r => fermParRef[r]).filter(Boolean), fermoirs, catalogue });
+    scene.definirModele(comp.modele); scene.definirCouleurs(comp.couleurs); scene.definirOptions(comp.options); }));
+  if (imgsL.length || imgsB.length) rendre3D();
+  const carte = (img, nom, prix, attr) => `<button class="idee" type="button" ${attr}>${img ? `<img src="${img}" alt="">` : '<span class="ph">✦</span>'}<b>${esc(nom)}</b><span>${prix != null && prix !== '' ? euros(prix) : ''}</span></button>`;
   el.hidden = false;
-  el.innerHTML = (lots.length ? `<h3>Porte-clés tout prêts</h3>` + lots.map((x, i) => `<button class="idee" type="button" data-lot="${i}"><span>🎁 ${esc(x.nom)}</span><span class="px">${x.prix != null ? euros(x.prix) : ''}</span></button>`).join('') : '')
-    + (liste.length ? `<h3>${esc(nomCourt(modeleActif()))} : nos modèles</h3>` + liste.map((x, i) => `<button class="idee" type="button" data-idee="${i}"><span class="pts">${pointsCouleurs(x.couleurs)}</span><span>${esc(x.nom)}</span><span class="px">${x.prix != null ? euros(x.prix) : ''}</span></button>`).join('') : '');
+  el.innerHTML = (lots.length ? `<h3>Porte-clés tout prêts</h3><div class="idees-g">${lots.map((x, i) => carte(imgsB[i], x.nom, x.prix, `data-lot="${i}"`)).join('')}</div>` : '')
+    + (liste.length ? `<h3>${esc(nomCourt(modeleActif()))} : nos modèles</h3><div class="idees-g">${liste.map((x, i) => carte(imgsL[i], x.nom, x.prix, `data-idee="${i}"`)).join('')}</div>` : '');
   el.querySelectorAll('[data-idee]').forEach(b => b.addEventListener('click', () => {
-    const x = liste[+b.dataset.idee]; etat.breloques[etat.actif] = { ...brel(), couleurs: { ...x.couleurs } };
+    const x = liste[+b.dataset.idee]; etat.breloques[etat.actif] = { ...brel(), ...x.breloque, couleurs: { ...x.breloque.couleurs } };
     bt.setAttribute('aria-expanded', 'false'); rendre3D(); toutRendre();
   }));
   el.querySelectorAll('[data-lot]').forEach(b => b.addEventListener('click', () => {
-    const x = lots[+b.dataset.lot]; if (x.accroche) etat.accroche = x.accroche;
+    const x = lots[+b.dataset.lot]; etat.accroche = x.accroche;
     etat.breloques = x.breloques.map(br => ({ ...br, couleurs: { ...br.couleurs } })); etat.actif = 0;
     bt.setAttribute('aria-expanded', 'false'); rendre3D({ cadrer: true }); toutRendre();
   }));
 }
-window.__bnIdees = () => ({ modeles: modelesDu(etat.parcours || 'breloque').map(m => [m.slug, bijouBreloque(m, { couleurs: {}, texte: { mode: 1 }, bijoux }).id, ideesPour(m).map(x => x.nom)]), fiche: bijouDe(brel()), couleurs: brel().couleurs });   // diagnostic
+window.__bnIdees = () => ({ modeles: modelesDu(etat.parcours || 'breloque').map(m => [m.slug, ficheModele(m)?.nom || null, ideesPour(m).map(x => x.nom)]), fiche: bijouDe(brel()), bundle: ideesBundle().map(x => x.nom) });   // diagnostic
 $('#btIdees').addEventListener('click', () => { const o = $('#btIdees').getAttribute('aria-expanded') === 'true'; $('#btIdees').setAttribute('aria-expanded', String(!o)); rendreIdees(); });
 
 /* ---------- personnalisation de la breloque active ---------- */
@@ -907,7 +948,7 @@ function calcul() {
   const acc = enBundle() ? accrocheChoisie() : null;
   return lignesCommandeBundle({
     breloques: etat.breloques.map(b => ({ modele: modelePour(b), couleurs: validerConfiguration(modeleDe(b.slug), catalogue, b.couleurs, parties),
-      options: optionsEffectives(b), prixBase: prixDe(b), bijRef: bijouDe(b).ref })),
+      options: optionsEffectives(b), prixBase: prixDe(b), bijRef: bijouDe(b).ref, ficheNom: bijouDe(b).nom })),
     accroche: acc ? { libelle: acc.libelle, pieces: acc.pieces, supplement: acc.supplement, offre } : null, catalogue, fermoirs,
   });
 }
@@ -949,7 +990,7 @@ function entreesNote() {
   const acc = enBundle() ? accrocheChoisie() : null;
   return {
     breloques: etat.breloques.map(b => ({ modele: modelePour(b), couleurs: validerConfiguration(modeleDe(b.slug), catalogue, b.couleurs, parties),
-      options: optionsEffectives(b), prixBase: prixDe(b), bijRef: bijouDe(b).ref })),
+      options: optionsEffectives(b), prixBase: prixDe(b), bijRef: bijouDe(b).ref, ficheNom: bijouDe(b).nom })),
     accroche: acc ? { id: acc.id, libelle: acc.libelle, pieces: acc.pieces, supplement: acc.supplement, offre } : null,
     catalogue, fermoirs,
   };

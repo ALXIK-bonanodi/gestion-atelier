@@ -594,7 +594,7 @@ export const refsCouleurFiche = (id, cats = null) => (FICHES_CFG[id]?.refs || []
 export function famillesFiche(row, bijoux) {
   if (!row) return [];
   const k = norm(row.nom);
-  return bijoux.filter(b => b.id === row.id || (b.parent_id && b.parent_id === row.id) || norm(b.nom) === k || norm(b.nom).startsWith(k + ' '));
+  return bijoux.filter(b => !(FICHES_CFG[b.id]?.pieces?.length) && (b.id === row.id || (b.parent_id && b.parent_id === row.id) || norm(b.nom) === k || norm(b.nom).startsWith(k + ' ')));
 }
 function ficheSelonCouleurs(row, bijoux, couleurs) {
   const choisis = new Set(Object.values(couleurs || {}).filter(Boolean));
@@ -604,7 +604,7 @@ function ficheSelonCouleurs(row, bijoux, couleurs) {
   for (const b of famillesFiche(row, bijoux)) {
     const R = refsCouleurFiche(b.id, cats); if (!R.length) continue;
     if (!R.every(r => choisis.has(r))) continue;                      // toutes ses couleurs doivent être choisies
-    const sc = R.length * 10 + (b.id === row.id ? 0 : 1);             // la plus précise ; à égalité, la variante
+    const sc = R.length * 10 + (b.id === row.id ? 1 : 0);             // la plus précise ; à égalité, la fiche modèle
     if (sc > score) { meilleur = b; score = sc; }
   }
   return meilleur;
@@ -623,8 +623,10 @@ export function varianteSelonCouleurs(row, bijoux, couleurs = {}) {
 export function trouverBijou(bijoux, motif) {
   if (!motif) return null;
   const re = new RegExp(norm(motif));
-  const ok = bijoux.filter(b => re.test(norm([b.nom, b.variante].join(' '))));
-  return ok.find(b => !b.is_mat && !b.parent_id) || ok.find(b => !b.is_mat) || ok[0] || null;   // le modèle d'abord : sa couleur est choisie ensuite
+  const ok = bijoux.filter(b => re.test(norm([b.nom, b.variante].join(' '))) && !(FICHES_CFG[b.id]?.pieces?.length));   // pas les lots / porte-clés
+  // le mieux nommé d'abord : nom qui commence par le motif, puis le plus court ; une fiche modèle avant ses variantes
+  const rang = b => { const x = norm(b.nom), i = x.search(re); return (b.is_mat ? 1000 : 0) + (b.parent_id ? 100 : 0) + (i === 0 ? 0 : i < 0 ? 50 : 20) + x.length / 100; };
+  return ok.sort((a, b) => rang(a) - rang(b))[0] || null;
 }
 export function bijouBreloque(modele, { couleurs = {}, texte = null, bijoux = [] } = {}) {
   const parRef = new Map(bijoux.map(b => [b.ref, b]));
@@ -801,6 +803,10 @@ export function refParNom(nom, liste) {
   if (exact) return exact.ref;
   const motsDe = c => norm([c.nom, c.designation].filter(Boolean).join(' ')).split(/[^a-z0-9]+/).filter(Boolean);
   const proche = liste.filter(c => { const m = motsDe(c); return mots.every(w => m.some(x => /^\d+$/.test(w) ? x === w : x.startsWith(w))); });
+  // le plus proche d'abord : nom qui commence par le nom cherché (« argent » → « argent 1 »), puis le moins de mots en plus
+  // (sinon une perle « rose doublé argent » rangée avant passait devant et les petites perles argent devenaient roses)
+  const rang = c => { const x = norm(c.nom); return (x.startsWith(n) ? 0 : 1) * 10000 + (+(x.match(/(\d+)$/)?.[1] || 0)) * 100 + motsDe(c).length; };   // puis « argent 1 » avant « argent 2 »
+  proche.sort((a, b) => rang(a) - rang(b));
   return (proche.find(c => c.enStock !== false) || proche[0])?.ref || null;
 }
 export function resoudreDefauts(modele, catalogue, fermoirs = null) {
@@ -2932,8 +2938,10 @@ export function notePersonnalisation({ breloques, accroche = null, catalogue = [
   const notesAtelier = [];
   const notes = breloques.map((b, i) => {
     const pre = titre + ' — ' + (plusieurs ? 'B' + (i + 1) + ' · ' : '');
-    notesAtelier.push(pre + noteBreloque(b.modele, { ...b, catalogue, fermoirs, refs: true }));
-    const note = pre + noteBreloque(b.modele, { ...b, catalogue, fermoirs, refs: false });   // le client ne voit que les noms
+    // la fiche bijou reconnue (ex. « Petit poisson · Sardine », #BIJ-013) : production et fiche atelier sur la bonne référence
+    const fiche = b.ficheNom ? ' — Fiche : ' + b.ficheNom + (b.bijRef ? ' (' + b.bijRef + ')' : '') : '';
+    notesAtelier.push(pre + noteBreloque(b.modele, { ...b, catalogue, fermoirs, refs: true }) + fiche);
+    const note = pre + noteBreloque(b.modele, { ...b, catalogue, fermoirs, refs: false }) + (b.ficheNom ? ' — Modèle : ' + b.ficheNom : '');   // le client ne voit que les noms
     ajouter({ cle: b.modele.slug, bij: b.bijRef || b.modele.bij_ref || '', libelle: nomBreloque(b.modele), prix: +(b.prixBase ?? b.modele.prix ?? 0), note });
     const optF = (b.modele.options || []).find(o => o.type === 'fermoir');
     const cF = optF?.choix?.find(c => c.ref === b.options?.[optF.id]);
