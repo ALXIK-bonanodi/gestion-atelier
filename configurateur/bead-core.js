@@ -2313,15 +2313,21 @@ export function composerChaine({ chaine, breloques = [], pieces = [], compos = n
     attP = piecesAccroche([mousqueton])[0].attache; fusionnerSupport(out, [mousqueton], Mpiv); }
   const surC = groupes.filter(c => c.surChaine && idx.length), auM = groupes.filter(c => !surC.includes(c));
   const placesC = repartir(surC.length, idx.length).map(x => idx.length - 1 - x);
+  const subs = new Map(groupes.map(c => { const sub = composerBundle({ breloques: c.indices.map(i => ({ ...breloques[i], surChaine: surMiniI.includes(i) })), pieces: c.pieces, fermoirs, catalogue });
+    const h = hautDe(c.pieces); return [c, { sub, h, ...etendueCompo(sub.modele, h) }]; }));
+  // plusieurs porte-clés au mousqueton : éventail calculé sur leur vraie largeur (lisibles, sans se chevaucher), ouvert vers l'extérieur
+  const K = auM.length, angM = [0];
+  if (K > 1) { const L = auM.map(c => subs.get(c)), Lm = Math.max(20, L.reduce((t, x) => t + x.long, 0) / K * 0.8);
+    for (let k = 1; k < K; k++) angM.push(angM[k - 1] + Math.min(1.0, ((L[k - 1].y1 - L[k - 1].yc) + (L[k].yc - L[k].y0) + 12) / Lm)); }
+  const milM = (angM[0] + angM[K - 1]) / 2;
   groupes.forEach(c => {
-    const sub = composerBundle({ breloques: c.indices.map(i => ({ ...breloques[i], surChaine: surMiniI.includes(i) })), pieces: c.pieces, fermoirs, catalogue });
-    const h = hautDe(c.pieces); let M;
+    const { sub, h, yc } = subs.get(c); let M;
     if (surC.includes(c)) { const r = H[idx[placesC[surC.indexOf(c)]]];
       M = new THREE.Matrix4().makeTranslation(r.p[0], r.p[1] - r.R, r.p[2]).multiply(rx).multiply(new THREE.Matrix4().makeTranslation(0, 0, -h)); }
-    else { const K = auM.length, kk = auM.indexOf(c) - (K - 1) / 2, th = K > 1 ? -kk * 0.45 + 0.35 : 0.32;   // éventail ouvert vers l'extérieur
-      if (Mpiv) { const a = K > 1 ? kk * 0.45 : 0, P = new THREE.Vector3(0, attP.rayon * Math.sin(a), attP.centre + attP.rayon * Math.cos(a));
-        M = Mpiv.clone().multiply(new THREE.Matrix4().makeTranslation(P.x, P.y, P.z)).multiply(new THREE.Matrix4().makeRotationX(th)).multiply(new THREE.Matrix4().makeTranslation(0, 0, -h)); }
-      else M = new THREE.Matrix4().makeTranslation(A.x, A.y, A.z).multiply(rx).multiply(new THREE.Matrix4().makeRotationX(th)).multiply(new THREE.Matrix4().makeTranslation(0, 0, -h)); }
+    else { const k = auM.indexOf(c), th = K > 1 ? -(angM[k] - milM) + 0.35 : 0.32, dy = K > 1 ? -yc : 0;
+      if (Mpiv) { const a = K > 1 ? (angM[k] - milM) * 0.6 : 0, P = new THREE.Vector3(0, attP.rayon * Math.sin(a), attP.centre + attP.rayon * Math.cos(a));
+        M = Mpiv.clone().multiply(new THREE.Matrix4().makeTranslation(P.x, P.y, P.z)).multiply(new THREE.Matrix4().makeRotationX(th)).multiply(new THREE.Matrix4().makeTranslation(0, dy, -h)); }
+      else M = new THREE.Matrix4().makeTranslation(A.x, A.y, A.z).multiply(rx).multiply(new THREE.Matrix4().makeRotationX(th)).multiply(new THREE.Matrix4().makeTranslation(0, dy, -h)); }
     fusionner({ modele: out, couleurs, options }, sub, M, j => c.indices[j] + 1);
   });
   return { modele: out, couleurs, options };
@@ -2351,6 +2357,17 @@ export function fusionner(cible, sub, M, renum = j => j) {
     const r = sp.rot || [0, 0, 0];
     fusionnerSupport(out, sp.pieces, M.clone().multiply(new THREE.Matrix4().compose(new THREE.Vector3().fromArray(sp.pos || [0, 0, 0]), q.setFromEuler(e.set(r[0] * DEG, r[1] * DEG, r[2] * DEG)), un)));
   }
+}
+/* Points (repère du modèle) des groupes choisis : perles, anneaux, accessoires, avec une marge autour de chaque groupe */
+export function pointsModele(modele, garder = () => true, marge = 4) {
+  const out = [], e = new THREE.Euler(), q = new THREE.Quaternion(), un = new THREE.Vector3(1, 1, 1), v = new THREE.Vector3();
+  for (const g of modele.groupes || []) { if (!garder(g)) continue;
+    const r = g.rot || [0, 0, 0], W = new THREE.Matrix4().compose(new THREE.Vector3().fromArray(g.pos || [0, 0, 0]), q.setFromEuler(e.set(r[0] * DEG, r[1] * DEG, r[2] * DEG)), un);
+    const pts = [...(g.perles || []), ...(g.anneaux || [])].map(b => b.p).filter(Boolean), m = g.technique === 'argile' || pts.length < 3 ? 15 : marge;
+    for (const p of pts.length ? pts : [[0, 0, 0]]) { v.fromArray(p).applyMatrix4(W); for (const d of [[m, 0, 0], [-m, 0, 0], [0, m, 0], [0, -m, 0], [0, 0, m], [0, 0, -m]]) out.push([v.x + d[0], v.y + d[1], v.z + d[2]]); }
+  }
+  for (const sp of modele.supports || []) if (garder({ id: 'support' })) out.push(sp.pos);
+  return out;
 }
 /* Encombrement d'un porte-clés composé, dans son repère : y (largeur), et longueur de pendaison sous l'accroche (h) */
 function etendueCompo(modele, h = 0) {
@@ -2907,9 +2924,14 @@ export class ScenePerles {
     this.camera.lookAt(this.controls.target);
   }
 
-  cadrer(marge = 1.25) {
-    const box = new THREE.Box3().setFromObject(this.racine);
+  cadrer(marge = 1.25, points = null) {
+    let box = new THREE.Box3().setFromObject(this.racine);
     if (box.isEmpty()) return;
+    if (points?.length) {                     // cadrage sur une partie du modèle (ex. les breloques d'une chaîne de sac)
+      this.racine.updateMatrixWorld(true);
+      const b2 = new THREE.Box3(); for (const p of points) b2.expandByPoint(new THREE.Vector3().fromArray(p).applyMatrix4(this.racine.matrixWorld));
+      if (!b2.isEmpty()) box = b2;
+    }
     const c = box.getCenter(new THREE.Vector3());
     const rayon = box.getBoundingSphere(new THREE.Sphere()).radius;
     const dist = rayon * marge / Math.sin(this.camera.fov * DEG / 2);
@@ -3328,9 +3350,9 @@ export function lignesCommandeBundle({ breloques, accroche = null, accroches = n
       prestation.push({ designation: (k === 0 ? (a.libelle || 'Accroche') + ' — ' : '') + (f ? f.nom.replace(/\s*\d+([.,]\d+)?\s*mm/i, '') : ref), ref, qte: 1, pu, total: pu });
       creation.push({ partie: a.partie || 'Accroche', couleur: f?.nom || '', ref, perle: '—', quantite: 1 });
     });
-    if (+a.remise > 0) prestation.push({ designation: 'Offre — ' + (a.offreLibelle || 'remise'), ref: a.pieces?.[0] || '', qte: 1, pu: -a.remise, total: -a.remise });
+    if (+a.remise > 0) prestation.push({ designation: 'Offre — ' + (a.offreLibelle || 'remise'), ref: a.pieces?.[0] || '', qte: 1, pu: -a.remise, total: -a.remise, offre: 'porte-cles' });
   }
-  for (const r of remises || []) if (+r.montant > 0) prestation.push({ designation: 'Offre — ' + r.libelle, ref: r.ref || '', qte: 1, pu: -r.montant, total: -r.montant });
+  for (const r of remises || []) if (+r.montant > 0) prestation.push({ designation: 'Offre — ' + r.libelle, ref: r.ref || '', qte: 1, pu: -r.montant, total: -r.montant, offre: r.offre || 'lettres' });
   if (accroche && !accroches) {
     (accroche.pieces || []).forEach((ref, k) => {
       const f = fermParRef[ref];
@@ -3342,7 +3364,7 @@ export function lignesCommandeBundle({ breloques, accroche = null, accroches = n
     const offre = accroche.offre;
     if (offreApplicable(offre, accroche, breloques.filter(b => b.modele?.type !== 'chaine').map(b => b.prixBase ?? b.modele.prix))) {   // la chaîne de sac ne compte pas comme breloque
       const remise = Math.min(+offre.remise || 0, +accroche.supplement || 0);
-      if (remise > 0) prestation.push({ designation: 'Offre bundle — ' + (offre.libelle || 'remise'), ref: offre.piece, qte: 1, pu: -remise, total: -remise });
+      if (remise > 0) prestation.push({ designation: 'Offre bundle — ' + (offre.libelle || 'remise'), ref: offre.piece, qte: 1, pu: -remise, total: -remise, offre: 'porte-cles' });
     }
   }
   const total = Math.round(prestation.reduce((s, l) => s + l.total, 0) * 100) / 100;
@@ -3587,7 +3609,7 @@ export function noteBreloque(modele, { couleurs = {}, options = {}, catalogue = 
 }
 
 /* breloques : [{ modele, couleurs, options, prixBase }] ; accroche : { id, libelle, pieces, supplement, offre } */
-export function notePersonnalisation({ breloques, accroche = null, accroches = null, remises = [], catalogue = [], fermoirs = [], numero = '' }) {
+export function notePersonnalisation({ breloques, accroche = null, accroches = null, remises = [], placements = [], catalogue = [], fermoirs = [], numero = '' }) {
   const fermParRef = Object.fromEntries(fermoirs.map(f => [f.ref, f]));
   const parRef = Object.fromEntries(catalogue.map(c => [c.ref, c]));
   const titre = 'Personnalisation sur mesure' + (numero ? ' ' + numero : '');
@@ -3623,9 +3645,9 @@ export function notePersonnalisation({ breloques, accroche = null, accroches = n
     for (const a of accroches) { ajouter({ cle: 'accroche:' + a.id + (+a.remise ? ':offre' : ''), libelle: a.libelle + (+a.remise ? ' (offre)' : ''), prix: Math.max(0, (+a.supplement || 0) - (+a.remise || 0)) });
       detail.push({ libelle: (a.nomCompo && a.nomCompo !== 'Mousqueton' ? a.nomCompo + ' · ' : '') + a.libelle, prix: +a.supplement || 0 });
       if (+a.remise) detail.push({ libelle: '   ' + (a.offreLibelle || 'offre'), prix: -a.remise }); }
-    ligneAcc = accroches.map(a => (a.lotNom ? 'Porte-clés tout prêt : ' + a.lotNom + ' — ' : (a.nomCompo || 'Porte-clés') + ' : ') + a.libelle + (+a.remise ? ' — ' + (a.offreLibelle || 'offre') : '')).join('\n');
+    ligneAcc = accroches.map(a => (a.lotNom ? 'Porte-clés tout prêt : ' + a.lotNom + ' — ' : (a.nomCompo || 'Porte-clés') + ' : ') + a.libelle + (a.contenu ? ' — ' + (a.id === 'mousqueton' ? 'porte : ' : 'breloques ') + a.contenu : '') + (+a.remise ? ' — ' + (a.offreLibelle || 'offre') : '')).join('\n');
     ligneAccAtelier = accroches.map(a => (a.nomCompo || 'Porte-clés') + ' : ' + a.libelle + ' — ' + (a.pieces || []).map(r => (fermParRef[r]?.nom || r) + ' (' + r + ')').join(' + ')
-      + (a.contenu ? ' — ' + a.contenu : '') + (+a.remise ? ' — ' + (a.offreLibelle || 'offre') : '')).join('\n');
+      + (a.contenu ? ' — ' + (a.id === 'mousqueton' ? 'porte : ' : 'breloques ') + a.contenu : '') + (+a.remise ? ' — ' + (a.offreLibelle || 'offre') : '')).join('\n');
   } else if (accroche) {
     const offre = offreApplicable(accroche.offre, accroche, breloques.filter(b => b.modele?.type !== 'chaine').map(b => b.prixBase ?? b.modele.prix));
     const remise = offre ? Math.min(+accroche.offre.remise || 0, +accroche.supplement || 0) : 0;
@@ -3637,6 +3659,7 @@ export function notePersonnalisation({ breloques, accroche = null, accroches = n
     ligneAccAtelier = 'Porte-clés : ' + accroche.libelle + ' — ' + (accroche.pieces || []).map(r => (fermParRef[r]?.nom || r) + ' (' + r + ')').join(' + ')
       + (offre ? ' — ' + (accroche.offre.libelle || 'offre') : '');
   }
+  if (placements?.length) { ligneAcc = [ligneAcc, ...placements].filter(Boolean).join('\n'); ligneAccAtelier = [ligneAccAtelier, ...placements].filter(Boolean).join('\n'); }
   for (const r of remises || []) if (+r.montant > 0) detail.push({ libelle: 'Offre · ' + r.libelle, prix: -r.montant });
   for (const r of remises || []) if (+r.montant > 0) { articles.push({ quantite: 1, cle: 'remise:' + r.libelle, libelle: 'Offre — ' + r.libelle, prix: -r.montant }); ligneAcc = [ligneAcc, 'Offre : ' + r.libelle].filter(Boolean).join('\n'); ligneAccAtelier = [ligneAccAtelier, 'Offre : ' + r.libelle].filter(Boolean).join('\n'); }
   const total = Math.round(articles.reduce((s, a) => s + a.prix * a.quantite, 0) * 100) / 100;

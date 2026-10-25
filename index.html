@@ -324,6 +324,11 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
 }
 
 /* ── Accueil ── */
+.home-note{padding:12px 14px;margin:0 0 14px}.home-note-t{font-weight:700;color:var(--purple);margin-bottom:6px}
+.home-note textarea{width:100%;font-size:13px;padding:8px;border-radius:var(--rs);border:1.5px solid var(--border);resize:vertical}
+.home-todo{display:grid;gap:4px;margin-top:8px}.home-todo-l{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer}
+.home-todo-l input{width:18px;height:18px;padding:0;flex:0 0 auto;appearance:auto;-webkit-appearance:checkbox;accent-color:var(--purple)}
+.home-todo-l span{flex:1}.home-todo-l.fait span{text-decoration:line-through;color:var(--muted)}
 .home-hero{position:relative;overflow:hidden;background:radial-gradient(circle at 85% 20%,#6B2E7E 0%,var(--purple) 55%,var(--dark2) 100%);color:var(--gold);border-radius:20px;padding:22px 20px 18px;margin-bottom:16px;box-shadow:var(--shM)}
 .home-etoile{position:absolute;right:-18px;top:-18px;width:130px;height:130px;opacity:.28;transform:rotate(12deg)}
 .home-salut{font-family:var(--script);font-size:44px;line-height:1.05}
@@ -1091,6 +1096,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
     <div class="sub-tab" data-cs="sauvegarde" onclick="switchCfgTab('sauvegarde')">💾 Sauvegarde</div>
     <div class="sub-tab" data-cs="connexions" onclick="switchCfgTab('connexions')">🔌 Connexions</div>
     <div class="sub-tab" data-cs="lieux" onclick="switchCfgTab('lieux')">📍 Lieux de vente</div>
+    <div class="sub-tab" data-cs="emballages" onclick="switchCfgTab('emballages')">📦 Emballages & envoi</div>
     <div class="sub-tab" data-cs="categories" onclick="switchCfgTab('categories')">🗂 Catégories</div>
     <div class="sub-tab" data-cs="fournisseurs" onclick="switchCfgTab('fournisseurs')">🏭 Fournisseurs</div>
     <div class="sub-tab" data-cs="references" onclick="switchCfgTab('references')">🔍 Références</div>
@@ -1142,6 +1148,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
 
   <!-- Lieux de vente -->
   <div class="card" data-cs="lieux"><div class="card-hd"><h2>📍 Lieux de vente</h2></div><div class="card-bd" id="cfg-lieux"></div></div>
+  <div class="card" data-cs="emballages"><div class="card-hd"><h2>📦 Emballages & envoi</h2></div><div class="card-bd" id="cfg-emballages"></div></div>
 
   <!-- Connexion Supabase -->
   <div class="card" data-cs="connexions">
@@ -2080,6 +2087,10 @@ async function loadAll() {
     LANCEMENT = /^\d{4}-\d{2}-\d{2}$/.test(v || '') ? v : ''; }
   { let lv=cfg.find(c=>c.key==='lieux_vente')?.value; if(typeof lv==='string'){ try{ lv=JSON.parse(lv); }catch(e){ lv=null; } }
     if(Array.isArray(lv)&&lv.length) LIEUX_VENTE=[...new Set(['Boutique en ligne','Point de vente physique',...lv])]; }
+  { let em=cfg.find(c=>c.key==='emballages')?.value; if(typeof em==='string'){ try{ em=JSON.parse(em); }catch(e){ em=null; } }
+    if(em&&typeof em==='object') EMB={kits:em.kits||[], modes:em.modes||[], poids:em.poids||{}, kitDe:em.kitDe||{}}; }
+  { let an=cfg.find(c=>c.key==='accueil_note')?.value; if(typeof an==='string'){ try{ an=JSON.parse(an); }catch(e){ an=null; } }
+    if(an&&typeof an==='object') NOTE_ACCUEIL={texte:an.texte||'', todo:Array.isArray(an.todo)?an.todo:[]}; }
   { let rp=cfg.find(c=>c.key==='reseaux_posts')?.value; if(typeof rp==='string'){ try{ rp=JSON.parse(rp); }catch(e){ rp=null; } }
     POSTS=Array.isArray(rp)?rp:[];
     let rr=cfg.find(c=>c.key==='reseaux_reglages')?.value; if(typeof rr==='string'){ try{ rr=JSON.parse(rr); }catch(e){ rr=null; } }
@@ -2281,6 +2292,8 @@ function matsDeProdCalc(p){
 function stockPris(ref, filtre) {
   return PRODS.filter(p=>+p.qty>0&&filtre(p)).reduce((s,p)=>s+(matsDeProd(p)[ref]||0),0);
 }
+// composition « pure » : sert seulement de composant (non vendue, ou sans prix) — une composition vendue (ex. petit poisson utilisé dans un lot) reste un article
+const compoPure = b => !!b?.is_mat && (!!b.no_sell || !(+b.pv || +(b.parent_id && getBij(b.parent_id)?.pv)));
 // Pièces mises de côté : vitrine, prototype, cadeau… — articles déduits, mais pas en vente
 function horsVente(p){ const v=lireMiseEnVente(p); return !!v.hors_vente || (!Object.keys(v.lieux).length && /vitrine|proto/i.test(v.note)); }
 // Stock fini d'une composition (ou d'un bijou) : produit − vendu − utilisé ailleurs (lignes négatives), hors pièces mises de côté
@@ -3239,6 +3252,104 @@ function succesAtelier() {
     ['💶','Première vente',ventes>=1],['🛍️','25 ventes',ventes>=25],['✨','Premier sur mesure',perso>=1],['🎨','10 créations',crea>=10],['📸','10 photos',photos>=10],
   ];
 }
+// ── Emballages & envoi : poids des articles, kits d'emballage (avec leurs limites) testés pour chaque article, mode de livraison conseillé
+// config « emballages » = { kits:[{id,nom,vide,poidsMax,nbMax,mode,mats:[{ref,qty}]}], modes:[{id,nom,poidsMax,prix}], poids:{bijId:g}, kitDe:{bijId:kitId} }
+let EMB={kits:[], modes:[], poids:{}, kitDe:{}};
+let _embT=null;
+function sauverEmb(){ clearTimeout(_embT); _embT=setTimeout(()=>sbUpsertConfig('emballages',EMB),500); }
+const poidsBij = b => b ? (EMB.poids[b.id] ?? (b.parent_id ? EMB.poids[b.parent_id] : undefined) ?? null) : null;   // une couleur hérite du poids de son modèle
+const kitBij = b => b ? (EMB.kitDe[b.id] || (b.parent_id ? EMB.kitDe[b.parent_id] : '') || '') : '';
+const rangKit = k => [...EMB.kits].sort((a,b)=>(+a.poidsMax||1e9)-(+b.poidsMax||1e9)||(+a.nbMax||1e9)-(+b.nbMax||1e9)).findIndex(x=>x.id===k);
+const coutKit = k => (k?.mats||[]).reduce((t,l)=>{ const m=getMat(l.ref); return t+(m?(+puMoyen(m)||0)*(+l.qty||0):0); },0);
+// items : [{bijId, qty}] → kit conseillé (le plus petit qui convient et au moins aussi grand que ceux testés), poids total, mode de livraison
+function proposerEnvoi(items){
+  const lig=items.map(x=>({b:getBij(x.bijId), qty:+x.qty||1})).filter(x=>x.b);
+  const manquants=lig.filter(x=>poidsBij(x.b)==null).map(x=>x.b);
+  const poids=lig.reduce((t,x)=>t+(+poidsBij(x.b)||0)*x.qty,0), nb=lig.reduce((t,x)=>t+x.qty,0);
+  const tries=[...EMB.kits].sort((a,b)=>(+a.poidsMax||1e9)-(+b.poidsMax||1e9)||(+a.nbMax||1e9)-(+b.nbMax||1e9));
+  const mini=Math.max(-1,...lig.map(x=>rangKit(kitBij(x.b))));
+  const kit=tries.find((k,i)=>i>=mini&&(!+k.poidsMax||poids<=+k.poidsMax)&&(!+k.nbMax||nb<=+k.nbMax))||null;
+  const total=poids+(+kit?.vide||0);
+  const modes=[...EMB.modes].sort((a,b)=>(+a.poidsMax||1e9)-(+b.poidsMax||1e9));
+  const conseille=kit?.mode&&modes.find(m=>m.nom===kit.mode&&(!+m.poidsMax||total<=+m.poidsMax));
+  const mode=conseille||modes.find(m=>!+m.poidsMax||total<=+m.poidsMax)||null;
+  return {poids, nb, kit, total, mode, manquants, sansKit:!!EMB.kits.length&&!kit};
+}
+function badgeEnvoi(items){
+  if(!EMB.kits.length&&!EMB.modes.length) return '';
+  const e=proposerEnvoi(items);
+  const t=[e.kit?`📦 ${escA(e.kit.nom)}`:e.sansKit?'📦 aucun kit ne convient (2 colis ?)':'', `⚖ ≈ ${n(Math.round(e.total))} g`, e.mode?`🚚 ${escA(e.mode.nom)}${+e.mode.prix?' · '+eur(+e.mode.prix):''}`:''].filter(Boolean).join(' · ');
+  return `<span class="badge ${e.manquants.length||e.sansKit?'br':'bgn'}" title="${e.manquants.length?'Poids manquant : '+escA(e.manquants.map(b=>b.nom+(b.variante?' · '+b.variante:'')).join(', ')):'Kit et envoi conseillés (Paramètres › Emballages)'}">${t}${e.manquants.length?` · ⚠ ${e.manquants.length} sans poids`:''}</span>`;
+}
+let EMB_Q='', EMB_FLT='';
+function renderEmballages(){
+  const el=document.getElementById('cfg-emballages'); if(!el) return;
+  const envois=MATS.filter(m=>(m.type||'creation')==='envoi').sort(triMat);
+  const optMats=sel=>`<option value="">— matériau d'emballage —</option>`+envois.map(m=>`<option value="${escA(m.ref)}" ${m.ref===sel?'selected':''}>${escA(libMatOption(m))}</option>`).join('');
+  const optModes=sel=>`<option value="">— automatique —</option>`+EMB.modes.map(m=>`<option ${m.nom===sel?'selected':''}>${escA(m.nom)}</option>`).join('');
+  const optKits=sel=>`<option value="">— à tester —</option>`+[...EMB.kits].sort((a,b)=>rangKit(a.id)-rangKit(b.id)).map(k=>`<option value="${k.id}" ${k.id===sel?'selected':''}>${escA(k.nom||'Kit')}</option>`).join('');
+  const articles=BIJS.filter(b=>!compoPure(b)).filter(b=>!b.parent_id||EMB.poids[b.id]!=null||EMB.kitDe[b.id])
+    .sort((a,b)=>String(a.collection||'').localeCompare(String(b.collection||''),'fr')||triBij(a,b));
+  const k=cleNom(EMB_Q), vus=articles.filter(b=>(!k||cleNom(b.nom+' '+(b.variante||'')+' '+(b.ref||'')+' '+(b.collection||'')).includes(k))
+    &&(!EMB_FLT||(EMB_FLT==='poids'?poidsBij(b)==null:EMB_FLT==='kit'?!kitBij(b):true)));
+  const sansPoids=articles.filter(b=>poidsBij(b)==null).length, sansKit=articles.filter(b=>!kitBij(b)).length;
+  el.innerHTML=`<div class="info-box">1. Crée tes <b>kits d'emballage</b> (pochette, petite boîte…) avec leurs limites. 2. <b>Pèse</b> chaque article et note le kit dans lequel il passe après ton test. 3. Dans les ventes et les commandes sur mesure, l'app conseille le kit, le poids total et le <b>mode de livraison</b>.</div>
+    <div style="font-weight:700;margin:12px 0 6px">📦 Kits d'emballage</div>
+    ${EMB.kits.map((kt,i)=>`<div class="card" style="padding:10px;margin-bottom:8px">
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1.4fr auto;gap:6px;align-items:end">
+        <div class="fg" style="margin:0"><label>Nom</label><input value="${escA(kt.nom||'')}" oninput="EMB.kits[${i}].nom=this.value;sauverEmb()" placeholder="ex. Pochette kraft S"></div>
+        <div class="fg" style="margin:0"><label>Poids à vide (g)</label><input type="number" min="0" value="${kt.vide??''}" oninput="EMB.kits[${i}].vide=+this.value||0;sauverEmb()"></div>
+        <div class="fg" style="margin:0"><label>Contenu max (g)</label><input type="number" min="0" value="${kt.poidsMax??''}" oninput="EMB.kits[${i}].poidsMax=+this.value||null;sauverEmb()"></div>
+        <div class="fg" style="margin:0"><label>Pièces max</label><input type="number" min="0" value="${kt.nbMax??''}" oninput="EMB.kits[${i}].nbMax=+this.value||null;sauverEmb()"></div>
+        <div class="fg" style="margin:0"><label>Envoi conseillé</label><select onchange="EMB.kits[${i}].mode=this.value;sauverEmb()">${optModes(kt.mode)}</select></div>
+        <button class="btn btn-xs btn-red" onclick="if(confirm('Supprimer ce kit ?')){EMB.kits.splice(${i},1);sauverEmb();renderEmballages();}">✕</button>
+      </div>
+      <div style="margin-top:6px;font-size:12px"><span class="dim">Contenu du kit :</span> ${(kt.mats||[]).map((l,j)=>`<span class="badge bm" style="margin:2px">${escA(getMat(l.ref)?libMatOption(getMat(l.ref)):l.ref)} × ${n(l.qty)} <a href="#" onclick="event.preventDefault();EMB.kits[${i}].mats.splice(${j},1);sauverEmb();renderEmballages()">✕</a></span>`).join('')||'<span class="dim">—</span>'}
+        <select style="font-size:12px;padding:5px;max-width:260px" onchange="if(this.value){(EMB.kits[${i}].mats ||= []).push({ref:this.value,qty:1});sauverEmb();renderEmballages();}">${optMats('')}</select>
+        <span class="dim">· coût ≈ ${eur(coutKit(kt))}</span></div>
+    </div>`).join('')||'<p class="dim">Aucun kit pour l\'instant.</p>'}
+    <button class="btn btn-sm btn-ghost" onclick="EMB.kits.push({id:'k'+Date.now().toString(36),nom:'',vide:0,poidsMax:null,nbMax:null,mode:'',mats:[]});sauverEmb();renderEmballages()">＋ Kit</button>
+
+    <div style="font-weight:700;margin:16px 0 6px">🚚 Modes de livraison</div>
+    ${EMB.modes.map((m,i)=>`<div style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:6px;align-items:end;margin-bottom:6px">
+      <div class="fg" style="margin:0"><label>Nom</label><input value="${escA(m.nom||'')}" oninput="EMB.modes[${i}].nom=this.value;sauverEmb()" placeholder="ex. Lettre suivie"></div>
+      <div class="fg" style="margin:0"><label>Poids total max (g)</label><input type="number" min="0" value="${m.poidsMax??''}" oninput="EMB.modes[${i}].poidsMax=+this.value||null;sauverEmb()"></div>
+      <div class="fg" style="margin:0"><label>Prix (€)</label><input type="number" min="0" step="0.01" value="${m.prix??''}" oninput="EMB.modes[${i}].prix=+this.value||null;sauverEmb()"></div>
+      <button class="btn btn-xs btn-red" onclick="EMB.modes.splice(${i},1);sauverEmb();renderEmballages()">✕</button></div>`).join('')||'<p class="dim">Ajoute tes modes (lettre suivie, colis…) avec leur poids maximum et leur tarif.</p>'}
+    <button class="btn btn-sm btn-ghost" onclick="EMB.modes.push({id:'m'+Date.now().toString(36),nom:'',poidsMax:null,prix:null});sauverEmb();renderEmballages()">＋ Mode de livraison</button>
+
+    <div style="font-weight:700;margin:16px 0 6px">⚖ Poids et kit de chaque article <span class="dim" style="font-weight:400;font-size:12px">· ${sansPoids} sans poids · ${sansKit} à tester</span></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+      <input type="search" placeholder="🔍 Article, collection, réf." value="${escA(EMB_Q)}" oninput="EMB_Q=this.value;renderEmballages();setTimeout(()=>{const i=document.querySelector('#cfg-emballages input[type=search]');i.focus();i.setSelectionRange(i.value.length,i.value.length)},0)" style="flex:1;min-width:160px">
+      <select onchange="EMB_FLT=this.value;renderEmballages()"><option value="">Tous</option><option value="poids" ${EMB_FLT==='poids'?'selected':''}>Sans poids</option><option value="kit" ${EMB_FLT==='kit'?'selected':''}>Kit à tester</option></select></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Article</th><th>Collection</th><th>Poids (g)</th><th>Kit testé</th></tr></thead><tbody>
+      ${vus.map(b=>`<tr><td style="font-size:12px">${escA(b.nom)}${b.variante?' · '+escA(b.variante):''} <span class="ref">${escA(b.ref||'')}</span></td><td class="dim" style="font-size:11px">${escA(b.collection||'')}</td>
+        <td><input type="number" min="0" step="0.1" style="width:80px;padding:6px" value="${EMB.poids[b.id]??''}" placeholder="${poidsBij(b)??''}" oninput="if(this.value==='')delete EMB.poids['${b.id}'];else EMB.poids['${b.id}']=+this.value;sauverEmb()"></td>
+        <td><select style="font-size:12px;padding:6px" onchange="if(this.value)EMB.kitDe['${b.id}']=this.value;else delete EMB.kitDe['${b.id}'];sauverEmb()">${optKits(EMB.kitDe[b.id]||'')}</select></td></tr>`).join('')}
+    </tbody></table></div>`;
+}
+// ── Note d'accueil : un mot pour toi + une liste de choses à faire (cochables), enregistrées dans Supabase (config « accueil_note »)
+let NOTE_ACCUEIL={texte:'', todo:[
+  {id:'t1', t:'Remplir les fiches matériaux laine', fait:false},
+  {id:'t2', t:'Gérer les matériaux des modèles sac et tapestry', fait:false}]};
+let _noteT=null;
+function sauverNoteAccueil(){ clearTimeout(_noteT); _noteT=setTimeout(()=>sbUpsertConfig('accueil_note',NOTE_ACCUEIL),600); }
+function blocNoteAccueil(){
+  const td=NOTE_ACCUEIL.todo||[], reste=td.filter(x=>!x.fait).length;
+  return `<div class="card home-note">
+    <div class="home-note-t">📝 Ma note <span class="dim" style="font-size:11px;font-weight:400">${td.length?`· ${reste} à faire sur ${td.length}`:''}</span></div>
+    <textarea id="home-note-txt" rows="2" placeholder="Un mot pour toi : idées, rappels, priorités de la semaine…" oninput="NOTE_ACCUEIL.texte=this.value;sauverNoteAccueil()">${escA(NOTE_ACCUEIL.texte||'')}</textarea>
+    <div class="home-todo">${td.map(x=>`<label class="home-todo-l ${x.fait?'fait':''}"><input type="checkbox" ${x.fait?'checked':''} onchange="cocherTodo('${x.id}',this.checked)"><span>${escA(x.t)}</span><button type="button" class="btn btn-xs btn-ghost" onclick="event.preventDefault();retirerTodo('${x.id}')" title="Retirer">✕</button></label>`).join('')}</div>
+    <div style="display:flex;gap:6px;margin-top:6px"><input id="home-todo-new" placeholder="Ajouter une chose à faire…" style="flex:1;font-size:13px;padding:8px" onkeydown="if(event.key==='Enter')ajouterTodo()"><button type="button" class="btn btn-sm btn-p" onclick="ajouterTodo()">＋</button>
+      ${td.some(x=>x.fait)?'<button type="button" class="btn btn-sm btn-ghost" onclick="viderTodoFaits()">Retirer les faits</button>':''}</div>
+  </div>`;
+}
+function majNoteAccueil(){ const el=document.querySelector('.home-note'); if(el) el.outerHTML=blocNoteAccueil(); }
+function cocherTodo(id,v){ const x=NOTE_ACCUEIL.todo.find(t=>t.id===id); if(x){ x.fait=v; sauverNoteAccueil(); majNoteAccueil(); } }
+function retirerTodo(id){ NOTE_ACCUEIL.todo=NOTE_ACCUEIL.todo.filter(t=>t.id!==id); sauverNoteAccueil(); majNoteAccueil(); }
+function viderTodoFaits(){ NOTE_ACCUEIL.todo=NOTE_ACCUEIL.todo.filter(t=>!t.fait); sauverNoteAccueil(); majNoteAccueil(); }
+function ajouterTodo(){ const i=document.getElementById('home-todo-new'), t=i.value.trim(); if(!t) return;
+  NOTE_ACCUEIL.todo.push({id:'t'+Date.now().toString(36), t, fait:false}); sauverNoteAccueil(); majNoteAccueil(); setTimeout(()=>document.getElementById('home-todo-new')?.focus(),0); }
 function renderAccueil() {
   const el=document.getElementById('home-body'); if(!el||!MATS) return;
   const h=new Date().getHours(), salut=h<5?'Bonne nuit':h<12?'Bonjour':h<18?'Bon après-midi':'Bonsoir';
@@ -3252,7 +3363,7 @@ function renderAccueil() {
   const best=Object.entries(top).sort((a,b)=>b[1]-a[1])[0], bestB=best&&getBij(best[0]);
   const serie=serieAtelier();
   const perso=PRODS.filter(p=>p.perso&&p.statut==='en_cours').sort((a,b)=>String(a.date).localeCompare(String(b.date)));
-  const avendre=PRODS.filter(p=>(!p.statut||p.statut==='produit')&&+p.qty>0&&!Object.keys(lireMiseEnVente(p).lieux).length&&!dropDeProd(p.id)&&!horsVente(p)&&!getBij(p.bij_id)?.is_mat);
+  const avendre=PRODS.filter(p=>(!p.statut||p.statut==='produit')&&+p.qty>0&&!Object.keys(lireMiseEnVente(p).lieux).length&&!dropDeProd(p.id)&&!horsVente(p)&&!compoPure(getBij(p.bij_id)));
   const dropsDus=DROPS.filter(d=>d.statut!=='en_ligne'&&d.date&&d.date<=today()&&(d.items||[]).length);
   const grpS=groupesStock(), bas=grpS.filter(g=>g.bas), bientot=grpS.filter(g=>g.bientot), brouillons=BIJS.filter(isDraft), incompl=MATS.filter(m=>champsManquants(m).length), enG=lignesPerlesEnGrammes();
   const idees1=ideesPosts().filter(x=>x.prio===1), postAuj=POSTS.filter(p=>p.statut==='prevu'&&p.date<=today());
@@ -3301,6 +3412,8 @@ function renderAccueil() {
       ${nbNouveaux?`<span class="home-chip nouveau">🆕 ${nbNouveaux} nouveau${nbNouveaux>1?'x':''} depuis ta dernière visite</span>`:''}
     </div>
   </div>
+
+  ${blocNoteAccueil()}
 
   <div class="home-titre" style="display:flex;justify-content:space-between;align-items:baseline">Missions du jour
     <button class="btn btn-xs btn-ghost" onclick="const e=document.getElementById('home-aide');e.hidden=!e.hidden">ℹ️ D'où viennent les missions ?</button></div>
@@ -3359,7 +3472,7 @@ function majBadgesOnglets(){
     b.textContent=nb; b.title=titre; };
   try {
     const perso=PRODS.filter(p=>p.perso&&p.statut==='en_cours').length;
-    const avendre=PRODS.filter(p=>(!p.statut||p.statut==='produit')&&+p.qty>0&&!Object.keys(lireMiseEnVente(p).lieux).length&&!dropDeProd(p.id)&&!horsVente(p)&&!getBij(p.bij_id)?.is_mat).length;
+    const avendre=PRODS.filter(p=>(!p.statut||p.statut==='produit')&&+p.qty>0&&!Object.keys(lireMiseEnVente(p).lieux).length&&!dropDeProd(p.id)&&!horsVente(p)&&!compoPure(getBij(p.bij_id))).length;
     const brouillons=BIJS.filter(isDraft).length;
     const incompl=MATS.filter(m=>champsManquants(m).length).length, enG=lignesPerlesEnGrammes().length;
     pastille('.tab[data-p="home"]', perso+avendre+stocksBas().length+brouillons+incompl+enG, 'choses à faire');
@@ -4188,7 +4301,7 @@ function rendreC3(){
       +`<p class="dim c3-aide">Chaque chaîne et ses variantes (les variantes collier / choker ne sont pas proposées). Le motif 3D vient du nom de la fiche ou du lien dans 🔗 Références.</p>
       <div class="c3-barre">${tout(idsCh,true)}${tout(idsCh,false)}${plier}</div>`
       +L.map(b=>c3Groupe('c:'+b.id,`${escA(nomFiche3(b))} <span class="dim">${escA(b.ref)}</span>`,[b,...D.varsCh(b)].map(x=>c3Ligne(x===b?'Fiche de base':'Variante · '+escA(x.variante||x.ref),c3Inter(c3Vu('idee:'+x.id),`basculerIdee('${escA(x.id)}')`),{sous:escA(x.ref),retrait:x!==b})).join(''))).join('');
-  } else corps=renderOffres().replace('<details class="c3p-det" style="margin-top:8px">','<details class="c3p-det" open>');
+  } else corps=renderOffres().replace('<details class="c3p-det" style="margin-top:8px">','<details class="c3p-det" open>')+renderControlePrix();
   return `<div class="c3-onglets">${onglets.map(([k,t,n])=>`<button type="button" class="${C3_ONGLET===k?'on':''}" onclick="C3_ONGLET='${k}';renderModelesProposes()">${t}${n?` <span>${n}</span>`:''}</button>`).join('')}</div>
     ${['idees','bundles','chaines'].includes(C3_ONGLET)?`<input class="c3-filtre" placeholder="🔍 Filtrer…" value="${escA(C3_FILTRE)}" oninput="C3_FILTRE=this.value;clearTimeout(window.__c3f);window.__c3f=setTimeout(()=>{renderModelesProposes().then(()=>{const i=document.querySelector('.c3-filtre');i.focus();i.setSelectionRange(i.value.length,i.value.length);})},250)">`:''}
     <div class="c3-corps">${corps}</div>`;
@@ -4199,7 +4312,7 @@ async function c3Tous(ids,on){
 }
 // 🎁 offres du configurateur (non cumulables : la cliente choisit si elle a droit aux deux)
 let OFFRES_CFG=null;
-const OFFRES_DEF={ rond:{active:true,libelle:'Fermoir rond offert',min:2,prixMin:15,remise:1.5}, mousqueton:{active:true,libelle:'Mousqueton offert',minBundles:2,minAchat:25,remise:null}, lettres:{active:true,libelle:'Breloques lettre offertes',min:3,prixMin:15} };
+const OFFRES_DEF={ rond:{active:true,libelle:'Fermoir rond offert',min:2,prixMin:15,remise:1.5}, mousqueton:{active:true,libelle:'Mousqueton offert',minBundles:2,minAchat:25,remise:null}, lettres:{active:true,libelle:'Breloque lettre offerte',min:3,prixMin:15} };
 async function chargerOffresCfg(){ try{ const {data}=await SB.from('config').select('value').eq('key','configurateur_offres').maybeSingle(); let v=data?.value; if(typeof v==='string'){ try{v=JSON.parse(v);}catch(e){v=null;} } OFFRES_CFG=v&&typeof v==='object'?v:{};
   if(OFFRES_CFG.perles&&!OFFRES_CFG.lettres){ const {libelle,...r}=OFFRES_CFG.perles; OFFRES_CFG.lettres=r; }   // ancienne offre « perles » → breloques lettre
   }catch(e){ OFFRES_CFG={}; } }
@@ -4208,10 +4321,67 @@ function renderOffres(){
   const o=k=>({...OFFRES_DEF[k],...(OFFRES_CFG[k]||{})});
   const champ=(k,c,lab,type='number',w=70)=>`<label style="display:inline-flex;gap:4px;align-items:center;font-size:12px">${lab}<input type="${type}" step="0.5" value="${escA(o(k)[c]??'')}" style="width:${w}px" onchange="majOffre('${k}','${c}',this.value,'${type}')"></label>`;
   const bt=k=>`<button type="button" class="c3p ${o(k).active!==false?'on':''}" onclick="majOffre('${k}','active',${o(k).active===false})">${o(k).active!==false?'👁 affichée':'🚫 masquée'}</button>`;
-  return `<details class="c3p-det" style="margin-top:8px"><summary><b>🎁 Offres du configurateur</b> <span class="dim">· non cumulables : si la cliente a droit aux deux, elle choisit</span> <span class="c3p-gerer">Gérer ▾</span></summary><div class="c3p-tab">
+  return `<details class="c3p-det" style="margin-top:8px"><summary><b>🎁 Offres du configurateur</b> <span class="dim">· rond et mousqueton : non cumulables (la cliente choisit), une fois par commande · breloque lettre : une seule offerte par commande, cumulable</span> <span class="c3p-gerer">Gérer ▾</span></summary><div class="c3p-tab">
     <div class="c3p-l" style="flex-wrap:wrap;gap:6px"><span class="c3p-nom">Rond offert</span>${bt('rond')}${champ('rond','libelle','Libellé','text',160)}${champ('rond','min','dès')} breloques ${champ('rond','prixMin','à partir de (€)')}${champ('rond','remise','remise (€)')}</div>
     <div class="c3p-l" style="flex-wrap:wrap;gap:6px"><span class="c3p-nom">Mousqueton offert</span>${bt('mousqueton')}${champ('mousqueton','libelle','Libellé','text',160)}${champ('mousqueton','minBundles','dès')} porte-clés montés sur le mousqueton, ${champ('mousqueton','minAchat','achat minimum (€)')} ${champ('mousqueton','remise','remise (€, vide = offert)')} <span class="dim" style="font-size:11px">(proposée seulement avec plusieurs porte-clés)</span></div>
-    <div class="c3p-l" style="flex-wrap:wrap;gap:6px"><span class="c3p-nom">Breloques lettre offertes</span>${bt('lettres')}${champ('lettres','libelle','Libellé','text',160)}${champ('lettres','min','dès')} breloques ${champ('lettres','prixMin','à partir de (€)')} <span class="dim" style="font-size:11px">(cumulable avec les offres porte-clés)</span></div>
+    <div class="c3p-l" style="flex-wrap:wrap;gap:6px"><span class="c3p-nom">Breloque lettre offerte</span>${bt('lettres')}${champ('lettres','libelle','Libellé','text',160)}${champ('lettres','min','dès')} breloques ${champ('lettres','prixMin','à partir de (€)')} <span class="dim" style="font-size:11px">(cumulable avec les offres porte-clés)</span></div>
+  </div></details>`;
+}
+// ── 💶 Contrôle des prix : fiches (prix ↔ coût de revient), suppléments du configurateur (prix ↔ coût de la pièce), offres (marge qui reste)
+let CTRL_PRIX=null, CTRL_TOUT=false;
+async function chargerControlePrix(){
+  try{
+    const [{data:m},{data:l}]=await Promise.all([SB.from('modeles_3d').select('slug,nom,donnees').eq('publie',true), SB.from('config').select('value').eq('key','configurateur_liens').maybeSingle()]);
+    let li=l?.value; if(typeof li==='string'){ try{ li=JSON.parse(li); }catch(e){ li={}; } }
+    CTRL_PRIX={modeles:(m||[]).map(x=>({slug:x.slug, nom:x.donnees?.nom||x.nom, d:x.donnees||{}})), liens:li||{}};
+  }catch(e){ CTRL_PRIX={modeles:[], liens:{}}; }
+  renderModelesProposes();
+}
+function coutRef(ref){   // coût d'une pièce du configurateur : référence reliée (🔗 Références) → matériau ou fiche
+  const r=CTRL_PRIX?.liens?.[ref]||ref, m=getMat(r); if(m) return {cout:+puMoyen(m)||0, nom:libMatOption(m), ok:!!puMoyen(m)};
+  const b=BIJS.find(x=>x.ref===r); if(b) return {cout:coutBijou(b), nom:b.nom+(b.variante?' · '+b.variante:''), ok:true};
+  return {cout:0, nom:ref+' (non reliée)', ok:false};
+}
+function renderControlePrix(){
+  if(!CTRL_PRIX){ chargerControlePrix(); return '<p class="dim" style="margin-top:12px">💶 Contrôle des prix : chargement…</p>'; }
+  const r=COUTS.reglages, pct=v=>isFinite(v)?Math.round(v*100)+' %':'--';
+  const badge=(m,seuil=0.5)=>`<span class="badge ${m>=seuil?'bgn':m>=0.25?'bp':'br'}">${pct(m)}</span>`;
+  // A. fiches vendues : prix ↔ coût de revient complet (matériaux + temps + emballage) ↔ prix conseillé
+  const fiches=BIJS.filter(b=>!compoPure(b)&&!b.no_sell&&(+b.pv||(b.parent_id&&+getBij(b.parent_id)?.pv))).map(b=>{ const pv=+(b.pv||getBij(b.parent_id)?.pv||0), cc=coutComplet(b), cm=coutBijou(b), pc=prixConseille(b);
+    const net=pv*(1-(+r.frais||0)/100); return {b,pv,cm,cc,pc,marge:pv?(net-cc)/pv:0, sousConseil:pv<pc-0.01, sansTemps:tempsBij(b)==null}; });
+  const aRevoir=fiches.filter(f=>f.sousConseil||f.marge<0.3);
+  const vues=(CTRL_TOUT?fiches:aRevoir).sort((a,b)=>a.marge-b.marge);
+  // B. suppléments du configurateur (fermoirs, porte-clés, options perle)
+  const sup=[]; const vus=new Set();
+  for(const m of CTRL_PRIX.modeles) for(const o of m.d.options||[]){
+    if(o.type==='fermoir') for(const c of o.choix||[]){ if(!+c.supplement||vus.has('f'+c.ref)) continue; vus.add('f'+c.ref); const x=coutRef(c.ref); sup.push({lib:'Fermoir · '+(c.libelle||c.ref), prix:+c.supplement, ...x}); }
+    if(o.type==='accroche') for(const c of o.choix||[]){ if(!+c.supplement||vus.has('a'+c.id)) continue; vus.add('a'+c.id); const xs=(c.pieces||[]).map(coutRef); sup.push({lib:'Porte-clés · '+(c.libelle||c.id), prix:+c.supplement, cout:xs.reduce((t,x)=>t+x.cout,0), nom:xs.map(x=>x.nom).join(' + '), ok:xs.every(x=>x.ok)}); }
+    if(o.type==='perle'&&+o.supplement&&!vus.has('p'+(o.nom||o.id))){ vus.add('p'+(o.nom||o.id)); const refs=(o.choix||[]).map(c=>c.ref||c).filter(Boolean); const xs=refs.map(coutRef).filter(x=>x.ok);
+      sup.push({lib:'Option · '+(o.nom||'perle'), prix:+o.supplement, cout:xs.length?Math.max(...xs.map(x=>x.cout)):0, nom:xs.length?'la plus chère des '+xs.length+' couleurs':'non reliée', ok:!!xs.length}); }
+  }
+  // C. offres : marge qui reste sur la plus petite commande qui y donne droit
+  const O=k=>({...OFFRES_DEF[k],...(OFFRES_CFG?.[k]||{})});
+  const qual=fiches.filter(f=>f.pv>=(+O('rond').prixMin||15)), ratio=qual.length?qual.reduce((t,f)=>t+f.cc/f.pv,0)/qual.length:0.4;
+  const supDe=re=>sup.find(x=>re.test(x.lib));
+  const lignesOffre=[];
+  { const o=O('rond'); if(o.active!==false){ const ca=(+o.min||2)*(+o.prixMin||15), rond=supDe(/porte-clés · rond$/i)||supDe(/rond/i), cout=ca*ratio+(rond?.cout||0); lignesOffre.push(['Rond offert', `${o.min} breloques à ${eur(+o.prixMin||15)}`, ca, cout, rond?`le rond coûte ${eur(rond.cout)}`:'rond non relié']); } }
+  { const o=O('mousqueton'); if(o.active!==false){ const ca=+o.minAchat||25, mq=supDe(/mousqueton$/i)||supDe(/mousqueton/i), cout=ca*ratio+(mq?.cout||0); lignesOffre.push(['Mousqueton offert', `${o.minBundles||2} porte-clés, dès ${eur(ca)}`, ca, cout, mq?`le mousqueton coûte ${eur(mq.cout)}`:'mousqueton non relié']); } }
+  { const o=O('lettres'); if(o.active!==false){ const ca=(+o.min||3)*(+o.prixMin||15), lt=fiches.filter(f=>/lettre/i.test(f.b.nom)).sort((a,b)=>a.cc-b.cc)[0], cout=ca*ratio+(lt?.cc||0); lignesOffre.push(['Breloque lettre offerte', `${o.min} breloques à ${eur(+o.prixMin||15)}`, ca, cout, lt?`la lettre coûte ${eur(lt.cc)} (coût complet)`:'pas de fiche lettre']); } }
+  return `<details class="c3p-det" open style="margin-top:12px"><summary><b>💶 Contrôle des prix</b> <span class="dim">· ${aRevoir.length} fiche(s) à revoir${fiches.filter(f=>f.sansTemps).length?` · ⏱ ${fiches.filter(f=>f.sansTemps).length} sans temps de fabrication (leur coût est sous-estimé)`:''} · coût complet = matériaux + temps (${r.taux} €/h) + emballage (${eur(r.emballage)}), frais de vente ${r.frais} % · réglages dans ⚙ Paramètres › Atelier</span></summary><div class="c3p-tab">
+    <div style="font-weight:700;margin:4px 0">Fiches ${CTRL_TOUT?'(toutes)':'à revoir (marge < 30 % ou prix sous le conseillé)'} <button class="btn btn-xs btn-ghost" onclick="CTRL_TOUT=!CTRL_TOUT;renderModelesProposes()">${CTRL_TOUT?'Seulement à revoir':'Tout voir ('+fiches.length+')'}</button></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Fiche</th><th>Prix</th><th>Matériaux</th><th>Coût complet</th><th>Conseillé</th><th>Marge nette</th></tr></thead><tbody>
+      ${vues.map(f=>`<tr><td style="font-size:12px">${escA(f.b.nom)}${f.b.variante?' · '+escA(f.b.variante):''} <span class="ref">${escA(f.b.ref||'')}</span>${f.sansTemps?' <span class="dim" title="Temps de fabrication non renseigné : coût complet sans ton temps">⏱ ?</span>':''}</td>
+        <td><b>${eur(f.pv)}</b></td><td class="dim">${eur(f.cm)}</td><td>${eur(f.cc)}</td><td style="color:${f.sousConseil?'var(--red)':'var(--green)'}">${eur(f.pc)}</td><td>${badge(f.marge,0.3)}</td></tr>`).join('')||'<tr><td colspan="6" class="dim">Rien à revoir ✓</td></tr>'}
+    </tbody></table></div>
+    <div style="font-weight:700;margin:12px 0 4px">Suppléments du configurateur</div>
+    <div class="tbl-wrap"><table><thead><tr><th>Supplément</th><th>Prix</th><th>Coût de la pièce</th><th>Marge</th></tr></thead><tbody>
+      ${sup.map(x=>`<tr><td style="font-size:12px">${escA(x.lib)}<div class="dim" style="font-size:10px">${escA(x.nom)}</div></td><td><b>${eur(x.prix)}</b></td><td>${x.ok?eur(x.cout):'<span class="badge br">à relier</span>'}</td><td>${x.ok?badge((x.prix-x.cout)/x.prix):'--'}</td></tr>`).join('')||'<tr><td colspan="4" class="dim">Aucun modèle publié avec des suppléments.</td></tr>'}
+    </tbody></table></div>
+    <div style="font-weight:700;margin:12px 0 4px">Offres : ce qui reste sur la plus petite commande qui y donne droit</div>
+    <div class="tbl-wrap"><table><thead><tr><th>Offre</th><th>Condition</th><th>Chiffre</th><th>Coûts estimés</th><th>Marge qui reste</th></tr></thead><tbody>
+      ${lignesOffre.map(([t,c,ca,cout,det])=>`<tr><td style="font-size:12px">${t}<div class="dim" style="font-size:10px">${escA(det)}</div></td><td style="font-size:12px">${escA(c)}</td><td>${eur(ca)}</td><td>${eur(cout)}</td><td>${eur(ca*(1-(+r.frais||0)/100)-cout)} ${badge((ca*(1-(+r.frais||0)/100)-cout)/ca,0.3)}</td></tr>`).join('')}
+    </tbody></table></div>
+    <p class="dim" style="font-size:11px;margin-top:6px">Coûts des offres estimés avec le ratio moyen coût complet / prix de tes fiches à ${eur(+O('rond').prixMin||15)} ou plus (${pct(ratio)}). Un supplément « à relier » n'a pas de matériau associé dans 🔗 Références.</p>
   </div></details>`;
 }
 async function majOffre(k,c,v,type){
@@ -4305,21 +4475,27 @@ function renderPersoAFaire() {
   if (!aFaire.length) return '';
   return `<div class="card" style="margin-bottom:14px;padding:12px 14px;border:1.5px solid var(--purple)">
     <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--purple);margin-bottom:8px">✨ Personnalisations à faire · ${aFaire.length}</div>
-    ${aFaire.map(p => { const b = getBij(p.bij_id);
+    ${(() => { // regroupées par commande : deux personnalisations d'une même commande restent ensemble (une note chacune)
+      const g = {}; aFaire.forEach(p => (g[p.perso_commande || ('sans:' + p.perso)] ||= []).push(p));
+      return Object.entries(g).map(([cmd, ps]) => { const nbP = new Set(ps.map(p => p.perso)).size;
+        const env = badgeEnvoi(ps.map(p => ({ bijId: p.bij_id, qty: p.qty })));
+        return (cmd.startsWith('sans:') ? (env ? `<div style="margin:8px 0 2px;font-size:11px">${env}</div>` : '') : `<div style="margin:8px 0 2px;font-size:11px;font-weight:700;color:var(--purple)">🧾 Commande ${escPerso(cmd)}${nbP > 1 ? ` · ${nbP} personnalisations (une note chacune)` : ''} ${env}</div>`)
+          + ps.map(ligneAFaire).join(''); }).join(''); })()}
+  </div>`;
+}
+function ligneAFaire(p) { const b = getBij(p.bij_id);
       return `<div style="display:grid;gap:4px;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px">
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <span class="badge bm">${escPerso(p.date || '--')}</span>
           <b>${escPerso(p.perso)}</b>
           <span>${b ? escPerso(b.nom + (b.variante ? ' · ' + b.variante : '')) : ''}</span>
-          ${p.perso_commande ? `<span class="badge bp">Commande Wix ${escPerso(p.perso_commande)}</span>` : ''}
+          ${p.perso_commande ? `<span class="badge bp">Commande ${escPerso(p.perso_commande)}</span>` : ''}
           <span style="flex:1"></span>
           <button class="btn btn-xs btn-ghost" onclick="ouvrirPerso('${escPerso(p.perso)}')">Fiche atelier</button>
           <button class="btn btn-xs btn-p" onclick="persoProduite('${p.id}')">✅ Produite</button>
         </div>
         <div style="white-space:pre-wrap;color:var(--muted)">${escPerso(p.perso_note || '')}</div>
-      </div>`; }).join('')}
-  </div>`;
-}
+      </div>`; }
 async function persoProduite(id) {
   const ok = await sbUpdate('productions', id, { statut: 'produit' });
   if (ok) { const p = PRODS.find(x => x.id === id); if (p) p.statut = 'produit'; renderRent(); toast('Personnalisation produite ✓', 'ok'); }
@@ -4742,10 +4918,10 @@ function buildSCOptions(selectedMC, selectedSC) {
   }));
   MATS.forEach(m=>{ if(!m.sc) return; const mc=m.mc||'Autre'; if(!mcMap[mc]) mcMap[mc]=[]; if(!mcMap[mc].includes(m.sc)) mcMap[mc].push(m.sc); });
   if(selectedSC && selectedSC!=='Bijou (composition)' && !(mcMap[selectedMC||'Autre']||[]).includes(selectedSC)) (mcMap[selectedMC||'Autre'] ||= []).push(selectedSC);
-  Object.entries(mcMap).forEach(([mc,scs])=>{
+  Object.entries(mcMap).sort((a,b)=>String(a[0]).localeCompare(String(b[0]),'fr')).forEach(([mc,scs])=>{
     if(!scs.length) return;
     opts+=`<optgroup label="◆ ${mc}">`;
-    scs.forEach(sc=>{
+    [...scs].sort((a,b)=>String(a).localeCompare(String(b),'fr')).forEach(sc=>{
       const val=mc+'|||'+sc;
       opts+=`<option value="${val}" ${val===selectedVal?'selected':''}>${sc}</option>`;
     });
@@ -4840,6 +5016,9 @@ function addMatRow(sc='',ref='',qty='',qty_unite='native') {
   }
 }
 
+// tris communs des listes de références (formulaires fiche bijou, production, lots)
+const triMat=(a,b)=>String(a.designation||a.des||'').localeCompare(String(b.designation||b.des||''),'fr')||String(a.variante||'').localeCompare(String(b.variante||''),'fr',{numeric:true})||String(a.ref).localeCompare(String(b.ref),'fr',{numeric:true});
+const triBij=(a,b)=>String(a.nom||'').localeCompare(String(b.nom||''),'fr')||String(a.variante||'').localeCompare(String(b.variante||''),'fr',{numeric:true});
 function filterBijRefs(sel,preselectRef='') {
   const row=sel.closest('.mat-row-item');
   const refSel=row.querySelector('.bij-ref');
@@ -4849,12 +5028,14 @@ function filterBijRefs(sel,preselectRef='') {
   const sc=parts[1]||'';
   let opts='<option value="">-- Réf --</option>';
   if(sc==='Bijou (composition)') {
-    BIJS.filter(b=>b.is_mat||b.ref===preselectRef).forEach(b=>{
-      opts+=`<option value="${b.ref}" ${b.ref===preselectRef?'selected':''}>${b.ref} · ${b.nom}${b.variante?' · '+b.variante:''}</option>`;
+    // compositions rangées par collection puis par nom (plus facile à retrouver quand les références s'accumulent)
+    const g={}; BIJS.filter(b=>b.is_mat||b.ref===preselectRef).forEach(b=>(g[b.collection||'Sans collection'] ||= []).push(b));
+    Object.keys(g).sort((a,b)=>a.localeCompare(b,'fr')).forEach(col=>{
+      opts+=`<optgroup label="${escA(col)}">`+g[col].sort(triBij).map(b=>`<option value="${b.ref}" ${b.ref===preselectRef?'selected':''}>${escA(b.nom)}${b.variante?' · '+escA(b.variante):''} — ${b.ref}</option>`).join('')+'</optgroup>';
     });
   } else {
-    // Filtrer par mc ET sc pour éviter les doublons inter-catégories
-    MATS.filter(m=>m.sc===sc&&(!mc||(m.mc||'Autre')===mc)).forEach(m=>{
+    // Filtrer par mc ET sc pour éviter les doublons inter-catégories ; triées par désignation, couleur, puis référence
+    MATS.filter(m=>m.sc===sc&&(!mc||(m.mc||'Autre')===mc)).sort(triMat).forEach(m=>{
       opts+=`<option value="${m.ref}" ${m.ref===preselectRef?'selected':''}>${libMatOption(m)}</option>`;
     });
   }
@@ -4873,7 +5054,7 @@ function filterBijRefs(sel,preselectRef='') {
 // Saisie directe d'une référence (ou d'un nom) : la catégorie et la liste se règlent toutes seules
 function listeRefsBij(){
   let dl=document.getElementById('dl-refs-bij'); if(!dl){ dl=document.createElement('datalist'); dl.id='dl-refs-bij'; document.body.appendChild(dl); }
-  dl.innerHTML=MATS.map(m=>`<option value="${escA(m.ref)}">${escA(libMatOption(m))}</option>`).join('')+BIJS.filter(b=>b.is_mat).map(b=>`<option value="${escA(b.ref)}">💎 ${escA([b.nom,b.variante].filter(Boolean).join(' · '))}</option>`).join('');
+  dl.innerHTML=[...MATS].sort(triMat).map(m=>`<option value="${escA(m.ref)}">${escA(libMatOption(m))}</option>`).join('')+BIJS.filter(b=>b.is_mat).sort(triBij).map(b=>`<option value="${escA(b.ref)}">💎 ${escA([b.nom,b.variante].filter(Boolean).join(' · '))}</option>`).join('');
 }
 function choisirRefTapee(inp){
   const t=inp.value.trim(); if(!t) return;
@@ -5292,66 +5473,107 @@ async function corrigerUnitePerles(bijId, i, garderGrammes=false) {
   const ok=await sbUpdate('bijoux',bijId,{mats});
   if(ok){ b.mats=mats; renderStock(); renderMat(); toast(garderGrammes?'Gardé en grammes ✓':'Compté en perles ✓ — stock recalculé','ok'); }
 }
+// ── Gestion des stocks : recherche, filtres, tri, et détail de ce qui est réservé par les productions en cours
+let STOCK_VUE={q:'', flt:'', tri:'cat', cat:''}; try{ Object.assign(STOCK_VUE, JSON.parse(localStorage.getItem('stock_vue')||'{}')); STOCK_VUE.q=''; }catch(e){}
+function majStockVue(k,v){ STOCK_VUE[k]=v; try{ localStorage.setItem('stock_vue',JSON.stringify({...STOCK_VUE,q:''})); }catch(e){} renderStock(); if(k==='q') setTimeout(()=>{ const i=document.getElementById('stock-q'); if(i){ i.focus(); i.setSelectionRange(i.value.length,i.value.length); } },0); }
+// productions en cours (et sur mesure) qui réservent une référence : [{p, b, q}]
+function reservesDe(refs){
+  const set=new Set(refs);
+  return PRODS.filter(p=>+p.qty>0&&!estProduite(p)).map(p=>{ const c=matsDeProd(p); const q=Object.entries(c).filter(([r])=>set.has(r)).reduce((t,[,x])=>t+x,0); return {p,b:getBij(p.bij_id),q}; }).filter(x=>x.q>0)
+    .sort((a,b)=>String(a.p.date||'').localeCompare(String(b.p.date||'')));
+}
+function ouvrirInfo(titre, html){
+  let o=document.getElementById('m-info');
+  if(!o){ o=document.createElement('div'); o.id='m-info'; o.className='overlay'; o.onclick=e=>{ if(e.target===o) closeModal('m-info'); }; document.body.appendChild(o); }
+  o.innerHTML=`<div class="modal"><div class="drag"></div><div class="modal-title">${titre}</div><div id="m-info-body">${html}</div><div class="mfoot"><button class="btn btn-ghost" onclick="closeModal('m-info')">Fermer</button></div></div>`;
+  openModal('m-info');
+}
+function voirReserve(base){
+  const items=MATS.filter(m=>baseRef(m.ref)===base), l=reservesDe(items.map(m=>m.ref)), u=getUniteShort(items[0]);
+  ouvrirInfo(`🔧 Réservé · ${escA(items[0]?.designation||base)} <span class="dim" style="font-size:12px">${escA(base)}</span>`,
+    l.length?`<div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Production</th><th>Qté</th><th>Réservé</th></tr></thead><tbody>${l.map(x=>`<tr>
+      <td>${escA(x.p.date||'--')}</td><td>${x.b?escA(x.b.nom+(x.b.variante?' · '+x.b.variante:'')):'?'}${x.p.perso?` <span class="badge bm">✨ ${escA(x.p.perso)}</span>`:''}${x.p.perso_commande?` <span class="badge bp">${escA(x.p.perso_commande)}</span>`:''}</td>
+      <td>${n(x.p.qty)}</td><td><b>${n(Math.round(x.q*100)/100)}</b> ${u}</td></tr>`).join('')}</tbody></table></div>
+      <p class="dim" style="font-size:12px;margin-top:8px">Quand une production passe à « Déjà produit », sa réserve devient « utilisé ».</p>`:'<p class="dim">Rien de réservé.</p>');
+}
+// vue d'ensemble : chaque production en cours et ce qu'elle réserve, avec le disponible restant
+function voirToutReserve(){
+  const enc=PRODS.filter(p=>+p.qty>0&&!estProduite(p)).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
+  ouvrirInfo('🔧 Matériaux réservés par les productions en cours', enc.length?enc.map(p=>{ const b=getBij(p.bij_id), c=matsDeProd(p);
+    const lignes=Object.entries(c).filter(([,q])=>q>0).map(([r,q])=>{ const m=getMat(r); if(!m) return '';
+      const d=MATS.filter(x=>baseRef(x.ref)===baseRef(m.ref)).reduce((t,x)=>t+stockDispo(x),0);
+      return `<tr><td><span class="ref">${escA(r)}</span> ${escA(m.variante||m.designation||'')}</td><td>${n(Math.round(q*100)/100)} ${getUniteShort(m)}</td><td style="color:${d<0?'var(--red)':'var(--green)'}">${n(Math.round(d*100)/100)}</td></tr>`; }).join('');
+    return `<div style="margin:0 0 10px"><div style="font-weight:700;font-size:13px">${escA(p.date||'--')} · ${b?escA(b.nom+(b.variante?' · '+b.variante:'')):'?'} × ${n(p.qty)} ${p.perso?`<span class="badge bm">✨ ${escA(p.perso)}</span>`:''}</div>
+      <div class="tbl-wrap"><table><thead><tr><th>Matériau</th><th>Réservé</th><th>Dispo après réserve</th></tr></thead><tbody>${lignes||'<tr><td colspan="3" class="dim">Fiche sans matériaux</td></tr>'}</tbody></table></div></div>`; }).join('')
+    :'<p class="dim">Aucune production en cours.</p>');
+}
 function renderStock() {
   const el=document.getElementById('stock-body');
   if(!el) return;
   if(!MATS||!MATS.length){el.innerHTML='<div class="empty"><div class="empty-icon">📦</div><p>Aucun matériau chargé</p></div>';return;}
-  // Initialiser couleurs pour tous les MC présents dans MATS
   MATS.forEach(m=>{
     if(m.mc&&!MAIN_CLR[m.mc]) MAIN_CLR[m.mc]=couleurMC(m.mc);
     if(m.sc&&!SC_CLR[m.sc]) SC_CLR[m.sc]=couleurSC(m.sc);
   });
   const filteredMats = CUR_STOCK_FLT==='all' ? MATS : MATS.filter(m=>(m.type||'creation')===CUR_STOCK_FLT);
   const stockableMats = filteredMats.filter(m=>(m.type||'creation')!=='outil');
-  const by={};
-  stockableMats.forEach(m=>{if(!by[m.mc])by[m.mc]={};if(!by[m.mc][m.sc])by[m.mc][m.sc]=[];by[m.mc][m.sc].push(m);});
-  const nbBas=stocksBas().length;
+  // une ligne par référence de base (variantes a/b/c = un seul stock)
+  const grp={};
+  stockableMats.forEach(m=>{ const k=m.mc+'|'+m.sc+'|'+baseRef(m.ref); (grp[k] ||= {mc:m.mc, sc:m.sc, base:baseRef(m.ref), des:m.designation||m.des||'', items:[]}).items.push(m); });
+  let lignes=Object.values(grp).map(g=>{
+    const tot=g.items.reduce((s,m)=>s+stockCumul(m),0), u=g.items.reduce((s,m)=>s+stockUtilise(m.ref),0), r=g.items.reduce((s,m)=>s+stockReserve(m.ref),0), d=tot-u-r;
+    const seuil=Math.max(0,...g.items.map(m=>+m.meta?.seuil||0));
+    return {...g, tot, u, r, d, seuil, pct:tot?Math.min(100,(d/tot)*100):0, bas:seuil>0?d<=seuil:(tot>0&&d<=0)};
+  });
+  const cats=[...new Set(lignes.map(g=>g.mc))].sort((a,b)=>String(a).localeCompare(String(b),'fr'));
+  const q=cleNom(STOCK_VUE.q||'');
+  if(q) lignes=lignes.filter(g=>cleNom([g.des,g.base,g.mc,g.sc,...g.items.map(m=>(m.variante||'')+' '+m.ref+' '+(m.fournisseur||''))].join(' ')).includes(q));
+  if(STOCK_VUE.cat) lignes=lignes.filter(g=>g.mc===STOCK_VUE.cat);
+  const F={bas:g=>g.bas, vide:g=>g.d<=0, reserve:g=>g.r>0, utilise:g=>g.u>0, inutilise:g=>!g.u&&!g.r}[STOCK_VUE.flt]; if(F) lignes=lignes.filter(F);
+  const nbBas=stocksBas().length, nbRes=PRODS.filter(p=>+p.qty>0&&!estProduite(p)).length;
+  const sel=(k,opts)=>`<select onchange="majStockVue('${k}',this.value)" style="font-size:12px;padding:7px">${opts.map(([v,l])=>`<option value="${escA(v)}" ${STOCK_VUE[k]===v?'selected':''}>${escA(l)}</option>`).join('')}</select>`;
   let html=`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 10px">
     <button class="btn ${nbBas?'btn-p':'btn-ghost'}" onclick="ouvrirCourses()">🛒 Liste de courses${nbBas?' ('+nbBas+')':''}</button>
-    <span class="dim" style="font-size:12px">${nbBas?nbBas+' stock(s) au seuil d\'alerte ou épuisé(s)':'Aucun stock bas'} · seuil réglable dans chaque fiche matériau</span></div>`+verifCompositionsPerles();
-  Object.entries(by).forEach(([mc,subs])=>{
-    html+=`<div class="main-ban" style="background:${MAIN_CLR[mc]||couleurMC(mc)}">◆ ${mc.toUpperCase()}</div>`;
-    Object.entries(subs).forEach(([sc,mats])=>{
-      // Regroup variants (a/b/c) sharing same base ref
-      const groups={};
-      mats.forEach(m=>{
-        const base=baseRef(m.ref);
-        if(!groups[base])groups[base]={des:m.designation||m.des||'',items:[]};
-        groups[base].items.push(m);
+    <button class="btn btn-ghost" onclick="voirToutReserve()">🔧 Réservé par les productions${nbRes?' ('+nbRes+')':''}</button></div>
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:0 0 10px">
+    <input id="stock-q" type="search" placeholder="🔍 Réf., nom, couleur, fournisseur…" value="${escA(STOCK_VUE.q||'')}" oninput="majStockVue('q',this.value)" style="flex:1;min-width:180px;font-size:13px;padding:8px">
+    ${sel('cat',[['','Toutes les catégories'],...cats.map(c=>[c,c])])}
+    ${sel('flt',[['','Tous'],['bas','⚠ Stock bas'],['vide','⛔ Épuisés'],['reserve','🔧 Avec réservé'],['utilise','Déjà utilisés'],['inutilise','Jamais utilisés']])}
+    ${sel('tri',[['cat','Tri : catégories'],['dispo','Disponible ↑'],['pct','% restant ↑'],['reserve','Réservé ↓'],['utilise','Utilisé ↓'],['nom','Nom A→Z'],['ref','Référence']])}
+    <span class="dim" style="font-size:12px">${lignes.length} réf.</span></div>`+verifCompositionsPerles();
+  const ligneHtml=(g,avecCat)=>{
+    const clr=g.pct>50?'#2E7D4F':g.pct>20?'#C05820':'#C0392B', m0=g.items[0], uS=getUniteShort(m0);
+    const refs=g.items.map(m=>`<span class="badge bm" style="margin:1px 2px">${m.ref}${m.variante?' ('+m.variante+')':''}</span>`).join('');
+    return `<tr>
+      ${avecCat?`<td style="font-size:11px"><span class="dim">${escA(g.mc)}</span><br>${escA(g.sc)}</td>`:''}
+      <td style="font-size:12px">${escA(g.des)}</td>
+      <td style="line-height:1.8">${refs}</td>
+      <td>${g.tot?(n(g.tot)+' <span style="font-size:10px;color:var(--muted)">'+uS+'</span>'):'<span class="dim">--</span>'}</td>
+      <td class="dim" title="Productions terminées">${n(Math.round(g.u*100)/100)||'0'}</td>
+      <td>${g.r?`<button class="btn btn-xs btn-ghost" style="color:var(--orange)" onclick="voirReserve('${escA(g.base)}')" title="Voir les productions en cours qui réservent cette référence">🔧 ${n(Math.round(g.r*100)/100)} ›</button>`:'<span class="dim">0</span>'}</td>
+      <td><b style="color:${clr}">${n(Math.round(g.d*100)/100)}</b>${g.bas?' <span class="badge br"'+(g.seuil?' title="Seuil '+n(g.seuil)+'"':'')+'>stock bas</span>':''}${estPerleAuPoids(m0)?`<div style="font-size:10px;color:var(--muted)" title="Calibrage : ${calibrage(m0).source}">≈ ${n(Math.round(enPieces(m0,g.d)))} perles</div>`:''}
+        <div class="sbar"><div class="sfill" style="width:${g.pct}%;background:${clr}"></div></div></td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-xs btn-ghost" onclick="openReappro('${m0.id}')" style="padding:4px 8px">↑ Réappro</button>
+        <button class="btn btn-xs btn-ghost" onclick="openAjustModal('${m0.id}')" style="padding:4px 8px;margin-left:3px" title="Ajustement manuel">✏ Ajust.</button>
+      </td></tr>`;
+  };
+  const tete=avecCat=>`<thead><tr>${avecCat?'<th>Catégorie</th>':''}<th>Désignation</th><th>Références</th><th>Stock total</th><th>Utilisé</th><th>Réservé</th><th>Disponible</th><th></th></tr></thead>`;
+  if(!lignes.length) html+='<div class="empty"><div class="empty-icon">🔍</div><p>Aucune référence ne correspond</p></div>';
+  else if(STOCK_VUE.tri==='cat'){
+    const by={}; lignes.forEach(g=>((by[g.mc] ||= {})[g.sc] ||= []).push(g));
+    Object.entries(by).sort((a,b)=>String(a[0]).localeCompare(String(b[0]),'fr')).forEach(([mc,subs])=>{
+      html+=`<div class="main-ban" style="background:${MAIN_CLR[mc]||couleurMC(mc)}">◆ ${String(mc).toUpperCase()}</div>`;
+      Object.entries(subs).sort((a,b)=>String(a[0]).localeCompare(String(b[0]),'fr')).forEach(([sc,gs])=>{
+        html+=`<div class="sub-ban" style="background:${SC_CLR[sc]||couleurSC(sc)}">${sc} <span style="font-weight:400;opacity:.7">· ${gs.length}</span></div>
+        <div class="tbl-wrap"><table>${tete(false)}<tbody>${gs.sort((a,b)=>String(a.base).localeCompare(String(b.base),'fr',{numeric:true})).map(g=>ligneHtml(g,false)).join('')}</tbody></table></div>`;
       });
-      html+=`<div class="sub-ban" style="background:${SC_CLR[sc]||couleurSC(sc)}">${sc}</div>
-      <div class="tbl-wrap"><table>
-        <thead><tr><th>Désignation</th><th>Références</th><th>Stock total</th><th>Utilisé</th><th>Réservé</th><th>Disponible</th><th></th></tr></thead>
-        <tbody>${Object.entries(groups).map(([base,g])=>{
-          const totG=g.items.reduce((s,m)=>s+stockCumul(m),0);
-          const uG=g.items.reduce((s,m)=>s+stockUtilise(m.ref),0);
-          const rG=g.items.reduce((s,m)=>s+stockReserve(m.ref),0);
-          const cG=uG+rG;
-          const dG=totG-cG;
-          const pct=totG?Math.min(100,(dG/totG)*100):0;
-          const clr=pct>50?'#2E7D4F':pct>20?'#C05820':'#C0392B';
-          const refs=g.items.map(m=>`<span class="badge bm" style="margin:1px 2px">${m.ref}${m.variante?' ('+m.variante+')':''}</span>`).join('');
-          const uniteShort=getUniteShort(g.items[0]);
-          const firstMat=g.items[0];
-          return `<tr>
-            <td style="font-size:12px">${g.des}</td>
-            <td style="line-height:1.8">${refs}</td>
-            <td>${totG?(n(totG)+' <span style="font-size:10px;color:var(--muted)">'+uniteShort+'</span>'):'<span class="dim">--</span>'}</td>
-            <td class="dim" title="Productions terminées">${n(Math.round(uG*100)/100)||'0'}</td>
-            <td style="color:${rG?'var(--orange)':'var(--muted)'}" title="Productions en cours et commandes sur mesure : pré-compté">${rG?'🔧 '+n(Math.round(rG*100)/100):'0'}</td>
-            <td><b style="color:${clr}">${n(Math.round(dG*100)/100)}</b>${(()=>{ const sl=Math.max(0,...g.items.map(m=>+m.meta?.seuil||0)); return sl&&dG<=sl?' <span class="badge br" title="Seuil '+n(sl)+'">stock bas</span>':''; })()}${estPerleAuPoids(firstMat)?`<div style="font-size:10px;color:var(--muted)" title="Calibrage : ${calibrage(firstMat).source}">≈ ${n(Math.round(enPieces(firstMat,dG)))} perles</div>`:''}
-              <div class="sbar"><div class="sfill" style="width:${pct}%;background:${clr}"></div></div>
-            </td>
-            <td style="white-space:nowrap">
-              <button class="btn btn-xs btn-ghost" onclick="openReappro('${firstMat.id}')" style="padding:4px 8px">↑ Réappro</button>
-              <button class="btn btn-xs btn-ghost" onclick="openAjustModal('${firstMat.id}')" style="padding:4px 8px;margin-left:3px" title="Ajustement manuel">✏ Ajust.</button>
-            </td>
-          </tr>`;
-        }).join('')}</tbody>
-      </table></div>`;
     });
-  });
-  el.innerHTML=html||`<div class="empty"><div class="empty-icon">📊</div><p>Aucune donnée de stock</p></div>`;
+  } else {
+    const T={dispo:(a,b)=>a.d-b.d, pct:(a,b)=>a.pct-b.pct, reserve:(a,b)=>b.r-a.r, utilise:(a,b)=>b.u-a.u, nom:(a,b)=>String(a.des).localeCompare(String(b.des),'fr'), ref:(a,b)=>String(a.base).localeCompare(String(b.base),'fr',{numeric:true})}[STOCK_VUE.tri]||((a,b)=>0);
+    html+=`<div class="tbl-wrap"><table>${tete(true)}<tbody>${lignes.sort(T).map(g=>ligneHtml(g,true)).join('')}</tbody></table></div>`;
+  }
+  el.innerHTML=html;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -5590,6 +5812,7 @@ function renderCompta() {
             <span class="badge bm">${cmd.date||'--'}</span>
             ${cmd_obj?.ref_plateforme?`<span class="badge bp">${cmd_obj.ref_plateforme}</span>`:''}
             ${isMulti?`<span class="badge bgn">${cmd.lignes.length} articles</span>`:''}
+            ${['wix','shopify','etsy','vinted','instagram'].includes(cmd.canal)||livraison?badgeEnvoi(cmd.lignes.map(v=>({bijId:v.bij_id,qty:v.qty}))):''}
           </div>
           <div style="display:flex;align-items:center;gap:8px">
             <b style="color:var(--purple)">${eur(totalCmd)}</b>
@@ -6714,7 +6937,7 @@ function setPStatut(val) {
 // Liste des créations à produire : chaque modèle, puis ses couleurs en dessous
 function listeProdBij(q){
   const list=document.getElementById('p-bij-list'), k=cleNom(q), sel=document.getElementById('p-bij').value;
-  const info=b=>{ const qProd=prodTot(b.id); return qProd?` · ${Math.max(0,stockFini(b.id))} ${b.is_mat?'toute(s) faite(s)':'dispo'}`:''; };
+  const info=b=>{ const qProd=prodTot(b.id); return qProd?` · ${Math.max(0,stockFini(b.id))} ${compoPure(b)?'toute(s) faite(s)':'dispo'}`:''; };
   const ligne=(b,estVar)=>`<div class="pbij-row${estVar?' pbij-var':''}" data-id="${b.id}" onclick="selectPBij('${b.id}')" style="${b.id===sel?'background:var(--purpleP);font-weight:700':''}">
       ${estVar?'<span class="pbij-fl">↳ 🎨</span>':''}${b.is_mat&&!estVar?'<span title="Composition">🧩</span>':''}<span class="pbij-ref">${b.ref||'--'}</span>
       <span>${estVar?escA(b.variante||b.ref):escA(b.nom)+(b.variante?' · '+escA(b.variante):'')}</span><span class="dim" style="font-size:11px">${info(b)}</span></div>`;
@@ -6730,7 +6953,7 @@ function listeProdBij(q){
   list.innerHTML=html||'<div class="dim" style="padding:10px">Aucune création trouvée.</div>';
 }
 function majPCompo(){
-  const b=getBij(document.getElementById('p-bij').value), c=!!b?.is_mat;
+  const b=getBij(document.getElementById('p-bij').value), c=compoPure(b);
   const hv=document.getElementById('p-hv-row'), ci=document.getElementById('p-compo-info');
   if(hv) hv.style.display=c?'none':''; if(ci) ci.style.display=c?'':'none';
 }
@@ -6967,7 +7190,7 @@ async function saveProd() {
   // Enregistrer la production principale (éventuellement mise de côté : vitrine, prototype…)
   const bP=getBij(bijId);
   const obj={id:uid(),bij_id:bijId,qty,date,statut};
-  if(document.getElementById('p-hors-vente')?.checked&&!bP?.is_mat) obj.mise_en_vente={lieux:{},note:document.getElementById('p-hv-motif').value,hors_vente:true};
+  if(document.getElementById('p-hors-vente')?.checked&&!compoPure(bP)) obj.mise_en_vente={lieux:{},note:document.getElementById('p-hv-motif').value,hors_vente:true};
   let ok=await sbInsert('productions',obj);
   if(!ok&&obj.mise_en_vente){ toast('Hors vente : lance d\'abord sql-mise-en-vente.sql dans Supabase','err'); return; }
   if(!ok) return;
@@ -7623,7 +7846,7 @@ function openEditProd(prodId) {
   document.getElementById('ep-hors-vente').checked=hv;
   if(hv&&mot&&![...sel.options].some(o=>o.value===mot)) sel.add(new Option(mot,mot));
   if(hv) sel.value=[...sel.options].find(o=>o.value===mot)?.value || (/proto/i.test(mot)?'Prototype':'Vitrine');
-  const b0=getBij(p.bij_id); document.getElementById('ep-hv-row').style.display=b0?.is_mat||+p.qty<0?'none':'';
+  const b0=getBij(p.bij_id); document.getElementById('ep-hv-row').style.display=compoPure(b0)||+p.qty<0?'none':'';
   rendreLieuxVente(p);
   setEPStatut(isProd?'produit':'en_cours');
   openModal('m-edit-prod');
@@ -7862,11 +8085,11 @@ function renderRent() {
     PRODS.forEach(p=>{ const b=getBij(p.bij_id); if(!b) return; const q=+p.qty||0;
       if(!estP(p)){ qEnc+=q; return; }
       if(q<0){ (parBij[b.id] ||= {b,q:0}).q+=q; return; }      // pièces assemblées dans un lot / une autre création
-      if(horsVente(p)||b.is_mat){ qHV+=q; return; }                // mises de côté (vitrine, proto…) et compositions : pas du stock à vendre
+      if(horsVente(p)||compoPure(b)){ qHV+=q; return; }                // mises de côté (vitrine, proto…) et compositions : pas du stock à vendre
       qProd+=q; vProd+=q*prixDe(b); (parBij[b.id] ||= {b,q:0}).q+=q;
       const l=lireMiseEnVente(p).lieux; const en=+l['Boutique en ligne']||0; qLigne+=en; vLigne+=en*prixDe(b);
       qAilleurs+=Object.entries(l).filter(([k])=>k!=='Boutique en ligne').reduce((t,[,v])=>t+(+v||0),0); });
-    Object.values(parBij).forEach(({b,q})=>{ if(b.is_mat) return; const st=Math.max(0,q-venteTot(b.id).qty); qStock+=st; vStock+=st*prixDe(b); cStock+=st*coutBijou(b); });
+    Object.values(parBij).forEach(({b,q})=>{ if(compoPure(b)) return; const st=Math.max(0,q-venteTot(b.id).qty); qStock+=st; vStock+=st*prixDe(b); cStock+=st*coutBijou(b); });
     rsEl.className='stats stats-prod';
     rsEl.innerHTML=`
       <div class="stat pur"><div class="v">${n(qProd)}</div><div class="l">pièces produites</div><div class="s">≈ ${eur(vProd)} au prix de vente</div></div>
@@ -7876,17 +8099,19 @@ function renderRent() {
   }
   // ── Productions : regroupées par bijou, avec recherche, filtre et tri
   const estProd=p=>!p.statut||p.statut==='produit';
-  const aVendre=p=>estProd(p)&&+p.qty>0&&!Object.keys(lireMiseEnVente(p).lieux).length&&!dropDeProd(p.id)&&!horsVente(p)&&!getBij(p.bij_id)?.is_mat;
-  const pasEnLigne=p=>estProd(p)&&+p.qty>0&&!(+lireMiseEnVente(p).lieux['Boutique en ligne']>0)&&!horsVente(p)&&!getBij(p.bij_id)?.is_mat;
+  const aVendre=p=>estProd(p)&&+p.qty>0&&!Object.keys(lireMiseEnVente(p).lieux).length&&!dropDeProd(p.id)&&!horsVente(p)&&!compoPure(getBij(p.bij_id));
+  const pasEnLigne=p=>estProd(p)&&+p.qty>0&&!(+lireMiseEnVente(p).lieux['Boutique en ligne']>0)&&!horsVente(p)&&!compoPure(getBij(p.bij_id));
   const q=(document.getElementById('prod-search')?.value||'').toLowerCase().trim();
   const flt=document.getElementById('prod-flt')?.value||'';
   const triP=document.getElementById('prod-tri')?.value||'recent';
-  const filtreLigne={ produit:estProd, en_cours:p=>!estProd(p), avendre:aVendre, perso:p=>!!p.perso, horsvente:p=>+p.qty>0&&horsVente(p), compo:p=>!!getBij(p.bij_id)?.is_mat,
+  const filtreLigne={ produit:estProd, en_cours:p=>!estProd(p), avendre:aVendre, perso:p=>!!p.perso, horsvente:p=>+p.qty>0&&horsVente(p), compo:p=>compoPure(getBij(p.bij_id)),
     drop:p=>!!dropDeProd(p.id), horsligne:p=>pasEnLigne(p)&&!dropDeProd(p.id), enligne:p=>+lireMiseEnVente(p).lieux['Boutique en ligne']>0 }[flt];
-  const groupes={};
+  const groupes={}, misesDeCote=[];
   PRODS.forEach(p=>{
     const b=getBij(p.bij_id); if(!b) return;
-    if(q && ![b.nom,b.variante,b.ref,b.collection,p.perso].some(x=>String(x||'').toLowerCase().includes(q))) return;
+    if(q && ![b.nom,b.variante,b.ref,b.collection,p.perso,lireMiseEnVente(p).note].some(x=>String(x||'').toLowerCase().includes(q))) return;
+    // vitrine, proto… : à part (articles bien déduits), hors du tableau des pièces à vendre
+    if(+p.qty>0&&horsVente(p)&&flt!=='horsvente'){ if(!flt||flt==='produit') misesDeCote.push(p); return; }
     (groupes[p.bij_id] ||= {b, lignes:[]}).lignes.push(p);
   });
   let liste=Object.values(groupes).map(g=>{
@@ -7958,6 +8183,24 @@ function renderRent() {
     });
     prodHtml+='</tbody></table></div>';
   }
+  if(misesDeCote.length){
+    misesDeCote.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+    const parMotif={}; misesDeCote.forEach(p=>{ const m=lireMiseEnVente(p).note||'Hors vente'; parMotif[m]=(parMotif[m]||0)+(+p.qty||0); });
+    const coutTot=misesDeCote.reduce((t,p)=>{ const b=getBij(p.bij_id); return t+(+p.qty||0)*(b?coutBijou(b):0); },0);
+    prodHtml+=`<div class="card" style="margin-top:14px;padding:12px 14px;border:1.5px dashed var(--muted);background:#faf7fb">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px">
+        <div style="font-weight:700;color:var(--purple)">🚫 Mises de côté · vitrine, prototypes, cadeaux…</div>
+        <div class="dim" style="font-size:12px">${Object.entries(parMotif).map(([m,qq])=>`${escA(m)} × ${n(qq)}`).join(' · ')} · articles déduits ≈ ${eur(coutTot)}</div></div>
+      <div class="dim" style="font-size:11px;margin:4px 0 6px">Leurs matériaux sont déduits du stock ; ces pièces ne comptent ni dans le stock à vendre, ni dans « À mettre en vente ». « ✎ Modifier » pour les remettre en vente.</div>
+      ${misesDeCote.map(p=>{ const b=getBij(p.bij_id);
+        return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-top:1px solid var(--border);flex-wrap:wrap;font-size:12px">
+          <span class="badge bm">${p.date||'--'}</span><b>${b?escA(b.nom+(b.variante?' · '+b.variante:'')):'?'}</b><span class="dim">${escA(b?.ref||'')}</span>
+          <span><b>${n(p.qty)}</b> pcs</span>${badgesMiseEnVente(p)}<span class="dim">coût ≈ ${eur((+p.qty||0)*(b?coutBijou(b):0))}</span>
+          <span style="flex:1"></span>
+          <button class="btn btn-xs btn-ghost" onclick="openEditProd('${p.id}')">✎ Modifier</button>
+          <button class="btn btn-xs btn-red" onclick="delProd('${p.id}')">✕</button></div>`; }).join('')}
+    </div>`;
+  }
   prodHtml = renderPersoAFaire() + prodHtml;
   setTimeout(majBadgesOnglets,0);
   // Écrire dans les deux containers (prod-list-body peut ne pas exister)
@@ -7991,7 +8234,7 @@ function renderRent() {
 // ═══════════════════════════════════════════════════════
 let HDR_CFG = {name:'Atelier', sub:'bijoux', dark:'#1A1228', gold:'#C8A951'};
 
-const CFG_ONGLETS=['atelier','sauvegarde','connexions','lieux','categories','fournisseurs','references'];
+const CFG_ONGLETS=['atelier','sauvegarde','connexions','lieux','emballages','categories','fournisseurs','references'];
 function switchCfgTab(t){
   if(!CFG_ONGLETS.includes(t)) t='atelier';
   try{ localStorage.setItem('cfg_onglet',t); }catch(e){}
@@ -8001,7 +8244,7 @@ function switchCfgTab(t){
   if(t==='atelier'){ const el=document.getElementById('cfg-couts'), r=COUTS.reglages; if(el) el.innerHTML=`<div class="info-box">Sur chaque fiche bijou, note ton <b>temps de fabrication</b> (case ⏱). L'app calcule le <b>coût de revient</b> (matériaux + ton temps + emballage) et un <b>prix conseillé</b> qui paie ton temps, ta marge et les frais de vente.</div>
     <div class="r2"><div class="fg"><label>Ton taux horaire (€/h)</label><input id="cc-taux" type="number" step="0.5" value="${r.taux}"></div><div class="fg"><label>Emballage par pièce (€)</label><input id="cc-emballage" type="number" step="0.05" value="${r.emballage}"></div></div>
     <div class="r2"><div class="fg"><label>Coefficient (marge)</label><input id="cc-coef" type="number" step="0.1" value="${r.coef}"><div class="dim" style="font-size:11px">2 = tu vends le double de ton coût de revient</div></div><div class="fg"><label>Frais de vente (%)</label><input id="cc-frais" type="number" step="0.5" value="${r.frais}"><div class="dim" style="font-size:11px">paiement en ligne, commissions…</div></div></div>
-    <button class="btn btn-p" onclick="enregistrerReglagesCouts()">💾 Enregistrer</button>`; } if(t==='connexions') renderConnexions(); if(t==='lieux') renderLieuxCfg();
+    <button class="btn btn-p" onclick="enregistrerReglagesCouts()">💾 Enregistrer</button>`; } if(t==='connexions') renderConnexions(); if(t==='lieux') renderLieuxCfg(); if(t==='emballages') renderEmballages();
 }
 // ── Sauvegarde : tout télécharger en un fichier (rappel tous les 30 jours sur l'Accueil)
 let DERNIERE_SAUV='';
