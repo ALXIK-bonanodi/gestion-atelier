@@ -479,7 +479,7 @@ export function catalogueArgileDepuisBijoux(bijoux = []) {
 // gen() : la chaîne entière (NB_MOTIFS) ; gen('detail') : le motif de la vue détail ; gen(nombre en mm) : longueur
 const motifsOuLongueur = (f, L) => L == null ? { nombre: NB_MOTIFS[f] } : L === 'detail' ? { nombre: MOTIF_DETAIL[f] } : { longueur: L };
 export const FORMES_CHAINMAIL = {
-  croix: { nom: 'croix', gen: () => CROIX_DEGAGEE || genCroixByzantine() },
+  croix: { nom: 'Croix', gen: () => CROIX_DEGAGEE || genCroixByzantine() },
   // chaînes de sac (motif d'anneaux sur ~20 cm à l'écran ; la longueur réelle est celle de ta fiche)
   'chaine-intercalaire': { nom: 'double byzantine intercalaire', chaine: true, gen: L => genChaineByzantine({ motif: 'intercalaire', ...motifsOuLongueur('chaine-intercalaire', L) }) },
   'chaine-fleur': { nom: 'double byzantine fleur', chaine: true, gen: L => genChaineByzantine({ motif: 'fleur', ...motifsOuLongueur('chaine-fleur', L) }) },
@@ -511,34 +511,43 @@ export const CHAINE_DEMO = [
 export function catalogueChaineDepuisBijoux(bijoux = []) {
   // chaque fiche (et chaque variante) = un choix de chaîne ; le motif 3D vient de son nom (le parent complète la variante)
   const parId = new Map(bijoux.map(b => [b.id, b]));
-  return bijoux.map(b => { const par = b.parent_id && parId.get(b.parent_id);
-      const f = formeChaine([b.nom, b.variante].join(' ')) || (par && formeChaine([par.nom, par.variante, b.variante].join(' ')));
+  const lie = Object.fromEntries(Object.keys(FORMES_CHAINMAIL).filter(f => FORMES_CHAINMAIL[f].chaine && lienForme(f)).map(f => [lienForme(f), f]));
+  return bijoux.filter(b => lie[b.ref] || !/collier|choker|chocker|ras du cou/.test(norm([b.nom, b.variante, b.collection].join(' '))))   // pas les variantes collier / choker
+    .map(b => { const par = b.parent_id && parId.get(b.parent_id);
+      const f = lie[b.ref] || formeChaine([b.nom, b.variante].join(' ')) || (par && formeChaine([par.nom, par.variante, b.variante].join(' ')));
       return f ? { b, f, pv: b.pv ?? par?.pv } : null; }).filter(Boolean)
     .map(({ b, f, pv }) => ({ ref: b.ref, bij_id: b.id, nom: NOMS_CHAINE[f] || nomSansParentheses([b.nom, b.variante].filter(Boolean).join(' · ')) || FORMES_CHAINMAIL[f].nom,
       nomFiche: [b.nom, b.variante].filter(Boolean).join(' · '),
       hex: '#b4b6ba', finition: 'chainmail', forme: f, categorie: 'Chaînes de sac', bijou: true, pv, enStock: true, ordre: 1e6 + 2 }));
 }
-export const formeMini = texte => { const t = norm(texte); if (!/\bmini/.test(t) || /\b3\b|\btrois/.test(t)) return null;   // mini chaîne : 4 nœuds (les fiches « 3 nœuds » sont ignorées)
+export const formeMini = texte => { const t = norm(texte); if (!/\bmini/.test(t) || /\b3\b|\btrois|croix/.test(t)) return null;   // mini chaîne : 4 nœuds (les fiches « 3 nœuds » sont ignorées)
   const m = /fleur/.test(t) ? 'fleur' : /intercal|altern/.test(t) ? 'intercalaire' : null; return m ? 'mini-' + m + '-4' : null; };
 export const formeChainmail = texte => formeMini(texte) || (t => Object.keys(FORMES_CHAINMAIL).filter(k => !FORMES_CHAINMAIL[k].mini && !FORMES_CHAINMAIL[k].chaine).find(k => t.includes(k)) || null)(norm(texte));
 export const MINI_DEMO = [
   { ref: '#MC-ex02', forme: 'mini-fleur-4' }, { ref: '#MC-ex04', forme: 'mini-intercalaire-4' },
 ].map(c => ({ ...c, nom: FORMES_CHAINMAIL[c.forme].nom, hex: '#b4b6ba', finition: 'chainmail', categorie: 'Breloques chainmail', famille: 'Mini chain' }));
 export const CHAINMAIL_DEMO = [
-  { ref: '#CM-ex01', nom: 'croix', hex: '#b4b6ba', finition: 'chainmail', forme: 'croix', categorie: 'Breloques chainmail', famille: 'Croix' },
+  { ref: '#CM-ex01', nom: 'Croix', hex: '#b4b6ba', finition: 'chainmail', forme: 'croix', categorie: 'Breloques chainmail', famille: 'Croix' },
 ];
+/* Liens explicites produit ↔ forme 3D (🔗 Références › Produits) : « forme:croix » → ref de la fiche bijou */
+let LIENS_FORMES = {};
+export function definirLiensFormes(liens = {}) { LIENS_FORMES = Object.fromEntries(Object.entries(liens || {}).filter(([k]) => /^(forme|modele):/.test(k))); }
+export const lienForme = f => LIENS_FORMES['forme:' + f] || null;
+export const lienModele = slug => LIENS_FORMES['modele:' + slug] || null;
 export function catalogueChainmailDepuisBijoux(bijoux = []) {
-  // une seule entrée par forme : plusieurs fiches peuvent contenir « croix » (composition, variations…) ;
-  // on garde la fiche composition, sinon la première
+  // une seule entrée par forme : la fiche reliée dans 🔗 Références, sinon la fiche produit « breloque … » plutôt qu'une
+  // composition utilisée comme pièce (« croix pampille ») — la composition reste reconnue dans les lots
   const parForme = new Map();
   const parId = new Map(bijoux.map(b => [b.id, b]));
+  const score = b => { const t = norm([b.nom, b.variante].join(' ')); return (/breloque/.test(t) ? 4 : 0) + (/pampille/.test(t) ? -3 : 0) + (b.parent_id ? -1 : 0) + (b.is_mat ? 0 : 1); };
   for (const b of bijoux) {
     const par = b.parent_id && parId.get(b.parent_id);
     const forme = formeChainmail([b.nom, b.variante].join(' ')) || (par && formeMini([par.nom, par.variante, b.variante].join(' ')));
     if (!forme) continue;
     const deja = parForme.get(forme);
-    if (!deja || (b.is_mat && !deja.b.is_mat)) parForme.set(forme, { b, forme });
+    if (!deja || score(b) > score(deja.b)) parForme.set(forme, { b, forme });
   }
+  for (const f of Object.keys(FORMES_CHAINMAIL)) { const r = lienForme(f), b = r && bijoux.find(x => x.ref === r); if (b && !FORMES_CHAINMAIL[f].chaine) parForme.set(f, { b, forme: f }); }
   return [...parForme.values()].map(({ b, forme }) => ({
     ref: b.ref, bij_id: b.id, nom: FORMES_CHAINMAIL[forme].nom, hex: '#b4b6ba', finition: 'chainmail', forme,
     categorie: 'Breloques chainmail', famille: FORMES_CHAINMAIL[forme].mini ? 'Mini chain' : 'Croix', bijou: true, pv: b.pv ?? (b.parent_id && parId.get(b.parent_id)?.pv), enStock: true, ordre: 1e6 + 1 }));
@@ -933,6 +942,10 @@ export function resoudreDefauts(modele, catalogue, fermoirs = null) {
   const m = JSON.parse(JSON.stringify(modele));
   for (const z of m.zones || []) {
     z.defaut = fix(z.defaut, z.defautNom);
+    if (!parRef.has(z.defaut) && /chainmail|chaine/.test(norm(z.categorie || ''))) {     // forme de départ : la croix (ou la 1re chaîne), pas une mini chaîne
+      const f = z.defautForme || (/chainmail/.test(norm(z.categorie || '')) ? 'croix' : null), l = couleursProposees(z, catalogue);
+      z.defaut = (f && l.find(c => c.forme === f) || l[0])?.ref || z.defaut;
+    }
     if (z.double) z.double.k = fixe(z.double.k, z.double.kNom);
     if (!parRef.has(z.defaut) && z.choixNoms?.length) {                // yeux : la perle plate noire par défaut
       const l = couleursProposees(z, catalogue);
@@ -3589,6 +3602,7 @@ export function notePersonnalisation({ breloques, accroche = null, accroches = n
   const texteAtelier = [titre, ligneAccAtelier, ...notesAtelier.map(n => n.replace(titre + ' — ', '')), prixTxt].filter(Boolean).join('\n');
   return { titre, notes, notesAtelier, ligneAcc, ligneAccAtelier, articles, total, texte, texteAtelier };
 }
+
 
 
 

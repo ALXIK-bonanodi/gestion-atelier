@@ -57,6 +57,10 @@ button:disabled { opacity: .5; cursor: default; }
     <p class="aide" style="padding:8px 14px;margin:0">Pour chaque breloque : la référence réellement utilisée pour chaque couleur par défaut, chaque perle fixe (petites perles argent des lettres, de la pampille chainmail, de la perle de culture…), chaque fermoir et chaque porte-clés du bundle.
     ✓ = vraie référence de ta base · ⚠ = référence d'exemple ou mauvaise teinte. Une <b>perle fixe</b> se relie directement ici (menu à droite).</p>
     <div id="utilises"><p class="aide" style="padding:0 14px">Chargement…</p></div></details>
+  <details class="groupe" id="produitsBloc" open><summary><h2 style="display:inline">🧭 Produits ↔ modèles 3D</h2></summary>
+    <p class="aide" style="padding:8px 14px;margin:0">Chaque modèle ou forme 3D du configurateur et <b>la fiche produit</b> sur laquelle la commande sur mesure est produite (prix, stock, fiche atelier).
+    « automatique » = trouvée d'après le nom de la fiche ; choisis une fiche pour la fixer.</p>
+    <div id="produits"></div></details>
   <h2 style="font-size:14px;color:var(--prune);margin:18px 0 8px">Références d'exemple à relier</h2>
   <div id="contenu"><p class="aide">Chargement…</p></div>
 </main>
@@ -66,10 +70,10 @@ button:disabled { opacity: .5; cursor: default; }
 import {
   CATALOGUE_DEMO, FERMOIRS_DEMO, modeleDemo, modeleAreteDemo, modeleLettresDemo, modeleArgileDemo, modeleChainmailDemo, modelePerleCultureDemo,
   listerModelesPublies, chargerCatalogueBoutique, chargerFermoirsBoutique, chargerPartiesConfigurateur, chargerBijouxBoutique,
-  completerCatalogue, completerModeleChainmail, modeleChaineSacDemo, estChaineSac, FORMES_CHAINMAIL, resoudreDefauts, couleursProposees, correspondCategorie, ordreModeles, estLettres, accrochesProposees,
+  completerCatalogue, definirLiensFormes, catalogueChainmailDepuisBijoux, catalogueChaineDepuisBijoux, NOMS_CHAINE, completerModeleChainmail, modeleChaineSacDemo, estChaineSac, FORMES_CHAINMAIL, resoudreDefauts, couleursProposees, correspondCategorie, ordreModeles, estLettres, accrochesProposees,
   chargerLiens, enregistrerLiens, estExemple, exemplesParRef, apercuArgile, apercuChainmail, baseRef,
   appliquerLiens, relierModele, definirLiensFixes, cleFixe, refFixe, catalogueDepuisMateriaux, perlesFixesDe, allureFixe, bijouBreloque,
-} from './bead-core.js?v=c9957234';
+} from './bead-core.js?v=20b2e90f';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './perles-config.js?v=e5e86015';
 
 const $ = s => document.querySelector(s);
@@ -99,6 +103,7 @@ const [m, c, f, p, bj, li] = await Promise.allSettled([listerModelesPublies(sb),
 const bijoux = bj.value || [];
 const liens = { ...(li.value || {}) };
 // catalogue SANS les liens : on veut voir quels exemples le configurateur utilise
+definirLiensFormes(liens);
 const catalogue = completerCatalogue(c.value?.length ? c.value : CATALOGUE_DEMO, bijoux);
 const fermoirs = f.value?.length ? f.value : FERMOIRS_DEMO;
 const parties = p.value?.length ? p.value : null;
@@ -344,8 +349,30 @@ function rendreUtilises() {
     modifie(); rendreUtilises();
   }));
 }
+/* 🧭 Produits ↔ modèles 3D : une ligne par modèle / forme, la fiche produit reliée (lien explicite ou automatique) */
+function rendreProduits() {
+  const nomB = b => b ? b.ref + ' · ' + [b.nom, b.variante].filter(Boolean).join(' · ') : '';
+  const auto = (() => { const garde = { ...liens }; definirLiensFormes({});
+    const mm = Object.fromEntries(catalogueChainmailDepuisBijoux(bijoux).map(c => [c.forme, bijoux.find(b => b.ref === c.ref)]));
+    const ch = {}; for (const c of catalogueChaineDepuisBijoux(bijoux)) (ch[c.forme] ||= []).push(bijoux.find(b => b.ref === c.ref));
+    definirLiensFormes(garde); return { mm, ch }; })();
+  const tri = [...bijoux].sort((a, b) => String(a.nom || '').localeCompare(String(b.nom || ''), 'fr') || String(a.variante || '').localeCompare(String(b.variante || ''), 'fr'));
+  const sel = (cle, autoTxt) => `<select data-prod="${esc(cle)}"><option value="">automatique${autoTxt ? ' : ' + esc(autoTxt) : ' : aucune fiche trouvée'}</option>${tri.map(b => `<option value="${esc(b.ref)}" ${liens[cle] === b.ref ? 'selected' : ''}>${esc(nomB(b))}</option>`).join('')}</select>`;
+  const ligneP = (titre, cle, autoTxt) => { const lie = liens[cle], b = lie && bijoux.find(x => x.ref === lie);
+    return `<div class="ligne ${lie || autoTxt ? 'liee' : ''}"><span class="pastille" style="background:${lie ? '#2f7a46' : autoTxt ? '#9fc7ab' : '#eee'}"></span><span>${esc(titre)}</span>${sel(cle, autoTxt)}<span class="ref">${lie ? (b ? '✓ fixée' : '⚠ fiche introuvable') : autoTxt ? 'auto' : '⚠ à relier'}</span></div>`; };
+  const L = [];
+  L.push('<div class="ligne"><b style="grid-column:1/-1;font-size:12px;color:var(--prune)">BRELOQUES</b></div>');
+  for (const m0 of modelesBruts.filter(m => !m.bijZone && !estChaineSac(m))) { const mo = resoudreDefauts(m0, catalogue, fermoirs); const r = bijouBreloque({ ...mo, bij_ref: mo.bij_ref }, { couleurs: {}, texte: { mode: 1 }, bijoux });
+    L.push(ligneP(mo.nom || mo.slug, 'modele:' + mo.slug, r.id ? nomB(bijoux.find(b => b.id === r.id)) : '')); }
+  L.push('<div class="ligne"><b style="grid-column:1/-1;font-size:12px;color:var(--prune)">BRELOQUE CHAINMAIL · FORMES</b></div>');
+  for (const [f, t] of [['croix', 'Croix'], ['mini-fleur-4', 'Mini chain · Byzantine fleur'], ['mini-intercalaire-4', 'Mini chain · Byzantine alternative']]) L.push(ligneP(t, 'forme:' + f, nomB(auto.mm[f])));
+  L.push('<div class="ligne"><b style="grid-column:1/-1;font-size:12px;color:var(--prune)">CHAÎNES DE SAC</b></div>');
+  for (const f of ['chaine-8', 'chaine-10', 'chaine-fleur', 'chaine-intercalaire']) L.push(ligneP(NOMS_CHAINE[f], 'forme:' + f, (auto.ch[f] || []).filter(Boolean).map(nomB).join(' / ')));
+  $('#produits').innerHTML = L.join('');
+  $('#produits').querySelectorAll('[data-prod]').forEach(x => x.addEventListener('change', () => { x.value ? liens[x.dataset.prod] = x.value : delete liens[x.dataset.prod]; modifie(); rendreProduits(); }));
+}
 const rendreSansUtilises = rendre;
-rendre = () => { rendreSansUtilises(); rendreUtilises(); };
+rendre = () => { rendreSansUtilises(); rendreUtilises(); rendreProduits(); };
 rendre();
 $('#etat').textContent = Object.keys(liens).length ? Object.keys(liens).length + ' lien(s) enregistré(s)' : '';
 $('#btEnregistrer').addEventListener('click', async () => {
