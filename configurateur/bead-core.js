@@ -476,13 +476,15 @@ export function catalogueArgileDepuisBijoux(bijoux = []) {
 }
 /* Formes chainmail : la fiche bijou (composition) dont le nom contient la forme (« croix »…)
    devient un choix ; chaque forme a son générateur d'anneaux. Ajoute ici les prochaines formes. */
+// gen() : la chaîne entière (NB_MOTIFS) ; gen('detail') : le motif de la vue détail ; gen(nombre en mm) : longueur
+const motifsOuLongueur = (f, L) => L == null ? { nombre: NB_MOTIFS[f] } : L === 'detail' ? { nombre: MOTIF_DETAIL[f] } : { longueur: L };
 export const FORMES_CHAINMAIL = {
-  croix: { nom: 'croix', gen: () => genCroixByzantine() },
+  croix: { nom: 'croix', gen: () => CROIX_DEGAGEE || genCroixByzantine() },
   // chaînes de sac (motif d'anneaux sur ~20 cm à l'écran ; la longueur réelle est celle de ta fiche)
-  'chaine-intercalaire': { nom: 'double byzantine intercalaire', chaine: true, gen: (L = 200) => genChaineByzantine({ motif: 'intercalaire', longueur: L }) },
-  'chaine-fleur': { nom: 'double byzantine fleur', chaine: true, gen: (L = 200) => genChaineByzantine({ motif: 'fleur', longueur: L }) },
-  'chaine-8': { nom: 'double byzantine 8 mm', chaine: true, gen: (L = 200) => genChaineByzantine({ motif: 'continu', longueur: L }) },
-  'chaine-10': { nom: 'double byzantine 10 mm', chaine: true, gen: (L = 200) => genChaineByzantine({ motif: 'continu', anneau: ANNEAU_10, longueur: L }) },
+  'chaine-intercalaire': { nom: 'double byzantine intercalaire', chaine: true, gen: L => genChaineByzantine({ motif: 'intercalaire', ...motifsOuLongueur('chaine-intercalaire', L) }) },
+  'chaine-fleur': { nom: 'double byzantine fleur', chaine: true, gen: L => genChaineByzantine({ motif: 'fleur', ...motifsOuLongueur('chaine-fleur', L) }) },
+  'chaine-8': { nom: 'double byzantine 8 mm', chaine: true, gen: L => genChaineByzantine({ motif: 'continu', ...motifsOuLongueur('chaine-8', L) }) },
+  'chaine-10': { nom: 'double byzantine 10 mm', chaine: true, gen: L => genChaineByzantine({ motif: 'continu', anneau: ANNEAU_10, connecteur: 2, ...motifsOuLongueur('chaine-10', L) }) },
 };
 /* fiche bijou « chaîne … byzantine … » → son motif */
 export function formeChaine(texte) {
@@ -1878,55 +1880,23 @@ export const estArgile = m => !!m?.groupes?.some(g => g.technique === 'argile');
    Croix : maille byzantine verticale, deux grands anneaux en bras, un anneau en haut
    (pris par le fermoir breloque) et un en bas. Fermoir en z = 0, la breloque pend vers +z.
    -------------------------------------------------------------------------- */
-export function genCroixByzantine({ noeuds = 2, R = 3.0, e = 0.42, Rbras = 4.1, Rhaut = 4.1, Rbas = 2.1, beta = 32, prof = 0.42,
-  pas = 4.1, theta = 20, recul = 1.05, decal = 0.38, ouvre = 17, affine = 0.08, echelle = 1.2 } = {}) {
-  // relevé sur ta vidéo : 2 nœuds seulement, longs (≈ 5 rayons d'anneau d'un « H » au suivant),
-  // corps ≈ 2 anneaux de large, bras ≈ 1,7 fois le diamètre des anneaux du corps, centrés sur le 1er nœud
-  // DOUBLE BYZANTINE (relevé sur ta photo) : chaque nœud est centré sur un « H » (paire doublée, vue de face
-  // couchée) ; de ce H partent 4 groupes de pétales doublés qui s'écartent VERS L'EXTÉRIEUR : en haut à gauche
-  // et à droite, ils montent en s'ouvrant ; en bas, ils descendent en s'ouvrant. Entre deux nœuds, des paires
-  // doublées verticales (vues par la tranche). Bras ≈ 9 mm enfoncés dans le 1er nœud, envergure ≈ 25 mm.
-  [R, e, Rbras, Rhaut, Rbas] = [R, e, Rbras, Rhaut, Rbas].map(v => v * echelle);
-  const A = [], P = pas * R, d = e * 2.1;                // d : écart entre deux anneaux doublés
-  const an = (p, n, r = R) => A.push({ p: p.map(v => +v.toFixed(3)), n: n.map(v => +v.toFixed(4)), R: r, e });
-  const groupe = (c, n, nb = 2, r = R) => {               // anneaux parallèles accolés le long de leur normale
-    const l = Math.hypot(...n); n = n.map(v => v / l);
-    for (let k = 0; k < nb; k++) { const o = (k - (nb - 1) / 2) * d; an([c[0] + n[0] * o, c[1] + n[1] * o, c[2] + n[2] * o], n, r); }
-  };
-  const sa = Math.sin(ouvre * DEG), ca = Math.cos(ouvre * DEG);
-  // la maille est aussi épaisse que large : chaque groupe existe en avant ET en arrière (décalé en profondeur,
-  // tourné de ±beta), pour que le côté et le dos soient aussi pleins que la face
-  const cb = Math.cos(beta * DEG), sb = Math.sin(beta * DEG);
-  const tourne = (n, k) => [n[0] * cb - n[1] * sb * k, n[0] * sb * k + n[1] * cb, n[2]];
-  const epais = (c, n, nb = 2) => { for (const k of [-1, 1]) groupe([c[0] + k * prof * R, c[1], c[2]], tourne(n, k), nb); };
-  const H = z => epais([0, 0, z], [sa * 0.5, 0, 1], 2);                        // le « H » du nœud
-  const liaison = z => epais([0, 0, z], [sa, ca, 0], 2);                       // paires doublées verticales entre deux nœuds
-  const zHaut = Rhaut - e * 0.4;
-  an([0, 0, zHaut], [1, 0, 0], Rhaut);                   // anneau du haut : même taille que les bras (pris par le fermoir breloque)
-  let z = zHaut + Rhaut * 0.6 + R * 0.9 - P / 2 + R * 1.6;   // le grand anneau du haut prend directement les pétales du 1er nœud
-  const centres = [];
-  for (let i = 0; i < noeuds; i++) {
-    const f = 1 - affine * i;                            // le corps s'affine vers le bas
-    z += P / 2;
-    centres.push(z);
-    H(z);
-    const th = theta * DEG;
-    for (const v of [-1, 1]) for (const s of [-1, 1]) {  // v : -1 en haut, +1 en bas ; s : côté gauche / droit
-      // axe long du pétale : part du H vers l'extérieur (en haut : monte en s'ouvrant, en bas : descend en s'ouvrant)
-      const u = [0, s * Math.sin(th), v * Math.cos(th)];
-      const c = [0, s * decal * R * f + u[1] * recul * R * f, z + u[2] * recul * R];
-      const w = [0, -u[2], u[1]];                        // perpendiculaire à l'axe dans le plan de face
-      epais(c, [sa * (v * s > 0 ? 1 : -1), w[1] * ca, w[2] * ca], 2);
-    }
-    z += P / 2;
-    liaison(z);
-  }
-  an([0, 0, z + R * 0.9 + Rbas * 0.6], [1, 0, 0], Rbas); // anneau du bas (porte la pampille)
-  // bras : grands anneaux enfoncés d'un tiers dans les pétales du premier nœud
-  const n1 = A.filter(a => Math.abs(a.p[2] - (centres[0] ?? z)) < P / 2);   // anneaux du premier nœud
-  const demi = Math.max(...n1.map(a => Math.abs(a.p[1]) + a.R * Math.sqrt(Math.max(0, 1 - a.n[1] ** 2)) + a.e));
-  const zb = centres[0] ?? z, yb = demi + Rbras * 0.55;          // bras centrés sur le 1er nœud, enfoncés dans ses pétales
-  for (const s of [-1, 1]) an([0, s * yb, zb], [1, 0, 0], Rbras);
+export const VERROU_Y = 3.0;
+export function genCroixByzantine({ anneau = ANNEAU_8, solo = ANNEAU_10, bas = { R: 2.5, e: 0.5 } } = {}) {
+  // d'après tes photos et ta description : 3 nœuds 4×4 reliés par des connecteurs (2) de 8 mm ; anneaux solo de 10 mm :
+  // celui du haut (pris par le fermoir), les deux bras (accrochés au V des anneaux de chant, comme les pétales de la
+  // fleur) et deux anneaux verticaux qui verrouillent la longueur des deux derniers nœuds ; petit anneau + boule en bas.
+  const A = [], { R, e } = anneau, d = e * 2.05, H = DEMI_DOUBLE * R;
+  const an = (p, n, r = R, ee = e) => A.push({ p: p.map(v => +v.toFixed(3)), n: n.map(v => +v.toFixed(4)), R: +r.toFixed(3), e: ee });
+  const zHaut = solo.R - solo.e * 0.4;
+  an([0, 0, zHaut], [1, 0, 0], solo.R, solo.e);                           // anneau solo du haut
+  const z1 = zHaut + R * (NOEUD.D + 1 - NOEUD.o) + solo.R * 0.63;         // centre du 1er double (nœuds 1 et 2)
+  noeudByzantin(an, z1, { R, e });                                        // nœud 1 + connecteur (2) + nœud 2
+  for (const c of [-1, 1]) an([0, c * (R * NOEUD.h + solo.R * 0.92), z1], [1, 0, 0], solo.R, solo.e);   // les bras
+  for (let i = 0; i < 2; i++) an([(i - 0.5) * d, 0, z1 + H], [1, 0, 0]);  // connecteur (2) entre les nœuds 2 et 3
+  for (const c of [-1, 1]) an([0, c * VERROU_Y, z1 + H], [0, 1, 0], solo.R, solo.e);   // les 2 anneaux solo de 10 mm de chaque côté du V, perpendiculaires au connecteur (2) : ils verrouillent nœuds 2 et 3
+  const z2 = z1 + 2 * H;
+  noeudByzantin(an, z2, { R, e, cotes: [-1] });                           // nœud 3 + connecteur (2)
+  an([0, 0, z2 + R * 0.95 + bas.R * 0.55], [1, 0, 0], bas.R, bas.e);      // petit anneau du bas (porte la pampille de 3 mm)
   return A;
 }
 /* --------------------------------------------------------------------------
@@ -1936,48 +1906,156 @@ export function genCroixByzantine({ noeuds = 2, R = 3.0, e = 0.42, Rbras = 4.1, 
            'fleur' (comme intercalaire + un grand anneau en haut et en bas au milieu de chaque motif).
    La chaîne est générée le long de l'axe Z (horizontale à l'écran, comme les breloques), face vers X.
    -------------------------------------------------------------------------- */
-// Anneaux acier inoxydable : diamètre extérieur → rayon moyen R et rayon du fil e
-export const ANNEAU_8 = { R: 3.45, e: 0.55 }, ANNEAU_10 = { R: 4.35, e: 0.65 };
-/* Nœud byzantin doublé (d'après le tutoriel et ta photo des chaînes 8 / 10 mm) : vu de face, au centre les paires
-   « de chant » (vues par la tranche, barres le long de la chaîne) ; à chaque bout du nœud, les anneaux rabattus
-   (oreilles) de part et d'autre, en avant et en arrière ; entre deux nœuds, la paire de face (le « o »). zc = centre. */
-export function noeudByzantin(an, zc, { R, e, nbChant = 2, nbOreille = 2, a = 0.42, s = 0.55, v = 1.08, x = 0.4, alpha = 60, beta = 58 } = {}) {
-  const d = e * 2.05;
-  const rang = (c, n, nb) => { const l = Math.hypot(...n); n = n.map(q => q / l);
-    for (let i = 0; i < nb; i++) { const o = (i - (nb - 1) / 2) * d; an([c[0] + n[0] * o, c[1] + n[1] * o, c[2] + n[2] * o], n, R, e); } };
-  for (const w of [-1, 1]) rang([0, 0, zc + w * a * R], [0, 1, 0], nbChant);     // paires de chant (doublées)
-  const al = alpha * DEG, be = beta * DEG;
-  for (const w of [-1, 1]) for (const c of [-1, 1]) for (const f of [-1, 1])     // oreilles : 2 bouts × 2 côtés × avant / arrière
-    rang([f * x * R, c * s * R, zc + w * v * R], [f * Math.cos(al), c * Math.sin(al) * Math.cos(be), w * Math.sin(al) * Math.sin(be)], nbOreille);
-}
-export const PAS_BYZANTIN = 4.6;                    // d'un nœud au suivant (paire de face « o » entre les deux), en rayons d'anneau                    // d'un nœud au suivant, en rayons d'anneau
-/* Chaînes de sac (axe Z, face vers X) :
-   'continu'      double byzantine, tous les anneaux identiques (8 mm, ou 10 mm avec anneau: ANNEAU_10)
-   'intercalaire' 8 mm : 2 nœuds, puis un anneau intercalaire de 10 mm, puis 2 nœuds…
-   'fleur'        comme intercalaire + 2 anneaux de 10 mm (haut / bas) à la paire du milieu de chaque motif */
-export function genChaineByzantine({ motif = 'continu', anneau = ANNEAU_8, grand = ANNEAU_10, longueur = 200, connecteur = 2 } = {}) {
-  const A = [], { R, e } = anneau, d = e * 2.05, P = PAS_BYZANTIN * R;
-  const an = (p, n, r = R, ee = e) => A.push({ p: p.map(v => +v.toFixed(3)), n: n.map(v => +v.toFixed(4)), R: +r.toFixed(3), e: ee });
-  const face = (z, nb = connecteur) => { for (let i = 0; i < nb; i++) an([(i - (nb - 1) / 2) * d, 0, z], [1, 0, 0]); };   // paire de face (le « o » entre deux nœuds)
-  const G = grand, gros = z => an([0, 0, z], [1, 0, 0], G.R, G.e);
-  let z = 0;
-  if (motif === 'continu') {
-    face(z);                                                         // bout : pris par le mousqueton
-    for (z = P / 2; z + P / 2 <= longueur; z += P) { noeudByzantin(an, z, { R, e }); face(z + P / 2); }
-  } else {
-    // 8 mm : motif de 2 nœuds (paire de face entre les deux), anneau de 10 mm entre deux motifs
-    const bout = G.R * 0.55 + P / 2 - R * 0.35;                       // de l'anneau de 10 mm au centre du nœud voisin
-    gros(z);
-    for (;;) {
-      const z1 = z + bout; noeudByzantin(an, z1, { R, e });
-      const zm = z1 + P / 2; face(zm);
-      if (motif === 'fleur') for (const c of [-1, 1]) an([0, c * (R * 0.35 + G.R * 0.92), zm], [1, 0, 0], G.R, G.e);   // pétales de 10 mm en haut et en bas
-      const z2 = zm + P / 2; noeudByzantin(an, z2, { R, e });
-      z = z2 + bout; gros(z);
-      if (z + 2 * bout + P > longueur) break;
-    }
+/* Les anneaux passent les uns dans les autres sans se traverser : on écarte (petits déplacements, quelques
+   dizaines de passes) chaque paire d'anneaux dont les fils s'interpénètrent. Les maillons restent enfilés. */
+export function degager(A, { passes = 200, pts = 24, jeu = 0.05, rappel = 0.01, tourne = 0.3, rappelAxe = 0.04 } = {}) {
+  const N = A.length; if (!N) return A;
+  const cr = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const nz = a => { const l = Math.hypot(...a) || 1; return a.map(v => v / l); };
+  const C = A.map(a => [...a.p]), O = A.map(a => [...a.p]), O2 = A.map(a => nz(a.n));
+  const B = A.map(a => { const n = nz(a.n), t = Math.abs(n[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0]; const u = nz(cr(n, t)); return { n, u, v: cr(n, u) }; });
+  const rot = (x, k, ang) => {                                // Rodrigues : x tourné de ang autour de k (unitaire)
+    const c = Math.cos(ang), s = Math.sin(ang), kx = cr(k, x), d = k[0] * x[0] + k[1] * x[1] + k[2] * x[2];
+    return [0, 1, 2].map(i => x[i] * c + kx[i] * s + k[i] * d * (1 - c)); };
+  const cs = Array.from({ length: pts }, (_, k) => [Math.cos(2 * Math.PI * k / pts), Math.sin(2 * Math.PI * k / pts)]);
+  const voisins = [];
+  for (let i = 0; i < N; i++) for (let j = i + 1; j < N; j++) {
+    const d = Math.hypot(C[i][0] - C[j][0], C[i][1] - C[j][1], C[i][2] - C[j][2]);
+    if (d < A[i].R + A[j].R + A[i].e + A[j].e + 0.5) voisins.push([i, j]);
   }
+  const P = new Array(N);
+  for (let it = 0; it < passes; it++) {
+    for (let i = 0; i < N; i++) { const { u, v } = B[i], r = A[i].R;
+      P[i] = cs.map(([c, s]) => [C[i][0] + r * (c * u[0] + s * v[0]), C[i][1] + r * (c * u[1] + s * v[1]), C[i][2] + r * (c * u[2] + s * v[2])]); }
+    const D = A.map(() => [0, 0, 0]), T = A.map(() => [0, 0, 0]); let pire = 0;
+    for (const [i, j] of voisins) {
+      const lim = A[i].e + A[j].e + jeu;
+      let m = Infinity, a = null, b = null;
+      for (const p of P[i]) for (const q of P[j]) { const dd = (p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2 + (p[2] - q[2]) ** 2; if (dd < m) { m = dd; a = p; b = q; } }
+      m = Math.sqrt(m); if (m >= lim) continue;
+      pire = Math.max(pire, lim - m);
+      let w = [a[0] - b[0], a[1] - b[1], a[2] - b[2]], l = Math.hypot(...w);
+      if (l < 1e-6) { w = [C[i][0] - C[j][0] + 1e-3, C[i][1] - C[j][1], C[i][2] - C[j][2]]; l = Math.hypot(...w); }
+      const f = w.map(x => x * (lim - m) / 2 / l);
+      for (let x = 0; x < 3; x++) { D[i][x] += f[x]; D[j][x] -= f[x]; }
+      // le contact fait aussi pivoter un peu chaque anneau (il s'incline pour laisser passer le fil voisin)
+      const ti = cr([a[0] - C[i][0], a[1] - C[i][1], a[2] - C[i][2]], f), tj = cr([b[0] - C[j][0], b[1] - C[j][1], b[2] - C[j][2]], f.map(x => -x));
+      for (let x = 0; x < 3; x++) { T[i][x] += ti[x] / (A[i].R ** 2); T[j][x] += tj[x] / (A[j].R ** 2); }
+    }
+    for (let i = 0; i < N; i++) {
+      for (let x = 0; x < 3; x++) C[i][x] += D[i][x] * 0.7 + (O[i][x] - C[i][x]) * rappel;
+      const ang = Math.hypot(...T[i]) * tourne;
+      if (ang > 1e-5) { const k = nz(T[i]), a = Math.min(ang, 0.03); B[i] = { n: rot(B[i].n, k, a), u: rot(B[i].u, k, a), v: rot(B[i].v, k, a) }; }
+      // l'anneau garde son orientation d'origine autant que possible (la maille reste ordonnée)
+      const n0 = O2[i], c = cr(B[i].n, n0), sc = Math.hypot(...c);
+      if (sc > 1e-5) { const k = c.map(v => v / sc), a = Math.asin(Math.min(1, sc)) * rappelAxe; B[i] = { n: rot(B[i].n, k, a), u: rot(B[i].u, k, a), v: rot(B[i].v, k, a) }; }
+    }
+    if (pire < 0.01) break;
+  }
+  return A.map((a, i) => ({ ...a, p: C[i].map(v => +v.toFixed(3)), n: B[i].n.map(v => +v.toFixed(4)) }));
+}
+// Anneaux acier inoxydable : 8 mm × 1 mm d'épaisseur, 10 mm × 1,2 mm → rayon moyen R et demi-épaisseur e
+export const ANNEAU_8 = { R: 3.5, e: 0.5 }, ANNEAU_10 = { R: 4.4, e: 0.6 };
+/* « Double 4×4 + connecteur » (ta décomposition, d'après le tutoriel) :
+   un nœud 4×4 = 8 anneaux = l'étape 2 (paire « de chant ») et l'étape 3 (paire rabattue de chaque côté), chacune DOUBLÉE :
+   4 anneaux de chant + 4 anneaux rabattus (2 de chaque côté). Deux nœuds 4×4 face à face, reliés au milieu par
+   un connecteur (2) ; les connecteurs des bouts (2 ou 3) relient au double suivant. zc = centre du double. */
+// Géométrie du double 4×4 + connecteur (2), d'après ton croquis (en rayons d'anneau R) :
+export const NOEUD = { D: 1.55, p: 0.35, h: 0.62, o: 0.3, gamma: 14 };
+export function noeudByzantin(an, zc, { R, e, connMilieu = 2, D = NOEUD.D, p = NOEUD.p, h = NOEUD.h + 0.08 * (connMilieu - 2), o = NOEUD.o, gamma = NOEUD.gamma, cotes = [-1, 1], milieu = true } = {}) {
+  //  · rabattus (2 paires par nœud) : vus de face = un rond à chaque bout du double ; vus de dessus = un V « > < »
+  //    (les deux paires, devant / derrière, se rejoignent côté milieu) ;
+  //  · chant (2 paires par nœud, en haut / en bas) : à plat, passés dans les rabattus côté milieu ; vus de face ils
+  //    forment le V « < > », vus de dessus un rond ;
+  //  · connecteur (2) du milieu : à plat (sur la tranche de face, rond de dessus), passé dans les rabattus des 2 nœuds.
+  const d = e * 2.05, g = gamma * DEG;
+  const rang = (c, n, nb) => { const l = Math.hypot(...n); n = n.map(q => q / l);
+    for (let i = 0; i < nb; i++) { const k = (i - (nb - 1) / 2) * d; an([c[0] + n[0] * k, c[1] + n[1] * k, c[2] + n[2] * k], n, R, e); } };
+  for (const w of cotes) {                                                                           // cotes : [-1] = un seul nœud 4×4
+    const zk = zc + w * D * R;
+    for (const c of [-1, 1]) rang([c * p * R, 0, zk], [1, 0, -c * w * p], 2);                          // rabattus devant / derrière
+    for (const c of [-1, 1]) rang([0, c * h * R, zk - w * o * R], [0, Math.cos(g), c * w * Math.sin(g)], 2);   // chant haut / bas
+  }
+  if (milieu) rang([0, 0, zc], [0, 1, 0], connMilieu);                                               // connecteur (2) du milieu
+}
+export const DEMI_DOUBLE = 2.95;                     // du centre d'un double 4×4 à son connecteur de bout, en rayons d'anneau
+/* GABARITS (anneaux dégagés, calculés une fois par degager() ; voir outils/gabarits) */
+let GABARITS_CHAINE = {}, CROIX_DEGAGEE = null;
+export function definirGabarits(g = {}, croix = null) { GABARITS_CHAINE = g || {}; CROIX_DEGAGEE = croix; }
+export const PAS_BYZANTIN = 2 * DEMI_DOUBLE;
+/* Chaînes de sac (axe Z, face vers X) :
+   'continu'      double 4×4 + connecteur, reliés par des connecteurs (3 en 8 mm, 2 en 10 mm) ; tous les anneaux identiques
+   'intercalaire' chaîne 8 mm : 2 doubles 4×4 reliés par un connecteur (3), puis un anneau intercalaire de 10 mm…
+   'fleur'        au centre 1 double 4×4 + connecteur (2) en 8 mm et 2 anneaux de 10 mm (un en haut, un en bas),
+                  relié de chaque côté par un connecteur (2) de 10 mm… */
+/* Une période de chaîne, à partir de z = 0 : l'anneau (ou le connecteur) de tête, puis le motif ; T = longueur de la période.
+   fin = l'anneau / le connecteur qui ferme la chaîne (placé en z = T de la dernière période). */
+export function periodeChaine(motif, { anneau = ANNEAU_8, grand = ANNEAU_10, connecteur = 3 } = {}) {
+  const A = [], { R, e } = anneau, d = e * 2.05, H = DEMI_DOUBLE * R, G = grand;
+  const an = (p, n, r = R, ee = e) => A.push({ p: p.map(v => +v.toFixed(3)), n: n.map(v => +v.toFixed(4)), R: +r.toFixed(3), e: ee });
+  const face = (z, nb = connecteur, out = an) => { for (let i = 0; i < nb; i++) out([(i - (nb - 1) / 2) * d, 0, z], [1, 0, 0]); };
+  if (motif === 'continu') {
+    face(0); noeudByzantin(an, H, { R, e, connMilieu: connecteur });              // 8 mm : connecteurs (3) partout, 10 mm : (2)
+    const fin = []; face(0, connecteur, (p, n) => fin.push({ p, n, R, e }));
+    return { anneaux: A, T: 2 * H, fin };
+  }
+  // du centre du double au connecteur de 10 mm : moitié du motif central (≈ 10 mm en 8 mm) − 3 mm mangés + rayon extérieur du 10 mm
+  // du centre du double à l'anneau / au connecteur de 10 mm, passé dans le bout des anneaux de chant (le motif y « mange » ≈ 3 mm)
+  const n = 1, bout = R * (NOEUD.D + 1 - NOEUD.o) + G.R * 0.63;
+  // tête : intercalaire = 1 anneau de 10 mm ; fleur = connecteur (2) de 10 mm
+  const tete = (out) => { const nb = motif === 'fleur' ? 2 : 1, dd = G.e * 2.05; for (let i = 0; i < nb; i++) out([(i - (nb - 1) / 2) * dd, 0, 0], [1, 0, 0], G.R, G.e); };
+  tete(an);
+  let zc = bout;
+  for (let k = 0; k < n; k++) {
+    noeudByzantin(an, zc, { R, e });
+    if (motif === 'fleur') for (const c of [-1, 1]) an([0, c * (R * NOEUD.h + G.R * 0.92), zc], [1, 0, 0], G.R, G.e);   // pétales de 10 mm, passés dans les 4 anneaux de chant du haut (ou du bas) qui forment le V
+    if (k < n - 1) { face(zc + H); zc += 2 * H; }                                // connecteur (3) entre les 2 doubles de l'intercalaire
+  }
+  const fin = []; tete((p, nn, r, ee) => fin.push({ p, n: nn, R: r, e: ee }));
+  return { anneaux: A, T: zc + bout, fin };
+}
+/* Chaînes de sac (axe Z, face vers X) :
+   'continu'      double 4×4 + connecteur, reliés par des connecteurs (3 en 8 mm, 2 en 10 mm) ; tous les anneaux identiques
+   'intercalaire' chaîne 8 mm : 2 doubles 4×4 reliés par un connecteur (3), puis un anneau intercalaire de 10 mm…
+   'fleur'        au centre 1 double 4×4 + connecteur (2) en 8 mm et 2 anneaux de 10 mm (haut / bas), relié de chaque côté
+                  par un connecteur (2) de 10 mm…
+   Les périodes sont posées à partir d'un gabarit déjà « dégagé » (anneaux enfilés sans se traverser, calculé une fois). */
+export function genChaineByzantine({ motif = 'continu', anneau = ANNEAU_8, grand = ANNEAU_10, longueur = 200, nombre = null, connecteur = 3, brut = false } = {}) {
+  const cle = motif + (anneau === ANNEAU_10 ? '-10' : '');
+  const per = periodeChaine(motif, { anneau, grand, connecteur });
+  const gab = !brut && GABARITS_CHAINE[cle] ? GABARITS_CHAINE[cle] : { anneaux: per.anneaux, T: per.T, fin: per.fin };
+  // nombre : motifs (doubles 4×4) dans la chaîne, « ,5 » = la chaîne finit sur un seul nœud 4×4 et son connecteur du milieu
+  const nb = nombre != null ? Math.max(1, Math.floor(nombre + 1e-6)) : Math.max(1, Math.floor((longueur + 1) / gab.T));
+  const demi = nombre != null && motif === 'continu' && nombre - nb >= 0.5 - 1e-6;
+  const A = [], dec = (r, dz) => ({ ...r, p: [r.p[0], r.p[1], +(r.p[2] + dz).toFixed(3)] });
+  for (let k = 0; k < nb; k++) for (const r of gab.anneaux) A.push(dec(r, k * gab.T));
+  if (demi) { for (const r of gab.anneaux) if (r.p[2] <= gab.T / 2 + 0.6) A.push(dec(r, nb * gab.T)); }
+  else for (const r of gab.fin) A.push(dec(r, nb * gab.T));
   return A;
+}
+/* Ta chaîne d'environ 30 cm : nombre de motifs (doubles 4×4) par chaîne, et motifs montrés dans la vue « détail » */
+export const NB_MOTIFS = { 'chaine-8': 14, 'chaine-10': 11.5, 'chaine-intercalaire': 13, 'chaine-fleur': 13 };
+export const MOTIF_DETAIL = { 'chaine-8': 2, 'chaine-10': 1, 'chaine-intercalaire': 2, 'chaine-fleur': 1 };
+/* Longueur d'un motif (pour les vignettes « Choisis ta chaîne ») : intercalaire ≈ 5,5 cm, fleur ≈ 3,3 cm, 8 mm ≈ 4,8 cm, 10 mm ≈ 4 cm */
+export const LONGUEUR_MOTIF = { 'chaine-intercalaire': 55, 'chaine-fleur': 33, 'chaine-8': 48, 'chaine-10': 40 };   // tes mesures
+/* La chaîne pend entre ses deux mousquetons (chaînette) : anneaux générés le long de z (0 → L), posés sur la courbe.
+   Les deux bouts restent à la même hauteur (y = 0), écartés de « portee » × longueur ; le creux descend vers -y. */
+export function pendreChaine(A, { portee = 0.72 } = {}) {
+  if (!A.length) return A;
+  const L = Math.max(...A.map(a => a.p[2])) - Math.min(...A.map(a => a.p[2])), z0 = Math.min(...A.map(a => a.p[2]));
+  const S = portee * L;
+  let a = L / 2;                                         // paramètre de la chaînette : 2a·sinh(S/2a) = L
+  { let lo = S / 60, hi = 50 * L;                     // dichotomie : la longueur décroît quand a grandit
+    for (let i = 0; i < 80; i++) { a = (lo + hi) / 2; (2 * a * Math.sinh(S / (2 * a)) > L) ? (lo = a) : (hi = a); } }
+  const ch = a * Math.cosh(S / (2 * a));
+  return A.map(r => {
+    const sc = (r.p[2] - z0) - L / 2, h = Math.hypot(a, sc);
+    const Z = S / 2 + a * Math.asinh(sc / a), Y = h - ch;
+    const tz = a / h, ty = sc / h, nz = -ty, ny = tz;                // tangente et normale dans le plan (z, y)
+    const [x, y] = r.p, [nx, nY, nZ] = r.n;
+    return { ...r, p: [x, +(Y + y * ny).toFixed(3), +(Z + y * nz).toFixed(3)].map((v, i) => i === 0 ? v : v),
+      n: [nx, +(nY * ny + nZ * ty).toFixed(4), +(nY * nz + nZ * tz).toFixed(4)] };
+  });
 }
 /* Breloque chainmail : la forme (croix…) se choisit comme une couleur ; chaque forme = une fiche bijou composition */
 export function modeleChainmailDemo() {
@@ -2053,10 +2131,10 @@ export function modeleChaineSacDemo() {
     version: 2, nom: 'Chaîne de sac', slug: 'chaine-sac', type: 'chaine', unite: 'mm', prix: 25, bij_ref: '', bijZone: 'motif',
     zones: [{ id: 'motif', nom: 'Motif de la chaîne', defaut: '#CH-ex01', defautNom: 'double byzantine intercalaire', repere: '#b4b6ba', categorie: 'chaines de sac' }],
     options: [],
-    groupes: [{ id: 'g-chaine', nom: 'Chaîne', technique: 'chainmail', metal: 'acier', zoneForme: 'motif', pos: [0, 0, 0], rot: [0, 0, 0],
+    groupes: [{ id: 'g-chaine', nom: 'Chaîne', technique: 'chainmail', metal: 'acier', zoneForme: 'motif', pendre: true, pos: [0, 0, 0], rot: [0, 0, 0],
       accessoires: [
-        { ref: '#MP-ex01', type: 'mousqueton-pivot', metal: 'argent', taille: 34, bout: 'debut', pos: [0, 0, 0], rot: [0, 0, 0] },
-        { ref: '#MP-ex01', type: 'mousqueton-pivot', metal: 'argent', taille: 34, bout: 'fin', pos: [0, 0, 0], rot: [0, 180, 0] },
+        { ref: '#MP-ex01', type: 'mousqueton-pivot', metal: 'argent', taille: 34, bout: 'debut', pos: [0, 0, 0], rot: [90, 0, 0] },
+        { ref: '#MP-ex01', type: 'mousqueton-pivot', metal: 'argent', taille: 34, bout: 'fin', pos: [0, 0, 0], rot: [90, 0, 0] },
       ],
       fil: { actif: false }, comblement: false, perles: [], anneaux: genChaineByzantine({ motif: 'intercalaire', longueur: 200 }) }],
   };
@@ -2084,38 +2162,27 @@ export function composerChaine({ chaine, breloques = [], pieces = [], fermoirs =
     for (const [k, v] of Object.entries(br.options || {})) options[pre + k] = v;
   };
   ajouter(chaine, 0, new THREE.Matrix4());
-  if (pieces.length && breloques.length) {           // bundle gardé : son porte-clés s'accroche à la chaîne, les breloques pendent au porte-clés
-    const b = composerBundle({ breloques, pieces, fermoirs, catalogue });
-    const P = piecesAccroche(pieces), haut = P.length ? P[P.length - 1].z + (P[P.length - 1].haut || 0) : 0;
-    const rx = new THREE.Matrix4().makeRotationX(Math.PI / 2), loc = new THREE.Vector3(0, 0, haut).applyMatrix4(rx), A = new THREE.Vector3(0, -4.5, 24);
-    const M = new THREE.Matrix4().makeTranslation(A.x - loc.x, A.y - loc.y, A.z - loc.z).multiply(rx);
-    const p = new THREE.Vector3(), qq = new THREE.Quaternion(), sc = new THREE.Vector3(); M.decompose(p, qq, sc); const ee = new THREE.Euler().setFromQuaternion(qq);
-    out.support = { pieces, pos: p.toArray(), rot: [ee.x / DEG, ee.y / DEG, ee.z / DEG] };
-    b.modele.groupes.forEach((g, gi) => {
-      const rot = g.rot || [0, 0, 0];
-      const W = M.clone().multiply(new THREE.Matrix4().compose(new THREE.Vector3().fromArray(g.pos || [0, 0, 0]), q.setFromEuler(e.set(rot[0] * DEG, rot[1] * DEG, rot[2] * DEG)), un));
-      const pp = new THREE.Vector3(), q2 = new THREE.Quaternion(), s2 = new THREE.Vector3(); W.decompose(pp, q2, s2); const e2 = new THREE.Euler().setFromQuaternion(q2);
-      // préfixes du bundle (b0:, b1:…) décalés d'un cran : la chaîne est b0
-      const pre = id => id.replace(/^b(\d+):/, (m, n) => 'b' + (+n + 1) + ':');
-      out.groupes.push({ ...g, id: pre(g.id), ...(g.zoneForme ? { zoneForme: pre(g.zoneForme) } : {}), pos: pp.toArray(), rot: [e2.x / DEG, e2.y / DEG, e2.z / DEG],
-        perles: (g.perles || []).map(x => ({ ...x, z: x.z ? pre(x.z) : x.z })) });
-      void gi;
-    });
-    const gi0 = 1, pre = id => id.replace(/^b(\d+):/, (m, n) => 'b' + (+n + 1) + ':');
-    for (const z of b.modele.zones) out.zones.push({ ...z, id: pre(z.id), breloque: z.breloque + 1 });
-    for (const o of b.modele.options) out.options.push({ ...o, id: pre(o.id), gi: (o.gi ?? 0) + gi0 });
-    for (const [k, v] of Object.entries(b.couleurs)) couleurs[pre(k)] = v;
-    for (const [k, v] of Object.entries(b.options)) options[pre(k)] = v;
-    return { modele: out, couleurs, options };
+  if (!breloques.length) return { modele: out, couleurs, options };
+  // le bundle (son rond / mousqueton) ou les breloques s'accrochent à l'anneau du premier mousqueton de la chaîne et pendent
+  const b = composerBundle({ breloques, pieces, fermoirs, catalogue });
+  const P = pieces.length ? piecesAccroche(pieces) : [], haut = P.length ? P[P.length - 1].z + (P[P.length - 1].haut || 0) : 0;
+  const rx = new THREE.Matrix4().makeRotationX(Math.PI / 2), loc = new THREE.Vector3(0, 0, haut).applyMatrix4(rx), A = new THREE.Vector3(1.2, pieces.length ? 11.5 : 8, 0);   // dans l'anneau du mousqueton, à côté du bout de chaîne
+  const M = new THREE.Matrix4().makeTranslation(A.x - loc.x, A.y - loc.y, A.z - loc.z).multiply(rx);
+  if (pieces.length) { const p = new THREE.Vector3(), qq = new THREE.Quaternion(), sc = new THREE.Vector3(); M.decompose(p, qq, sc); const ee = new THREE.Euler().setFromQuaternion(qq);
+    out.support = { pieces, pos: p.toArray(), rot: [ee.x / DEG, ee.y / DEG, ee.z / DEG] }; }
+  const pre = id => id.replace(/^b(\d+):/, (m, n) => 'b' + (+n + 1) + ':');       // la chaîne est b0 : le bundle commence à b1
+  for (const g of b.modele.groupes) {
+    const rot = g.rot || [0, 0, 0];
+    const W = M.clone().multiply(new THREE.Matrix4().compose(new THREE.Vector3().fromArray(g.pos || [0, 0, 0]), q.setFromEuler(e.set(rot[0] * DEG, rot[1] * DEG, rot[2] * DEG)), un));
+    const pp = new THREE.Vector3(), q2 = new THREE.Quaternion(), s2 = new THREE.Vector3(); W.decompose(pp, q2, s2); const e2 = new THREE.Euler().setFromQuaternion(q2);
+    out.groupes.push({ ...g, id: pre(g.id), ...(g.zoneForme ? { zoneForme: pre(g.zoneForme) } : {}), pos: pp.toArray(), rot: [e2.x / DEG, e2.y / DEG, e2.z / DEG],
+      perles: (g.perles || []).map(x => ({ ...x, z: x.z ? pre(x.z) : x.z })) });
   }
-  // sous la chaîne (vers -y à l'écran), à partir de ~2 cm du premier mousqueton, une breloque tous les 9 mm
-  const rotX = new THREE.Matrix4().makeRotationX(Math.PI / 2);          // la breloque pend vers +z → vers -y
-  breloques.forEach((br, k) => {
-    const zAcc = pointAccrocheBreloque(br.modele, br.options || {}, fermParRef, parRef);
-    const local = new THREE.Vector3(0, 0, zAcc).applyMatrix4(rotX);
-    const A = new THREE.Vector3(0, -5.5, 20 + k * 9);
-    ajouter(br, k + 1, new THREE.Matrix4().makeTranslation(A.x - local.x, A.y - local.y, A.z - local.z).multiply(rotX));
-  });
+  const gi0 = (chaine.modele.groupes || []).length;
+  for (const z of b.modele.zones) out.zones.push({ ...z, id: pre(z.id), breloque: z.breloque + 1 });
+  for (const o of b.modele.options) out.options.push({ ...o, id: pre(o.id), gi: (o.gi ?? 0) + gi0 });
+  for (const [k, v] of Object.entries(b.couleurs)) couleurs[pre(k)] = v;
+  for (const [k, v] of Object.entries(b.options)) options[pre(k)] = v;
   return { modele: out, couleurs, options };
 }
 export const estChaineSac = m => m?.type === 'chaine' || !!m?.groupes?.some(g => g.technique === 'chaine');
@@ -2353,12 +2420,13 @@ export class ScenePerles {
 
   /* Anneaux d'un groupe chainmail : ceux de la forme choisie par le client (croix…) */
   _anneaux(g) {
-    if (!g.zoneForme) return g.anneaux;
+    if (!g.zoneForme) return g.pendre && g.anneaux ? pendreChaine(g.anneaux) : g.anneaux;
     const ref = this.couleurs?.[g.zoneForme] || this.zonesParId?.[g.zoneForme]?.defaut;
     const f = this.parRef[ref]?.forme;
-    if (!f || !FORMES_CHAINMAIL[f]) return g.anneaux;
-    (this._cacheFormes ||= {})[f] ||= FORMES_CHAINMAIL[f].gen();
-    return this._cacheFormes[f];
+    if (!f || !FORMES_CHAINMAIL[f]) return g.pendre ? ((this._cachePend ||= new WeakMap()).get(g.anneaux) || (this._cachePend.set(g.anneaux, pendreChaine(g.anneaux || [])), this._cachePend.get(g.anneaux))) : g.anneaux;
+    const cle = f + (g.pendre ? ':pend' : '');
+    (this._cacheFormes ||= {})[cle] ||= g.pendre ? pendreChaine(FORMES_CHAINMAIL[f].gen()) : FORMES_CHAINMAIL[f].gen();
+    return this._cacheFormes[cle];
   }
 
   /* Œil « double perle plate » : une perle heishi (colorée) reçoit une petite perle plate blanche
@@ -2475,7 +2543,12 @@ export class ScenePerles {
         const pos = new THREE.Vector3().fromArray(acc.pos || [0, 0, 0]);
         if (acc.bout) {                                   // chaîne : mousqueton accroché à l'anneau du bout
           const A = this._anneaux(g) || [];
-          if (A.length) pos.z = acc.bout === 'fin' ? Math.max(...A.map(a => a.p[2] + a.R)) - 0.4 : Math.min(...A.map(a => a.p[2] - a.R)) + 0.4;
+          if (A.length && g.pendre) {                     // chaîne qui pend : mousquetons debout au-dessus des anneaux des bouts
+            // l'anneau du bout = le premier / le dernier généré (pas le plus à gauche / à droite : quand la chaîne pend,
+            // un pétale de la fleur peut dépasser le bout et attirait le mousqueton)
+            const b = acc.bout === 'fin' ? A[A.length - 1] : A[0];
+            pos.set(0, b.p[1] + b.R - 0.5, b.p[2]);
+          } else if (A.length) pos.z = acc.bout === 'fin' ? Math.max(...A.map(a => a.p[2] + a.R)) - 0.4 : Math.min(...A.map(a => a.p[2] - a.R)) + 0.4;
         }
         const decal = this.decalFermoir?.[gi] || 0;
         if (decal) {
@@ -2937,7 +3010,7 @@ export function lignesCommandeBundle({ breloques, accroche = null, catalogue = [
       creation.push({ partie: 'Accroche', couleur: f?.nom || '', ref, perle: '—', quantite: 1 });
     });
     const offre = accroche.offre;
-    if (offreApplicable(offre, accroche, breloques.map(b => b.prixBase ?? b.modele.prix))) {
+    if (offreApplicable(offre, accroche, breloques.filter(b => b.modele?.type !== 'chaine').map(b => b.prixBase ?? b.modele.prix))) {   // la chaîne de sac ne compte pas comme breloque
       const remise = Math.min(+offre.remise || 0, +accroche.supplement || 0);
       if (remise > 0) prestation.push({ designation: 'Offre bundle — ' + (offre.libelle || 'remise'), ref: offre.piece, qte: 1, pu: -remise, total: -remise });
     }
@@ -3207,7 +3280,7 @@ export function notePersonnalisation({ breloques, accroche = null, catalogue = [
   });
   let ligneAcc = '', ligneAccAtelier = '';
   if (accroche) {
-    const offre = offreApplicable(accroche.offre, accroche, breloques.map(b => b.prixBase ?? b.modele.prix));
+    const offre = offreApplicable(accroche.offre, accroche, breloques.filter(b => b.modele?.type !== 'chaine').map(b => b.prixBase ?? b.modele.prix));
     const remise = offre ? Math.min(+accroche.offre.remise || 0, +accroche.supplement || 0) : 0;
     const prix = Math.max(0, (+accroche.supplement || 0) - remise);
     ajouter({ cle: 'accroche:' + accroche.id + (offre ? ':offre' : ''), libelle: accroche.libelle + (offre ? ' (offre)' : ''), prix });
@@ -3221,3 +3294,24 @@ export function notePersonnalisation({ breloques, accroche = null, catalogue = [
   const texteAtelier = [titre, ligneAccAtelier, ...notesAtelier.map(n => n.replace(titre + ' — ', '')), prixTxt].filter(Boolean).join('\n');
   return { titre, notes, notesAtelier, ligneAcc, ligneAccAtelier, articles, total, texte, texteAtelier };
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* Gabarits dégagés (générés par degager() à partir de periodeChaine / genCroixByzantine) : [x,y,z, nx,ny,nz, R,e] */
+{ const D = {"continu":{"T":20.65,"a":[[-1.005,-0.14,0.051,1,-0.0003,-0.0007,3.5,0.5],[-0.024,0.146,0.015,1,0,0.0004,3.5,0.5],[0.951,-0.101,0.046,1,-0.0004,0.0006,3.5,0.5],[-2.414,0.037,5.1,0.9434,-0.0009,-0.3315,3.5,0.5],[-1.605,0.075,4.761,0.9452,0.0012,-0.3265,3.5,0.5],[1.604,0.061,4.642,0.9452,-0.0005,0.3266,3.5,0.5],[2.445,-0.023,5.007,0.9435,0.0008,0.3314,3.5,0.5],[0.017,-2.232,5.388,0.0012,0.9702,0.2424,3.5,0.5],[0.038,-1.28,5.774,0.0001,0.9701,0.2426,3.5,0.5],[-0.076,1.38,5.675,-0.0014,0.9701,-0.2429,3.5,0.5],[-0.038,2.307,5.268,0,0.97,-0.2429,3.5,0.5],[-2.361,0.005,15.608,0.9432,-0.0015,0.3323,3.5,0.5],[-1.582,-0.013,15.929,0.9445,0.0015,0.3285,3.5,0.5],[1.562,0.03,16.052,0.9441,0.0006,-0.3297,3.5,0.5],[2.41,-0.088,15.632,0.9437,-0.0003,-0.3309,3.5,0.5],[0,-2.252,15.267,0.0015,0.9701,-0.2429,3.5,0.5],[0.047,-1.37,14.874,-0.0002,0.9702,-0.2423,3.5,0.5],[-0.048,1.356,14.953,-0.0016,0.97,0.2429,3.5,0.5],[0.008,2.255,15.328,0.0002,0.9702,0.2425,3.5,0.5],[0.148,-0.857,10.286,0.0002,1,-0.0003,3.5,0.5],[-0.333,-0.003,10.291,0.0001,1,0.0005,3.5,0.5],[0.166,0.849,10.308,0,1,-0.0005,3.5,0.5]],"f":[[-0.99,-0.148,0.024,1,-0.0003,-0.0008,3.5,0.5],[-0.025,0.138,-0.004,1,-0.0002,0.0005,3.5,0.5],[0.976,-0.119,0.041,1,-0.0004,0.0008,3.5,0.5]]},"continu-10":{"T":25.96,"a":[[-0.498,-0.026,-0.072,1,-0.0006,-0.0002,4.4,0.6],[0.691,-0.006,0.038,1,0.0006,-0.0001,4.4,0.6],[-3.138,0.159,6.352,0.944,-0.0001,-0.33,4.4,0.6],[-1.985,-0.246,6.366,0.9443,-0.0001,-0.329,4.4,0.6],[1.786,0.075,5.72,0.944,-0.0001,0.3301,4.4,0.6],[2.882,0.221,6.302,0.9439,0,0.3302,4.4,0.6],[0.109,-2.812,6.876,0.0005,0.9702,0.2425,4.4,0.6],[-0.445,-1.771,7.258,0.0003,0.9703,0.242,4.4,0.6],[-0.044,1.434,7.464,-0.0004,0.9703,-0.2419,4.4,0.6],[0.019,2.561,7.023,-0.0004,0.9701,-0.2425,4.4,0.6],[-3.006,-0.093,19.643,0.944,0.0001,0.33,4.4,0.6],[-1.823,0.2,19.521,0.9445,0.0002,0.3286,4.4,0.6],[1.786,-0.087,20.358,0.944,0,-0.33,4.4,0.6],[2.835,-0.118,19.691,0.9439,0,-0.3303,4.4,0.6],[0.218,-2.603,18.867,0.0004,0.9702,-0.2425,4.4,0.6],[0.093,-1.445,18.434,0.0005,0.9702,-0.2422,4.4,0.6],[-0.279,1.736,18.719,-0.0003,0.9703,0.2419,4.4,0.6],[0.26,2.804,19.007,-0.0004,0.9702,0.2425,4.4,0.6],[0.226,-0.622,12.978,-0.0004,1,0.0003,4.4,0.6],[0.285,0.617,13.106,0.0003,1,0.0002,4.4,0.6]],"f":[[-0.498,-0.031,-0.064,1,-0.0007,-0.0002,4.4,0.6],[0.69,-0.009,0.043,1,0.0007,-0.0001,4.4,0.6]]},"intercalaire":{"T":21.294,"a":[[-0.044,0.044,0.012,1,0.0001,-0.0002,4.4,0.6],[-2.328,0.016,5.665,0.944,-0.0001,-0.3301,3.5,0.5],[-1.29,-0.1,5.789,0.9443,0.0001,-0.329,3.5,0.5],[1.005,-0.098,4.816,0.9439,0,0.3303,3.5,0.5],[1.93,0.043,5.355,0.9439,-0.0001,0.3303,3.5,0.5],[0.297,-2.294,6.366,0.0006,0.9702,0.2423,3.5,0.5],[-0.115,-1.356,6.419,0.0002,0.9702,0.2421,3.5,0.5],[-0.128,1.352,6.621,-0.0002,0.9703,-0.242,3.5,0.5],[0.312,2.279,6.513,-0.0005,0.9702,-0.2425,3.5,0.5],[-2.318,-0.005,15.645,0.944,0.0002,0.3299,3.5,0.5],[-1.271,0.068,15.514,0.9444,0.0001,0.3289,3.5,0.5],[1.021,0.059,16.483,0.9439,-0.0002,-0.3303,3.5,0.5],[1.953,-0.04,15.942,0.9439,0.0002,-0.3303,3.5,0.5],[0.351,-2.238,14.852,0.0005,0.9702,-0.2424,3.5,0.5],[-0.107,-1.35,14.617,0.0003,0.9702,-0.2422,3.5,0.5],[-0.097,1.347,14.888,-0.0002,0.9703,0.2421,3.5,0.5],[0.302,2.296,14.89,-0.0005,0.9702,0.2423,3.5,0.5],[0.243,-0.521,10.702,-0.0004,1,0.0002,3.5,0.5],[0.248,0.495,10.595,0.0003,1,0.0002,3.5,0.5]],"f":[[-0.055,0.041,0.02,1,0.0001,-0.0002,4.4,0.6]]},"fleur":{"T":21.294,"a":[[-0.624,-0.232,0.109,1,0.0003,-0.0001,4.4,0.6],[0.607,-0.281,-0.052,1,-0.0003,0.0003,4.4,0.6],[-2.504,0.114,5.371,0.9441,-0.0008,-0.3297,3.5,0.5],[-1.667,0.064,4.8,0.9443,0.0009,-0.3291,3.5,0.5],[1.685,0.09,5.009,0.9445,-0.001,0.3284,3.5,0.5],[2.533,0.104,5.459,0.9438,0.0006,0.3304,3.5,0.5],[-0.121,-2.603,6.137,-0.0001,0.9699,0.2433,3.5,0.5],[0.273,-1.776,6.57,-0.0002,0.97,0.2431,3.5,0.5],[0.329,1.898,6.447,0.0005,0.9698,-0.244,3.5,0.5],[0.009,2.676,5.932,0.0007,0.9698,-0.244,3.5,0.5],[-2.598,-0.053,15.821,0.9438,0.001,0.3306,3.5,0.5],[-1.786,-0.09,16.441,0.9444,-0.0008,0.3288,3.5,0.5],[1.724,-0.066,16.287,0.9443,-0.0006,-0.3291,3.5,0.5],[2.572,-0.044,15.728,0.9439,0.0011,-0.3301,3.5,0.5],[-0.159,-2.732,15.144,-0.0008,0.9698,-0.2438,3.5,0.5],[0.253,-1.885,14.83,0.0001,0.9699,-0.2434,3.5,0.5],[0.241,1.744,14.774,0.0004,0.9699,0.2435,3.5,0.5],[-0.147,2.571,15.213,-0.0002,0.9699,0.2436,3.5,0.5],[-0.237,-0.541,10.593,-0.0001,1,0.0004,3.5,0.5],[-0.218,0.497,10.699,0.0004,1,0.0003,3.5,0.5],[-0.029,-6.06,10.643,1,-0.0002,0.0005,4.4,0.6],[-0.028,6.058,10.809,1,0.0002,-0.0005,4.4,0.6]],"f":[[-0.499,0.158,-0.028,1,-0.0001,0.0002,4.4,0.6],[0.702,-0.158,-0.071,1,0,-0.0002,4.4,0.6]]}}, X = [[0.025,-0.009,4.477,1,-0.0004,-0.0003,4.4,0.6],[-2.783,-0.017,10.055,0.9495,0.0136,-0.3134,3.5,0.5],[-1.897,-0.125,9.587,0.9559,0.0048,-0.2938,3.5,0.5],[1.827,0.143,9.595,0.9577,0.0046,0.2879,3.5,0.5],[2.701,0.013,10.053,0.9493,0.002,0.3145,3.5,0.5],[-0.026,-2.585,10.645,-0.0091,0.9685,0.249,3.5,0.5],[-0.01,-1.651,11.005,0.001,0.9691,0.2468,3.5,0.5],[-0.028,1.683,11.021,0.006,0.9687,-0.2481,3.5,0.5],[-0.036,2.604,10.633,-0.0062,0.969,-0.2471,3.5,0.5],[-2.09,0.161,20.618,0.9783,-0.013,0.2069,3.5,0.5],[-0.54,0.364,20.92,0.9354,-0.0262,0.3525,3.5,0.5],[0.619,-0.382,20.853,0.9353,-0.0133,-0.3536,3.5,0.5],[2.131,-0.069,20.626,0.9768,0.0071,-0.2141,3.5,0.5],[-0.047,-2.144,19.507,0.0104,0.958,-0.2866,3.5,0.5],[0.446,-1.4,19.164,0.0032,0.9588,-0.284,3.5,0.5],[-0.037,1.461,19.129,0.0025,0.9564,0.2921,3.5,0.5],[0.244,2.068,19.707,0.0144,0.9556,0.2945,3.5,0.5],[-0.029,0.409,15.224,-0.0068,1,-0.0017,3.5,0.5],[0.02,-0.506,15.189,-0.0058,1,0.0031,3.5,0.5],[0.097,-5.617,14.123,0.9992,0.0121,-0.037,4.4,0.6],[-0.312,5.732,14.405,0.9983,0.0126,0.0572,4.4,0.6],[0.455,-0.029,24.953,0.9997,0.02,-0.0155,3.5,0.5],[-0.398,-0.468,24.866,0.9996,0.0236,-0.0151,3.5,0.5],[-0.062,-3,25.045,0,1,0,4.4,0.6],[-0.019,3,25.249,0,1,0,4.4,0.6],[-2.184,0.052,29.452,0.9698,-0.0067,-0.2439,3.5,0.5],[-0.743,0.613,29.33,0.9408,0.0197,-0.3384,3.5,0.5],[0.778,-0.435,29.343,0.9371,-0.0012,0.3492,3.5,0.5],[2.169,-0.021,29.456,0.9701,-0.0081,0.2425,3.5,0.5],[-0.072,-1.9,30.683,0.0127,0.9734,0.2289,3.5,0.5],[-0.063,-1.109,30.839,0.0057,0.9746,0.2239,3.5,0.5],[0.091,1.16,30.654,0.0095,0.9744,-0.2247,3.5,0.5],[-0.232,1.93,30.372,0.0001,0.9737,-0.2277,3.5,0.5],[0.033,-0.514,34.893,0.0002,1,0.0016,3.5,0.5],[-0.017,0.523,34.905,0.0005,1,-0.0003,3.5,0.5],[-0.011,0.012,39.776,1,0.0003,-0.0008,2.5,0.5]];
+  const un = t => t.map(v => ({ p: v.slice(0, 3), n: v.slice(3, 6), R: v[6], e: v[7] }));
+  definirGabarits(Object.fromEntries(Object.entries(D).map(([k, g]) => [k, { T: g.T, anneaux: un(g.a), fin: un(g.f) }])), un(X)); }

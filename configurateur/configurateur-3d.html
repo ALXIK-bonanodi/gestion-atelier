@@ -177,7 +177,7 @@ label.champ input:focus, label.champ textarea:focus { border-color: var(--prune)
 .modeles { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
 .chaines { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
 .chaine { display: grid; gap: 4px; justify-items: center; text-align: center; padding: 8px; border-radius: 14px; border: 1.5px solid var(--ligne, #d9c9a6); background: var(--creme-clair); cursor: pointer; font: 500 13px var(--f-titre); color: var(--prune); }
-.chaine img { width: 100%; aspect-ratio: 1; object-fit: contain; border-radius: 10px; background: #fff; }
+.chaine img { width: 100%; aspect-ratio: 1; object-fit: contain; }
 .chaine[aria-pressed="true"] { border: 2.5px solid var(--prune); background: #fff2a8; }
 .chaine span { font-size: 12px; color: var(--prune-doux); }
 .ajouts.cases { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
@@ -433,7 +433,7 @@ label.champ input:focus, label.champ textarea:focus { border-color: var(--prune)
    URL : configurateur-3d.html   (?parcours=bundle  ou  ?modele=arete)
    ------------------------------------------------------------------ */
 import {
-  ScenePerles, composerChaine, FORMES_CHAINMAIL, modeleChaineSacDemo, estChaineSac, alternativesConfig, refParNom, baseRef, definirLiensFixes, apparenceFixes, lignesCommande, estExemple, catalogueDepuisMateriaux, CATALOGUE_DEMO, FERMOIRS_DEMO, modeleDemo, modeleAreteDemo, modeleLettresDemo,
+  ScenePerles, composerChaine, FORMES_CHAINMAIL, LONGUEUR_MOTIF, modeleChaineSacDemo, estChaineSac, alternativesConfig, refParNom, baseRef, definirLiensFixes, apparenceFixes, lignesCommande, estExemple, catalogueDepuisMateriaux, CATALOGUE_DEMO, FERMOIRS_DEMO, modeleDemo, modeleAreteDemo, modeleLettresDemo,
   couleursProposees, validerConfiguration, couleursEpuisees, listerModelesPublies, chargerCatalogueBoutique, chargerFermoirsBoutique,
   chargerPartiesConfigurateur, chargerPrixBijou, affinerCouleursDepuisPhotos, resoudreDefauts, envoyerDemande,
   composerBundle, lignesCommandeBundle, accrochesProposees, construireLettres, verifierTexte, estLettres, offreApplicable,
@@ -442,7 +442,7 @@ import {
   correspondCategorie, texteCatalogue, ordreModeles, chargerRuptures, appliquerRuptures,
   chargerLiens, appliquerLiens, relierModele, chargerMateriauxParRefs,
   chargerFichesConfig, definirFichesConfig, ficheCfg, refsCouleurFiche, famillesFiche,
-} from './bead-core.js?v=51efe4aa';
+} from './bead-core.js?v=29ef6195';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER, PANIER_SHOPIFY } from './perles-config.js?v=e5e86015';
 
 const $ = s => document.querySelector(s);
@@ -626,9 +626,9 @@ const modeleActif = () => modeleDe(brel().slug);
 const accrocheChoisie = () => accroches?.choix.find(c => c.id === etat.accroche) || null;
 const maxBreloques = () => accroches?.max || Infinity;          // sans limite, sauf si tu en fixes une dans l'éditeur
 const offre = accroches?.offre || null;
-const prixBreloques = () => etat.breloques.map(prixDe);
+const prixBreloques = () => etat.breloques.filter(b => !estChaineSac(modeleDe(b.slug))).map(prixDe);   // la chaîne ne compte pas
 const nbQualifiees = () => offre ? prixBreloques().filter(p => (+p || 0) >= (offre.prixMin ?? 0)).length : 0;
-const offreActive = c => enBundle() && offreApplicable(offre, c, prixBreloques());   // l'offre bundle ne s'applique pas sur la chaîne
+const offreActive = c => !!accrocheActive() && offreApplicable(offre, c, prixBreloques());   // bundle, ou porte-clés gardé sur la chaîne
 const choixOffre = () => offre && accroches.choix.find(c => c.pieces.length === 1 && c.pieces[0] === offre.piece);
 const supplementEffectif = c => Math.max(0, (+c.supplement || 0) - (offreActive(c) ? Math.min(+offre.remise || 0, +c.supplement || 0) : 0));
 
@@ -790,7 +790,7 @@ function rendreAccroches() {
   // bandeau d'offre : acquise, ou ce qu'il manque pour en profiter
   const nom = nomFermoir(offre?.piece).toLowerCase();
   const manque = offre ? Math.max(0, (offre.min ?? 2) - nbQualifiees()) : 0;
-  $('#offre').hidden = !offre || !enBundle();
+  $('#offre').hidden = !offre || !accrocheActive();
   if (offre) {
     const choisiAvec = offreActive(accrocheChoisie());
     $('#offre').className = 'offre' + (manque || !choisiAvec ? ' attente' : '');
@@ -976,7 +976,7 @@ const normNom = t => String(t || '').toLowerCase().normalize('NFD').replace(/[̀
 function ideesBundle() {
   if (!accroches) return [];
   const connues = new Set([...catalogue.map(c => c.ref), ...fermoirs.map(f => f.ref)]), liste = modelesDu('bundle');
-  return bijoux.filter(b => ficheCfg(b.id)?.pieces?.length).map(f => {
+  return bijoux.filter(b => ficheCfg(b.id)?.pieces?.length && !/\bsacs?\b|cha[iî]ne|byzantin/i.test([b.nom, b.variante, b.collection].join(' '))).map(f => {   // pas les sacs ni les chaînes
     const cfg = ficheCfg(f.id), refs = cfg.refs || [];
     if (refs.some(r => !connues.has(r))) return null;                             // ex. crochet de boucle d'oreille absent du configurateur
     const aRef = r => refs.includes(r) || refs.some(x => baseRef(x) === baseRef(r));
@@ -1096,7 +1096,7 @@ function rendreChaines() {
   // vignette 3D d'un tronçon de chaque motif (rendue une fois, hors écran)
   const nouv = liste.some(c => !VIGNETTES.has('ch:' + c.forme));
   const imgs = liste.map(c => vignette('ch:' + c.forme, () => {
-    const A = (FORMES_CHAINMAIL[c.forme] || FORMES_CHAINMAIL['chaine-8']).gen(/fleur|intercal/.test(c.forme) ? 60 : 40);
+    const A = (FORMES_CHAINMAIL[c.forme] || FORMES_CHAINMAIL['chaine-8']).gen('detail');   // le motif de la vue détail, à sa vraie taille
     scene.definirModele({ version: 12, nom: c.nom, zones: [], options: [], groupes: [{ id: 'g', technique: 'chainmail', metal: 'acier', pos: [0, 0, 0], rot: [0, 0, 0], fil: { actif: false }, perles: [], anneaux: A }] });
     scene.definirCouleurs({}); scene.definirOptions({}); }));
   if (nouv) rendre3D();
@@ -1227,7 +1227,7 @@ function calcul() {
   return lignesCommandeBundle({
     breloques: etat.breloques.map(b => ({ modele: modelePour(b), couleurs: validerConfiguration(modeleDe(b.slug), catalogue, b.couleurs, parties),
       options: optionsEffectives(b), prixBase: prixDe(b), bijRef: bijouDe(b).ref, ficheNom: bijouDe(b).nom })),
-    accroche: acc ? { libelle: acc.libelle, pieces: acc.pieces, supplement: acc.supplement, offre: enBundle() ? offre : null } : null, catalogue, fermoirs,
+    accroche: acc ? { libelle: acc.libelle, pieces: acc.pieces, supplement: acc.supplement, offre } : null, catalogue, fermoirs,
   });
 }
 function rendreRecap() {
@@ -1269,7 +1269,7 @@ function entreesNote() {
   return {
     breloques: etat.breloques.map(b => ({ modele: modelePour(b), couleurs: validerConfiguration(modeleDe(b.slug), catalogue, b.couleurs, parties),
       options: optionsEffectives(b), prixBase: prixDe(b), bijRef: bijouDe(b).ref, ficheNom: bijouDe(b).nom, modeleIdee: bijouDe(b).idee || null })),
-    accroche: acc ? { id: acc.id, libelle: acc.libelle, pieces: acc.pieces, supplement: acc.supplement, offre: enBundle() ? offre : null, lotNom: lotCorrespondant()?.nom || null } : null,
+    accroche: acc ? { id: acc.id, libelle: acc.libelle, pieces: acc.pieces, supplement: acc.supplement, offre, lotNom: lotCorrespondant()?.nom || null } : null,
     catalogue, fermoirs,
   };
 }
@@ -1287,7 +1287,7 @@ function choixActuels() {
   const acc = accrocheActive();
   return {
     parcours: etat.parcours, actif: etat.actif,
-    accroche: acc ? { id: acc.id, libelle: acc.libelle, pieces: acc.pieces, supplement: acc.supplement, offre: enBundle() ? offre : null } : null,
+    accroche: acc ? { id: acc.id, libelle: acc.libelle, pieces: acc.pieces, supplement: acc.supplement, offre } : null,
     breloques: etat.breloques.map(b => ({ modele: b.slug, couleurs: validerConfiguration(modeleDe(b.slug), catalogue, b.couleurs, parties),
       options: optionsEffectives(b), ...(estLettres(modeleDe(b.slug)) ? { texte: b.texteValide || b.texte } : {}) })),
   };
