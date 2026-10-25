@@ -66,10 +66,10 @@ button:disabled { opacity: .5; cursor: default; }
 import {
   CATALOGUE_DEMO, FERMOIRS_DEMO, modeleDemo, modeleAreteDemo, modeleLettresDemo, modeleArgileDemo, modeleChainmailDemo, modelePerleCultureDemo,
   listerModelesPublies, chargerCatalogueBoutique, chargerFermoirsBoutique, chargerPartiesConfigurateur, chargerBijouxBoutique,
-  completerCatalogue, resoudreDefauts, couleursProposees, correspondCategorie, ordreModeles, estLettres, accrochesProposees,
+  completerCatalogue, completerModeleChainmail, modeleChaineSacDemo, estChaineSac, FORMES_CHAINMAIL, resoudreDefauts, couleursProposees, correspondCategorie, ordreModeles, estLettres, accrochesProposees,
   chargerLiens, enregistrerLiens, estExemple, exemplesParRef, apercuArgile, apercuChainmail, baseRef,
   appliquerLiens, relierModele, definirLiensFixes, cleFixe, refFixe, catalogueDepuisMateriaux, perlesFixesDe, allureFixe, bijouBreloque,
-} from './bead-core.js?v=670d1e9b';
+} from './bead-core.js?v=c9957234';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './perles-config.js?v=e5e86015';
 
 const $ = s => document.querySelector(s);
@@ -104,18 +104,21 @@ const fermoirs = f.value?.length ? f.value : FERMOIRS_DEMO;
 const parties = p.value?.length ? p.value : null;
 const modelesBruts = (m.value?.length ? m.value : [modeleDemo(), modeleAreteDemo(), modeleLettresDemo(), modeleArgileDemo(), modeleChainmailDemo(), modelePerleCultureDemo()])
   .sort(ordreModeles);
-const modeles = modelesBruts.map(x => resoudreDefauts(x, catalogue, fermoirs));
+if (!modelesBruts.some(estChaineSac)) modelesBruts.push(modeleChaineSacDemo());          // chaîne de sac (exemple tant qu'elle n'est pas publiée)
+const modeles = modelesBruts.map(completerModeleChainmail).map(x => resoudreDefauts(x, catalogue, fermoirs));
 const EX = exemplesParRef();
 
 /* exemples réellement utilisés par le configurateur */
 const utilises = new Map();
 const noter = (ref, famille) => { if (estExemple(ref) && EX.has(ref) && !utilises.has(ref)) utilises.set(ref, famille); };
-const famille = x => x.finition === 'argile' ? 'Motifs argile' : x.finition === 'chainmail' ? 'Formes chainmail'
+const famille = x => x.finition === 'argile' ? 'Motifs argile' : x.categorie === 'Chaînes de sac' ? 'Chaînes de sac' : x.finition === 'chainmail' ? (x.famille === 'Mini chain' ? 'Mini chain' : 'Formes chainmail')
   : x.double || /plat/.test(norm([x.categorie, x.nom].join(' '))) ? 'Yeux · perles plates et heishi' : /culture/.test(norm(x.categorie)) ? 'Perles de culture'
   : /etoile/.test(norm(x.categorie)) ? 'Perles étoile' : /lettre/.test(norm(x.categorie)) ? 'Perles lettre' : /metal/.test(norm(x.categorie)) ? 'Perles métal' : (x.categorie || 'Perles');
 for (const mo of modeles) {
   for (const z of mo.zones || []) { couleursProposees(z, catalogue, parties).forEach(x => noter(x.ref, famille(x))); if (z.double) noter(z.double.k, 'Yeux · perles plates et heishi'); }
-  for (const g of mo.groupes || []) { if (g.pampille) noter(g.pampille.k, 'Perles métal'); (g.perles || []).forEach(b => b.k && noter(b.k, famille(EX.get(b.k) || {}))); }
+  for (const g of mo.groupes || []) { if (g.pampille) noter(g.pampille.k, 'Perles métal');
+    if (g.zoneForme) Object.values(FORMES_CHAINMAIL).forEach(F => F.pampilleK && noter(F.pampilleK[0], 'Perles métal'));   // pampille 4 mm des mini chaînes
+    (g.perles || []).forEach(b => b.k && noter(b.k, famille(EX.get(b.k) || {}))); }
   for (const o of mo.options || []) {
     if (o.type === 'perle') catalogue.filter(x => !o.categorie || correspondCategorie(x, o.categorie)).forEach(x => noter(x.ref, famille(x)));
     if (o.type === 'fermoir') (o.choix || []).forEach(ch => noter(ch.ref, 'Fermoirs breloque'));

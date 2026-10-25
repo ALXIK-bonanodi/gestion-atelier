@@ -4053,17 +4053,37 @@ async function renderModelesProposes(){
     if(typeof v==='string'){ try{ v=JSON.parse(v); }catch(e){ v=[]; } } RUPTURES_3D=Array.isArray(v)?v.map(String):[];
     { const a=await SB.from('config').select('value').eq('key','configurateur_alternatives').maybeSingle(); let w=a.data?.value; if(typeof w==='string'){ try{ w=JSON.parse(w); }catch(e){ w=null; } } if(Array.isArray(w)) ALTERNATIVES=w; } }
   catch(e){ el.innerHTML=`<span class="dim">Modèles : ${escA(e.message)}</span>`; return; }
-  if(!MODELES_3D.length){ el.innerHTML='<span class="dim">Aucun modèle 3D enregistré pour l\'instant (onglet 🧊 Modèles).</span>'+renderFormesProposees()+renderIdeesProposees()+renderChainesProposees(); return; }
+  if(!MODELES_3D.length){ el.innerHTML='<span class="dim">Aucun modèle 3D enregistré pour l\'instant (onglet 🧊 Modèles).</span>'+renderOffres()+renderFormesProposees()+renderIdeesProposees()+renderChainesProposees(); return; }
   const vu=(m,p)=>m.publie&&!RUPTURES_3D.includes(p+':'+m.slug);
   const bouton=(m,p)=>`<button type="button" class="c3p ${vu(m,p)?'on':''}" onclick="basculerModele('${escA(m.slug)}','${p}')">${vu(m,p)?'👁':'🚫'} ${p==='breloque'?'Breloque seule':'Bundle'}</button>`;
   const nb=p=>MODELES_3D.filter(m=>vu(m,p)).length, ouvert=el.dataset.ouvert==='1';
   el.innerHTML=`<details class="c3p-det" ${ouvert?'open':''} ontoggle="this.parentNode.dataset.ouvert=this.open?'1':''"><summary><b>Breloques proposées</b> <span class="dim">· breloque seule ${nb('breloque')}/${MODELES_3D.length} · bundle ${nb('bundle')}/${MODELES_3D.length}</span> <span class="c3p-gerer">Gérer ▾</span></summary>
     <div class="c3p-tab">${MODELES_3D.map(m=>`<div class="c3p-l"><span class="c3p-nom">${escA(m.nom||m.slug)}</span>${bouton(m,'breloque')}${bouton(m,'bundle')}</div>`).join('')}</div></details>
+    ${renderOffres()}
     ${renderFormesProposees()}
     ${renderIdeesProposees()}
     ${renderChainesProposees()}
     <div class="c3p-l" style="margin-top:8px"><span class="c3p-nom">3e parcours · Chaîne de sac</span><button type="button" class="c3p ${RUPTURES_3D.includes('activer:chaine')?'on':''}" onclick="basculerChaine()">${RUPTURES_3D.includes('activer:chaine')?'👁 affiché':'🚫 masqué'}</button>
       <span class="dim" style="font-size:11px">Crée tes modèles dans 🧊 Modèles (champ « Parcours : Chaîne de sac » ou « Exemple chaîne de sac ») et relie-les à leur fiche bijou.</span></div>`;
+}
+// 🎁 offres du configurateur (non cumulables : la cliente choisit si elle a droit aux deux)
+let OFFRES_CFG=null;
+const OFFRES_DEF={ rond:{active:true,libelle:'Fermoir rond offert',min:2,prixMin:15,remise:1.5}, mousqueton:{active:true,libelle:'Mousqueton offert',minBundles:2,remise:null} };
+async function chargerOffresCfg(){ try{ const {data}=await SB.from('config').select('value').eq('key','configurateur_offres').maybeSingle(); let v=data?.value; if(typeof v==='string'){ try{v=JSON.parse(v);}catch(e){v=null;} } OFFRES_CFG=v&&typeof v==='object'?v:{}; }catch(e){ OFFRES_CFG={}; } }
+function renderOffres(){
+  if(OFFRES_CFG===null){ chargerOffresCfg().then(renderModelesProposes); return ''; }
+  const o=k=>({...OFFRES_DEF[k],...(OFFRES_CFG[k]||{})});
+  const champ=(k,c,lab,type='number',w=70)=>`<label style="display:inline-flex;gap:4px;align-items:center;font-size:12px">${lab}<input type="${type}" step="0.5" value="${escA(o(k)[c]??'')}" style="width:${w}px" onchange="majOffre('${k}','${c}',this.value,'${type}')"></label>`;
+  const bt=k=>`<button type="button" class="c3p ${o(k).active!==false?'on':''}" onclick="majOffre('${k}','active',${o(k).active===false})">${o(k).active!==false?'👁 affichée':'🚫 masquée'}</button>`;
+  return `<details class="c3p-det" style="margin-top:8px"><summary><b>🎁 Offres du configurateur</b> <span class="dim">· non cumulables : si la cliente a droit aux deux, elle choisit</span> <span class="c3p-gerer">Gérer ▾</span></summary><div class="c3p-tab">
+    <div class="c3p-l" style="flex-wrap:wrap;gap:6px"><span class="c3p-nom">Rond offert</span>${bt('rond')}${champ('rond','libelle','Libellé','text',160)}${champ('rond','min','dès')} breloques ${champ('rond','prixMin','à partir de (€)')}${champ('rond','remise','remise (€)')}</div>
+    <div class="c3p-l" style="flex-wrap:wrap;gap:6px"><span class="c3p-nom">Mousqueton offert</span>${bt('mousqueton')}${champ('mousqueton','libelle','Libellé','text',160)}${champ('mousqueton','minBundles','dès')} porte-clés montés sur le mousqueton ${champ('mousqueton','remise','remise (€, vide = offert)')}</div>
+  </div></details>`;
+}
+async function majOffre(k,c,v,type){
+  const cfg={...(OFFRES_CFG||{})}; cfg[k]={...(cfg[k]||{})};
+  cfg[k][c]= c==='active' ? !!v : type==='text' ? String(v) : (v===''?null:parseFloat(String(v).replace(',','.')));
+  await sbUpsertConfig('configurateur_offres', cfg); OFFRES_CFG=cfg; toast('Offres enregistrées ✓','ok'); renderModelesProposes();
 }
 // formes de la breloque chainmail (croix, mini chaînes) : affichées / masquées une par une
 const FORMES_3D=[['croix','Croix'],['mini-fleur-4','Mini chain · Byzantine fleur'],['mini-intercalaire-4','Mini chain · Byzantine alternative']];

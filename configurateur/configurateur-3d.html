@@ -179,6 +179,11 @@ label.champ input:focus, label.champ textarea:focus { border-color: var(--prune)
 .chaine { display: grid; gap: 4px; justify-items: center; text-align: center; padding: 8px; border-radius: 14px; border: 1.5px solid var(--ligne, #d9c9a6); background: var(--creme-clair); cursor: pointer; font: 500 13px var(--f-titre); color: var(--prune); }
 .chaine img { width: 100%; aspect-ratio: 1; object-fit: contain; }
 .option .dim { color: var(--prune-doux); font-size: 12px; }
+.compo { display: grid; gap: 6px; margin-bottom: 10px; }
+.compo-titre { display: flex; justify-content: space-between; align-items: center; font: 600 14px var(--f-titre); color: var(--prune); }
+.compo-titre .x { width: 26px; height: 26px; border-radius: 50%; border: 1.5px solid var(--ligne-forte); background: none; cursor: pointer; }
+.ajout-compo { justify-self: start; border: 1.5px dashed var(--ligne-forte); background: none; border-radius: 12px; padding: 6px 12px; font: 600 13px var(--f-titre); color: var(--prune); cursor: pointer; }
+.choix-compo { margin-top: 4px; font-size: 13px; }
 .famille-titre { margin: 10px 0 4px; font: 600 12px var(--f-titre); letter-spacing: .05em; text-transform: uppercase; color: var(--prune-doux); }
 .collection { margin: -4px 0 10px; font: 600 13px var(--f-titre); letter-spacing: .06em; text-transform: uppercase; color: var(--prune-doux); }
 .sur-chaine { display: inline-flex; gap: 6px; align-items: center; margin-top: 4px; font-size: 13px; color: var(--prune); cursor: pointer; }
@@ -357,7 +362,7 @@ label.champ input:focus, label.champ textarea:focus { border-color: var(--prune)
     <section class="etape" aria-labelledby="tA" id="etapeAccroche" hidden>
       <h2 id="tA"><span class="num">1</span>Ton porte-clés</h2>
       <div class="offre" id="offre" hidden></div>
-      <div class="segments" id="accroches"></div>
+      <div id="accroches"></div>
     </section>
     <section class="etape" aria-labelledby="tB" id="etapeBreloques" hidden>
       <h2 id="tB"><span class="num">2</span>Tes breloques</h2>
@@ -444,11 +449,11 @@ import {
   chargerPartiesConfigurateur, chargerPrixBijou, affinerCouleursDepuisPhotos, resoudreDefauts, envoyerDemande,
   composerBundle, lignesCommandeBundle, accrochesProposees, construireLettres, verifierTexte, estLettres, offreApplicable,
   notePersonnalisation, chargerPersonnalisation, modeleArgileDemo, completerCatalogue, apercuArgile, estArgile,
-  modeleChainmailDemo, estChainmail, modeleMiniChaineDemo, completerModeleChainmail, estMiniChaine, estMiniForme, pointsSurChaine, anneauxDeForme, COLLECTION_CHAINE, chargerBijouxBoutique, bijouBreloque, modelePerleCultureDemo, estPerleCulture, apercuChainmail,
+  modeleChainmailDemo, estChainmail, formeChainmail, motifArgile, modeleMiniChaineDemo, completerModeleChainmail, estMiniChaine, estMiniForme, pointsSurChaine, anneauxDeForme, COLLECTION_CHAINE, chargerBijouxBoutique, bijouBreloque, modelePerleCultureDemo, estPerleCulture, apercuChainmail,
   correspondCategorie, texteCatalogue, ordreModeles, chargerRuptures, appliquerRuptures,
   chargerLiens, appliquerLiens, relierModele, chargerMateriauxParRefs,
-  chargerFichesConfig, definirFichesConfig, ficheCfg, refsCouleurFiche, famillesFiche,
-} from './bead-core.js?v=670d1e9b';
+  chargerFichesConfig, chargerOffres, composerCompos, definirFichesConfig, ficheCfg, refsCouleurFiche, famillesFiche,
+} from './bead-core.js?v=c9957234';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER, PANIER_SHOPIFY } from './perles-config.js?v=e5e86015';
 
 const $ = s => document.querySelector(s);
@@ -481,20 +486,21 @@ const avecDelai = (promesse, ms = 12000) => Promise.race([promesse,
   new Promise((_, non) => setTimeout(() => non(new Error('la base ne répond pas (délai dépassé)')), ms))]);
 let alerteBase = '';
 window.__etape = 'lecture de la base (modèles, couleurs, bijoux)';
-let modeles = [], catalogue = completerCatalogue(CATALOGUE_DEMO), fermoirs = FERMOIRS_DEMO, parties = null, bijoux = [], ruptures = [], liens = {}, fichesCfg = {};
+let modeles = [], catalogue = completerCatalogue(CATALOGUE_DEMO), fermoirs = FERMOIRS_DEMO, parties = null, bijoux = [], ruptures = [], liens = {}, fichesCfg = {}, offresCfg = null;
 if (sb && new URLSearchParams(location.search).has('apercu')) {
   try { const c = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); const { data } = await c.auth.getSession(); if (data?.session) sbAdmin = c; } catch { sbAdmin = null; }
 }
 if (sb) {
   const res = await Promise.allSettled([
     listerModelesPublies(sb), chargerCatalogueBoutique(sb), chargerFermoirsBoutique(sb), chargerPartiesConfigurateur(sb), chargerBijouxBoutique(sb),
-    chargerRuptures(sb), chargerLiens(sb), chargerFichesConfig(sb),
+    chargerRuptures(sb), chargerLiens(sb), chargerFichesConfig(sb), chargerOffres(sb),
   ].map(x => avecDelai(x)));
-  const [m, c, f, p, bj, rup, li, fc] = res;
+  const [m, c, f, p, bj, rup, li, fc, of] = res;
+  if (of.value) offresCfg = of.value;
   if (rup.value?.length) ruptures = rup.value;
   if (li.value) liens = li.value;
   if (fc.value) fichesCfg = fc.value;
-  const noms = ['modèles', 'couleurs', 'fermoirs', 'parties', 'bijoux', 'ruptures', 'références', 'fiches'];
+  const noms = ['modèles', 'couleurs', 'fermoirs', 'parties', 'bijoux', 'ruptures', 'références', 'fiches', 'offres'];
   const echecs = res.map((r, i) => r.status === 'rejected' ? noms[i] + ' : ' + (r.reason?.message || 'erreur') : null).filter(Boolean);
   if (echecs.length) { alerteBase = echecs.join(' · '); console.warn('Lecture de la base :', alerteBase); }
   if (m.value?.length) modeles = m.value;
@@ -635,7 +641,12 @@ let valide = null;                               // { numero, note } une fois la
 const modeleActif = () => modeleDe(brel().slug);
 const accrocheChoisie = () => accroches?.choix.find(c => c.id === etat.accroche) || null;
 const maxBreloques = () => accroches?.max || Infinity;          // sans limite, sauf si tu en fixes une dans l'éditeur
-const offre = accroches?.offre || null;
+// offres (modifiables dans l'app) : rond offert dès N breloques, mousqueton offert dès N porte-clés montés dessus ; non cumulables
+const OFFRES = {
+  rond: { active: !!accroches?.offre, ...(accroches?.offre || {}), ...(offresCfg?.rond || {}) },
+  mousqueton: { active: true, libelle: 'Mousqueton offert', minBundles: 2, remise: null, ...(offresCfg?.mousqueton || {}) },
+};
+const offre = OFFRES.rond.active !== false && OFFRES.rond.piece ? OFFRES.rond : null;
 const prixBreloques = () => etat.breloques.filter(b => !estChaineSac(modeleDe(b.slug))).map(prixDe);   // la chaîne ne compte pas
 const nbQualifiees = () => offre ? prixBreloques().filter(p => (+p || 0) >= (offre.prixMin ?? 0)).length : 0;
 const offreActive = c => !!accrocheActive() && offreApplicable(offre, c, prixBreloques());   // bundle, ou porte-clés gardé sur la chaîne
@@ -653,6 +664,35 @@ window.__bnStudio = { scene, total: 0, titre: '', detail: [] };   // studio rés
 const enBundle = () => etat.parcours === 'bundle';
 const accrocheActive = () => ((enBundle() && principal() < 0) || (etat.parcours === 'chaine' && auMousqueton().length)) ? accrocheChoisie() : null;   // porte-clés (bundle, ou gardé sur la chaîne)
 const multi = () => etat.parcours === 'bundle' || etat.parcours === 'chaine';   // plusieurs pièces (bundle, chaîne + breloques)
+/* ---------- plusieurs porte-clés (compositions bundle) + mousqueton en supplément ---------- */
+etat.compos ||= [{ surChaine: false }];            // porte-clés 1 : son accroche est etat.accroche ; les suivants ont la leur
+const nbCompos = () => etat.compos.length;
+const accDe = k => accroches?.choix.find(c => c.id === (k === 0 ? etat.accroche : etat.compos[k]?.accroche)) || null;
+const choixPivot = () => accroches?.choix.find(c => c.pieces.length === 1 && fermParRef[c.pieces[0]]?.type === 'mousqueton-pivot') || null;
+const compoDe = (b, i) => { const k = Math.min(+b.compo || 0, nbCompos() - 1); return k; };
+const avecRond = c => c && c.pieces.some(r => fermParRef[r]?.type === 'anneau-ressort') && !c.pieces.some(r => fermParRef[r]?.type === 'mousqueton-pivot');
+const mousqueton = () => etat.mousq && (enBundle() || etat.parcours === 'chaine') && choixPivot() ? fermParRef[choixPivot().pieces[0]] : null;
+/* les porte-clés réellement utilisés : [{ k, acc, indices }] (indices = breloques accrochées dessus) */
+function composActives() {
+  if (enBundle() && principal() >= 0) return [];
+  const membres = enBundle() ? etat.breloques.map((b, i) => i).filter(i => !surChaine(etat.breloques[i], i) || estMini(etat.breloques[i]))
+    : etat.parcours === 'chaine' ? auMousqueton().map(b => etat.breloques.indexOf(b)) : [];
+  return etat.compos.map((c, k) => ({ k, acc: accDe(k), surChaine: !!c.surChaine && etat.parcours === 'chaine', indices: membres.filter(i => compoDe(etat.breloques[i], i) === k) }))
+    .filter(c => c.indices.length && (c.acc || etat.parcours === 'chaine' || k === 0));
+}
+/* lignes de porte-clés à facturer, avec l'offre choisie (rond offert OU mousqueton offert) */
+function accrochesFacture() {
+  const cs = composActives().filter(c => c.acc), items = cs.map(c => ({ id: c.acc.id + '#' + c.k, libelle: c.acc.libelle + (c.surChaine ? ' (sur la chaîne)' : ''), pieces: c.acc.pieces, supplement: +c.acc.supplement || 0,
+    nomCompo: nbCompos() > 1 ? 'Porte-clés ' + (c.k + 1) : 'Porte-clés', contenu: nbCompos() > 1 ? c.indices.map(i => 'B' + (i + (etat.parcours === 'chaine' ? 0 : 1))).join(', ') : '' }));
+  const mq = mousqueton() && cs.some(c => avecRond(c.acc)) ? choixPivot() : null;
+  if (mq) items.push({ id: 'mousqueton', libelle: 'Mousqueton (porte les ronds)', pieces: mq.pieces, supplement: +mq.supplement || 0, nomCompo: 'Mousqueton' });
+  const rondOk = !!offre && nbQualifiees() >= (offre.min ?? 2) && items.some(a => a.pieces.includes(offre.piece));
+  const mqOk = !!mq && OFFRES.mousqueton.active !== false && cs.filter(c => avecRond(c.acc)).length >= (OFFRES.mousqueton.minBundles ?? 2);
+  const choisie = rondOk && mqOk ? (etat.offreChoix || 'mousqueton') : rondOk ? 'rond' : mqOk ? 'mousqueton' : null;
+  if (choisie === 'rond') { const a = items.find(x => x.pieces.includes(offre.piece)); a.remise = Math.min(+offre.remise || 0, a.supplement); a.offreLibelle = offre.libelle || 'rond offert'; }
+  if (choisie === 'mousqueton') { const a = items.find(x => x.id === 'mousqueton'); a.remise = Math.min(OFFRES.mousqueton.remise ?? a.supplement, a.supplement); a.offreLibelle = OFFRES.mousqueton.libelle || 'mousqueton offert'; }
+  return { items, rondOk, mqOk, choisie };
+}
 // « sur la chaîne » : la breloque s'accroche aux anneaux de 10 mm de la chaîne de sac, ou de la mini chaîne du bundle
 const entPiece = b => ({ modele: modelePour(b), couleurs: b.couleurs, options: optionsEffectives(b), surChaine: b.surChaine || false, principal: !!b.principal && enBundle() && fermoirPivot(b) });
 const estMini = b => estMiniChaine(modeleDe(b.slug)) || estMiniForme({ modele: modeleDe(b.slug), couleurs: b.couleurs }, parRef);
@@ -675,17 +715,25 @@ const auMousqueton = () => { const m = miniSurSac(), mOnChain = m > 0 && surChai
 function rendre3D({ cadrer = false } = {}) {
   if (etat.parcours === 'chaine') {                   // la chaîne (pièce 1) + les breloques accrochées près du premier mousqueton
     const [ch, ...brs] = etat.breloques, ent = (b, i) => ({ ...entPiece(b), surChaine: surChaine(b, i + 1) });
-    const comp = composerChaine({ chaine: entPiece(ch), breloques: brs.map(ent), pieces: (accrocheActive()?.pieces || []).map(r => fermParRef[r]).filter(Boolean), fermoirs, catalogue });
+    const pcs = c => (c.acc?.pieces || []).map(r => fermParRef[r]).filter(Boolean);
+    const compos = etat.compos.map((c, k) => ({ indices: brs.map((b, i) => i).filter(i => compoDe(brs[i], i + 1) === k), pieces: pcs({ acc: accDe(k) }), surChaine: !!c.surChaine }));
+    const comp = composerChaine({ chaine: entPiece(ch), breloques: brs.map(ent), compos, mousqueton: composActives().some(c => avecRond(c.acc)) ? mousqueton() : null, fermoirs, catalogue });
     scene.definirModele(comp.modele); scene.definirCouleurs(comp.couleurs); scene.definirOptions(comp.options);
   } else if (!enBundle()) {
     const b = brel();
     scene.definirModele(modelePour(b)); scene.definirCouleurs(b.couleurs); scene.definirOptions(optionsEffectives(b));
   } else {
-    const acc = accrocheChoisie();
-    const comp = composerBundle({
-      breloques: etat.breloques.map((b, i) => ({ ...entPiece(b), surChaine: surChaine(b, i) })),
-      pieces: principal() >= 0 ? [] : (acc?.pieces || []).map(r => fermParRef[r]).filter(Boolean), fermoirs, catalogue,
-    });
+    const acc = accrocheChoisie(), ents = etat.breloques.map((b, i) => ({ ...entPiece(b), surChaine: surChaine(b, i) }));
+    let comp;
+    if (principal() >= 0 || nbCompos() < 2 && !mousqueton()) comp = composerBundle({ breloques: ents,
+      pieces: principal() >= 0 ? [] : (acc?.pieces || []).map(r => fermParRef[r]).filter(Boolean), fermoirs, catalogue });
+    else {                                            // plusieurs porte-clés, montés ou non sur un mousqueton
+      const iMini = etat.breloques.findIndex((b, i) => estMini(b) && !surChaine(b, i)), kMini = iMini >= 0 ? compoDe(etat.breloques[iMini], iMini) : -1;
+      const kDe = (b, i) => surChaine(b, i) && !estMini(b) && kMini >= 0 ? kMini : compoDe(b, i);   // les breloques « sur la chaîne » suivent la mini chaîne
+      const compos = etat.compos.map((c, k) => { const ind = etat.breloques.map((b, i) => i).filter(i => kDe(etat.breloques[i], i) === k);
+        return { indices: ind, breloques: ind.map(i => ents[i]), pieces: (accDe(k)?.pieces || []).map(r => fermParRef[r]).filter(Boolean) }; });
+      comp = composerCompos({ compos, mousqueton: mousqueton(), fermoirs, catalogue });
+    }
     scene.definirModele(comp.modele); scene.definirCouleurs(comp.couleurs); scene.definirOptions(comp.options);
   }
   if (cadrer) { scene.deFace(); scene.cadrer(); }     // nouveau modèle : la rotation repart de face
@@ -808,29 +856,52 @@ function rendreCadre() {
 function rendreAccroches() {
   const enChaine = etat.parcours === 'chaine' && auMousqueton().length > 0;
   if (!(enBundle() || enChaine) || !accroches) return;
-  $('#accroches').innerHTML = accroches.choix.map(c => {
-    const eff = supplementEffectif(c), remise = offreActive(c);
-    const prixTxt = remise ? (eff ? `<s>+${euros(c.supplement)}</s> +${euros(eff)}` : `<s>+${euros(c.supplement)}</s> <span class="cadeau">offert</span>`)
-      : (c.supplement ? '+' + euros(c.supplement) : 'inclus');
-    const epuise = c.pieces.some(r => fermParRef[r]?.enStock === false);
-    return `<button class="segment" type="button" data-acc="${esc(c.id)}" aria-pressed="${etat.accroche === c.id}" ${epuise ? 'disabled title="Épuisé"' : ''}>
-      <b>${esc(c.libelle)}</b><span>${prixTxt}</span></button>`;
-  }).join('') + (enChaine ? `<button class="segment" type="button" data-acc="" aria-pressed="${!etat.accroche}"><b>Sans porte-clés</b><span>breloques directement sur le mousqueton</span></button>` : '');
-  // bandeau d'offre : acquise, ou ce qu'il manque pour en profiter
-  const nom = nomFermoir(offre?.piece).toLowerCase();
-  const manque = offre ? Math.max(0, (offre.min ?? 2) - nbQualifiees()) : 0;
-  $('#offre').hidden = !offre || !accrocheActive();
-  if (offre) {
-    const choisiAvec = offreActive(accrocheChoisie());
-    $('#offre').className = 'offre' + (manque || !choisiAvec ? ' attente' : '');
-    $('#offre').innerHTML = ETOILE.replace('class="etoile"', '') + '<span>' + esc(
-      manque ? `Offre : ${nom} offert dès ${offre.min} breloques à ${euros(offre.prixMin)}. Encore ${manque} à ajouter.`
-      : choisiAvec ? `Offre appliquée : ton ${nom} est offert.`
-      : `Tu as droit au ${nom} offert : choisis « ${choixOffre()?.libelle || 'Rond'} » pour en profiter, ou garde ton choix.`) + '</span>';
+  const peutSurSac = etat.parcours === 'chaine' && pointsSurChaine(anneauxDeForme(entPiece(etat.breloques[0]), parRef), { indices: true }).length > 0;
+  const choixK = k => accroches.choix.filter(c => !(etat.mousq && !avecRond(c)) || (k === 0 && !etat.accroche));   // avec un mousqueton en plus : des ronds dessous
+  const segs = k => choixK(k).map(c => {
+    const epuise = c.pieces.some(r => fermParRef[r]?.enStock === false), sel = (k === 0 ? etat.accroche : etat.compos[k].accroche) === c.id;
+    return `<button class="segment" type="button" data-acc="${esc(c.id)}" data-k="${k}" aria-pressed="${sel}" ${epuise ? 'disabled title="Épuisé"' : ''}>
+      <b>${esc(c.libelle)}</b><span>${c.supplement ? '+' + euros(c.supplement) : 'inclus'}</span></button>`;
+  }).join('') + (enChaine && k === 0 ? `<button class="segment" type="button" data-acc="" data-k="0" aria-pressed="${!etat.accroche}"><b>Sans porte-clés</b><span>breloques directement sur le mousqueton</span></button>` : '');
+  const n = nbCompos(), f = accrochesFacture(), cs = composActives();
+  $('#accroches').innerHTML = etat.compos.map((c, k) => `
+    <div class="compo">${n > 1 ? `<div class="compo-titre"><b>Porte-clés ${k + 1}</b>${k ? `<button class="x" type="button" data-retirer="${k}" aria-label="Retirer le porte-clés ${k + 1}">×</button>` : ''}</div>` : ''}
+      <div class="segments">${segs(k)}</div>
+      ${peutSurSac ? `<label class="sur-chaine"><input type="checkbox" data-csur="${k}" ${c.surChaine ? 'checked' : ''}> sur la chaîne <span class="dim">(sur un anneau de 10 mm, sinon au mousqueton de la chaîne)</span></label>` : ''}
+    </div>`).join('')
+    + `<button class="ajout-compo" type="button" id="btCompo">＋ Ajouter un porte-clés</button>`
+    + (choixPivot() && (cs.some(c => avecRond(c.acc)) || n > 1) ? `<label class="sur-chaine"><input type="checkbox" id="cbMousq" ${etat.mousq ? 'checked' : ''}> Monter mes porte-clés sur un mousqueton <span class="dim">(+${euros(choixPivot().supplement || 0)})</span></label>` : '');
+  // bandeau des offres (non cumulables : la cliente choisit)
+  const nomR = nomFermoir(offre?.piece).toLowerCase(), manque = offre ? Math.max(0, (offre.min ?? 2) - nbQualifiees()) : 0;
+  const lignes = [];
+  if (f.rondOk && f.mqOk) lignes.push(`Tu as droit à deux offres, non cumulables : <label><input type="radio" name="offreChoix" value="mousqueton" ${f.choisie === 'mousqueton' ? 'checked' : ''}> ${esc(OFFRES.mousqueton.libelle || 'mousqueton offert')}</label> <label><input type="radio" name="offreChoix" value="rond" ${f.choisie === 'rond' ? 'checked' : ''}> ${esc(offre.libelle || nomR + ' offert')}</label>`);
+  else if (f.choisie === 'rond') lignes.push(esc(`Offre appliquée : ton ${nomR} est offert.`));
+  else if (f.choisie === 'mousqueton') lignes.push(esc(`Offre appliquée : ${OFFRES.mousqueton.libelle || 'mousqueton offert'}.`));
+  else {
+    if (offre && manque) lignes.push(esc(`Offre : ${nomR} offert dès ${offre.min} breloques à ${euros(offre.prixMin)}. Encore ${manque} à ajouter.`));
+    else if (offre && !f.items.some(a => a.pieces.includes(offre.piece))) lignes.push(esc(`Tu as droit au ${nomR} offert : choisis « ${choixOffre()?.libelle || 'Rond'} » pour en profiter.`));
+    if (OFFRES.mousqueton.active !== false && choixPivot()) lignes.push(esc(`Offre : ${(OFFRES.mousqueton.libelle || 'mousqueton offert').toLowerCase()} avec ${OFFRES.mousqueton.minBundles ?? 2} porte-clés montés sur un mousqueton.`));
   }
+  $('#offre').hidden = !lignes.length || (!offre && OFFRES.mousqueton.active === false);
+  $('#offre').className = 'offre' + (f.choisie ? '' : ' attente');
+  $('#offre').innerHTML = ETOILE.replace('class="etoile"', '') + '<span>' + lignes.join('<br>') + '</span>';
+  $('#offre').querySelectorAll('[name="offreChoix"]').forEach(x => x.addEventListener('change', () => { etat.offreChoix = x.value; toutRendre(); }));
   $('#accroches').querySelectorAll('[data-acc]').forEach(x => x.addEventListener('click', () => {
-    etat.accroche = x.dataset.acc || null; rendre3D({ cadrer: true }); toutRendre();
+    const k = +x.dataset.k; if (k === 0) etat.accroche = x.dataset.acc || null; else etat.compos[k].accroche = x.dataset.acc; rendre3D({ cadrer: true }); toutRendre();
   }));
+  $('#accroches').querySelectorAll('[data-retirer]').forEach(x => x.addEventListener('click', () => {
+    const k = +x.dataset.retirer; etat.compos.splice(k, 1); etat.breloques.forEach(b => { if ((+b.compo || 0) === k) b.compo = 0; else if ((+b.compo || 0) > k) b.compo--; });
+    rendre3D({ cadrer: true }); toutRendre();
+  }));
+  $('#accroches').querySelectorAll('[data-csur]').forEach(x => x.addEventListener('change', () => { etat.compos[+x.dataset.csur].surChaine = x.checked; rendre3D({ cadrer: true }); toutRendre(); }));
+  $('#btCompo')?.addEventListener('click', () => {
+    const def = (accroches.choix.find(c => c.id === 'mini-rond') || accroches.choix.find(avecRond) || accroches.choix[0])?.id;
+    etat.compos.push({ accroche: def, surChaine: false }); toutRendre();
+  });
+  $('#cbMousq')?.addEventListener('change', e => { etat.mousq = e.target.checked;
+    if (etat.mousq) { if (!avecRond(accDe(0)) && etat.accroche) etat.accroche = (choixOffre() || accroches.choix.find(avecRond))?.id || etat.accroche;
+      etat.compos.forEach((c, k) => { if (k && !avecRond(accDe(k))) c.accroche = accroches.choix.find(avecRond)?.id; }); }
+    rendre3D({ cadrer: true }); toutRendre(); });
 }
 function rendreListeBreloques() {
   if (!multi()) return;
@@ -842,7 +913,8 @@ function rendreListeBreloques() {
       <span style="--trait:#3c114b">${ICONES[typeIcone(m)]}</span>
       <span><b>${ch ? i : i + 1} · ${esc(nomCourt(m))} · ${euros(prixDe(b))}</b><span>${esc(resumeBreloque(b))}</span>
         ${peutSurChaine(i) ? `<label class="sur-chaine"><input type="checkbox" data-sur="${i}" data-val="1" ${b.surChaine === true ? 'checked' : ''}> sur la chaîne</label>` : ''}
-        ${peutSurMini(i) ? `<label class="sur-chaine"><input type="checkbox" data-sur="${i}" data-val="mini" ${b.surChaine === 'mini' ? 'checked' : ''}> sur la mini chaîne</label>` : ''}</span>
+        ${peutSurMini(i) ? `<label class="sur-chaine"><input type="checkbox" data-sur="${i}" data-val="mini" ${b.surChaine === 'mini' ? 'checked' : ''}> sur la mini chaîne</label>` : ''}
+        ${nbCompos() > 1 && !surChaine(b, i) && !(ch && i === 0) && principal() < 0 ? `<label class="choix-compo">sur le <select data-compo="${i}">${etat.compos.map((c, k) => `<option value="${k}" ${compoDe(b, i) === k ? 'selected' : ''}>porte-clés ${k + 1}</option>`).join('')}</select></label>` : ''}</span>
       ${(ch ? n > 1 : n > 1) ? `<button class="x" type="button" data-suppr="${i}" aria-label="Retirer la breloque ${i + 1}">×</button>` : '<span></span>'}
     </div>`; }).join('');
   // ajouter une breloque : mêmes cartes que le choix du modèle d'une breloque seule
@@ -858,6 +930,10 @@ function rendreListeBreloques() {
     const choisir = () => { etat.actif = +el.dataset.i; toutRendre(); $('#edition').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
     el.addEventListener('click', e => { if (!e.target.closest('[data-suppr]')) choisir(); });
     el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choisir(); } });
+  });
+  $('#listeBreloques').querySelectorAll('[data-compo]').forEach(x => {
+    x.addEventListener('click', e => e.stopPropagation());
+    x.addEventListener('change', () => { etat.breloques[+x.dataset.compo].compo = +x.value; rendre3D({ cadrer: true }); toutRendre(); });
   });
   $('#listeBreloques').querySelectorAll('[data-sur]').forEach(x => {
     x.addEventListener('click', e => e.stopPropagation());
@@ -942,7 +1018,7 @@ function refCatalogue(r) {
 }
 const nomMateriau = r => null;     // (les noms des refs hors configurateur ne sont pas lus côté client)
 const IDEES = new Map();
-const ideeVisible = f => !rupSet.has('idee:' + f.id);              // masquée dans l'app (Conception 3D › 💡 Idées)
+const ideeVisible = f => !rupSet.has('idee:' + f.id) && !(f.parent_id && rupSet.has('idee:' + f.parent_id));   // masquée dans l'app (Conception 3D › 💡 Idées) ; une variante suit son parent
 function ideesPour(m) { if (m.bijZone || estLettres(m)) return [];                                   // argile, chainmail : le choix du motif / de la forme suffit
   if (!IDEES.has(m.slug)) IDEES.set(m.slug, calculerIdees(m).filter(x => ideeVisible(x.fiche))); return IDEES.get(m.slug); }
 // couleurs d'une variante du même nom dans un autre modèle (ex. « Sardine » du petit poisson pour l'arête Sardine), zone par zone
@@ -1002,9 +1078,16 @@ function alternativesDe(m, row) {
   });
 }
 // quel modèle 3D correspond à une fiche (pièce d'un porte-clés) ?
+// l'entrée (forme chainmail, motif argile) qui correspond à une fiche : sa ref, sinon le même motif / la même forme dans son nom
+function entreeBijZone(m, piece) {
+  const z = (m.zones || []).find(x => x.id === m.bijZone), l = z ? couleursProposees(z, catalogue, parties) : [];
+  const nom = [piece.nom, piece.variante].filter(Boolean).join(' '), par = piece.parent_id && bijoux.find(b => b.id === piece.parent_id);
+  const f = formeChainmail(nom) || (par && formeChainmail([par.nom, par.variante, piece.variante].filter(Boolean).join(' '))), mo = motifArgile(nom);
+  return l.find(c => c.ref === piece.ref) || (f && l.find(c => c.forme === f)) || (mo && l.find(c => c.motif === mo)) || null;
+}
 function modeleDeFiche(piece, liste) {
   for (const m of liste) {
-    if (m.bijZone) { const z = (m.zones || []).find(x => x.id === m.bijZone); if (z && couleursProposees(z, catalogue, parties).some(c => c.ref === piece.ref)) return m; continue; }
+    if (m.bijZone) { if (entreeBijZone(m, piece)) return m; continue; }
     if (m.bijParMode) { if (Object.values(m.bijParMode).some(t => new RegExp(t).test(normNom(piece.nom + ' ' + (piece.variante || ''))))) return m; continue; }
     const row = ficheModele(m); if (row && famillesFiche(row, bijoux).some(x => x.id === piece.id)) return m;
   }
@@ -1027,7 +1110,7 @@ function ideesBundle() {
       const piece = bijoux.find(b => b.id === pc.bij_id), m = piece && modeleDeFiche(piece, liste);
       if (!m) { sans.push(piece ? [piece.nom, piece.variante].filter(Boolean).join(' · ') : pc.bij_id); continue; }   // pièce sans modèle 3D (ex. accessoire) : ignorée
       const idee = calculerIdees(m).find(i => i.fiche.id === piece.id) || { breloque: nouvelleBreloque(m.slug) };
-      const coul = m.bijZone && couleursProposees((m.zones || []).find(z => z.id === m.bijZone), catalogue, parties).some(c => c.ref === piece.ref) ? { [m.bijZone]: piece.ref } : {};
+      const e = m.bijZone && entreeBijZone(m, piece), coul = e ? { [m.bijZone]: e.ref } : {};
       for (let k = 0; k < Math.max(1, +pc.qty || 1); k++) brs.push({ ...idee.breloque, couleurs: { ...idee.breloque.couleurs, ...coul } });
     }
     if (!brs.length) { RAISONS_BUNDLES.push(nom + ' : aucune pièce avec un modèle 3D (' + sans.join(', ') + ')'); return null; }
@@ -1084,7 +1167,7 @@ function rendreIdees() {
     bt.setAttribute('aria-expanded', 'false'); rendre3D(); toutRendre();
   }));
   el.querySelectorAll('[data-lot]').forEach(b => b.addEventListener('click', () => {
-    const x = lots[+b.dataset.lot]; etat.accroche = x.accroche;
+    const x = lots[+b.dataset.lot]; etat.accroche = x.accroche; etat.compos = [{ surChaine: false }]; etat.mousq = false;
     etat.breloques = x.breloques.map(br => ({ ...br, couleurs: { ...br.couleurs } })); etat.actif = 0;
     bt.setAttribute('aria-expanded', 'false'); rendre3D({ cadrer: true }); toutRendre();
   }));
@@ -1295,18 +1378,17 @@ function rendreOptions() {
 
 /* ---------- prix, récapitulatif, envoi ---------- */
 function calcul() {
-  const acc = accrocheActive();
+  const { items } = accrochesFacture();
   return lignesCommandeBundle({
     breloques: etat.breloques.map(b => ({ modele: modelePour(b), couleurs: validerConfiguration(modeleDe(b.slug), catalogue, b.couleurs, parties),
       options: optionsEffectives(b), prixBase: prixDe(b), bijRef: bijouDe(b).ref, ficheNom: bijouDe(b).nom })),
-    accroche: acc ? { libelle: acc.libelle, pieces: acc.pieces, supplement: acc.supplement, offre } : null, catalogue, fermoirs,
+    accroches: items.length ? items : null, catalogue, fermoirs,
   });
 }
 function rendreRecap() {
   if (!etat.parcours) return;
   const { total } = calcul(), lignes = [];
-  const acc = accrocheActive();
-  if (acc) lignes.push([acc.libelle, acc.pieces.map(nomFermoir).filter(Boolean).join(' + ') + (offreActive(acc) ? ' · rond offert' : '')]);
+  for (const a of accrochesFacture().items) lignes.push([a.nomCompo === 'Mousqueton' ? 'Mousqueton' : a.nomCompo + ' · ' + a.libelle, a.pieces.map(nomFermoir).filter(Boolean).join(' + ') + (a.contenu ? ' · ' + a.contenu : '') + (+a.remise ? ' · ' + (a.remise >= a.supplement ? 'offert' : '−' + euros(a.remise)) : '')]);
   etat.breloques.forEach((b, i) => {
     const m = modeleDe(b.slug);
     lignes.push([(multi() ? (i + 1) + ' · ' : '') + nomCourt(m), resumeBreloque(b)]);
@@ -1337,11 +1419,10 @@ function toutRendre() {
 const DANS_WIX = window.parent !== window && !new URLSearchParams(location.search).has('apercu');   // ?apercu : affiché dans l'app de gestion, pas dans Wix
 let pageWix = null;                                  // adresse de la page Wix (envoyée par le code de la page)
 function entreesNote() {
-  const acc = accrocheActive();
   return {
     breloques: etat.breloques.map((b, i) => ({ modele: modelePour(b), couleurs: validerConfiguration(modeleDe(b.slug), catalogue, b.couleurs, parties),
       options: optionsEffectives(b), prixBase: prixDe(b), bijRef: bijouDe(b).ref, ficheNom: bijouDe(b).nom, modeleIdee: bijouDe(b).idee || null, surChaine: enBundle() && surChaine(b, i) ? 'mini' : surChaine(b, i), principal: i === principal() })),
-    accroche: acc ? { id: acc.id, libelle: acc.libelle, pieces: acc.pieces, supplement: acc.supplement, offre, lotNom: lotCorrespondant()?.nom || null } : null,
+    accroches: (() => { const it = accrochesFacture().items, lot = lotCorrespondant()?.nom || null; if (lot && it[0]) it[0].lotNom = lot; return it.length ? it : null; })(),
     catalogue, fermoirs,
   };
 }
@@ -1349,6 +1430,7 @@ function entreesNote() {
 function lotCorrespondant() {
   if (!enBundle()) return null;
   const val = b => validerConfiguration(modeleDe(b.slug), catalogue, b.couleurs, parties);
+  if (nbCompos() > 1 || etat.mousq) return null;
   return ideesBundle().find(x => x.accroche === etat.accroche && x.breloques.length === etat.breloques.length
     && x.breloques.every((br, i) => br.slug === etat.breloques[i].slug && memeCouleurs(val(br), val(etat.breloques[i])))) || null;
 }
@@ -1360,7 +1442,8 @@ function choixActuels() {
   return {
     parcours: etat.parcours, actif: etat.actif,
     accroche: acc ? { id: acc.id, libelle: acc.libelle, pieces: acc.pieces, supplement: acc.supplement, offre } : null,
-    breloques: etat.breloques.map(b => ({ modele: b.slug, couleurs: validerConfiguration(modeleDe(b.slug), catalogue, b.couleurs, parties),
+    compos: etat.compos.map((c, k) => ({ accroche: k ? c.accroche : etat.accroche, surChaine: !!c.surChaine })), mousqueton: !!etat.mousq, offreChoix: etat.offreChoix || null,
+    breloques: etat.breloques.map(b => ({ modele: b.slug, ...(+b.compo ? { compo: +b.compo } : {}), couleurs: validerConfiguration(modeleDe(b.slug), catalogue, b.couleurs, parties),
       options: optionsEffectives(b), ...(estLettres(modeleDe(b.slug)) ? { texte: b.texteValide || b.texte } : {}), ...(b.surChaine ? { surChaine: b.surChaine } : {}), ...(b.principal ? { principal: true } : {}) })),
   };
 }
@@ -1374,10 +1457,13 @@ function restaurer(c) {
     if (b.texte) { n.texte = { mode: b.texte.mode, mots: [...(b.texte.mots || [])], sens: b.texte.sens }; n.texteValide = n.texte; }
     if (b.surChaine) n.surChaine = b.surChaine;
     if (b.principal) n.principal = true;
+    if (b.compo) n.compo = +b.compo;
     return n;
   });
   etat.parcours = c.parcours === 'bundle' || etat.breloques.length > 1 || c.accroche ? 'bundle' : 'breloque';
   etat.accroche = c.accroche?.id && accroches?.choix.some(x => x.id === c.accroche.id) ? c.accroche.id : (etat.parcours === 'bundle' ? (choixOffre() || accroches?.choix[0])?.id || null : null);
+  etat.compos = Array.isArray(c.compos) && c.compos.length ? c.compos.map((x, k) => ({ ...(k ? { accroche: x.accroche } : {}), surChaine: !!x.surChaine })) : [{ surChaine: false }];
+  etat.mousq = !!c.mousqueton; etat.offreChoix = c.offreChoix || null;
   etat.actif = Math.min(c.actif || 0, etat.breloques.length - 1);
   rendre3D({ cadrer: true }); toutRendre();
   return true;
@@ -1427,6 +1513,14 @@ async function enregistrer() {
    - breloque lettre : nombre réel de perles lettre (remplace la quantité de la fiche) ;
    - option (perle de culture en pampille, étoile…) absente de la fiche : ajoutée ; même catégorie qu'une perle de la fiche : remplacée ;
    - bundle : les pièces du porte-clés (sur la 1re breloque). */
+// pièces des porte-clés à monter avec la breloque i (comptées sur la 1re breloque de chaque porte-clés ; le mousqueton sur la toute 1re)
+function piecesProduction(i) {
+  const cs = composActives().filter(c => c.acc), out = [];
+  for (const c of cs) if (c.indices[0] === i) out.push(...c.acc.pieces);
+  const mq = accrochesFacture().items.find(a => a.id === 'mousqueton'), premier = cs.map(c => c.indices[0]).sort((a, b) => a - b)[0];
+  if (mq && i === premier) out.push(...mq.pieces);
+  return out;
+}
 function ecartsStock(b, i) {
   const m0 = modeleDe(b.slug), m = modelePour(b), fiche = bijouDe(b), refsFiche = ficheCfg(fiche.id)?.refs || [];
   const ajout = {}, remplace = {};
@@ -1444,7 +1538,11 @@ function ecartsStock(b, i) {
     const cat = parRef[r]?.categorie, meme = cat && refsFiche.find(x => parRef[x]?.categorie === cat);
     plus(r, 1); if (meme) plus(meme, -1);
   }
-  if (i === 0 && accrocheActive()) for (const r of accrocheActive().pieces || []) plus(r, 1);
+  for (const r of piecesProduction(i)) plus(r, 1);
+  // fermoir choisi (grand, mousqueton, rond…) différent de celui de la fiche : remplacé
+  const optF = (m.options || []).find(o => o.type === 'fermoir'), rF = optF && opts[optF.id];
+  const ancienF = refsFiche.find(x => fermParRef[x]?.type && fermParRef[x].type !== 'anneau-ressort' || /^#FB/.test(x));
+  if (rF && ancienF && !refsFiche.some(x => x === rF || baseRef(x) === baseRef(rF))) { plus(rF, 1); plus(ancienF, -1); }
   const liste = o => Object.entries(o).filter(([, q]) => q).map(([ref, qty]) => ({ ref, qty, qty_unite: 'unite' }));
   return { ajout: liste(ajout), remplace: Object.entries(remplace).map(([ref, qty]) => ({ ref, qty, qty_unite: 'unite' })) };
 }
@@ -1552,7 +1650,7 @@ etat.breloques[0] = breloqueOuverture(etat.breloques[0].slug);   // ouverture su
   if (id) for (const m of modeles) { const i = ideesPour(m).find(x => x.fiche.id === id || x.fiche.id === 'alt:' + id);
     if (i) { etat.breloques = [{ ...nouvelleBreloque(m.slug), ...i.breloque, couleurs: { ...i.breloque.couleurs } }]; etat.actif = 0; if (!params.get('parcours')) params.set('parcours', estChaineSac(m) ? 'chaine' : 'breloque'); break; } }
   if (lot) { etat.parcours = 'bundle'; const x = ideesBundle().find(y => y.fiche.id === lot || y.fiche.id === 'alt:' + lot);
-    if (x) { etat.accroche = x.accroche; etat.breloques = x.breloques.map(br => ({ ...br, couleurs: { ...br.couleurs } })); etat.actif = 0; params.set('parcours', 'bundle'); } }
+    if (x) { etat.accroche = x.accroche; etat.compos = [{ surChaine: false }]; etat.mousq = false; etat.breloques = x.breloques.map(br => ({ ...br, couleurs: { ...br.couleurs } })); etat.actif = 0; params.set('parcours', 'bundle'); } }
 }
 // démarrage : accueil, ou parcours direct (?parcours=bundle / ?parcours=breloque / ?modele=…)
 const depart = params.get('parcours') || (params.get('modele') ? (estChaineSac(modeleDe(params.get('modele'))) ? 'chaine' : 'breloque') : null);
