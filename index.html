@@ -4053,13 +4053,14 @@ async function renderModelesProposes(){
     if(typeof v==='string'){ try{ v=JSON.parse(v); }catch(e){ v=[]; } } RUPTURES_3D=Array.isArray(v)?v.map(String):[];
     { const a=await SB.from('config').select('value').eq('key','configurateur_alternatives').maybeSingle(); let w=a.data?.value; if(typeof w==='string'){ try{ w=JSON.parse(w); }catch(e){ w=null; } } if(Array.isArray(w)) ALTERNATIVES=w; } }
   catch(e){ el.innerHTML=`<span class="dim">Modèles : ${escA(e.message)}</span>`; return; }
-  if(!MODELES_3D.length){ el.innerHTML='<span class="dim">Aucun modèle 3D enregistré pour l\'instant (onglet 🧊 Modèles).</span>'+renderIdeesProposees(); return; }
+  if(!MODELES_3D.length){ el.innerHTML='<span class="dim">Aucun modèle 3D enregistré pour l\'instant (onglet 🧊 Modèles).</span>'+renderIdeesProposees()+renderChainesProposees(); return; }
   const vu=(m,p)=>m.publie&&!RUPTURES_3D.includes(p+':'+m.slug);
   const bouton=(m,p)=>`<button type="button" class="c3p ${vu(m,p)?'on':''}" onclick="basculerModele('${escA(m.slug)}','${p}')">${vu(m,p)?'👁':'🚫'} ${p==='breloque'?'Breloque seule':'Bundle'}</button>`;
   const nb=p=>MODELES_3D.filter(m=>vu(m,p)).length, ouvert=el.dataset.ouvert==='1';
   el.innerHTML=`<details class="c3p-det" ${ouvert?'open':''} ontoggle="this.parentNode.dataset.ouvert=this.open?'1':''"><summary><b>Breloques proposées</b> <span class="dim">· breloque seule ${nb('breloque')}/${MODELES_3D.length} · bundle ${nb('bundle')}/${MODELES_3D.length}</span> <span class="c3p-gerer">Gérer ▾</span></summary>
     <div class="c3p-tab">${MODELES_3D.map(m=>`<div class="c3p-l"><span class="c3p-nom">${escA(m.nom||m.slug)}</span>${bouton(m,'breloque')}${bouton(m,'bundle')}</div>`).join('')}</div></details>
     ${renderIdeesProposees()}
+    ${renderChainesProposees()}
     <div class="c3p-l" style="margin-top:8px"><span class="c3p-nom">3e parcours · Chaîne de sac</span><button type="button" class="c3p ${RUPTURES_3D.includes('activer:chaine')?'on':''}" onclick="basculerChaine()">${RUPTURES_3D.includes('activer:chaine')?'👁 affiché':'🚫 masqué'}</button>
       <span class="dim" style="font-size:11px">Crée tes modèles dans 🧊 Modèles (champ « Parcours : Chaîne de sac » ou « Exemple chaîne de sac ») et relie-les à leur fiche bijou.</span></div>`;
 }
@@ -4069,10 +4070,15 @@ async function basculerChaine(){
   toast('Chaîne de sac : '+(rup.includes(k)?'affichée dans le configurateur':'masquée'),'ok'); renderModelesProposes();
 }
 // 💡 Idées du configurateur : variantes de couleurs d'une fiche + lots (porte-clés…) → afficher / masquer
+// fiches « chaîne de sac » (nom avec chaîne / byzantine, sauf la croix) : listées dans le 3e parcours, pas dans les idées de breloques
+const estChaineBij=b=>{ const t=[b?.nom,b?.variante,b?.collection].join(' ').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); return !/croix/.test(t)&&(/chaine/.test(t)||/byzantin/.test(t)); };
+function renderChainesProposees(){ return (()=>{ const ch=BIJS.filter(b=>estChaineBij(b)&&!b.parent_id); if(!ch.length) return '';
+      const bt=b=>{ const on=!RUPTURES_3D.includes('idee:'+b.id); return `<button type="button" class="c3p ${on?'on':''}" onclick="basculerIdee('${escA(b.id)}')">${on?'👁':'🚫'} ${escA([b.nom,b.variante].filter(Boolean).join(' · '))}</button>`; };
+      return `<details class="c3p-det" style="margin-top:8px" open><summary><b>⛓ Chaînes de sac proposées</b> <span class="dim">· chaque référence et ses variantes</span></summary><div class="c3p-tab">${ch.map(b=>`<div class="c3p-l"><span class="c3p-nom">${escA(b.ref)}</span>${[b,...BIJS.filter(x=>x.parent_id===b.id)].map(bt).join('')}</div>`).join('')}</div></details>`; })(); }
 function candidatesIdees(){
   const estLot=b=>(LOTS[b.id]||[]).length||getMatsEffectifs(b).some(m=>!getMat(m.ref)&&BIJS.some(x=>x.ref===m.ref));
   const fam=[], lots=[];
-  BIJS.filter(b=>!b.parent_id).forEach(b=>{                      // fiches bijoux ET compositions (petit poisson, arête…)
+  BIJS.filter(b=>!b.parent_id&&!estChaineBij(b)).forEach(b=>{   // fiches bijoux ET compositions (petit poisson, arête…) ; chaînes à part
     const vars=BIJS.filter(x=>x.parent_id===b.id);
     if(estLot(b)) lots.push(b); else if(vars.length) fam.push({base:b, vars});
   });

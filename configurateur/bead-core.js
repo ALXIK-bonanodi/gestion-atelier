@@ -479,14 +479,14 @@ export function catalogueArgileDepuisBijoux(bijoux = []) {
 export const FORMES_CHAINMAIL = {
   croix: { nom: 'croix', gen: () => genCroixByzantine() },
   // chaînes de sac (motif d'anneaux sur ~20 cm à l'écran ; la longueur réelle est celle de ta fiche)
-  'chaine-intercalaire': { nom: 'double byzantine intercalaire', chaine: true, gen: () => genChaineByzantine({ motif: 'intercalaire', longueur: 200 }) },
-  'chaine-fleur': { nom: 'double byzantine fleur', chaine: true, gen: () => genChaineByzantine({ motif: 'fleur', longueur: 200 }) },
-  'chaine-8': { nom: 'double byzantine 8 mm', chaine: true, gen: () => genChaineByzantine({ motif: 'continu', longueur: 200 }) },
-  'chaine-10': { nom: 'double byzantine 10 mm', chaine: true, gen: () => genChaineByzantine({ motif: 'continu', longueur: 200, R: 4.5, e: 0.6 }) },
+  'chaine-intercalaire': { nom: 'double byzantine intercalaire', chaine: true, gen: (L = 200) => genChaineByzantine({ motif: 'intercalaire', longueur: L }) },
+  'chaine-fleur': { nom: 'double byzantine fleur', chaine: true, gen: (L = 200) => genChaineByzantine({ motif: 'fleur', longueur: L }) },
+  'chaine-8': { nom: 'double byzantine 8 mm', chaine: true, gen: (L = 200) => genChaineByzantine({ motif: 'continu', longueur: L }) },
+  'chaine-10': { nom: 'double byzantine 10 mm', chaine: true, gen: (L = 200) => genChaineByzantine({ motif: 'continu', anneau: ANNEAU_10, longueur: L }) },
 };
 /* fiche bijou « chaîne … byzantine … » → son motif */
 export function formeChaine(texte) {
-  const t = norm(texte); if (!/chain|chaine/.test(t) || /chainmail/.test(t) && !/chaine/.test(t)) return null;
+  const t = norm(texte); if (/croix/.test(t) || !(/chaine/.test(t) || /byzantin/.test(t))) return null;   // « chaîne … » ou « … byzantine … » (catégorie chainmail)
   if (/fleur/.test(t)) return 'chaine-fleur';
   if (/intercal/.test(t)) return 'chaine-intercalaire';
   if (/\b10\s*mm|\b10\b/.test(t)) return 'chaine-10';
@@ -500,11 +500,13 @@ export const CHAINE_DEMO = [
   { ref: '#CH-ex04', nom: 'double byzantine 10 mm', forme: 'chaine-10' },
 ].map(c => ({ ...c, hex: '#b4b6ba', finition: 'chainmail', categorie: 'Chaînes de sac' }));
 export function catalogueChaineDepuisBijoux(bijoux = []) {
-  const parForme = new Map();
-  for (const b of bijoux) { const f = formeChaine([b.nom, b.variante].join(' ')); if (!f) continue;
-    const deja = parForme.get(f); if (!deja || (!b.parent_id && deja.b.parent_id)) parForme.set(f, { b, f }); }
-  return [...parForme.values()].map(({ b, f }) => ({ ref: b.ref, bij_id: b.id, nom: [b.nom, b.variante].filter(Boolean).join(' · ') || FORMES_CHAINMAIL[f].nom,
-    hex: '#b4b6ba', finition: 'chainmail', forme: f, categorie: 'Chaînes de sac', bijou: true, pv: b.pv, enStock: true, ordre: 1e6 + 2 }));
+  // chaque fiche (et chaque variante) = un choix de chaîne ; le motif 3D vient de son nom (le parent complète la variante)
+  const parId = new Map(bijoux.map(b => [b.id, b]));
+  return bijoux.map(b => { const par = b.parent_id && parId.get(b.parent_id);
+      const f = formeChaine([b.nom, b.variante].join(' ')) || (par && formeChaine([par.nom, par.variante, b.variante].join(' ')));
+      return f ? { b, f, pv: b.pv ?? par?.pv } : null; }).filter(Boolean)
+    .map(({ b, f, pv }) => ({ ref: b.ref, bij_id: b.id, nom: [b.nom, b.variante].filter(Boolean).join(' · ') || FORMES_CHAINMAIL[f].nom,
+      hex: '#b4b6ba', finition: 'chainmail', forme: f, categorie: 'Chaînes de sac', bijou: true, pv, enStock: true, ordre: 1e6 + 2 }));
 }
 export const formeChainmail = texte => { const t = norm(texte); return Object.keys(FORMES_CHAINMAIL).find(k => t.includes(k)) || null; };
 export const CHAINMAIL_DEMO = [
@@ -552,7 +554,7 @@ export function apercuChainmail(forme) {
   if (cacheApercuMaille.has(forme)) return cacheApercuMaille.get(forme);
   if (typeof document === 'undefined') return null;
   const F = FORMES_CHAINMAIL[forme] || FORMES_CHAINMAIL.croix;
-  const A = F.chaine ? F.gen().filter(a => a.p[2] > 4 && a.p[2] < 42) : F.gen();   // chaîne : un tronçon du motif
+  const A = F.chaine ? F.gen(45) : F.gen();   // chaîne : un tronçon du motif
   const cv = document.createElement('canvas'); cv.width = cv.height = 128;
   const x = cv.getContext('2d');
   const g = x.createRadialGradient(54, 50, 6, 64, 64, 70); g.addColorStop(0, '#fbf6ee'); g.addColorStop(1, '#e8dccb');
@@ -1596,7 +1598,7 @@ export function piecesAccroche(pieces) {                   // empile les pièces
   pieces.forEach((pc, i) => {
     const g = geosPiece(pc);
     if (!g) return;
-    out.push({ ...pc, z, geos: g.geos, attache: g.attache });
+    out.push({ ...pc, z, geos: g.geos, attache: g.attache, haut: g.haut });
     z += g.haut;
   });
   return out;
@@ -1934,41 +1936,45 @@ export function genCroixByzantine({ noeuds = 2, R = 3.0, e = 0.42, Rbras = 4.1, 
            'fleur' (comme intercalaire + un grand anneau en haut et en bas au milieu de chaque motif).
    La chaîne est générée le long de l'axe Z (horizontale à l'écran, comme les breloques), face vers X.
    -------------------------------------------------------------------------- */
-export function genChaineByzantine({ motif = 'continu', R = 3.6, e = 0.504, longueur = 230, beta = 32, prof = 0.42,
-  pas = 4.1, theta = 20, recul = 1.05, decal = 0.38, ouvre = 17 } = {}) {
-  const A = [], P = pas * R, d = e * 2.1;
-  const an = (p, n, r = R) => A.push({ p: p.map(v => +v.toFixed(3)), n: n.map(v => +v.toFixed(4)), R: +r.toFixed(3), e });
-  const groupe = (c, n, nb = 2) => { const l = Math.hypot(...n); n = n.map(v => v / l);
-    for (let k = 0; k < nb; k++) { const o = (k - (nb - 1) / 2) * d; an([c[0] + n[0] * o, c[1] + n[1] * o, c[2] + n[2] * o], n); } };
-  const sa = Math.sin(ouvre * DEG), ca = Math.cos(ouvre * DEG), cb = Math.cos(beta * DEG), sb = Math.sin(beta * DEG);
-  const tourne = (n, k) => [n[0] * cb - n[1] * sb * k, n[0] * sb * k + n[1] * cb, n[2]];
-  const epais = (c, n, nb = 2) => { for (const k of [-1, 1]) groupe([c[0] + k * prof * R, c[1], c[2]], tourne(n, k), nb); };
-  const th = theta * DEG;
-  const noeud = z => {
-    epais([0, 0, z], [sa * 0.5, 0, 1], 2);                                       // le « H »
-    for (const v of [-1, 1]) for (const s of [-1, 1]) {                          // 4 pétales doublés
-      const u = [0, s * Math.sin(th), v * Math.cos(th)];
-      const c = [0, s * decal * R + u[1] * recul * R, z + u[2] * recul * R];
-      const w = [0, -u[2], u[1]];
-      epais(c, [sa * (v * s > 0 ? 1 : -1), w[1] * ca, w[2] * ca], 2);
-    }
-  };
-  const liaison = z => epais([0, 0, z], [sa, ca, 0], 2);                        // paires doublées entre deux nœuds
-  const seul = (z, r = R) => an([0, 0, z], [1, 0, 0], r);                      // anneau seul, de face
-  const ecartBout = R * 3.1;                                                     // d'un anneau seul au nœud voisin (comme le haut de la croix)
-  let z = 0; seul(z); z += ecartBout;                                            // anneau du bout (pris par le mousqueton)
+// Anneaux acier inoxydable : diamètre extérieur → rayon moyen R et rayon du fil e
+export const ANNEAU_8 = { R: 3.45, e: 0.55 }, ANNEAU_10 = { R: 4.35, e: 0.65 };
+/* Nœud byzantin doublé (d'après le tutoriel et ta photo des chaînes 8 / 10 mm) : vu de face, au centre les paires
+   « de chant » (vues par la tranche, barres le long de la chaîne) ; à chaque bout du nœud, les anneaux rabattus
+   (oreilles) de part et d'autre, en avant et en arrière ; entre deux nœuds, la paire de face (le « o »). zc = centre. */
+export function noeudByzantin(an, zc, { R, e, nbChant = 2, nbOreille = 2, a = 0.42, s = 0.55, v = 1.08, x = 0.4, alpha = 60, beta = 58 } = {}) {
+  const d = e * 2.05;
+  const rang = (c, n, nb) => { const l = Math.hypot(...n); n = n.map(q => q / l);
+    for (let i = 0; i < nb; i++) { const o = (i - (nb - 1) / 2) * d; an([c[0] + n[0] * o, c[1] + n[1] * o, c[2] + n[2] * o], n, R, e); } };
+  for (const w of [-1, 1]) rang([0, 0, zc + w * a * R], [0, 1, 0], nbChant);     // paires de chant (doublées)
+  const al = alpha * DEG, be = beta * DEG;
+  for (const w of [-1, 1]) for (const c of [-1, 1]) for (const f of [-1, 1])     // oreilles : 2 bouts × 2 côtés × avant / arrière
+    rang([f * x * R, c * s * R, zc + w * v * R], [f * Math.cos(al), c * Math.sin(al) * Math.cos(be), w * Math.sin(al) * Math.sin(be)], nbOreille);
+}
+export const PAS_BYZANTIN = 4.6;                    // d'un nœud au suivant (paire de face « o » entre les deux), en rayons d'anneau                    // d'un nœud au suivant, en rayons d'anneau
+/* Chaînes de sac (axe Z, face vers X) :
+   'continu'      double byzantine, tous les anneaux identiques (8 mm, ou 10 mm avec anneau: ANNEAU_10)
+   'intercalaire' 8 mm : 2 nœuds, puis un anneau intercalaire de 10 mm, puis 2 nœuds…
+   'fleur'        comme intercalaire + 2 anneaux de 10 mm (haut / bas) à la paire du milieu de chaque motif */
+export function genChaineByzantine({ motif = 'continu', anneau = ANNEAU_8, grand = ANNEAU_10, longueur = 200, connecteur = 2 } = {}) {
+  const A = [], { R, e } = anneau, d = e * 2.05, P = PAS_BYZANTIN * R;
+  const an = (p, n, r = R, ee = e) => A.push({ p: p.map(v => +v.toFixed(3)), n: n.map(v => +v.toFixed(4)), R: +r.toFixed(3), e: ee });
+  const face = (z, nb = connecteur) => { for (let i = 0; i < nb; i++) an([(i - (nb - 1) / 2) * d, 0, z], [1, 0, 0]); };   // paire de face (le « o » entre deux nœuds)
+  const G = grand, gros = z => an([0, 0, z], [1, 0, 0], G.R, G.e);
+  let z = 0;
   if (motif === 'continu') {
-    const n = Math.max(2, Math.floor((longueur - 2 * ecartBout) / P) + 1);
-    for (let i = 0; i < n; i++) { noeud(z); if (i < n - 1) liaison(z + P / 2); if (i < n - 1) z += P; }
-    z += ecartBout; seul(z);
+    face(z);                                                         // bout : pris par le mousqueton
+    for (z = P / 2; z + P / 2 <= longueur; z += P) { noeudByzantin(an, z, { R, e }); face(z + P / 2); }
   } else {
-    const Rf = R * 1.25, yf = R * 1.15 + Rf * 0.78;
+    // 8 mm : motif de 2 nœuds (paire de face entre les deux), anneau de 10 mm entre deux motifs
+    const bout = G.R * 0.55 + P / 2 - R * 0.35;                       // de l'anneau de 10 mm au centre du nœud voisin
+    gros(z);
     for (;;) {
-      noeud(z); liaison(z + P / 2); noeud(z + P);
-      if (motif === 'fleur') for (const s of [-1, 1]) an([0, s * yf, z + P / 2], [1, 0, 0], Rf);   // fleur : un grand anneau en haut, un en bas
-      z += P + ecartBout; seul(z);                                               // anneau intercalaire
-      if (z + ecartBout + P + ecartBout > longueur) break;
-      z += ecartBout;
+      const z1 = z + bout; noeudByzantin(an, z1, { R, e });
+      const zm = z1 + P / 2; face(zm);
+      if (motif === 'fleur') for (const c of [-1, 1]) an([0, c * (R * 0.35 + G.R * 0.92), zm], [1, 0, 0], G.R, G.e);   // pétales de 10 mm en haut et en bas
+      const z2 = zm + P / 2; noeudByzantin(an, z2, { R, e });
+      z = z2 + bout; gros(z);
+      if (z + 2 * bout + P > longueur) break;
     }
   }
   return A;
@@ -2056,7 +2062,7 @@ export function modeleChaineSacDemo() {
   };
 }
 /* Chaîne + breloques (ou bundle) accrochées près du premier mousqueton, pendantes sous la chaîne */
-export function composerChaine({ chaine, breloques = [], fermoirs = [], catalogue = [] }) {
+export function composerChaine({ chaine, breloques = [], pieces = [], fermoirs = [], catalogue = [] }) {
   const fermParRef = Object.fromEntries(fermoirs.map(f => [f.ref, f]));
   const parRef = Object.fromEntries(catalogue.map(c => [c.ref, c]));
   const out = { version: 8, nom: 'Chaîne de sac', zones: [], groupes: [], options: [] };
@@ -2078,6 +2084,30 @@ export function composerChaine({ chaine, breloques = [], fermoirs = [], catalogu
     for (const [k, v] of Object.entries(br.options || {})) options[pre + k] = v;
   };
   ajouter(chaine, 0, new THREE.Matrix4());
+  if (pieces.length && breloques.length) {           // bundle gardé : son porte-clés s'accroche à la chaîne, les breloques pendent au porte-clés
+    const b = composerBundle({ breloques, pieces, fermoirs, catalogue });
+    const P = piecesAccroche(pieces), haut = P.length ? P[P.length - 1].z + (P[P.length - 1].haut || 0) : 0;
+    const rx = new THREE.Matrix4().makeRotationX(Math.PI / 2), loc = new THREE.Vector3(0, 0, haut).applyMatrix4(rx), A = new THREE.Vector3(0, -4.5, 24);
+    const M = new THREE.Matrix4().makeTranslation(A.x - loc.x, A.y - loc.y, A.z - loc.z).multiply(rx);
+    const p = new THREE.Vector3(), qq = new THREE.Quaternion(), sc = new THREE.Vector3(); M.decompose(p, qq, sc); const ee = new THREE.Euler().setFromQuaternion(qq);
+    out.support = { pieces, pos: p.toArray(), rot: [ee.x / DEG, ee.y / DEG, ee.z / DEG] };
+    b.modele.groupes.forEach((g, gi) => {
+      const rot = g.rot || [0, 0, 0];
+      const W = M.clone().multiply(new THREE.Matrix4().compose(new THREE.Vector3().fromArray(g.pos || [0, 0, 0]), q.setFromEuler(e.set(rot[0] * DEG, rot[1] * DEG, rot[2] * DEG)), un));
+      const pp = new THREE.Vector3(), q2 = new THREE.Quaternion(), s2 = new THREE.Vector3(); W.decompose(pp, q2, s2); const e2 = new THREE.Euler().setFromQuaternion(q2);
+      // préfixes du bundle (b0:, b1:…) décalés d'un cran : la chaîne est b0
+      const pre = id => id.replace(/^b(\d+):/, (m, n) => 'b' + (+n + 1) + ':');
+      out.groupes.push({ ...g, id: pre(g.id), ...(g.zoneForme ? { zoneForme: pre(g.zoneForme) } : {}), pos: pp.toArray(), rot: [e2.x / DEG, e2.y / DEG, e2.z / DEG],
+        perles: (g.perles || []).map(x => ({ ...x, z: x.z ? pre(x.z) : x.z })) });
+      void gi;
+    });
+    const gi0 = 1, pre = id => id.replace(/^b(\d+):/, (m, n) => 'b' + (+n + 1) + ':');
+    for (const z of b.modele.zones) out.zones.push({ ...z, id: pre(z.id), breloque: z.breloque + 1 });
+    for (const o of b.modele.options) out.options.push({ ...o, id: pre(o.id), gi: (o.gi ?? 0) + gi0 });
+    for (const [k, v] of Object.entries(b.couleurs)) couleurs[pre(k)] = v;
+    for (const [k, v] of Object.entries(b.options)) options[pre(k)] = v;
+    return { modele: out, couleurs, options };
+  }
   // sous la chaîne (vers -y à l'écran), à partir de ~2 cm du premier mousqueton, une breloque tous les 9 mm
   const rotX = new THREE.Matrix4().makeRotationX(Math.PI / 2);          // la breloque pend vers +z → vers -y
   breloques.forEach((br, k) => {
@@ -2469,6 +2499,12 @@ export class ScenePerles {
         const o = new THREE.Group();
         for (const g of pc.geos) o.add(new THREE.Mesh(g, matMetal(pc.metal || 'argent')));
         o.position.set(0, 0, pc.z);
+        const sp = this.modele.support;
+        if (sp.pos || sp.rot) {                              // porte-clés accroché ailleurs (ex. sur une chaîne de sac)
+          const r = sp.rot || [0, 0, 0];
+          const M = new THREE.Matrix4().compose(new THREE.Vector3().fromArray(sp.pos || [0, 0, 0]), new THREE.Quaternion().setFromEuler(new THREE.Euler(r[0] * DEG, r[1] * DEG, r[2] * DEG)), new THREE.Vector3(1, 1, 1));
+          o.updateMatrix(); o.matrixAutoUpdate = false; o.matrix.premultiply(M);
+        }
         this.racine.add(o); this.objAccessoires.push(o);
       }
     }
