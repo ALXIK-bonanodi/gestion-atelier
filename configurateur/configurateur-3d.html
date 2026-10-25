@@ -448,7 +448,7 @@ import {
   correspondCategorie, texteCatalogue, ordreModeles, chargerRuptures, appliquerRuptures,
   chargerLiens, appliquerLiens, relierModele, chargerMateriauxParRefs,
   chargerFichesConfig, definirFichesConfig, ficheCfg, refsCouleurFiche, famillesFiche,
-} from './bead-core.js?v=e1910c43';
+} from './bead-core.js?v=670d1e9b';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER, PANIER_SHOPIFY } from './perles-config.js?v=e5e86015';
 
 const $ = s => document.querySelector(s);
@@ -529,6 +529,7 @@ if (modeles.some(breloqueDispo)) modeles = modeles.filter(breloqueDispo);
 // breloques proposées selon le parcours (app de gestion › Conception 3D) : « breloque:<slug> » / « bundle:<slug> » = masquée dans ce parcours
 const rupSet = new Set(ruptures);
 catalogue = catalogue.filter(c => !(c.categorie === 'Chaînes de sac' && c.bij_id && rupSet.has('idee:' + c.bij_id)));   // chaînes masquées dans l'app
+catalogue = catalogue.filter(c => !(c.finition === 'chainmail' && c.forme && rupSet.has('forme:' + c.forme)));         // formes chainmail masquées (croix, mini chaînes)
 const modelesDu = p => {
   if (p === 'chaine') return modeles.filter(m => estChaineSac(m) && !rupSet.has('chaine:' + m.slug));
   const tous = modeles.filter(m => !estChaineSac(m));                                   // les chaînes de sac ont leur propre parcours
@@ -653,7 +654,7 @@ const enBundle = () => etat.parcours === 'bundle';
 const accrocheActive = () => ((enBundle() && principal() < 0) || (etat.parcours === 'chaine' && auMousqueton().length)) ? accrocheChoisie() : null;   // porte-clés (bundle, ou gardé sur la chaîne)
 const multi = () => etat.parcours === 'bundle' || etat.parcours === 'chaine';   // plusieurs pièces (bundle, chaîne + breloques)
 // « sur la chaîne » : la breloque s'accroche aux anneaux de 10 mm de la chaîne de sac, ou de la mini chaîne du bundle
-const entPiece = b => ({ modele: modelePour(b), couleurs: b.couleurs, options: optionsEffectives(b), surChaine: !!b.surChaine, principal: !!b.principal && enBundle() && fermoirPivot(b) });
+const entPiece = b => ({ modele: modelePour(b), couleurs: b.couleurs, options: optionsEffectives(b), surChaine: b.surChaine || false, principal: !!b.principal && enBundle() && fermoirPivot(b) });
 const estMini = b => estMiniChaine(modeleDe(b.slug)) || estMiniForme({ modele: modeleDe(b.slug), couleurs: b.couleurs }, parRef);
 function chaineAccueil() {                            // la pièce qui porte les breloques « sur la chaîne » (index) ou -1
   if (etat.parcours === 'chaine') return pointsSurChaine(anneauxDeForme(entPiece(etat.breloques[0]), parRef), { indices: true }).length ? 0 : -1;
@@ -665,8 +666,12 @@ const peutSurChaine = i => { const c = chaineAccueil(); return c >= 0 && i !== c
 // fermoir « mousqueton » choisi sur la breloque ? (il peut devenir le porte-clés principal du bundle)
 function fermoirPivot(b) { const m = modeleDe(b.slug), o = (m.options || []).find(x => x.type === 'fermoir'); return fermParRef[o && b.options?.[o.id]]?.type === 'mousqueton-pivot'; }
 const principal = () => enBundle() ? etat.breloques.findIndex(b => b.principal && fermoirPivot(b)) : -1;
-const surChaine = (b, i) => !!b.surChaine && peutSurChaine(i);
-const auMousqueton = () => etat.breloques.filter((b, i) => i > 0 && !surChaine(b, i));   // chaîne : breloques du bundle accroché au mousqueton
+// chaîne de sac : une mini chaîne (breloque chainmail) peut aussi porter des breloques (« sur la mini chaîne »)
+const miniSurSac = () => etat.parcours === 'chaine' ? etat.breloques.findIndex((b, i) => i > 0 && estMini(b) && b.surChaine !== 'mini') : -1;
+const peutSurMini = i => { const m = miniSurSac(); return m > 0 && i !== m && i > 0 && pointsSurChaine(anneauxDeForme(entPiece(etat.breloques[m]), parRef), { vertical: true }).length > 0; };
+const surChaine = (b, i) => b.surChaine === 'mini' ? (peutSurMini(i) ? 'mini' : false) : (!!b.surChaine && peutSurChaine(i));
+const auMousqueton = () => { const m = miniSurSac(), mOnChain = m > 0 && surChaine(etat.breloques[m], m) === true;
+  return etat.breloques.filter((b, i) => { const s = surChaine(b, i); return i > 0 && s !== true && !(s === 'mini' && mOnChain); }); };   // chaîne : breloques du bundle accroché au mousqueton
 function rendre3D({ cadrer = false } = {}) {
   if (etat.parcours === 'chaine') {                   // la chaîne (pièce 1) + les breloques accrochées près du premier mousqueton
     const [ch, ...brs] = etat.breloques, ent = (b, i) => ({ ...entPiece(b), surChaine: surChaine(b, i + 1) });
@@ -836,7 +841,8 @@ function rendreListeBreloques() {
     <div class="carte-breloque" role="button" tabindex="0" data-i="${i}" aria-pressed="${i === etat.actif}">
       <span style="--trait:#3c114b">${ICONES[typeIcone(m)]}</span>
       <span><b>${ch ? i : i + 1} · ${esc(nomCourt(m))} · ${euros(prixDe(b))}</b><span>${esc(resumeBreloque(b))}</span>
-        ${peutSurChaine(i) ? `<label class="sur-chaine"><input type="checkbox" data-sur="${i}" ${b.surChaine ? 'checked' : ''}> sur la chaîne</label>` : ''}</span>
+        ${peutSurChaine(i) ? `<label class="sur-chaine"><input type="checkbox" data-sur="${i}" data-val="1" ${b.surChaine === true ? 'checked' : ''}> sur la chaîne</label>` : ''}
+        ${peutSurMini(i) ? `<label class="sur-chaine"><input type="checkbox" data-sur="${i}" data-val="mini" ${b.surChaine === 'mini' ? 'checked' : ''}> sur la mini chaîne</label>` : ''}</span>
       ${(ch ? n > 1 : n > 1) ? `<button class="x" type="button" data-suppr="${i}" aria-label="Retirer la breloque ${i + 1}">×</button>` : '<span></span>'}
     </div>`; }).join('');
   // ajouter une breloque : mêmes cartes que le choix du modèle d'une breloque seule
@@ -855,7 +861,7 @@ function rendreListeBreloques() {
   });
   $('#listeBreloques').querySelectorAll('[data-sur]').forEach(x => {
     x.addEventListener('click', e => e.stopPropagation());
-    x.addEventListener('change', () => { etat.breloques[+x.dataset.sur].surChaine = x.checked;
+    x.addEventListener('change', () => { etat.breloques[+x.dataset.sur].surChaine = x.checked ? (x.dataset.val === 'mini' ? 'mini' : true) : false;
       if (etat.parcours === 'chaine' && auMousqueton().length && etat.accroche == null && accroches) etat.accroche = null;
       rendre3D({ cadrer: true }); toutRendre(); });
   });
@@ -1006,26 +1012,35 @@ function modeleDeFiche(piece, liste) {
 }
 const normNom = t => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 // bundle : porte-clés déjà créés, seulement s'ils sont entièrement réalisables ici (accroche proposée, toutes les références disponibles, chaque pièce = un modèle)
+const RAISONS_BUNDLES = [];                         // diagnostic : pourquoi un porte-clés tout prêt n'est pas proposé
 function ideesBundle() {
   if (!accroches) return [];
-  const connues = new Set([...catalogue.map(c => c.ref), ...fermoirs.map(f => f.ref)]), liste = modelesDu('bundle');
+  RAISONS_BUNDLES.length = 0;
+  const liste = modelesDu('bundle'), parId = new Map(bijoux.map(b => [b.id, b]));
   return bijoux.filter(b => ficheCfg(b.id)?.pieces?.length && !/\bsacs?\b|cha[iî]ne|byzantin/i.test([b.nom, b.variante, b.collection].join(' '))).map(f => {   // pas les sacs ni les chaînes
-    const cfg = ficheCfg(f.id), refs = cfg.refs || [];
-    if (refs.some(r => !connues.has(r))) return null;                             // ex. crochet de boucle d'oreille absent du configurateur
+    const cfg = ficheCfg(f.id), refs = cfg.refs || [], par = f.parent_id && parId.get(f.parent_id);
+    const nom = par ? [par.nom, f.variante].filter(Boolean).join(' · ') : (f.nom || f.variante || f.ref);   // une variante de lot : « Mix'n Match · rose »
     const aRef = r => refs.includes(r) || refs.some(x => baseRef(x) === baseRef(r));
-    const acc = accroches.choix.filter(c => c.pieces.length && c.pieces.every(aRef)).sort((a, b) => b.pieces.length - a.pieces.length)[0] || (refs.length ? null : accroches.choix[0]);
-    if (!acc) return null;
-    const brs = [];
+    const acc = accroches.choix.filter(c => c.pieces.length && c.pieces.every(aRef)).sort((a, b) => b.pieces.length - a.pieces.length)[0] || accroches.choix[0];
+    const brs = [], sans = [];
     for (const pc of cfg.pieces) {
       const piece = bijoux.find(b => b.id === pc.bij_id), m = piece && modeleDeFiche(piece, liste);
-      if (!m) return null;                                                        // une pièce sans modèle 3D : le porte-clés n'est pas proposé
+      if (!m) { sans.push(piece ? [piece.nom, piece.variante].filter(Boolean).join(' · ') : pc.bij_id); continue; }   // pièce sans modèle 3D (ex. accessoire) : ignorée
       const idee = calculerIdees(m).find(i => i.fiche.id === piece.id) || { breloque: nouvelleBreloque(m.slug) };
-      for (let k = 0; k < Math.max(1, +pc.qty || 1); k++) brs.push({ ...idee.breloque, couleurs: { ...idee.breloque.couleurs } });
+      const coul = m.bijZone && couleursProposees((m.zones || []).find(z => z.id === m.bijZone), catalogue, parties).some(c => c.ref === piece.ref) ? { [m.bijZone]: piece.ref } : {};
+      for (let k = 0; k < Math.max(1, +pc.qty || 1); k++) brs.push({ ...idee.breloque, couleurs: { ...idee.breloque.couleurs, ...coul } });
     }
-    return brs.length && brs.length <= maxBreloques() ? { fiche: f, accroche: acc.id, breloques: brs, nom: f.nom || f.variante || f.ref, prix: f.pv } : null;   // le nom du lot seul, sans sa variante
-  }).filter(x => x && ideeVisible(x.fiche)).concat(bundlesAlternatifs());
+    if (!brs.length) { RAISONS_BUNDLES.push(nom + ' : aucune pièce avec un modèle 3D (' + sans.join(', ') + ')'); return null; }
+    if (brs.length > maxBreloques()) { RAISONS_BUNDLES.push(nom + ' : trop de breloques'); return null; }
+    if (!ideeVisible(f)) { RAISONS_BUNDLES.push(nom + ' : masqué dans l\'app'); return null; }
+    if (sans.length) RAISONS_BUNDLES.push(nom + ' : proposé sans ' + sans.join(', ') + ' (pas de modèle 3D)');
+    return { fiche: f, accroche: acc?.id, breloques: brs, nom, prix: f.pv ?? par?.pv };
+  }).filter(Boolean).concat(bundlesAlternatifs());
 }
-// ⭐ bundles alternatifs (enregistrés depuis le configurateur, sans fiche bijou à part)
+window.__bnBundles = () => ({ proposes: ideesBundle().map(x => x.nom), raisons: [...RAISONS_BUNDLES] });   // diagnostic
+if (new URLSearchParams(location.search).get('diag')) setTimeout(() => { try { const r = window.__bnBundles(), d = [...document.querySelectorAll('pre')].pop();
+  if (d) d.textContent += '\n\n■ Porte-clés tout prêts proposés\n' + (r.proposes.join('\n') || 'aucun') + '\n\n■ Porte-clés tout prêts : remarques\n' + (r.raisons.join('\n') || 'aucune'); } catch (e) {} }, 0);
+
 function bundlesAlternatifs() {
   if (!accroches) return [];
   return alternativesConfig().filter(a => a?.type === 'bundle' && Array.isArray(a.breloques) && ideeVisible({ id: 'alt:' + a.id })).map(a => {
@@ -1325,7 +1340,7 @@ function entreesNote() {
   const acc = accrocheActive();
   return {
     breloques: etat.breloques.map((b, i) => ({ modele: modelePour(b), couleurs: validerConfiguration(modeleDe(b.slug), catalogue, b.couleurs, parties),
-      options: optionsEffectives(b), prixBase: prixDe(b), bijRef: bijouDe(b).ref, ficheNom: bijouDe(b).nom, modeleIdee: bijouDe(b).idee || null, surChaine: surChaine(b, i), principal: i === principal() })),
+      options: optionsEffectives(b), prixBase: prixDe(b), bijRef: bijouDe(b).ref, ficheNom: bijouDe(b).nom, modeleIdee: bijouDe(b).idee || null, surChaine: enBundle() && surChaine(b, i) ? 'mini' : surChaine(b, i), principal: i === principal() })),
     accroche: acc ? { id: acc.id, libelle: acc.libelle, pieces: acc.pieces, supplement: acc.supplement, offre, lotNom: lotCorrespondant()?.nom || null } : null,
     catalogue, fermoirs,
   };
@@ -1346,7 +1361,7 @@ function choixActuels() {
     parcours: etat.parcours, actif: etat.actif,
     accroche: acc ? { id: acc.id, libelle: acc.libelle, pieces: acc.pieces, supplement: acc.supplement, offre } : null,
     breloques: etat.breloques.map(b => ({ modele: b.slug, couleurs: validerConfiguration(modeleDe(b.slug), catalogue, b.couleurs, parties),
-      options: optionsEffectives(b), ...(estLettres(modeleDe(b.slug)) ? { texte: b.texteValide || b.texte } : {}), ...(b.surChaine ? { surChaine: true } : {}), ...(b.principal ? { principal: true } : {}) })),
+      options: optionsEffectives(b), ...(estLettres(modeleDe(b.slug)) ? { texte: b.texteValide || b.texte } : {}), ...(b.surChaine ? { surChaine: b.surChaine } : {}), ...(b.principal ? { principal: true } : {}) })),
   };
 }
 function restaurer(c) {
@@ -1357,7 +1372,7 @@ function restaurer(c) {
     n.couleurs = validerConfiguration(m, catalogue, b.couleurs || {}, parties);
     n.options = { ...n.options, ...(b.options || {}) };
     if (b.texte) { n.texte = { mode: b.texte.mode, mots: [...(b.texte.mots || [])], sens: b.texte.sens }; n.texteValide = n.texte; }
-    if (b.surChaine) n.surChaine = true;
+    if (b.surChaine) n.surChaine = b.surChaine;
     if (b.principal) n.principal = true;
     return n;
   });

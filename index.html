@@ -4053,16 +4053,27 @@ async function renderModelesProposes(){
     if(typeof v==='string'){ try{ v=JSON.parse(v); }catch(e){ v=[]; } } RUPTURES_3D=Array.isArray(v)?v.map(String):[];
     { const a=await SB.from('config').select('value').eq('key','configurateur_alternatives').maybeSingle(); let w=a.data?.value; if(typeof w==='string'){ try{ w=JSON.parse(w); }catch(e){ w=null; } } if(Array.isArray(w)) ALTERNATIVES=w; } }
   catch(e){ el.innerHTML=`<span class="dim">Modèles : ${escA(e.message)}</span>`; return; }
-  if(!MODELES_3D.length){ el.innerHTML='<span class="dim">Aucun modèle 3D enregistré pour l\'instant (onglet 🧊 Modèles).</span>'+renderIdeesProposees()+renderChainesProposees(); return; }
+  if(!MODELES_3D.length){ el.innerHTML='<span class="dim">Aucun modèle 3D enregistré pour l\'instant (onglet 🧊 Modèles).</span>'+renderFormesProposees()+renderIdeesProposees()+renderChainesProposees(); return; }
   const vu=(m,p)=>m.publie&&!RUPTURES_3D.includes(p+':'+m.slug);
   const bouton=(m,p)=>`<button type="button" class="c3p ${vu(m,p)?'on':''}" onclick="basculerModele('${escA(m.slug)}','${p}')">${vu(m,p)?'👁':'🚫'} ${p==='breloque'?'Breloque seule':'Bundle'}</button>`;
   const nb=p=>MODELES_3D.filter(m=>vu(m,p)).length, ouvert=el.dataset.ouvert==='1';
   el.innerHTML=`<details class="c3p-det" ${ouvert?'open':''} ontoggle="this.parentNode.dataset.ouvert=this.open?'1':''"><summary><b>Breloques proposées</b> <span class="dim">· breloque seule ${nb('breloque')}/${MODELES_3D.length} · bundle ${nb('bundle')}/${MODELES_3D.length}</span> <span class="c3p-gerer">Gérer ▾</span></summary>
     <div class="c3p-tab">${MODELES_3D.map(m=>`<div class="c3p-l"><span class="c3p-nom">${escA(m.nom||m.slug)}</span>${bouton(m,'breloque')}${bouton(m,'bundle')}</div>`).join('')}</div></details>
+    ${renderFormesProposees()}
     ${renderIdeesProposees()}
     ${renderChainesProposees()}
     <div class="c3p-l" style="margin-top:8px"><span class="c3p-nom">3e parcours · Chaîne de sac</span><button type="button" class="c3p ${RUPTURES_3D.includes('activer:chaine')?'on':''}" onclick="basculerChaine()">${RUPTURES_3D.includes('activer:chaine')?'👁 affiché':'🚫 masqué'}</button>
       <span class="dim" style="font-size:11px">Crée tes modèles dans 🧊 Modèles (champ « Parcours : Chaîne de sac » ou « Exemple chaîne de sac ») et relie-les à leur fiche bijou.</span></div>`;
+}
+// formes de la breloque chainmail (croix, mini chaînes) : affichées / masquées une par une
+const FORMES_3D=[['croix','Croix'],['mini-fleur-4','Mini chain · Byzantine fleur'],['mini-intercalaire-4','Mini chain · Byzantine alternative']];
+function renderFormesProposees(){
+  const bt=([f,nom])=>{ const on=!RUPTURES_3D.includes('forme:'+f); return `<button type="button" class="c3p ${on?'on':''}" onclick="basculerForme('${f}')">${on?'👁':'🚫'} ${escA(nom)}</button>`; };
+  return `<div class="c3p-l" style="margin-top:8px"><span class="c3p-nom">⛓ Breloque chainmail · formes</span>${FORMES_3D.map(bt).join('')}</div>`;
+}
+async function basculerForme(f){
+  const k='forme:'+f, rup=RUPTURES_3D.includes(k)?RUPTURES_3D.filter(x=>x!==k):[...RUPTURES_3D,k];
+  await sbUpsertConfig('configurateur_ruptures', rup); RUPTURES_3D=rup; renderModelesProposes();
 }
 async function basculerChaine(){
   const k='activer:chaine', rup=RUPTURES_3D.includes(k)?RUPTURES_3D.filter(x=>x!==k):[...RUPTURES_3D,k];
@@ -4080,7 +4091,7 @@ function candidatesIdees(){
   const fam=[], lots=[];
   BIJS.filter(b=>!b.parent_id&&!estChaineBij(b)).forEach(b=>{   // fiches bijoux ET compositions (petit poisson, arête…) ; chaînes à part
     const vars=BIJS.filter(x=>x.parent_id===b.id);
-    if(estLot(b)){ if(!/\bsacs?\b/i.test([b.nom,b.variante,b.collection].join(' '))) lots.push(b); }   // les sacs ne sont pas des bundles
+    if(estLot(b)){ if(!/\bsacs?\b/i.test([b.nom,b.variante,b.collection].join(' '))) lots.push(b,...vars); }   // les sacs ne sont pas des bundles ; un lot et ses variantes
     else if(vars.length) fam.push({base:b, vars});
   });
   return {fam, lots};
@@ -4093,7 +4104,7 @@ function renderIdeesProposees(){
   const tous=[...fam.flatMap(f=>[f.base,...f.vars]),...lots], nb=tous.filter(vu).length, ouvert=document.getElementById('c3-proposes')?.dataset.ideesOuvert==='1';
   return `<details class="c3p-det" style="margin-top:8px" ${ouvert?'open':''} ontoggle="document.getElementById('c3-proposes').dataset.ideesOuvert=this.open?'1':''"><summary><b>💡 Idées proposées</b> <span class="dim">· ${nb}/${tous.length} affichées dans le configurateur</span> <span class="c3p-gerer">Gérer ▾</span></summary>
     <div class="c3p-tab">${fam.map(f=>`<div class="c3p-l"><span class="c3p-nom">${escA(f.base.nom||f.base.ref)}</span>${[f.base,...f.vars].map(bt).join('')}</div>`).join('')}
-    ${lots.length?`<div class="c3p-l"><span class="c3p-nom">🎁 Bundles / lots</span>${lots.map(bt).join('')}</div>`:''}
+    ${lots.length?`<div class="c3p-l"><span class="c3p-nom">🎁 Bundles / lots <span class="dim">et leurs variantes</span></span>${lots.map(bt).join('')}</div>`:''}
     <div class="c3p-l" style="align-items:flex-start"><span class="c3p-nom">⭐ Alternatives</span><span style="display:grid;gap:4px">${ALTERNATIVES.map(a=>{ const k='idee:alt:'+a.id, on=!RUPTURES_3D.includes(k);
       return `<span style="display:flex;gap:4px;align-items:center;flex-wrap:wrap"><button type="button" class="c3p ${on?'on':''}" onclick="basculerIdee('alt:${escA(a.id)}')">${on?'👁':'🚫'} ${escA(a.nom)}</button><span class="dim" style="font-size:11px">${a.type==='bundle'?'🎁 bundle · '+(a.breloques||[]).length+' breloque(s)':escA((MODELES_3D.find(m=>m.slug===a.modele)?.nom)||a.modele)}</span>
         <button class="btn btn-xs btn-ghost" title="Renommer" onclick="renommerAlternative('${escA(a.id)}')">✎</button><button class="btn btn-xs btn-ghost" title="Copier le lien direct (bouton « Personnaliser » d'une fiche Wix…)" onclick="copierLienIdee('alt:${escA(a.id)}'${a.type==='bundle'?',1':''})">🔗</button><button class="btn btn-xs btn-red" title="Supprimer" onclick="supprimerAlternative('${escA(a.id)}')">✕</button></span>`; }).join('')||'<span class="dim" style="font-size:12px">aucune</span>'}
@@ -7230,7 +7241,9 @@ async function publierFichesConfigurateur(){
   const fiches={};
   BIJS.forEach(b=>{ const mats=getMatsEffectifs(b), qte={}; mats.forEach(m=>{ if(getMat(m.ref)) qte[m.ref]=(qte[m.ref]||0)+(parseFloat(m.qty)||0); });
     const refs=Object.keys(qte).sort((x,y)=>qte[y]-qte[x]);   // la plus utilisée d'abord : couleur principale de la fiche pour le configurateur
-    const pieces=[...(LOTS[b.id]||[]).map(i=>({bij_id:i.bij_id,qty:+i.qty||1})),
+    // variante d'un lot (Mix'n Match · …) : les pièces du lot parent, avec les remplacements de la variante
+    const itemsLot=(LOTS[b.id]||[]).length?LOTS[b.id]:(b.parent_id?(LOTS[b.parent_id]||[]).map(i=>{ const r=getBij(i.bij_id)?.ref, ov=(b.variante_overrides||[]).find(o=>o&&o.ref_parent===r), nb=ov&&BIJS.find(x=>x.ref===ov.ref_variante); return nb?{...i,bij_id:nb.id,qty:ov.qty||i.qty}:i; }):[]);
+    const pieces=[...itemsLot.map(i=>({bij_id:i.bij_id,qty:+i.qty||1})),
       ...mats.map(m=>{ if(getMat(m.ref)) return null; const c=BIJS.find(x=>x.ref===m.ref); return c?{bij_id:c.id,qty:+m.qty||1}:null; }).filter(Boolean)];
     if(refs.length||pieces.length) fiches[b.id]=pieces.length?{refs,pieces}:{refs}; });
   const v=JSON.stringify({fiches,alternatives:ALTERNATIVES}); if(v===DERNIERES_FICHES_CFG) return;
