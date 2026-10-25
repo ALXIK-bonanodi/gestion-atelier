@@ -485,32 +485,49 @@ export const FORMES_CHAINMAIL = {
   'chaine-fleur': { nom: 'double byzantine fleur', chaine: true, gen: L => genChaineByzantine({ motif: 'fleur', ...motifsOuLongueur('chaine-fleur', L) }) },
   'chaine-8': { nom: 'double byzantine 8 mm', chaine: true, gen: L => genChaineByzantine({ motif: 'continu', ...motifsOuLongueur('chaine-8', L) }) },
   'chaine-10': { nom: 'double byzantine 10 mm', chaine: true, gen: L => genChaineByzantine({ motif: 'continu', anneau: ANNEAU_10, connecteur: 2, ...motifsOuLongueur('chaine-10', L) }) },
+  // mini chaînes (breloque chainmail) : 3 ou 4 nœuds 4×4, pendues à un fermoir, pampille 4 mm en bas
+  'mini-fleur-3': { nom: 'byzantine fleur · 3 nœuds', mini: true, gen: () => genMiniChaine('fleur', 3) },
+  'mini-fleur-4': { nom: 'byzantine fleur · 4 nœuds', mini: true, gen: () => genMiniChaine('fleur', 4) },
+  'mini-intercalaire-3': { nom: 'byzantine alternative · 3 nœuds', mini: true, gen: () => genMiniChaine('intercalaire', 3) },
+  'mini-intercalaire-4': { nom: 'byzantine alternative · 4 nœuds', mini: true, gen: () => genMiniChaine('intercalaire', 4) },
 };
 /* fiche bijou « chaîne … byzantine … » → son motif */
 export function formeChaine(texte) {
-  const t = norm(texte); if (/croix/.test(t) || !(/chaine/.test(t) || /byzantin/.test(t))) return null;   // « chaîne … » ou « … byzantine … » (catégorie chainmail)
+  const t = norm(texte); if (/croix/.test(t) || /\bmini/.test(t) || !(/chaine/.test(t) || /byzantin/.test(t))) return null;   // « chaîne … » ou « … byzantine … » (catégorie chainmail)
   if (/fleur/.test(t)) return 'chaine-fleur';
-  if (/intercal/.test(t)) return 'chaine-intercalaire';
-  if (/\b10\s*mm|\b10\b/.test(t)) return 'chaine-10';
+  if (/intercal|altern/.test(t)) return 'chaine-intercalaire';
+  if (/\b10\s*mm|\b10\b|chunky/.test(t)) return 'chaine-10';
   if (/byzant/.test(t)) return 'chaine-8';
   return null;
 }
+/* Noms montrés au client (collection « Double byzantine ») ; ce qui est entre parenthèses dans tes appellations reste chez toi */
+export const NOMS_CHAINE = { 'chaine-8': 'Double byzantine', 'chaine-10': 'Chunky byzantine', 'chaine-fleur': 'Byzantine fleur', 'chaine-intercalaire': 'Byzantine alternative' };
+export const COLLECTION_CHAINE = 'Double byzantine';
+export const nomSansParentheses = t => String(t || '').replace(/\s*\([^)]*\)/g, '').replace(/\s{2,}/g, ' ').trim();
 export const CHAINE_DEMO = [
   { ref: '#CH-ex01', nom: 'double byzantine intercalaire', forme: 'chaine-intercalaire' },
   { ref: '#CH-ex02', nom: 'double byzantine fleur', forme: 'chaine-fleur' },
   { ref: '#CH-ex03', nom: 'double byzantine 8 mm', forme: 'chaine-8' },
   { ref: '#CH-ex04', nom: 'double byzantine 10 mm', forme: 'chaine-10' },
-].map(c => ({ ...c, hex: '#b4b6ba', finition: 'chainmail', categorie: 'Chaînes de sac' }));
+].map(c => ({ ...c, nom: NOMS_CHAINE[c.forme] || c.nom, hex: '#b4b6ba', finition: 'chainmail', categorie: 'Chaînes de sac' }));
 export function catalogueChaineDepuisBijoux(bijoux = []) {
   // chaque fiche (et chaque variante) = un choix de chaîne ; le motif 3D vient de son nom (le parent complète la variante)
   const parId = new Map(bijoux.map(b => [b.id, b]));
   return bijoux.map(b => { const par = b.parent_id && parId.get(b.parent_id);
       const f = formeChaine([b.nom, b.variante].join(' ')) || (par && formeChaine([par.nom, par.variante, b.variante].join(' ')));
       return f ? { b, f, pv: b.pv ?? par?.pv } : null; }).filter(Boolean)
-    .map(({ b, f, pv }) => ({ ref: b.ref, bij_id: b.id, nom: [b.nom, b.variante].filter(Boolean).join(' · ') || FORMES_CHAINMAIL[f].nom,
+    .map(({ b, f, pv }) => ({ ref: b.ref, bij_id: b.id, nom: NOMS_CHAINE[f] || nomSansParentheses([b.nom, b.variante].filter(Boolean).join(' · ')) || FORMES_CHAINMAIL[f].nom,
+      nomFiche: [b.nom, b.variante].filter(Boolean).join(' · '),
       hex: '#b4b6ba', finition: 'chainmail', forme: f, categorie: 'Chaînes de sac', bijou: true, pv, enStock: true, ordre: 1e6 + 2 }));
 }
-export const formeChainmail = texte => { const t = norm(texte); return Object.keys(FORMES_CHAINMAIL).find(k => t.includes(k)) || null; };
+export const formeMini = texte => { const t = norm(texte); if (!/\bmini/.test(t)) return null;
+  const m = /fleur/.test(t) ? 'fleur' : /intercal|altern/.test(t) ? 'intercalaire' : null; if (!m) return null;
+  return 'mini-' + m + '-' + (/\b3\b|\btrois/.test(t) ? 3 : 4); };
+export const formeChainmail = texte => formeMini(texte) || (t => Object.keys(FORMES_CHAINMAIL).filter(k => !FORMES_CHAINMAIL[k].mini && !FORMES_CHAINMAIL[k].chaine).find(k => t.includes(k)) || null)(norm(texte));
+export const MINI_DEMO = [
+  { ref: '#MC-ex01', forme: 'mini-fleur-3' }, { ref: '#MC-ex02', forme: 'mini-fleur-4' },
+  { ref: '#MC-ex03', forme: 'mini-intercalaire-3' }, { ref: '#MC-ex04', forme: 'mini-intercalaire-4' },
+].map(c => ({ ...c, nom: FORMES_CHAINMAIL[c.forme].nom, hex: '#b4b6ba', finition: 'chainmail', categorie: 'Mini chaînes' }));
 export const CHAINMAIL_DEMO = [
   { ref: '#CM-ex01', nom: 'croix', hex: '#b4b6ba', finition: 'chainmail', forme: 'croix', categorie: 'Breloques chainmail' },
 ];
@@ -518,15 +535,17 @@ export function catalogueChainmailDepuisBijoux(bijoux = []) {
   // une seule entrée par forme : plusieurs fiches peuvent contenir « croix » (composition, variations…) ;
   // on garde la fiche composition, sinon la première
   const parForme = new Map();
+  const parId = new Map(bijoux.map(b => [b.id, b]));
   for (const b of bijoux) {
-    const forme = formeChainmail([b.nom, b.variante].join(' '));
+    const par = b.parent_id && parId.get(b.parent_id);
+    const forme = formeChainmail([b.nom, b.variante].join(' ')) || (par && formeMini([par.nom, par.variante, b.variante].join(' ')));
     if (!forme) continue;
     const deja = parForme.get(forme);
     if (!deja || (b.is_mat && !deja.b.is_mat)) parForme.set(forme, { b, forme });
   }
   return [...parForme.values()].map(({ b, forme }) => ({
     ref: b.ref, bij_id: b.id, nom: FORMES_CHAINMAIL[forme].nom, hex: '#b4b6ba', finition: 'chainmail', forme,
-    categorie: 'Breloques chainmail', bijou: true, pv: b.pv, enStock: true, ordre: 1e6 + 1 }));
+    categorie: FORMES_CHAINMAIL[forme].mini ? 'Mini chaînes' : 'Breloques chainmail', bijou: true, pv: b.pv ?? (b.parent_id && parId.get(b.parent_id)?.pv), enStock: true, ordre: 1e6 + 1 }));
 }
 export function completerCatalogue(catalogue, bijoux = []) {
   let base = catalogue.filter(c => !['argile', 'chainmail'].includes(c.finition) || !/-ex\d/.test(c.ref));
@@ -535,8 +554,9 @@ export function completerCatalogue(catalogue, bijoux = []) {
   if (argile.length) base = [...base.filter(c => c.finition !== 'argile'), ...argile,
     ...ARGILE_DEMO.filter(d => !argile.some(a => a.motif === d.motif) && !base.some(c => c.finition === 'argile' && c.motif === d.motif && !/-ex\d/.test(c.ref)))];
   else if (!base.some(c => c.finition === 'argile')) base = [...base, ...ARGILE_DEMO];
-  if (maille.length) base = [...base.filter(c => c.finition !== 'chainmail'), ...maille];
+  if (maille.length) base = [...base.filter(c => c.finition !== 'chainmail'), ...maille.filter(c => c.categorie !== 'Mini chaînes').length ? [] : CHAINMAIL_DEMO, ...maille];
   else if (!base.some(c => c.finition === 'chainmail')) base = [...base, ...CHAINMAIL_DEMO];
+  if (!base.some(c => c.categorie === 'Mini chaînes')) base = [...base, ...MINI_DEMO];            // mini chaînes d'exemple tant que tu n'as pas de fiche « mini chaîne … »
   // chaînes de sac : tes fiches « chaîne … byzantine … », sinon les motifs d'exemple
   { const ch = catalogueChaineDepuisBijoux(bijoux); base = [...base.filter(c => c.categorie !== 'Chaînes de sac'), ...(ch.length ? ch : CHAINE_DEMO)]; }
   if (!base.some(c => /culture/i.test(c.categorie || ''))) base = [...base, ...CULTURE_DEMO];
@@ -2026,14 +2046,20 @@ export function genChaineByzantine({ motif = 'continu', anneau = ANNEAU_8, grand
   const gab = !brut && GABARITS_CHAINE[cle] ? GABARITS_CHAINE[cle] : { anneaux: per.anneaux, T: per.T, fin: per.fin };
   // nombre : motifs (doubles 4×4) dans la chaîne, « ,5 » = la chaîne finit sur un seul nœud 4×4 et son connecteur du milieu
   const nb = nombre != null ? Math.max(1, Math.floor(nombre + 1e-6)) : Math.max(1, Math.floor((longueur + 1) / gab.T));
-  const demi = nombre != null && motif === 'continu' && nombre - nb >= 0.5 - 1e-6;
+  const demi = nombre != null && nombre - nb >= 0.5 - 1e-6;
   const A = [], dec = (r, dz) => ({ ...r, p: [r.p[0], r.p[1], +(r.p[2] + dz).toFixed(3)] });
   for (let k = 0; k < nb; k++) for (const r of gab.anneaux) A.push(dec(r, k * gab.T));
-  if (demi) { for (const r of gab.anneaux) if (r.p[2] <= gab.T / 2 + 0.6) A.push(dec(r, nb * gab.T)); }
+  if (demi) { for (const r of gab.anneaux) if (r.p[2] <= gab.T / 2 + 0.6 && Math.abs(r.p[1]) < 4.2) A.push(dec(r, nb * gab.T)); }   // un seul nœud 4×4 + son connecteur (sans pétales)
   else for (const r of gab.fin) A.push(dec(r, nb * gab.T));
   return A;
 }
 /* Ta chaîne d'environ 30 cm : nombre de motifs (doubles 4×4) par chaîne, et motifs montrés dans la vue « détail » */
+/* Mini chaîne (breloque) : n nœuds 4×4 (3 ou 4) de la chaîne fleur / intercalaire, verticale (+z), le 1er anneau de 10 mm pris par le fermoir en z = 0 */
+export function genMiniChaine(motif, noeuds = 4) {
+  const A = genChaineByzantine({ motif, nombre: noeuds / 2 });
+  const G = ANNEAU_10, dz = G.R - G.e * 0.4 - Math.min(...A.slice(0, 2).map(a => a.p[2]));
+  return A.map(a => ({ ...a, p: [a.p[0], a.p[1], +(a.p[2] + dz).toFixed(3)] }));
+}
 export const NB_MOTIFS = { 'chaine-8': 14, 'chaine-10': 11.5, 'chaine-intercalaire': 13, 'chaine-fleur': 13 };
 export const MOTIF_DETAIL = { 'chaine-8': 2, 'chaine-10': 1, 'chaine-intercalaire': 2, 'chaine-fleur': 1 };
 /* Longueur d'un motif (pour les vignettes « Choisis ta chaîne ») : intercalaire ≈ 5,5 cm, fleur ≈ 3,3 cm, 8 mm ≈ 4,8 cm, 10 mm ≈ 4 cm */
@@ -2057,6 +2083,38 @@ export function pendreChaine(A, { portee = 0.72 } = {}) {
       n: [nx, +(nY * ny + nZ * ty).toFixed(4), +(nY * nz + nZ * tz).toFixed(4)] };
   });
 }
+/* Finitions communes des breloques chainmail (croix, mini chaîne) */
+export function optionsChainmail() {
+  return [
+    { id: 'fermoir', type: 'fermoir', nom: 'Fermoir', defaut: '#FB001',
+      choix: [{ ref: '#FB001', libelle: 'Petit', supplement: 0 }, { ref: '#FB002', libelle: 'Grand', supplement: 0 }, { ref: '#MP-ex01', libelle: 'Mousqueton', supplement: 1.5 }] },
+    // la pampille du bas (petite boule argentée) peut être remplacée par une perle de culture
+    { id: 'pampille', type: 'perle', place: 'pampille', nom: 'Perle de culture en pampille', perle: 'culture-8', categorie: 'culture', supplement: 3 },
+    // ou une perle de culture accrochée en haut : à l'anneau de 10 mm du haut (fermoir petit / grand) ou à l'anneau pivotant du mousqueton
+    { id: 'pampille-haut', type: 'perle', place: 'pampille-haut', nom: 'Perle de culture accrochée en haut', perle: 'culture-8', categorie: 'culture', supplement: 3 },
+    { id: 'accroche', type: 'accroche', nom: 'Porte-clés & bundle',
+      choix: [
+        { id: 'pivot', libelle: 'Mousqueton', pieces: ['#MP-ex01'], supplement: 2 },
+        { id: 'rond', libelle: 'Rond', pieces: ['#FR-ex01'], supplement: 1.5 },
+        { id: 'mini-rond', libelle: 'Mini rond', pieces: ['#FR-ex02'], supplement: 1 },
+        { id: 'rond-pivot', libelle: 'Mousqueton + rond', pieces: ['#FR-ex01', '#MP-ex01'], supplement: 3.5 },
+      ],
+      offre: { active: true, libelle: 'Fermoir rond offert', min: 2, prixMin: 15, piece: '#FR-ex01', remise: 1.5 } },
+  ];
+}
+/* Modèles chainmail déjà publiés (éditeur) : on leur ajoute les nouvelles finitions sans que tu aies à les republier */
+export function completerModeleChainmail(m0) {
+  if (!m0 || !estChainmail(m0) || m0.type === 'chaine') return m0;
+  const m = JSON.parse(JSON.stringify(m0)), ref = optionsChainmail();
+  m.options ||= [];
+  const optF = m.options.find(o => o.type === 'fermoir');
+  if (optF && optF.choix && !optF.choix.some(c => c.libelle === 'Mousqueton' || c.ref === '#MP-ex01')) optF.choix.push({ ref: '#MP-ex01', libelle: 'Mousqueton', supplement: 1.5 });
+  if (!m.options.some(o => o.place === 'pampille-haut')) {
+    const o = ref.find(x => x.id === 'pampille-haut'), bas = m.options.find(x => x.place === 'pampille');
+    const k = m.options.indexOf(bas); m.options.splice(k >= 0 ? k + 1 : m.options.length, 0, { ...o, supplement: bas?.supplement ?? o.supplement, categorie: bas?.categorie || o.categorie });
+  }
+  return m;
+}
 /* Breloque chainmail : la forme (croix…) se choisit comme une couleur ; chaque forme = une fiche bijou composition */
 export function modeleChainmailDemo() {
   return {
@@ -2065,20 +2123,7 @@ export function modeleChainmailDemo() {
       { id: 'forme', nom: 'Forme', defaut: '#CM-ex01', defautNom: 'croix', repere: '#b4b6ba', categorie: 'chainmail' },
     ],
     prix: 15, bij_ref: '', bijZone: 'forme',   // la forme choisie = la fiche composition (« croix ») ; 15 € si pv vide
-    options: [
-      { id: 'fermoir', type: 'fermoir', nom: 'Fermoir', defaut: '#FB001',
-        choix: [{ ref: '#FB001', libelle: 'Petit', supplement: 0 }, { ref: '#FB002', libelle: 'Grand', supplement: 0 }] },
-      // la pampille du bas (petite boule argentée) peut être remplacée par une perle de culture
-      { id: 'pampille', type: 'perle', place: 'pampille', nom: 'Perle de culture en pampille', perle: 'culture-8', categorie: 'culture', supplement: 3 },
-      { id: 'accroche', type: 'accroche', nom: 'Porte-clés & bundle',
-        choix: [
-          { id: 'pivot', libelle: 'Mousqueton', pieces: ['#MP-ex01'], supplement: 2 },
-          { id: 'rond', libelle: 'Rond', pieces: ['#FR-ex01'], supplement: 1.5 },
-          { id: 'mini-rond', libelle: 'Mini rond', pieces: ['#FR-ex02'], supplement: 1 },
-          { id: 'rond-pivot', libelle: 'Mousqueton + rond', pieces: ['#FR-ex01', '#MP-ex01'], supplement: 3.5 },
-        ],
-        offre: { active: true, libelle: 'Fermoir rond offert', min: 2, prixMin: 15, piece: '#FR-ex01', remise: 1.5 } },
-    ],
+    options: optionsChainmail(),
     groupes: [
       { id: 'g-chainmail', nom: 'Chainmail', technique: 'chainmail', metal: 'acier', zoneForme: 'forme', pos: [0, 0, 0], rot: [0, 0, 0],
         accessoires: [{ ref: '#FB001', type: 'mousqueton', metal: 'argent', taille: 12, pos: [0, 0, 0], rot: [0, 0, 0] }],
@@ -2087,6 +2132,23 @@ export function modeleChainmailDemo() {
     ],
   };
 }
+/* Mini chaîne : byzantine fleur ou alternative, 3 ou 4 nœuds (chaque combinaison = une fiche « mini chaîne … »),
+   pampille 4 mm en bas, mêmes finitions que la croix ; d'autres breloques peuvent s'accrocher à ses anneaux de 10 mm */
+export function modeleMiniChaineDemo() {
+  return {
+    version: 1, nom: 'Mini chaîne', slug: 'mini-chaine', unite: 'mm',
+    zones: [{ id: 'forme', nom: 'Motif et longueur', defaut: '#MC-ex02', defautNom: 'byzantine fleur · 4 nœuds', repere: '#b4b6ba', categorie: 'mini chaine' }],
+    prix: 18, bij_ref: '', bijZone: 'forme',
+    options: optionsChainmail(),
+    groupes: [
+      { id: 'g-mini', nom: 'Mini chaîne', technique: 'chainmail', metal: 'acier', zoneForme: 'forme', pos: [0, 0, 0], rot: [0, 0, 0],
+        accessoires: [{ ref: '#FB001', type: 'mousqueton', metal: 'argent', taille: 12, pos: [0, 0, 0], rot: [0, 0, 0] }],
+        fil: { actif: false }, comblement: false, perles: [], anneaux: genMiniChaine('fleur', 4),
+        pampille: { t: 'ronde-4', k: '#PM-ex03', kNom: 'ronde argentée 4 mm' } },
+    ],
+  };
+}
+export const estMiniChaine = m => !!m?.groupes?.some(g => g.technique === 'chainmail' && /mini/.test(g.id || '')) || /^mini-chaine/.test(m?.slug || '');
 export const modeleCroixDemo = modeleChainmailDemo;     // ancien nom
 export const estChainmail = m => !!m?.groupes?.some(g => g.technique === 'chainmail');
 
@@ -2163,14 +2225,29 @@ export function composerChaine({ chaine, breloques = [], pieces = [], fermoirs =
   };
   ajouter(chaine, 0, new THREE.Matrix4());
   if (!breloques.length) return { modele: out, couleurs, options };
+  // breloques cochées « sur la chaîne » : réparties sur les anneaux de 10 mm de la chaîne (qui pend) ; les autres forment le bundle du mousqueton
+  const Abrut = anneauxDeForme(chaine, parRef), idx = pointsSurChaine(Abrut, { indices: true });
+  const surI = breloques.map((br, i) => i).filter(i => breloques[i].surChaine && idx.length);
+  const bundleI = breloques.map((br, i) => i).filter(i => !surI.includes(i));
+  const fermParRef2 = fermParRef;
+  if (surI.length) {
+    const H = pendreChaine(Abrut), rx = new THREE.Matrix4().makeRotationX(Math.PI / 2), places = repartir(surI.length, idx.length);
+    surI.forEach((i, k) => {
+      const r = H[idx[places[k]]], dup = places.slice(0, k).filter(x => x === places[k]).length;
+      const zAcc = pointAccrocheBreloque(breloques[i].modele, breloques[i].options || {}, fermParRef2, parRef);
+      const P = new THREE.Vector3(r.p[0] + dup * 0.8, r.p[1] - r.R, r.p[2]), loc = new THREE.Vector3(0, 0, zAcc).applyMatrix4(rx);
+      ajouter(breloques[i], i + 1, new THREE.Matrix4().makeTranslation(P.x - loc.x, P.y - loc.y, P.z - loc.z).multiply(rx));
+    });
+  }
+  if (!bundleI.length) return { modele: out, couleurs, options };
   // le bundle (son rond / mousqueton) ou les breloques s'accrochent à l'anneau du premier mousqueton de la chaîne et pendent
-  const b = composerBundle({ breloques, pieces, fermoirs, catalogue });
+  const b = composerBundle({ breloques: bundleI.map(i => ({ ...breloques[i], surChaine: false })), pieces, fermoirs, catalogue });
   const P = pieces.length ? piecesAccroche(pieces) : [], haut = P.length ? P[P.length - 1].z + (P[P.length - 1].haut || 0) : 0;
   const rx = new THREE.Matrix4().makeRotationX(Math.PI / 2), loc = new THREE.Vector3(0, 0, haut).applyMatrix4(rx), A = new THREE.Vector3(1.2, pieces.length ? 11.5 : 8, 0);   // dans l'anneau du mousqueton, à côté du bout de chaîne
   const M = new THREE.Matrix4().makeTranslation(A.x - loc.x, A.y - loc.y, A.z - loc.z).multiply(rx);
   if (pieces.length) { const p = new THREE.Vector3(), qq = new THREE.Quaternion(), sc = new THREE.Vector3(); M.decompose(p, qq, sc); const ee = new THREE.Euler().setFromQuaternion(qq);
     out.support = { pieces, pos: p.toArray(), rot: [ee.x / DEG, ee.y / DEG, ee.z / DEG] }; }
-  const pre = id => id.replace(/^b(\d+):/, (m, n) => 'b' + (+n + 1) + ':');       // la chaîne est b0 : le bundle commence à b1
+  const pre = id => id.replace(/^b(\d+):/, (m, n) => 'b' + (bundleI[+n] + 1) + ':');   // la chaîne est b0 : chaque breloque garde son numéro
   for (const g of b.modele.groupes) {
     const rot = g.rot || [0, 0, 0];
     const W = M.clone().multiply(new THREE.Matrix4().compose(new THREE.Vector3().fromArray(g.pos || [0, 0, 0]), q.setFromEuler(e.set(rot[0] * DEG, rot[1] * DEG, rot[2] * DEG)), un));
@@ -2178,8 +2255,8 @@ export function composerChaine({ chaine, breloques = [], pieces = [], fermoirs =
     out.groupes.push({ ...g, id: pre(g.id), ...(g.zoneForme ? { zoneForme: pre(g.zoneForme) } : {}), pos: pp.toArray(), rot: [e2.x / DEG, e2.y / DEG, e2.z / DEG],
       perles: (g.perles || []).map(x => ({ ...x, z: x.z ? pre(x.z) : x.z })) });
   }
-  const gi0 = (chaine.modele.groupes || []).length;
-  for (const z of b.modele.zones) out.zones.push({ ...z, id: pre(z.id), breloque: z.breloque + 1 });
+  const gi0 = out.groupes.length - b.modele.groupes.length;
+  for (const z of b.modele.zones) out.zones.push({ ...z, id: pre(z.id), breloque: bundleI[z.breloque] + 1 });
   for (const o of b.modele.options) out.options.push({ ...o, id: pre(o.id), gi: (o.gi ?? 0) + gi0 });
   for (const [k, v] of Object.entries(b.couleurs)) couleurs[pre(k)] = v;
   for (const [k, v] of Object.entries(b.options)) options[pre(k)] = v;
@@ -2378,8 +2455,27 @@ export class ScenePerles {
       }
       this.filsPampille.push({ gi, de: zBas - 0.4, a: fin });
     });
+    // perle de culture accrochée en haut (chainmail) : à l'anneau pivotant du mousqueton, sinon à l'anneau de 10 mm du haut
+    (this.modele?.groupes || []).forEach((g, gi) => {
+      const mg = this.matGroupes?.[gi];
+      const o = (this.modele?.options || []).find(x => x.type === 'perle' && x.place === 'pampille-haut' && (x.gi ?? 0) === gi);
+      const ref = o && this.choixOptions?.[o.id];
+      if (!ref || !mg || g.cache) return;
+      const optF = (this.modele.options || []).find(x => x.type === 'fermoir' && (x.gi ?? 0) === gi);
+      const acc = g.accessoires?.[0], f = this.fermoirsParRef?.[(optF && this.choixOptions?.[optF.id]) || acc?.ref];
+      const type = f?.type || acc?.type, phi = 55 * DEG;
+      let hy, hz;
+      if (type === 'mousqueton-pivot') { const R1 = 0.167 * (f?.taille || acc?.taille || 34); hy = R1 * Math.sin(phi); hz = -R1 + R1 * Math.cos(phi); }
+      else { const A = this._anneaux(g) || [], a = A[0]; if (!a) return; hy = a.p[1] + a.R * Math.sin(phi); hz = a.p[2] + a.R * Math.cos(phi); }
+      const x = 2.4, T = typePerle(this.parRef[ref]?.perle || o.perle || 'culture-8'), TB = typePerle('ronde-3');
+      const zP = hz + 1.5 + T.H / 2, zB = zP + T.H / 2 + 0.15 + TB.H / 2;
+      const pose = z => new THREE.Matrix4().compose(new THREE.Vector3(x, hy, z), new THREE.Quaternion().fromArray(quatDe(new THREE.Vector3(0, 0, 1))), new THREE.Vector3(1, 1, 1)).premultiply(mg);
+      this.plates.push({ gi: -1, bi: -1, b: { t: this.parRef[ref]?.perle || o.perle || 'culture-8', k: ref, z: null, s: 'option', l: 'option' }, m: pose(zP) });
+      this.plates.push({ gi: -1, bi: -1, b: { t: 'ronde-3', k: refFixe('#PM-ex02', 'ronde argentée 3 mm', this.catalogue), z: null, s: 'option', l: 'option' }, m: pose(zB) });
+      this.filsPampille.push({ gi, x, y: hy, de: hz + 1.0, a: zB + TB.H / 2 + 0.2, boucle: [x, hy, hz] });
+    });
     for (const o of this.modele?.options || []) {
-      if (o.type !== 'perle' || o.place === 'texte' || o.place === 'pampille') continue;
+      if (o.type !== 'perle' || o.place === 'texte' || o.place === 'pampille' || o.place === 'pampille-haut') continue;
       const ref = this.choixOptions?.[o.id];
       const gi = o.gi ?? 0, mg = this.matGroupes?.[gi];
       if (!ref || !mg) continue;
@@ -2512,10 +2608,15 @@ export class ScenePerles {
         }
       }
       for (const fp of (this.filsPampille || []).filter(f => f.gi === gi)) {   // clou de la pampille, boucle dans l'anneau du bas
-        const geo = geoFil([new THREE.Vector3(0, 0, fp.de), new THREE.Vector3(0, 0, fp.a)]); this.geoFils.push(geo);
+        const geo = geoFil([new THREE.Vector3(fp.x || 0, fp.y || 0, fp.de), new THREE.Vector3(fp.x || 0, fp.y || 0, fp.a)]); this.geoFils.push(geo);
         const m = new THREE.Mesh(geo, matMetal('argent'));
         m.matrixAutoUpdate = false; m.matrix.copy(this.matGroupes[gi]);
         this.racine.add(m); this.objAccessoires.push(m);
+        if (fp.boucle) {                                // boucle du clou passée dans l'anneau (perle accrochée en haut)
+          const t = new THREE.TorusGeometry(1.0, 0.22, 10, 28); t.rotateX(Math.PI / 2); t.translate(fp.boucle[0], fp.boucle[1], fp.boucle[2] + 0.2); this.geoFils.push(t);
+          const mb = new THREE.Mesh(t, matMetal('argent')); mb.matrixAutoUpdate = false; mb.matrix.copy(this.matGroupes[gi]);
+          this.racine.add(mb); this.objAccessoires.push(mb);
+        }
       }
       // piton à œil planté dans le haut d'une breloque argile : l'anneau reçoit le fermoir breloque
       for (const pt of g.oeillets || []) {
@@ -2836,7 +2937,7 @@ export function lignesCommande(modele, { catalogue = [], fermoirs = [], couleurs
   const refF = (optF && options[optF.id]) || accBase?.ref;
   if (refF) {
     const f = fermParRef[refF], c = optF?.choix?.find(x => x.ref === refF);
-    prestation.push({ designation: 'Fermoir breloque ' + (c?.libelle || (f?.taille >= 15 ? 'grand' : 'petit')).toLowerCase(),
+    prestation.push({ designation: f?.type === 'mousqueton-pivot' ? 'Fermoir mousqueton' : 'Fermoir breloque ' + (c?.libelle || (f?.taille >= 15 ? 'grand' : 'petit')).toLowerCase(),
                       ref: refF, qte: 1, pu: +(c?.supplement ?? 0) || 0 });
   }
   for (const o of modele.options || []) {
@@ -2907,7 +3008,8 @@ function pointAccrocheBreloque(modele, options, fermParRef, parRef) {
   const f = fermParRef[(optF && options[optF.id]) || acc?.ref];
   const L = f?.taille || acc?.taille || 12;
   let decal = 0;
-  for (const o of modele.options || []) if (o.type === 'perle' && !['texte', 'pampille'].includes(o.place) && options[o.id])
+  if (f?.type === 'mousqueton-pivot') return geosMousquetonPivot(L).haut - 0.3;     // fermoir mousqueton (porte-clés) : on l'accroche par le haut de sa boucle
+  for (const o of modele.options || []) if (o.type === 'perle' && !['texte', 'pampille', 'pampille-haut'].includes(o.place) && options[o.id])
     decal += typePerle(parRef[options[o.id]]?.perle || o.perle || 'etoile-8').H + 0.15;
   return -(0.049 * L - RAYON_FIL) - decal - 0.835 * L;
 }
@@ -2938,31 +3040,42 @@ export function composerBundle({ breloques, pieces = [], fermoirs = [], catalogu
   const fermParRef = Object.fromEntries(fermoirs.map(f => [f.ref, f]));
   const parRef = Object.fromEntries(catalogue.map(c => [c.ref, c]));
   const att = piecesAccroche(pieces)[0]?.attache || { centre: 0, rayon: 0 };
-  const n = breloques.length;
   const out = { version: 8, nom: 'Bundle', zones: [], groupes: [], options: [], support: pieces.length ? { pieces } : null };
   const couleurs = {}, options = {};
   const e = new THREE.Euler(), q = new THREE.Quaternion(), un = new THREE.Vector3(1, 1, 1);
+  // mini chaîne dans le bundle : les breloques cochées « sur la chaîne » s'accrochent à ses anneaux de 10 mm
+  const iMini = breloques.findIndex(br => estMiniChaine(br.modele) && !br.surChaine);
+  const ptsMini = iMini >= 0 ? pointsSurChaine(anneauxDeForme(breloques[iMini], parRef), { vertical: true }) : [];
+  const sur = breloques.map((br, i) => !!br.surChaine && i !== iMini && ptsMini.length > 0);
+  const fan = breloques.map((_, i) => i).filter(i => !sur[i]), n = fan.length;
   // éventail : chaque breloque prend un angle à la mesure de sa largeur vue depuis l'accroche
   // (un galet d'argile de 30 mm s'écarte bien plus qu'un petit poisson de 9 mm)
   const zAccs = breloques.map(br => pointAccrocheBreloque(br.modele, br.options || {}, fermParRef, parRef));
-  const demiAngles = breloques.map((br, i) => demiAngleBreloque(br.modele, zAccs[i]));
+  const demiAngles = fan.map(i => demiAngleBreloque(breloques[i].modele, zAccs[i]));
   const ECART = 0.07, thetas = [];
-  demiAngles.forEach((h, i) => thetas.push(i ? thetas[i - 1] + demiAngles[i - 1] + h + ECART : 0));
+  demiAngles.forEach((h, k) => thetas.push(k ? thetas[k - 1] + demiAngles[k - 1] + h + ECART : 0));
   const milieu = n ? (thetas[0] + thetas[n - 1]) / 2 : 0;
   const ouverture = n ? (thetas[n - 1] - thetas[0]) / 2 : 0;
   const serre = ouverture > 1.25 ? 1.25 / ouverture : 1;   // beaucoup de breloques : l'éventail se resserre (elles se chevauchent un peu)
-  breloques.forEach((br, i) => {
-    const pre = 'b' + i + ':';
-    const m = br.modele;
+  const Ms = [];
+  fan.forEach((i, k) => {
     // point de l'anneau (ou de l'œillet) où pend la breloque, et éventail pour qu'elles ne se chevauchent pas
-    const k = i - (n - 1) / 2;
-    const a = n > 1 ? k * Math.min(0.5, 1.2 / n) : 0;
+    const kk = k - (n - 1) / 2;
+    const a = n > 1 ? kk * Math.min(0.5, 1.2 / n) : 0;
     const A = new THREE.Vector3(0, att.rayon * Math.sin(a), att.centre + att.rayon * Math.cos(a));
-    const th = n > 1 ? -(thetas[i] - milieu) * serre : 0;
-    const zAcc = zAccs[i];
+    const th = n > 1 ? -(thetas[k] - milieu) * serre : 0;
     const rotX = new THREE.Matrix4().makeRotationX(th);
-    const local = new THREE.Vector3(0, 0, zAcc).applyMatrix4(rotX);
-    const M = new THREE.Matrix4().makeTranslation(A.x - local.x, A.y - local.y, A.z - local.z).multiply(rotX);
+    const local = new THREE.Vector3(0, 0, zAccs[i]).applyMatrix4(rotX);
+    Ms[i] = new THREE.Matrix4().makeTranslation(A.x - local.x, A.y - local.y, A.z - local.z).multiply(rotX);
+  });
+  // breloques « sur la chaîne » : réparties sur les anneaux de 10 mm de la mini chaîne, elles pendent droit
+  const surI = breloques.map((_, i) => i).filter(i => sur[i]);
+  repartir(surI.length, ptsMini.length).forEach((j, k) => {
+    const i = surI[k], P = ptsMini[j], dx = 0.8 * (repartir(surI.length, ptsMini.length).slice(0, k).filter(x => x === j).length);
+    Ms[i] = Ms[iMini].clone().multiply(new THREE.Matrix4().makeTranslation(P[0] + dx, P[1], P[2] - zAccs[i]));
+  });
+  breloques.forEach((br, i) => {
+    const pre = 'b' + i + ':', m = br.modele, M = Ms[i];
     const gi0 = out.groupes.length;
     for (const g of m.groupes || []) {
       const rot = g.rot || [0, 0, 0];
@@ -2981,6 +3094,42 @@ export function composerBundle({ breloques, pieces = [], fermoirs = [], catalogu
     for (const [k, v] of Object.entries(br.options || {})) options[pre + k] = v;
   });
   return { modele: out, couleurs, options };
+}
+/* k éléments répartis régulièrement sur m places (indices), en évitant de tout tasser au même bout */
+export function repartir(k, m) {
+  if (!k || !m) return [];
+  return Array.from({ length: k }, (_, i) => Math.min(m - 1, Math.floor((i + 0.5) * m / k)));
+}
+/* anneaux d'une pièce chainmail (sa forme choisie, sinon ceux du modèle) */
+export function anneauxDeForme(br, parRef) {
+  const g = (br.modele.groupes || []).find(x => x.technique === 'chainmail'); if (!g) return [];
+  const f = g.zoneForme && parRef[br.couleurs?.[g.zoneForme]]?.forme;
+  if (!f || !FORMES_CHAINMAIL[f]) return g.anneaux || [];
+  if (!cacheFormesGen.has(f)) cacheFormesGen.set(f, FORMES_CHAINMAIL[f].gen());
+  return cacheFormesGen.get(f);
+}
+const cacheFormesGen = new Map(), cachePoints = new WeakMap();
+/* Où accrocher des breloques sur une chaîne : ses anneaux de 10 mm (anneaux solo / connecteurs de la chaîne alternative,
+   pétales du bas de la fleur, connecteurs de la chunky). Renvoie les points d'accroche (le bas de l'anneau).
+   vertical : mini chaîne qui pend (bas = +z) ; sinon chaîne de sac (bas = -y). Le 1er et le dernier groupe (mousquetons / fermoir) sont exclus. */
+export function pointsSurChaine(A, opts = {}) {
+  const cle = (opts.vertical ? 'v' : 'h') + (opts.indices ? 'i' : 'p'); let c = cachePoints.get(A); if (!c) cachePoints.set(A, c = {});
+  return c[cle] ||= pointsSurChaine0(A, opts);
+}
+function pointsSurChaine0(A, { vertical = false, indices = false } = {}) {
+  const dix = A.map((a, i) => ({ a, i })).filter(({ a }) => a.R > 4 && Math.abs(a.n[0] / Math.hypot(...a.n)) > 0.97);
+  const petales = dix.filter(({ a }) => vertical ? Math.abs(a.p[1]) > 4 : a.p[1] < -4);
+  if (petales.length) {
+    const L = vertical ? petales : petales;
+    return L.map(({ a, i }) => indices ? i : vertical ? [a.p[0], a.p[1] + Math.sign(a.p[1]) * a.R * 0.35, a.p[2] + a.R * 0.9] : [a.p[0], a.p[1] - a.R, a.p[2]]);
+  }
+  const axe = dix.filter(({ a }) => Math.abs(a.p[1]) < 1.5).sort((x, y) => x.a.p[2] - y.a.p[2]);
+  const groupes = [];
+  for (const r of axe) { const g = groupes[groupes.length - 1]; if (g && Math.abs(r.a.p[2] - g[0].a.p[2]) < 2.5) g.push(r); else groupes.push([r]); }
+  const garde = vertical ? groupes.slice(1) : groupes.slice(1, -1);
+  return garde.map((g, k) => { const { a, i } = g[0]; if (indices) return i;
+    const s = k % 2 ? -1 : 1;
+    return vertical ? [a.p[0], a.p[1] + s * a.R * 0.75, a.p[2] + a.R * 0.6] : [a.p[0], a.p[1] - a.R, a.p[2]]; });
 }
 
 /* Offre bundle applicable ? (assez de breloques au prix demandé, et la pièce offerte est dans l'accroche) */
@@ -3250,7 +3399,7 @@ export function noteBreloque(modele, { couleurs = {}, options = {}, catalogue = 
     morceaux.push('fermoir ' + (c?.libelle || (f?.taille >= 15 ? 'grand' : 'petit')).toLowerCase() + (refs ? ' (' + refF + ')' : ''));
   }
   for (const o of modele.options || []) if (o.type === 'perle' && options[o.id])
-    morceaux.push((o.place === 'texte' ? 'étoile du milieu : ' : o.place === 'pampille' ? 'pampille : ' : 'étoile dans la bouche : ') + avec(options[o.id]));
+    morceaux.push((o.place === 'texte' ? 'étoile du milieu : ' : o.place === 'pampille' ? 'pampille : ' : o.place === 'pampille-haut' ? 'perle de culture accrochée en haut : ' : 'étoile dans la bouche : ') + avec(options[o.id]));
   return morceaux.join(' · ');
 }
 
@@ -3269,7 +3418,9 @@ export function notePersonnalisation({ breloques, accroche = null, catalogue = [
     const fiche = b.ficheNom ? ' — Fiche : ' + b.ficheNom + (b.bijRef ? ' (' + b.bijRef + ')' : '') : '';
     notesAtelier.push(pre + noteBreloque(b.modele, { ...b, catalogue, fermoirs, refs: true }) + fiche);
     // modèle déjà existant (idée choisie telle quelle) : juste son nom ; sinon le détail des couleurs
-    const note = pre + noteBreloque(b.modele, { ...b, catalogue, fermoirs, refs: false, sansCouleurs: !!b.modeleIdee }) + (b.ficheNom ? ' — Modèle : ' + b.ficheNom : '');   // le client ne voit que les noms
+    const sur = b.surChaine ? ' — accrochée sur la chaîne' : '';
+    notesAtelier[notesAtelier.length - 1] += sur;
+    const note = pre + noteBreloque(b.modele, { ...b, catalogue, fermoirs, refs: false, sansCouleurs: !!b.modeleIdee }) + (b.ficheNom && b.modele?.type !== 'chaine' ? ' — Modèle : ' + nomSansParentheses(b.ficheNom) : '') + sur;   // le client ne voit que les noms (sans tes parenthèses)
     ajouter({ cle: b.modele.slug, bij: b.bijRef || b.modele.bij_ref || '', libelle: nomBreloque(b.modele), prix: +(b.prixBase ?? b.modele.prix ?? 0), note });
     const optF = (b.modele.options || []).find(o => o.type === 'fermoir');
     const cF = optF?.choix?.find(c => c.ref === b.options?.[optF.id]);
@@ -3294,6 +3445,11 @@ export function notePersonnalisation({ breloques, accroche = null, catalogue = [
   const texteAtelier = [titre, ligneAccAtelier, ...notesAtelier.map(n => n.replace(titre + ' — ', '')), prixTxt].filter(Boolean).join('\n');
   return { titre, notes, notesAtelier, ligneAcc, ligneAccAtelier, articles, total, texte, texteAtelier };
 }
+
+
+
+
+
 
 
 
