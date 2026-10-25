@@ -453,7 +453,7 @@ import {
   correspondCategorie, texteCatalogue, ordreModeles, chargerRuptures, appliquerRuptures,
   chargerLiens, appliquerLiens, relierModele, chargerMateriauxParRefs,
   chargerFichesConfig, chargerOffres, definirLiensFormes, lienModele, composerCompos, definirFichesConfig, ficheCfg, refsCouleurFiche, famillesFiche,
-} from './bead-core.js?v=20b2e90f';
+} from './bead-core.js?v=c98d69a2';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER, PANIER_SHOPIFY } from './perles-config.js?v=e5e86015';
 
 const $ = s => document.querySelector(s);
@@ -646,7 +646,17 @@ const maxBreloques = () => accroches?.max || Infinity;          // sans limite, 
 const OFFRES = {
   rond: { active: !!accroches?.offre, ...(accroches?.offre || {}), ...(offresCfg?.rond || {}) },
   mousqueton: { active: true, libelle: 'Mousqueton offert', minBundles: 2, remise: null, ...(offresCfg?.mousqueton || {}) },
+  perles: { active: true, libelle: 'Breloques perle offertes', min: 3, prixMin: 15, ...(offresCfg?.perles || {}) },
 };
+/* offre « breloques perle offertes » : dès N breloques à X € ou plus (hors perles et chaîne), les breloques perle de culture sont offertes */
+function remisesPerles() {
+  const o = OFFRES.perles; if (!o || o.active === false || !multi()) return [];
+  const perles = etat.breloques.filter(b => estPerleCulture(modeleDe(b.slug)));
+  const autres = etat.breloques.filter(b => !estPerleCulture(modeleDe(b.slug)) && !estChaineSac(modeleDe(b.slug)) && (+prixDe(b) || 0) >= (o.prixMin ?? 15));
+  if (!perles.length || autres.length < (o.min ?? 3)) return [];
+  const montant = Math.round(perles.reduce((t, b) => t + (+prixDe(b) || 0), 0) * 100) / 100;
+  return montant > 0 ? [{ libelle: (o.libelle || 'breloques perle offertes') + ' (' + perles.length + ')', montant }] : [];
+}
 const offre = OFFRES.rond.active !== false && OFFRES.rond.piece ? OFFRES.rond : null;
 const prixBreloques = () => etat.breloques.filter(b => !estChaineSac(modeleDe(b.slug))).map(prixDe);   // la chaîne ne compte pas
 const nbQualifiees = () => offre ? prixBreloques().filter(p => (+p || 0) >= (offre.prixMin ?? 0)).length : 0;
@@ -891,7 +901,9 @@ function rendreAccroches() {
     else if (offre && !f.items.some(a => a.pieces.includes(offre.piece))) lignes.push(esc(`Tu as droit au ${nomR} offert : choisis « ${choixOffre()?.libelle || 'Rond'} » pour en profiter.`));
     if (OFFRES.mousqueton.active !== false && choixPivot()) lignes.push(esc(`Offre : ${(OFFRES.mousqueton.libelle || 'mousqueton offert').toLowerCase()} avec ${OFFRES.mousqueton.minBundles ?? 2} porte-clés montés sur un mousqueton.`));
   }
-  $('#offre').hidden = !lignes.length || (!offre && OFFRES.mousqueton.active === false);
+  { const o = OFFRES.perles, rp = remisesPerles(); if (o && o.active !== false && etat.breloques.some(b => estPerleCulture(modeleDe(b.slug))))
+    lignes.push(rp.length ? esc(`Offre appliquée : ${o.libelle || 'breloques perle offertes'}.`) : esc(`Offre : les breloques perle sont offertes dès ${o.min ?? 3} breloques à ${euros(o.prixMin ?? 15)} ou plus.`)); }
+  $('#offre').hidden = !lignes.length || (!offre && OFFRES.mousqueton.active === false && OFFRES.perles.active === false);
   $('#offre').className = 'offre' + (f.choisie ? '' : ' attente');
   $('#offre').innerHTML = ETOILE.replace('class="etoile"', '') + '<span>' + lignes.join('<br>') + '</span>';
   $('#offre').querySelectorAll('[name="offreChoix"]').forEach(x => x.addEventListener('change', () => { etat.offreChoix = x.value; toutRendre(); }));
@@ -1109,7 +1121,11 @@ function ideesBundle() {
   if (!accroches) return [];
   RAISONS_BUNDLES.length = 0;
   const liste = modelesDu('bundle'), parId = new Map(bijoux.map(b => [b.id, b]));
-  return bijoux.filter(b => ficheCfg(b.id)?.pieces?.length && !/\bsacs?\b|cha[iî]ne|byzantin/i.test([b.nom, b.variante, b.collection].join(' '))).map(f => {   // pas les sacs ni les chaînes
+  // porte-clés tout prêts : la catégorie porte-clés (pas les sacs, chaînes, le chainmail, ni les compositions)
+  const okLot = b => ficheCfg(b.id)?.pieces?.length && !b.is_mat && !/\bsacs?\b|cha[iî]ne|byzantin|chainmail/i.test([b.nom, b.variante, b.collection].join(' '));
+  const parIdL = new Map(bijoux.map(b => [b.id, b])), colDe = b => (b.parent_id && parIdL.get(b.parent_id)?.collection) || b.collection || '';
+  const pc = bijoux.filter(b => okLot(b) && /porte.?cl/i.test(normNom(colDe(b))));
+  return (pc.length ? pc : bijoux.filter(okLot)).map(f => {
     const cfg = ficheCfg(f.id), refs = cfg.refs || [], par = f.parent_id && parId.get(f.parent_id);
     const nom = par ? [par.nom, f.variante].filter(Boolean).join(' · ') : (f.nom || f.variante || f.ref);   // une variante de lot : « Mix'n Match · rose »
     const aRef = r => refs.includes(r) || refs.some(x => baseRef(x) === baseRef(r));
@@ -1333,6 +1349,7 @@ function rendrePalette() {
     const z = box.dataset.zone;
     b.couleurs = validerConfiguration(m, catalogue, { ...b.couleurs, [z]: p.dataset.ref }, parties);
     scene.definirCouleurZone(zoneScene(z), b.couleurs[z]);      // seule la couleur change
+    if ((m.groupes || []).some(g => g.zoneForme === z)) { if (multi()) rendre3D({ cadrer: true }); else { scene.deFace(); scene.cadrer(); } }   // nouvelle forme : on recadre
     rendreParties(); rendrePalette(); rendreListeBreloques(); rendreRecap();
   })));
 }
@@ -1392,12 +1409,13 @@ function calcul() {
   return lignesCommandeBundle({
     breloques: etat.breloques.map(b => ({ modele: modelePour(b), couleurs: validerConfiguration(modeleDe(b.slug), catalogue, b.couleurs, parties),
       options: optionsEffectives(b), prixBase: prixDe(b), bijRef: bijouDe(b).ref, ficheNom: bijouDe(b).nom })),
-    accroches: items.length ? items : null, catalogue, fermoirs,
+    accroches: items.length ? items : null, remises: remisesPerles(), catalogue, fermoirs,
   });
 }
 function rendreRecap() {
   if (!etat.parcours) return;
   const { total } = calcul(), lignes = [];
+  for (const r of remisesPerles()) lignes.push(['Offre', r.libelle + ' · −' + euros(r.montant)]);
   for (const a of accrochesFacture().items) lignes.push([a.nomCompo === 'Mousqueton' ? 'Mousqueton' : a.nomCompo + ' · ' + a.libelle, a.pieces.map(nomFermoir).filter(Boolean).join(' + ') + (a.contenu ? ' · ' + a.contenu : '') + (+a.remise ? ' · ' + (a.remise >= a.supplement ? 'offert' : '−' + euros(a.remise)) : '')]);
   etat.breloques.forEach((b, i) => {
     const m = modeleDe(b.slug);
@@ -1432,7 +1450,7 @@ function entreesNote() {
   return {
     breloques: etat.breloques.map((b, i) => ({ modele: modelePour(b), couleurs: validerConfiguration(modeleDe(b.slug), catalogue, b.couleurs, parties),
       options: optionsEffectives(b), prixBase: prixDe(b), bijRef: bijouDe(b).ref, ficheNom: bijouDe(b).nom, modeleIdee: bijouDe(b).idee || null, surChaine: enBundle() && surChaine(b, i) ? 'mini' : surChaine(b, i), principal: i === principal() })),
-    accroches: (() => { const it = accrochesFacture().items, lot = lotCorrespondant()?.nom || null; if (lot && it[0]) it[0].lotNom = lot; return it.length ? it : null; })(),
+    accroches: (() => { const it = accrochesFacture().items, lot = lotCorrespondant()?.nom || null; if (lot && it[0]) it[0].lotNom = lot; return it.length ? it : null; })(), remises: remisesPerles(),
     catalogue, fermoirs,
   };
 }

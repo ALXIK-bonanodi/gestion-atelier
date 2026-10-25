@@ -2305,7 +2305,9 @@ export function composerChaine({ chaine, breloques = [], pieces = [], compos = n
   }).filter(c => c.indices.length);
   const hautDe = pcs => { const P = piecesAccroche(pcs); return P.length ? P[P.length - 1].z + (P[P.length - 1].haut || 0) : 0; };
   const r0 = H[0], yM = r0.p[1] + r0.R - 0.5;
-  const A = new THREE.Vector3(1.2, yM + ((mousqueton || groupes.some(c => c.pieces.length)) ? 8.5 : 5), r0.p[2]);   // dans l'anneau du mousqueton du début de la chaîne
+  // accroché dans l'anneau pivotant du mousqueton de la chaîne, en bas côté extérieur : il pend à côté de la chaîne, sans la chevaucher
+  const tM = (chaine.modele.groupes || []).flatMap(g => g.accessoires || []).find(x => x.bout === "debut")?.taille || 34, R1 = 0.167 * tM, phi = 62 * DEG;
+  const A = new THREE.Vector3(1.6, yM + R1 * (1 - Math.cos(phi)) + 0.4, r0.p[2] - R1 * Math.sin(phi));
   let Mpiv = null, attP = null;
   if (mousqueton) { Mpiv = new THREE.Matrix4().makeTranslation(A.x, A.y, A.z).multiply(rx).multiply(new THREE.Matrix4().makeTranslation(0, 0, -hautDe([mousqueton])));
     attP = piecesAccroche([mousqueton])[0].attache; fusionnerSupport(out, [mousqueton], Mpiv); }
@@ -2316,7 +2318,7 @@ export function composerChaine({ chaine, breloques = [], pieces = [], compos = n
     const h = hautDe(c.pieces); let M;
     if (surC.includes(c)) { const r = H[idx[placesC[surC.indexOf(c)]]];
       M = new THREE.Matrix4().makeTranslation(r.p[0], r.p[1] - r.R, r.p[2]).multiply(rx).multiply(new THREE.Matrix4().makeTranslation(0, 0, -h)); }
-    else { const K = auM.length, kk = auM.indexOf(c) - (K - 1) / 2, th = K > 1 ? -kk * 0.5 : 0;
+    else { const K = auM.length, kk = auM.indexOf(c) - (K - 1) / 2, th = K > 1 ? -kk * 0.45 + 0.35 : 0.32;   // éventail ouvert vers l'extérieur
       if (Mpiv) { const a = K > 1 ? kk * 0.45 : 0, P = new THREE.Vector3(0, attP.rayon * Math.sin(a), attP.centre + attP.rayon * Math.cos(a));
         M = Mpiv.clone().multiply(new THREE.Matrix4().makeTranslation(P.x, P.y, P.z)).multiply(new THREE.Matrix4().makeRotationX(th)).multiply(new THREE.Matrix4().makeTranslation(0, 0, -h)); }
       else M = new THREE.Matrix4().makeTranslation(A.x, A.y, A.z).multiply(rx).multiply(new THREE.Matrix4().makeRotationX(th)).multiply(new THREE.Matrix4().makeTranslation(0, 0, -h)); }
@@ -2483,13 +2485,17 @@ export class ScenePerles {
   /* couleurs : { idZone: ref } — ne touche pas au placement des perles */
   definirCouleurs(couleurs) {
     this.couleurs = { ...couleurs };
+    this._extrasSelonForme();
     this.reconstruire();
   }
 
   definirCouleurZone(zone, ref) {
     this.couleurs[zone] = ref;
+    this._extrasSelonForme();
     this.reconstruire();
   }
+  // la forme chainmail (croix, mini chaîne…) choisie change la pampille et la perle accrochée en haut : on les replace
+  _extrasSelonForme() { if (this.modele?.groupes?.some(g => g.zoneForme)) { this._aplatir(); this._extrasOptions(); } }
 
   refPour(b) {
     if (b.k) return b.k;
@@ -3283,7 +3289,7 @@ export function offreApplicable(offre, accroche, prixBreloques) {
 }
 
 /* Lignes de commande d'un bundle : chaque breloque + les pièces de l'accroche */
-export function lignesCommandeBundle({ breloques, accroche = null, accroches = null, catalogue = [], fermoirs = [] }) {
+export function lignesCommandeBundle({ breloques, accroche = null, accroches = null, remises = [], catalogue = [], fermoirs = [] }) {
   const fermParRef = Object.fromEntries(fermoirs.map(f => [f.ref, f]));
   const prestation = [], creation = [];
   const plusieurs = breloques.length > 1 || !!accroche || !!accroches?.length;
@@ -3302,6 +3308,7 @@ export function lignesCommandeBundle({ breloques, accroche = null, accroches = n
     });
     if (+a.remise > 0) prestation.push({ designation: 'Offre — ' + (a.offreLibelle || 'remise'), ref: a.pieces?.[0] || '', qte: 1, pu: -a.remise, total: -a.remise });
   }
+  for (const r of remises || []) if (+r.montant > 0) prestation.push({ designation: 'Offre — ' + r.libelle, ref: r.ref || '', qte: 1, pu: -r.montant, total: -r.montant });
   if (accroche && !accroches) {
     (accroche.pieces || []).forEach((ref, k) => {
       const f = fermParRef[ref];
@@ -3556,7 +3563,7 @@ export function noteBreloque(modele, { couleurs = {}, options = {}, catalogue = 
 }
 
 /* breloques : [{ modele, couleurs, options, prixBase }] ; accroche : { id, libelle, pieces, supplement, offre } */
-export function notePersonnalisation({ breloques, accroche = null, accroches = null, catalogue = [], fermoirs = [], numero = '' }) {
+export function notePersonnalisation({ breloques, accroche = null, accroches = null, remises = [], catalogue = [], fermoirs = [], numero = '' }) {
   const fermParRef = Object.fromEntries(fermoirs.map(f => [f.ref, f]));
   const parRef = Object.fromEntries(catalogue.map(c => [c.ref, c]));
   const titre = 'Personnalisation sur mesure' + (numero ? ' ' + numero : '');
@@ -3596,6 +3603,7 @@ export function notePersonnalisation({ breloques, accroche = null, accroches = n
     ligneAccAtelier = 'Porte-clés : ' + accroche.libelle + ' — ' + (accroche.pieces || []).map(r => (fermParRef[r]?.nom || r) + ' (' + r + ')').join(' + ')
       + (offre ? ' — ' + (accroche.offre.libelle || 'offre') : '');
   }
+  for (const r of remises || []) if (+r.montant > 0) { articles.push({ quantite: 1, cle: 'remise:' + r.libelle, libelle: 'Offre — ' + r.libelle, prix: -r.montant }); ligneAcc = [ligneAcc, 'Offre : ' + r.libelle].filter(Boolean).join('\n'); ligneAccAtelier = [ligneAccAtelier, 'Offre : ' + r.libelle].filter(Boolean).join('\n'); }
   const total = Math.round(articles.reduce((s, a) => s + a.prix * a.quantite, 0) * 100) / 100;
   const prixTxt = 'Total : ' + total.toFixed(2).replace('.', ',') + ' €';
   const texte = [titre, ligneAcc, ...notes.map(n => n.replace(titre + ' — ', '')), prixTxt].filter(Boolean).join('\n');
