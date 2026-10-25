@@ -2078,24 +2078,19 @@ export function genChaineByzantine({ motif = 'continu', anneau = ANNEAU_8, grand
 export const PETIT_ANNEAU = { R: 2.0, e: 0.25 };            // anneau 0,5 mm qui porte la pampille
 export function genMiniChaine(motif, noeuds = 4) {
   // d'après tes fiches : 2 doubles 4×4 + connecteur (2) en 8 mm ;
-  //  fleur       : 1 anneau 10 mm en haut, connecteur (2) 10 mm au milieu, 2 pétales par fleur (7 × 10 mm), le petit anneau pris dans la dernière fleur
+  //  fleur       : 1 anneau 10 mm en haut, connecteurs (2) 10 mm au milieu et au bout, 2 pétales par fleur (9 × 10 mm), puis le petit anneau
   //  alternative : 1 anneau 10 mm en haut, connecteurs (2) 10 mm au milieu et en bas (5 × 10 mm), puis le petit anneau
   const A = genChaineByzantine({ motif: 'fleur', nombre: 2 }), G = ANNEAU_10;
   const z0 = Math.min(...A.map(a => a.p[2])), tete = A.filter(a => a.R > 4 && Math.abs(a.p[1]) < 2 && a.p[2] < z0 + 1);
   const zFin = Math.max(...A.filter(a => a.R > 4 && Math.abs(a.p[1]) < 2).map(a => a.p[2]));
   let B = A.filter(a => !tete.includes(a));
   B.unshift({ ...tete[0], p: [0, 0, tete[0].p[2]] });                                       // un seul anneau en haut
-  if (motif === 'fleur') B = B.filter(a => !(a.R > 4 && Math.abs(a.p[1]) < 2 && a.p[2] > zFin - 1));   // pas de connecteur en bas
-  else B = B.filter(a => !(a.R > 4 && Math.abs(a.p[1]) > 4));                                            // alternative : sans pétales
+  if (motif !== 'fleur') B = B.filter(a => !(a.R > 4 && Math.abs(a.p[1]) > 4));                        // alternative : sans pétales
   const dz = G.R - G.e * 0.4 - B[0].p[2];
   B = B.map(a => ({ ...a, p: [a.p[0], a.p[1], +(a.p[2] + dz).toFixed(3)] }));
-  if (motif === 'fleur') {                                   // petit anneau passé dans le bas de la dernière fleur (anneaux de chant)
-    const mids = B.filter(a => a.R < 4 && Math.abs(a.n[1]) > 0.95 && Math.abs(a.p[1]) < 1.2), zc = Math.max(...mids.map(a => a.p[2]));
-    B.push({ p: [0, 0, +(zc + 8).toFixed(3)], n: [1, 0, 0], R: PETIT_ANNEAU.R, e: PETIT_ANNEAU.e });
-  } else {
-    const zf = zFin + dz;
-    B.push({ p: [0, 0, +(zf + G.R + PETIT_ANNEAU.R * 0.45).toFixed(3)], n: [0, 1, 0], R: PETIT_ANNEAU.R, e: PETIT_ANNEAU.e });
-  }
+  // les deux : connecteur (2) 10 mm au bout, puis le petit anneau de la pampille 4 mm
+  const zf = zFin + dz;
+  B.push({ p: [0, 0, +(zf + G.R + PETIT_ANNEAU.R * 0.45).toFixed(3)], n: [0, 1, 0], R: PETIT_ANNEAU.R, e: PETIT_ANNEAU.e });
   return B;
 }
 export const NB_MOTIFS = { 'chaine-8': 14, 'chaine-10': 11.5, 'chaine-intercalaire': 13, 'chaine-fleur': 13 };

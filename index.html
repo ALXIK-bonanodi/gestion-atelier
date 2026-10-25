@@ -832,7 +832,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
           </select>
           <select id="prod-flt" onchange="renderRent()" style="width:auto;font-size:12px;padding:8px 26px 8px 10px" title="Filtrer">
             <option value="">Toutes</option><option value="produit">✅ Produites</option><option value="en_cours">🔧 En cours</option>
-            <option value="avendre">📍 À mettre en vente</option><option value="horsligne">⏳ Prêtes, pas en ligne</option><option value="drop">🚀 Prévues dans un drop</option>
+            <option value="avendre">📍 À mettre en vente</option><option value="horsvente">🚫 Hors vente (vitrine, proto…)</option><option value="compo">🧩 Compositions toutes faites</option><option value="horsligne">⏳ Prêtes, pas en ligne</option><option value="drop">🚀 Prévues dans un drop</option>
             <option value="enligne">🛒 En ligne</option><option value="stock">📦 Avec du stock</option><option value="perso">✨ Sur mesure</option>
           </select>
           <button class="btn btn-ghost btn-sm" onclick="toutProd()" id="bt-tout-prod" title="Déplier / replier tous les détails">⊕ Détails</button>
@@ -1754,6 +1754,13 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
     <input type="hidden" id="p-statut-val" value="produit">
    </div>
   </div>
+  <div id="p-hv-row" class="fg" style="margin-bottom:6px">
+   <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;font-size:13px;font-weight:600;color:var(--ink)">
+    <input type="checkbox" id="p-hors-vente" style="width:18px;height:18px;padding:0;flex:0 0 auto;appearance:auto;-webkit-appearance:checkbox;accent-color:var(--purple)" onchange="document.getElementById('p-hv-motif').style.display=this.checked?'':'none'">
+    🚫 Ne pas mettre en vente <span class="dim" style="font-weight:400;font-size:11px">— les articles sont déduits, la pièce n'entre pas dans le stock à vendre</span></label>
+   <select id="p-hv-motif" style="display:none;margin-top:6px;font-size:12px;padding:8px"><option>Vitrine</option><option>Prototype</option><option>Cadeau</option><option>Usage perso</option><option>Photo / shooting</option></select>
+  </div>
+  <div id="p-compo-info" class="dim" style="display:none;font-size:12px;margin-bottom:6px;padding:6px 8px;background:var(--purpleP);border-radius:var(--rx)">🧩 Composition : les pièces vont dans le stock des compositions toutes faites, prises en priorité quand un bijou les utilise.</div>
   <div id="prod-prev"></div>
   <div class="fg" style="margin-top:8px"><label>Date</label><input id="p-date" type="date"></div>
   <div class="mfoot">
@@ -1790,6 +1797,12 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
    </div>
    <input type="hidden" id="ep-statut-val" value="produit">
   </div>
+  <div class="fg" id="ep-hv-row">
+   <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;font-size:13px;font-weight:600;color:var(--ink)">
+    <input type="checkbox" id="ep-hors-vente" style="width:18px;height:18px;padding:0;flex:0 0 auto;appearance:auto;-webkit-appearance:checkbox;accent-color:var(--purple)" onchange="majEPHorsVente()">
+    🚫 Ne pas mettre en vente <span class="dim" style="font-weight:400;font-size:11px">— vitrine, prototype, cadeau…</span></label>
+   <select id="ep-hv-motif" style="display:none;margin-top:6px;font-size:12px;padding:8px"><option>Vitrine</option><option>Prototype</option><option>Cadeau</option><option>Usage perso</option><option>Photo / shooting</option></select>
+  </div>
   <div class="fg" id="ep-vente-row">
    <label>📍 Mise en vente <span style="font-weight:400;color:var(--muted)">(où sont les pièces produites)</span></label>
    <div id="ep-vente-lieux" style="display:flex;flex-direction:column;gap:6px;margin-top:4px"></div>
@@ -1797,7 +1810,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
     <input id="ep-vente-nouveau" placeholder="Autre lieu (ex. dépôt-vente chez…)" style="flex:1;font-size:12px;padding:8px">
     <button type="button" class="btn btn-ghost btn-sm" onclick="ajouterLieuVente()">＋ Lieu</button>
    </div>
-   <input id="ep-vente-note" placeholder="Note (ex. vitrine du marché de Noël, prix affiché…)" style="margin-top:6px;font-size:12px;padding:8px">
+   <input id="ep-vente-note" placeholder="Note (ex. dépôt-vente, prix affiché…)" style="margin-top:6px;font-size:12px;padding:8px">
   </div>
   <div class="mfoot">
    <button class="btn btn-ghost" onclick="closeModal('m-edit-prod')">Annuler</button>
@@ -1966,12 +1979,21 @@ function setSyncErr() { const d=document.getElementById('sync-dot'); d.className
 async function sbGet(table, opts={}) {
   setSyncing();
   try {
-    let q = SB.from(table).select(opts.select||'*');
-    if (opts.eq) Object.entries(opts.eq).forEach(([k,v])=>q=q.eq(k,v));
-    if (opts.order) q = q.order(opts.order, {ascending: opts.asc !== false});
-    const { data, error } = await q;
-    if (error) throw error;
-    setSyncOk(); return data||[];
+    // Supabase renvoie au plus 1000 lignes par requête : on lit par pages, sinon le stock serait faux passé 1000 productions / ventes
+    const PAGE=1000, tout=[];
+    for(let de=0;;de+=PAGE){
+      let q = SB.from(table).select(opts.select||'*');
+      if (opts.eq) Object.entries(opts.eq).forEach(([k,v])=>q=q.eq(k,v));
+      if (opts.order) q = q.order(opts.order, {ascending: opts.asc !== false});
+      if (opts.order) q = q.order('id', {ascending: true});        // ordre stable entre les pages
+      const paginer = typeof q.range==='function';
+      if (paginer) q = q.range(de, de+PAGE-1);
+      const { data, error } = await q;
+      if (error) throw error;
+      tout.push(...(data||[]));
+      if (!paginer || (data||[]).length<PAGE) break;
+    }
+    setSyncOk(); return tout;
   } catch(e) { setSyncErr(); toast('Erreur lecture: '+e.message,'err'); return []; }
 }
 
@@ -2180,8 +2202,9 @@ function calibrage(mat) {
 }
 // Équivalent en pièces d'une quantité exprimée dans l'unité du matériau (g ou kg)
 const enPieces = (mat, q) => { const c=calibrage(mat); return q*(mat.unite==='kilo'?1000:1)/c.gpp; };
-function matsConsumedByBij(bij, qtyProd, depth=0) {
+function matsConsumedByBij(bij, qtyProd, depth=0, pris=null) {
   // Retourne {ref: qtyConsommée} pour tous les matériaux (récursif via compositions)
+  // pris = {idComposition: nb} : compositions déjà fabriquées prises dans leur stock → leurs articles ne sont pas redéduits
   if(depth>4) return {};
   const result={};
   // variante de bijou : matériaux du parent + remplacements (comme le coût) — avant, seuls ses ajouts comptaient
@@ -2193,7 +2216,10 @@ function matsConsumedByBij(bij, qtyProd, depth=0) {
       // Bijou composant — descendre récursivement
       const comp=BIJS.find(b=>b.ref===m.ref);
       if(comp) {
-        const sub=matsConsumedByBij(comp,(+m.qty||1)*qtyProd,depth+1);
+        let besoin=(+m.qty||1)*qtyProd;
+        if(pris&&pris[comp.id]>0){ const t=Math.min(besoin,pris[comp.id]); pris[comp.id]-=t; besoin-=t; }
+        if(besoin<=0) continue;
+        const sub=matsConsumedByBij(comp,besoin,depth+1,pris);
         for(const [r,q] of Object.entries(sub)) result[r]=(result[r]||0)+q;
       }
     }
@@ -2230,24 +2256,49 @@ function qteMat(m, mat) {
 // Matériaux pris par les productions, d'après la composition de la fiche bijou.
 // « produit » = déduit du stock ; « en cours » (dont les commandes sur mesure) = réservé / pré-compté.
 // Le disponible retire les deux : ce qui est réservé n'est plus utilisable ailleurs.
+// Compositions déjà fabriquées utilisées dans un autre bijou : une ligne négative sur la composition
+// (comme les pièces d'un lot), reliée à la production qui les utilise par ⟨id⟩ dans sa note.
+const LIEN_PROD=/⟨([^⟩]+)⟩/;
+let _prisCache={n:-1,m:{}};
+function compositionsPrises(prodId){
+  if(_prisCache.n!==PRODS.length||_prisCache.ref!==PRODS){ const m={};
+    PRODS.forEach(x=>{ const k=+x.qty<0&&String(x.perso_note||'').match(LIEN_PROD); if(k) (m[k[1]] ||= {})[x.bij_id]=(m[k[1]][x.bij_id]||0)-(+x.qty); });
+    _prisCache={n:PRODS.length,ref:PRODS,m}; }
+  return _prisCache.m[prodId]||null;
+}
+const noteSansLien = t => String(t||'').replace(/\s*⟨[^⟩]*⟩/g,'');
+// mémo le temps d'un rendu : stockPris est appelé pour chaque matériau × chaque production (le recalcul récursif était refait à chaque fois)
+let _mdp=null;
+function matsDeProd(p){
+  if(!_mdp||_mdp.n!==PRODS.length||_mdp.r!==PRODS||_mdp.b!==BIJS.length){ _mdp=new Map(); _mdp.n=PRODS.length; _mdp.r=PRODS; _mdp.b=BIJS.length; const m=_mdp; setTimeout(()=>{ if(_mdp===m) _mdp=null; },0); }
+  let r=_mdp.get(p); if(!r){ r=matsDeProdCalc(p); _mdp.set(p,r); } return r;
+}
+function matsDeProdCalc(p){
+  const b=getBij(p.bij_id); if(!b) return {};
+  const pr=compositionsPrises(p.id), pris=pr?{...pr}:null;
+  return p.perso_mats?matsConsumedPerso(b,+p.qty||0,p.perso_mats,pris):matsConsumedByBij(b,+p.qty||0,0,pris);
+}
 function stockPris(ref, filtre) {
-  return PRODS.filter(p=>+p.qty>0&&filtre(p)).reduce((s,p)=>{
-    const b=getBij(p.bij_id); if(!b) return s;
-    const consumed=p.perso_mats?matsConsumedPerso(b,+p.qty||0,p.perso_mats):matsConsumedByBij(b,+p.qty||0);
-    return s+(consumed[ref]||0);
-  },0);
+  return PRODS.filter(p=>+p.qty>0&&filtre(p)).reduce((s,p)=>s+(matsDeProd(p)[ref]||0),0);
+}
+// Pièces mises de côté : vitrine, prototype, cadeau… — articles déduits, mais pas en vente
+function horsVente(p){ const v=lireMiseEnVente(p); return !!v.hors_vente || (!Object.keys(v.lieux).length && /vitrine|proto/i.test(v.note)); }
+// Stock fini d'une composition (ou d'un bijou) : produit − vendu − utilisé ailleurs (lignes négatives), hors pièces mises de côté
+function stockFini(bijId){
+  return PRODS.filter(p=>p.bij_id===bijId&&(!p.statut||p.statut==='produit')&&!(+p.qty>0&&horsVente(p))).reduce((t,p)=>t+(+p.qty||0),0) - venteTot(bijId).qty;
 }
 // Personnalisation du configurateur : composition de la fiche + ce qui en diffère (couleurs choisies, lettres, options, porte-clés)
-function matsConsumedPerso(bij, qtyProd, pm){
+function matsConsumedPerso(bij, qtyProd, pm, pris=null){
   let e=pm; if(typeof e==='string'){ try{ e=JSON.parse(e); }catch(x){ e=null; } }
-  const res=matsConsumedByBij(bij,qtyProd); if(!e) return res;
+  const res=matsConsumedByBij(bij,qtyProd,0,pris); if(!e) return res;
   const q=(l)=>{ const mat=getMat(l.ref); return mat?qteMat({qty:+l.qty||0,qty_unite:l.qty_unite||'unite'},mat):null; };
   for(const l of e.remplace||[]){ const v=q(l); if(v!==null) res[l.ref]=v*qtyProd; }
   for(const l of e.ajout||[]){
     const v=q(l);
     if(v!==null){ res[l.ref]=(res[l.ref]||0)+v*qtyProd; continue; }
     const comp=BIJS.find(x=>x.ref===l.ref);                       // composition (ex. perle de culture · tige boule) : ses matériaux
-    if(comp) for(const [r,x] of Object.entries(matsConsumedByBij(comp,(+l.qty||0)*qtyProd))) res[r]=(res[r]||0)+x;
+    if(comp){ let besoin=(+l.qty||0)*qtyProd; if(pris&&pris[comp.id]>0){ const t=Math.min(besoin,pris[comp.id]); pris[comp.id]-=t; besoin-=t; }
+      if(besoin>0) for(const [r,x] of Object.entries(matsConsumedByBij(comp,besoin,1,pris))) res[r]=(res[r]||0)+x; }
   }
   return res;
 }
@@ -3201,7 +3252,7 @@ function renderAccueil() {
   const best=Object.entries(top).sort((a,b)=>b[1]-a[1])[0], bestB=best&&getBij(best[0]);
   const serie=serieAtelier();
   const perso=PRODS.filter(p=>p.perso&&p.statut==='en_cours').sort((a,b)=>String(a.date).localeCompare(String(b.date)));
-  const avendre=PRODS.filter(p=>(!p.statut||p.statut==='produit')&&+p.qty>0&&!Object.keys(lireMiseEnVente(p).lieux).length&&!dropDeProd(p.id));
+  const avendre=PRODS.filter(p=>(!p.statut||p.statut==='produit')&&+p.qty>0&&!Object.keys(lireMiseEnVente(p).lieux).length&&!dropDeProd(p.id)&&!horsVente(p)&&!getBij(p.bij_id)?.is_mat);
   const dropsDus=DROPS.filter(d=>d.statut!=='en_ligne'&&d.date&&d.date<=today()&&(d.items||[]).length);
   const grpS=groupesStock(), bas=grpS.filter(g=>g.bas), bientot=grpS.filter(g=>g.bientot), brouillons=BIJS.filter(isDraft), incompl=MATS.filter(m=>champsManquants(m).length), enG=lignesPerlesEnGrammes();
   const idees1=ideesPosts().filter(x=>x.prio===1), postAuj=POSTS.filter(p=>p.statut==='prevu'&&p.date<=today());
@@ -3308,7 +3359,7 @@ function majBadgesOnglets(){
     b.textContent=nb; b.title=titre; };
   try {
     const perso=PRODS.filter(p=>p.perso&&p.statut==='en_cours').length;
-    const avendre=PRODS.filter(p=>(!p.statut||p.statut==='produit')&&+p.qty>0&&!Object.keys(lireMiseEnVente(p).lieux).length&&!dropDeProd(p.id)).length;
+    const avendre=PRODS.filter(p=>(!p.statut||p.statut==='produit')&&+p.qty>0&&!Object.keys(lireMiseEnVente(p).lieux).length&&!dropDeProd(p.id)&&!horsVente(p)&&!getBij(p.bij_id)?.is_mat).length;
     const brouillons=BIJS.filter(isDraft).length;
     const incompl=MATS.filter(m=>champsManquants(m).length).length, enG=lignesPerlesEnGrammes().length;
     pastille('.tab[data-p="home"]', perso+avendre+stocksBas().length+brouillons+incompl+enG, 'choses à faire');
@@ -4148,8 +4199,10 @@ async function c3Tous(ids,on){
 }
 // 🎁 offres du configurateur (non cumulables : la cliente choisit si elle a droit aux deux)
 let OFFRES_CFG=null;
-const OFFRES_DEF={ rond:{active:true,libelle:'Fermoir rond offert',min:2,prixMin:15,remise:1.5}, mousqueton:{active:true,libelle:'Mousqueton offert',minBundles:2,remise:null}, perles:{active:true,libelle:'Breloques perle offertes',min:3,prixMin:15} };
-async function chargerOffresCfg(){ try{ const {data}=await SB.from('config').select('value').eq('key','configurateur_offres').maybeSingle(); let v=data?.value; if(typeof v==='string'){ try{v=JSON.parse(v);}catch(e){v=null;} } OFFRES_CFG=v&&typeof v==='object'?v:{}; }catch(e){ OFFRES_CFG={}; } }
+const OFFRES_DEF={ rond:{active:true,libelle:'Fermoir rond offert',min:2,prixMin:15,remise:1.5}, mousqueton:{active:true,libelle:'Mousqueton offert',minBundles:2,remise:null}, lettres:{active:true,libelle:'Breloques lettre offertes',min:3,prixMin:15} };
+async function chargerOffresCfg(){ try{ const {data}=await SB.from('config').select('value').eq('key','configurateur_offres').maybeSingle(); let v=data?.value; if(typeof v==='string'){ try{v=JSON.parse(v);}catch(e){v=null;} } OFFRES_CFG=v&&typeof v==='object'?v:{};
+  if(OFFRES_CFG.perles&&!OFFRES_CFG.lettres){ const {libelle,...r}=OFFRES_CFG.perles; OFFRES_CFG.lettres=r; }   // ancienne offre « perles » → breloques lettre
+  }catch(e){ OFFRES_CFG={}; } }
 function renderOffres(){
   if(OFFRES_CFG===null){ chargerOffresCfg().then(renderModelesProposes); return ''; }
   const o=k=>({...OFFRES_DEF[k],...(OFFRES_CFG[k]||{})});
@@ -4158,7 +4211,7 @@ function renderOffres(){
   return `<details class="c3p-det" style="margin-top:8px"><summary><b>🎁 Offres du configurateur</b> <span class="dim">· non cumulables : si la cliente a droit aux deux, elle choisit</span> <span class="c3p-gerer">Gérer ▾</span></summary><div class="c3p-tab">
     <div class="c3p-l" style="flex-wrap:wrap;gap:6px"><span class="c3p-nom">Rond offert</span>${bt('rond')}${champ('rond','libelle','Libellé','text',160)}${champ('rond','min','dès')} breloques ${champ('rond','prixMin','à partir de (€)')}${champ('rond','remise','remise (€)')}</div>
     <div class="c3p-l" style="flex-wrap:wrap;gap:6px"><span class="c3p-nom">Mousqueton offert</span>${bt('mousqueton')}${champ('mousqueton','libelle','Libellé','text',160)}${champ('mousqueton','minBundles','dès')} porte-clés montés sur le mousqueton ${champ('mousqueton','remise','remise (€, vide = offert)')}</div>
-    <div class="c3p-l" style="flex-wrap:wrap;gap:6px"><span class="c3p-nom">Breloques perle offertes</span>${bt('perles')}${champ('perles','libelle','Libellé','text',160)}${champ('perles','min','dès')} breloques ${champ('perles','prixMin','à partir de (€)')} <span class="dim" style="font-size:11px">(cumulable avec les offres porte-clés)</span></div>
+    <div class="c3p-l" style="flex-wrap:wrap;gap:6px"><span class="c3p-nom">Breloques lettre offertes</span>${bt('lettres')}${champ('lettres','libelle','Libellé','text',160)}${champ('lettres','min','dès')} breloques ${champ('lettres','prixMin','à partir de (€)')} <span class="dim" style="font-size:11px">(cumulable avec les offres porte-clés)</span></div>
   </div></details>`;
 }
 async function majOffre(k,c,v,type){
@@ -6661,20 +6714,25 @@ function setPStatut(val) {
 // Liste des créations à produire : chaque modèle, puis ses couleurs en dessous
 function listeProdBij(q){
   const list=document.getElementById('p-bij-list'), k=cleNom(q), sel=document.getElementById('p-bij').value;
-  const info=b=>{ const qProd=prodTot(b.id); return qProd?` · ${qProd} prod., ${qProd-venteTot(b.id).qty} dispo`:''; };
+  const info=b=>{ const qProd=prodTot(b.id); return qProd?` · ${Math.max(0,stockFini(b.id))} ${b.is_mat?'toute(s) faite(s)':'dispo'}`:''; };
   const ligne=(b,estVar)=>`<div class="pbij-row${estVar?' pbij-var':''}" data-id="${b.id}" onclick="selectPBij('${b.id}')" style="${b.id===sel?'background:var(--purpleP);font-weight:700':''}">
-      ${estVar?'<span class="pbij-fl">↳ 🎨</span>':''}<span class="pbij-ref">${b.ref||'--'}</span>
+      ${estVar?'<span class="pbij-fl">↳ 🎨</span>':''}${b.is_mat&&!estVar?'<span title="Composition">🧩</span>':''}<span class="pbij-ref">${b.ref||'--'}</span>
       <span>${estVar?escA(b.variante||b.ref):escA(b.nom)+(b.variante?' · '+escA(b.variante):'')}</span><span class="dim" style="font-size:11px">${info(b)}</span></div>`;
   const racines=BIJS.filter(b=>!b.parent_id||!getBij(b.parent_id)).sort((a,b)=>String(a.nom).localeCompare(String(b.nom),'fr')||String(a.variante||'').localeCompare(String(b.variante||''),'fr'));
   const html=racines.map(r=>{
     const vars=BIJS.filter(v=>v.parent_id===r.id&&!v.no_sell).sort((a,b)=>String(a.variante||'').localeCompare(String(b.variante||''),'fr',{numeric:true}));
-    if(r.no_sell&&!vars.length) return '';
+    if(r.no_sell&&!vars.length&&!r.is_mat) return '';            // une composition sans couleur se fabrique d'avance
     const okR=!k||cleNom(r.nom+' '+(r.variante||'')).includes(k), varsOk=vars.filter(v=>!k||okR||cleNom(r.nom+' '+v.variante).includes(k)||k.split(' ').every(m=>cleNom(r.nom+' '+v.variante).includes(m)));
     if(!okR&&!varsOk.length) return '';
-    const tete=r.no_sell?`<div class="pbij-modele">📐 ${escA(r.nom)}${r.variante?' · '+escA(r.variante):''} <span class="dim">— choisis la couleur</span></div>`:ligne(r,false);
+    const tete=r.no_sell&&vars.length?`<div class="pbij-modele">📐 ${escA(r.nom)}${r.variante?' · '+escA(r.variante):''} <span class="dim">— choisis la couleur</span></div>`:ligne(r,false);
     return tete+varsOk.map(v=>ligne(v,true)).join('');
   }).join('');
   list.innerHTML=html||'<div class="dim" style="padding:10px">Aucune création trouvée.</div>';
+}
+function majPCompo(){
+  const b=getBij(document.getElementById('p-bij').value), c=!!b?.is_mat;
+  const hv=document.getElementById('p-hv-row'), ci=document.getElementById('p-compo-info');
+  if(hv) hv.style.display=c?'none':''; if(ci) ci.style.display=c?'':'none';
 }
 function selectPBij(bijId) {
   document.getElementById('p-bij').value = bijId;
@@ -6720,6 +6778,7 @@ async function openProdModal(preselectBijId) {
   document.getElementById('p-date').value = today();
   document.getElementById('p-qty').value = '1';
   setPStatut('produit');
+  const hvc=document.getElementById('p-hors-vente'); if(hvc){ hvc.checked=false; document.getElementById('p-hv-motif').style.display='none'; }
   // Réinitialiser le panneau variation à chaque ouverture
   const varPanel=document.getElementById('p-variation-panel');
   const varBtn=document.getElementById('p-var-btn');
@@ -6846,6 +6905,7 @@ function stockProduisableComp(bijComp) {
 }
 
 function renderProdPrev() {
+  majPCompo();
   const bijId=document.getElementById('p-bij').value;
   const qty=+document.getElementById('p-qty').value||1;
   const b=getBij(bijId); if(!b){document.getElementById('prod-prev').innerHTML='';return;}
@@ -6864,45 +6924,24 @@ function renderProdPrev() {
         <span style="color:${enough?'var(--green)':'var(--red)'};font-weight:700;font-size:12px">Dispo: ${n(dispo)} ${m.qty?(enough?'✓':'⚠'):''}</span>
       </div>`;
     }
-    // Cas 2 : bijou composant (is_mat)
-    const bijComp=BIJS.find(bj=>bj.ref===m.ref&&bj.is_mat);
+    // Cas 2 : composition (bijou utilisé dans ce bijou) : d'abord les pièces déjà fabriquées, sinon ses articles
+    const bijComp=BIJS.find(bj=>bj.ref===m.ref);
     if(bijComp) {
-      const prodExist=PRODS.filter(p=>p.bij_id===bijComp.id&&(!p.statut||p.statut==='produit')).reduce((s,p)=>s+(+p.qty||0),0);
-      const venteExist=venteTot(bijComp.id).qty;
-      const stockExist=Math.max(0,prodExist-venteExist);
-      const peutProduire=bijComp.no_sell ? stockProduisableComp(bijComp) : 0;
-      const totalDispo=stockExist+peutProduire;
-      const enough=totalDispo>=need;
-      // Pour no_sell : ne jamais bloquer la production, juste avertir
-      if(!enough&&m.qty&&!bijComp.no_sell) ok=false;
-
-      if(bijComp.no_sell) {
-        // no_sell : pas besoin de prod enregistrée, juste vérifier les matériaux
-        return `<div style="padding:4px 8px;border-radius:var(--rx);margin-bottom:2px;background:${enough?'var(--purpleP)':'var(--redP)'}">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <span class="ref" style="color:var(--purple)">💎 ${bijComp.ref} <span style="font-size:10px;opacity:.7">(composant auto)</span></span>
-            <span style="color:${enough?'var(--purple)':'var(--red)'};font-weight:700;font-size:12px">Dispo: ${n(totalDispo)} / ${n(need)} ${enough?'✓':'⚠'}</span>
+      const stockExist=Math.max(0,stockFini(bijComp.id));
+      const peutProduire=stockProduisableComp(bijComp);
+      const prises=Math.min(stockExist,need);
+      const enough=prises+Math.min(peutProduire,999)>=need;
+      if(!enough&&m.qty) ok=false;
+      return `<div style="padding:6px 8px;border-radius:var(--rx);margin-bottom:4px;background:${enough?'var(--purpleP)':'var(--redP)'}">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:6px">
+            <span class="ref" style="color:var(--purple)">🧩 ${bijComp.ref} — ${escA(bijComp.nom)}${bijComp.variante?' · '+escA(bijComp.variante):''}</span>
+            <span style="color:${enough?'var(--purple)':'var(--red)'};font-weight:700;font-size:12px;white-space:nowrap">Besoin ${n(need)} · ${n(stockExist)} toute(s) faite(s) ${enough?'✓':'⚠'}</span>
           </div>
-        </div>`;
-      } else {
-        // Vendable : proposer choix prod existante ou nouvelle prod
-        const prodsExist=PRODS.filter(p=>p.bij_id===bijComp.id&&(!p.statut||p.statut==='produit'));
-        const stockLabel=stockExist>0?`${n(stockExist)} en stock`:'0 en stock';
-        const prodsOpts=prodsExist.length
-          ? prodsExist.map((p,i)=>`<option value="use_${p.id}">Utiliser prod. du ${p.date||'--'} (qté ${p.qty})</option>`).join('')
-          : '';
-        return `<div style="padding:6px 8px;border-radius:var(--rx);margin-bottom:4px;background:${enough?'var(--purpleP)':'var(--redP)'}">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-            <span class="ref" style="color:var(--purple)">💎 ${bijComp.ref} — ${bijComp.nom}${bijComp.variante?' · '+bijComp.variante:''}</span>
-            <span style="color:${enough?'var(--purple)':'var(--red)'};font-weight:700;font-size:12px">${stockLabel} ${enough?'✓':'⚠'}</span>
-          </div>
-          <select data-comp-id="${bijComp.id}" class="comp-prod-sel"
-            style="font-size:12px;padding:5px 8px;border-radius:var(--rx);border:1px solid var(--border);width:100%">
-            <option value="new">➕ Compter comme nouvelle production</option>
-            ${prodsOpts}
+          <select data-comp-id="${bijComp.id}" data-need="${need}" class="comp-prod-sel" style="font-size:12px;padding:5px 8px;border-radius:var(--rx);border:1px solid var(--border);width:100%">
+            ${stockExist>0?`<option value="stock" selected>📦 Prendre ${n(prises)} dans les compositions déjà faites${need>prises?` + fabriquer ${n(need-prises)} avec les articles`:''}</option>`:''}
+            <option value="articles">🔨 Fabriquer avec les articles (déduits du stock matériaux)</option>
           </select>
         </div>`;
-      }
     }
     // Cas 3 : référence introuvable
     return `<div style="padding:4px 8px;border-radius:var(--rx);margin-bottom:2px;background:var(--orangeP);font-size:12px;color:var(--orange)">
@@ -6925,39 +6964,37 @@ async function saveProd() {
     bijId=newId; // la production sera enregistrée sur la nouvelle variation
   }
 
-  // Enregistrer la production principale
+  // Enregistrer la production principale (éventuellement mise de côté : vitrine, prototype…)
+  const bP=getBij(bijId);
   const obj={id:uid(),bij_id:bijId,qty,date,statut};
-  const ok=await sbInsert('productions',obj);
+  if(document.getElementById('p-hors-vente')?.checked&&!bP?.is_mat) obj.mise_en_vente={lieux:{},note:document.getElementById('p-hv-motif').value,hors_vente:true};
+  let ok=await sbInsert('productions',obj);
+  if(!ok&&obj.mise_en_vente){ toast('Hors vente : lance d\'abord sql-mise-en-vente.sql dans Supabase','err'); return; }
   if(!ok) return;
   PRODS.push(obj);
 
-  // Traiter les compositions vendables
-  const compSels=document.querySelectorAll('#prod-prev .comp-prod-sel');
-  for(const sel of compSels) {
-    const compId=sel.dataset.compId;
-    const val=sel.value;
-    if(val==='new') {
-      // Nouvelle prod pour la composition
-      const cobj={id:uid(),bij_id:compId,qty,date,statut};
-      const ok2=await sbInsert('productions',cobj);
-      if(ok2) PRODS.push(cobj);
-    }
-    // Si val commence par 'use_' : utiliser prod existante (pas de nouvel enregistrement)
+  // Compositions déjà faites prises dans leur stock : une ligne négative reliée à cette production (pas de double déduction)
+  let nbPris=0;
+  for(const sel of document.querySelectorAll('#prod-prev .comp-prod-sel')) {
+    if(sel.value!=='stock') continue;
+    const compId=sel.dataset.compId, pris=Math.min(+sel.dataset.need||0, Math.max(0,stockFini(compId)));
+    if(pris<=0) continue;
+    const cobj={id:uid(),bij_id:compId,qty:-pris,date,statut:'produit',perso_note:`🧩 utilisées dans « ${bP?bP.nom+(bP.variante?' · '+bP.variante:''):'un bijou'} » ⟨${obj.id}⟩`};
+    if(await sbInsert('productions',cobj)){ PRODS.push(cobj); nbPris+=pris; }
   }
 
   closeModal('m-prod');
   renderBij();
   renderRent();
-  toast(statut==='produit'?'Variation et production enregistrées ✓':'Mise en production enregistrée ✓','ok');
+  toast((statut==='produit'?'Production enregistrée ✓':'Mise en production enregistrée ✓')+(nbPris?` · ${nbPris} composition(s) prise(s) dans le stock`:'')+(obj.mise_en_vente?' · hors vente':''),'ok');
 }
 
 // ═══════════════════════════════════════════════════════
 // VENTES & RENTABILITÉ
 // ═══════════════════════════════════════════════════════
 function stockDispo2(bijId) {
-  // Stock = productions "produit" - ventes
-  const prodFini=PRODS.filter(p=>p.bij_id===bijId&&(!p.statut||p.statut==='produit')).reduce((s,p)=>s+(+p.qty||0),0);
-  return prodFini - venteTot(bijId).qty;
+  // Stock vendable = productions « produit » − ventes − pièces utilisées ailleurs, sans les pièces mises de côté (vitrine, proto…)
+  return stockFini(bijId);
 }
 
 // ═══════════════════════════════════════════════════════
@@ -7278,7 +7315,7 @@ let PROD_TOUT_OUVERT=false;
 let LOTS={};
 const sauverLots = () => sbUpsertConfig('lots', LOTS);
 function libreBij(bijId){        // pièces finies réellement disponibles : produites − lots − vendues − mises en vente − prévues en drop
-  const ps=PRODS.filter(x=>x.bij_id===bijId&&(!x.statut||x.statut==='produit'));
+  const ps=PRODS.filter(x=>x.bij_id===bijId&&(!x.statut||x.statut==='produit')&&!(+x.qty>0&&horsVente(x)));
   const net=ps.reduce((t,x)=>t+(+x.qty||0),0), places=ps.reduce((t,x)=>t+Object.values(lireMiseEnVente(x).lieux).reduce((u,q)=>u+(+q||0),0),0);
   const drops=DROPS.filter(d=>d.statut!=='en_ligne').reduce((t,d)=>t+(d.items||[]).filter(i=>ps.some(x=>x.id===i.prod_id)).reduce((u,i)=>u+(+i.qty||0),0),0);
   return Math.max(0,net-venteTot(bijId).qty-places-drops);
@@ -7527,10 +7564,17 @@ let LIEUX_VENTE=['Boutique en ligne','Point de vente physique'];
 const iconeLieu=l=>/en ligne|boutique|site|wix|etsy|shop/i.test(l)?'🛒':/point de vente|magasin|physique|d[ée]p[oô]t/i.test(l)?'🏪':/march|salon|[ée]v[ée]nement/i.test(l)?'🎪':'📍';
 function lireMiseEnVente(p) {
   let v=p?.mise_en_vente; if(typeof v==='string'){ try{ v=JSON.parse(v); }catch(e){ v=null; } }
-  return { lieux:(v&&v.lieux)||{}, note:(v&&v.note)||'' };
+  return { lieux:(v&&v.lieux)||{}, note:(v&&v.note)||'', hors_vente:!!(v&&v.hors_vente) };
+}
+const motifHorsVente = p => { const v=lireMiseEnVente(p); return v.hors_vente ? (v.note||'Hors vente') : (horsVente(p)?v.note:''); };
+function majEPHorsVente(){
+  const hv=document.getElementById('ep-hors-vente').checked, isProd=document.getElementById('ep-statut-val').value==='produit';
+  document.getElementById('ep-hv-motif').style.display=hv?'':'none';
+  const vr=document.getElementById('ep-vente-row'); if(vr) vr.style.display=isProd&&!hv?'':'none';
 }
 function badgesMiseEnVente(p) {
   const v=lireMiseEnVente(p);
+  if(horsVente(p)) return `<span class="badge bm" title="Articles déduits du stock, pièce gardée hors vente">🚫 ${escA(v.note||'Hors vente')}</span>`;
   const b=Object.entries(v.lieux).filter(([,q])=>+q>0).map(([l,q])=>`<span class="badge bgn" title="Mis en vente">${iconeLieu(l)} ${l} × ${n(q)}</span>`
     +`<button class="btn btn-xs btn-ghost" onclick="event.stopPropagation();venteDepuisProd('${p.id}','${l.replace(/'/g,"\\'")}')" title="Une pièce vendue ici : enregistre la vente et la retire de ce lieu">💶 Vendu</button>`
     +(CANAL_DE_LIEU(l)==='wix'?`<button class="btn btn-xs btn-ghost" onclick="event.stopPropagation();ficheBoutique('${p.bij_id}')" title="Texte prêt à copier dans Wix">🛒 Fiche</button>`:'')).join(' ');
@@ -7550,6 +7594,7 @@ function rendreLieuxVente(p) {
   document.getElementById('ep-vente-note').value=v.note;
 }
 function lireFormMiseEnVente() {
+  if(document.getElementById('ep-hors-vente')?.checked) return { lieux:{}, note:document.getElementById('ep-hv-motif').value, hors_vente:true };
   const lieux={};
   document.querySelectorAll('#ep-vente-lieux label').forEach(l=>{
     const chk=l.querySelector('.ep-lieu-chk'), q=+l.querySelector('.ep-lieu-qty').value||0;
@@ -7574,8 +7619,13 @@ function openEditProd(prodId) {
   document.getElementById('ep-date').value=p.date||today();
   document.getElementById('ep-title').textContent='Modifier — '+(b?b.nom+(b.variante?' · '+b.variante:''):'');
   const isProd=!p.statut||p.statut==='produit';
-  setEPStatut(isProd?'produit':'en_cours');
+  const hv=horsVente(p), sel=document.getElementById('ep-hv-motif'), mot=lireMiseEnVente(p).note;
+  document.getElementById('ep-hors-vente').checked=hv;
+  if(hv&&mot&&![...sel.options].some(o=>o.value===mot)) sel.add(new Option(mot,mot));
+  if(hv) sel.value=[...sel.options].find(o=>o.value===mot)?.value || (/proto/i.test(mot)?'Prototype':'Vitrine');
+  const b0=getBij(p.bij_id); document.getElementById('ep-hv-row').style.display=b0?.is_mat||+p.qty<0?'none':'';
   rendreLieuxVente(p);
+  setEPStatut(isProd?'produit':'en_cours');
   openModal('m-edit-prod');
 }
 
@@ -7590,7 +7640,7 @@ function setEPStatut(val) {
   elE.style.background=!isProd?'var(--purple)':'#fff';
   elE.style.color=!isProd?'#fff':'var(--muted)';
   elE.style.borderColor=!isProd?'var(--purple)':'var(--border)';
-  const vr=document.getElementById('ep-vente-row'); if(vr) vr.style.display=isProd?'':'none';   // seulement pour ce qui est produit
+  majEPHorsVente();   // lieux de vente : seulement pour ce qui est produit et pas mis de côté
 }
 
 async function saveEditProd() {
@@ -7599,7 +7649,7 @@ async function saveEditProd() {
   const date=document.getElementById('ep-date').value;
   const statut=document.getElementById('ep-statut-val').value||'produit';
   const maj={qty,date,statut};
-  const mev=statut==='produit'?lireFormMiseEnVente():null;
+  const mev=statut==='produit'||document.getElementById('ep-hors-vente')?.checked?lireFormMiseEnVente():null;
   const avant=lireMiseEnVente(PRODS.find(p=>p.id===id));
   if(mev||Object.keys(avant.lieux).length||avant.note) maj.mise_en_vente=mev;   // la colonne n'est utilisée que si tu annotes
   const ok=await sbUpdate('productions',id,maj);
@@ -7615,10 +7665,12 @@ async function saveEditProd() {
 }
 
 async function delProd(id) {
-  if(!confirm('Supprimer cette production ?')) return;
+  const liees=PRODS.filter(p=>+p.qty<0&&String(p.perso_note||'').includes('⟨'+id+'⟩'));
+  if(!confirm('Supprimer cette production ?'+(liees.length?`\nLes compositions qu'elle utilisait (${liees.reduce((t,p)=>t-(+p.qty),0)}) retournent dans leur stock.`:''))) return;
   const ok=await sbDelete('productions',id);
   const bj=PRODS.find(p=>p.id===id)?.bij_id;
-  if(ok){PRODS=PRODS.filter(p=>p.id!==id);renderRent();toast('Production supprimée','ok'); if(bj) planifierSynchro(bj);}
+  if(ok){ for(const l of liees) if(await sbDelete('productions',l.id)) PRODS=PRODS.filter(p=>p.id!==l.id);
+    PRODS=PRODS.filter(p=>p.id!==id);renderRent();toast('Production supprimée','ok'); if(bj) planifierSynchro(bj);}
 }
 
 function onCanalChange() {
@@ -7805,30 +7857,31 @@ function renderRent() {
   if(rsEl){
     const estP=p=>!p.statut||p.statut==='produit';
     const prixDe=b=>+(b.pv||(b.parent_id&&getBij(b.parent_id)?.pv)||prixMin(b)||0);
-    let qProd=0, vProd=0, qStock=0, vStock=0, cStock=0, qLigne=0, vLigne=0, qAilleurs=0, qEnc=0;
+    let qProd=0, vProd=0, qStock=0, vStock=0, cStock=0, qLigne=0, vLigne=0, qAilleurs=0, qEnc=0, qHV=0;
     const parBij={};
     PRODS.forEach(p=>{ const b=getBij(p.bij_id); if(!b) return; const q=+p.qty||0;
       if(!estP(p)){ qEnc+=q; return; }
-      if(q<0){ (parBij[b.id] ||= {b,q:0}).q+=q; return; }      // pièces assemblées dans un lot
+      if(q<0){ (parBij[b.id] ||= {b,q:0}).q+=q; return; }      // pièces assemblées dans un lot / une autre création
+      if(horsVente(p)||b.is_mat){ qHV+=q; return; }                // mises de côté (vitrine, proto…) et compositions : pas du stock à vendre
       qProd+=q; vProd+=q*prixDe(b); (parBij[b.id] ||= {b,q:0}).q+=q;
       const l=lireMiseEnVente(p).lieux; const en=+l['Boutique en ligne']||0; qLigne+=en; vLigne+=en*prixDe(b);
       qAilleurs+=Object.entries(l).filter(([k])=>k!=='Boutique en ligne').reduce((t,[,v])=>t+(+v||0),0); });
-    Object.values(parBij).forEach(({b,q})=>{ const st=Math.max(0,q-venteTot(b.id).qty); qStock+=st; vStock+=st*prixDe(b); cStock+=st*coutBijou(b); });
+    Object.values(parBij).forEach(({b,q})=>{ if(b.is_mat) return; const st=Math.max(0,q-venteTot(b.id).qty); qStock+=st; vStock+=st*prixDe(b); cStock+=st*coutBijou(b); });
     rsEl.className='stats stats-prod';
     rsEl.innerHTML=`
       <div class="stat pur"><div class="v">${n(qProd)}</div><div class="l">pièces produites</div><div class="s">≈ ${eur(vProd)} au prix de vente</div></div>
       <div class="stat grn"><div class="v">${n(qStock)}</div><div class="l">en stock</div><div class="s">valeur ≈ ${eur(vStock)} · coût mat. ${eur(cStock)}</div></div>
       <div class="stat pur"><div class="v">${n(qLigne)}</div><div class="l">dispo boutique en ligne</div><div class="s">≈ ${eur(vLigne)}</div></div>
-      <div class="stat"><div class="v">${n(qAilleurs)}</div><div class="l">en point de vente / dépôts</div><div class="s">${qEnc?'🔧 '+n(qEnc)+' en cours de fabrication':'rien en cours'}</div></div>`;
+      <div class="stat"><div class="v">${n(qAilleurs)}</div><div class="l">en point de vente / dépôts</div><div class="s">${qEnc?'🔧 '+n(qEnc)+' en cours de fabrication':'rien en cours'}${qHV?' · 🚫 '+n(qHV)+' hors vente / compositions':''}</div></div>`;
   }
   // ── Productions : regroupées par bijou, avec recherche, filtre et tri
   const estProd=p=>!p.statut||p.statut==='produit';
-  const aVendre=p=>estProd(p)&&+p.qty>0&&!Object.keys(lireMiseEnVente(p).lieux).length&&!dropDeProd(p.id);
-  const pasEnLigne=p=>estProd(p)&&+p.qty>0&&!(+lireMiseEnVente(p).lieux['Boutique en ligne']>0);
+  const aVendre=p=>estProd(p)&&+p.qty>0&&!Object.keys(lireMiseEnVente(p).lieux).length&&!dropDeProd(p.id)&&!horsVente(p)&&!getBij(p.bij_id)?.is_mat;
+  const pasEnLigne=p=>estProd(p)&&+p.qty>0&&!(+lireMiseEnVente(p).lieux['Boutique en ligne']>0)&&!horsVente(p)&&!getBij(p.bij_id)?.is_mat;
   const q=(document.getElementById('prod-search')?.value||'').toLowerCase().trim();
   const flt=document.getElementById('prod-flt')?.value||'';
   const triP=document.getElementById('prod-tri')?.value||'recent';
-  const filtreLigne={ produit:estProd, en_cours:p=>!estProd(p), avendre:aVendre, perso:p=>!!p.perso,
+  const filtreLigne={ produit:estProd, en_cours:p=>!estProd(p), avendre:aVendre, perso:p=>!!p.perso, horsvente:p=>+p.qty>0&&horsVente(p), compo:p=>!!getBij(p.bij_id)?.is_mat,
     drop:p=>!!dropDeProd(p.id), horsligne:p=>pasEnLigne(p)&&!dropDeProd(p.id), enligne:p=>+lireMiseEnVente(p).lieux['Boutique en ligne']>0 }[flt];
   const groupes={};
   PRODS.forEach(p=>{
@@ -7838,12 +7891,13 @@ function renderRent() {
   });
   let liste=Object.values(groupes).map(g=>{
     const qProd=g.lignes.filter(p=>estProd(p)&&+p.qty>0).reduce((t,p)=>t+(+p.qty||0),0);
+    const qHV=g.lignes.filter(p=>estProd(p)&&+p.qty>0&&horsVente(p)).reduce((t,p)=>t+(+p.qty||0),0);
     const qLot=-g.lignes.filter(p=>estProd(p)&&+p.qty<0).reduce((t,p)=>t+(+p.qty||0),0);
     const qEnc=g.lignes.filter(p=>!estProd(p)).reduce((t,p)=>t+(+p.qty||0),0);
     const vt=venteTot(g.b.id), cout=coutBijou(g.b), pvAff=g.b.pv||prixMin(g.b);
     const derniere=g.lignes.reduce((d,p)=>String(p.date||'')>d?String(p.date||''):d,'');
     const premiere=g.lignes.reduce((d,p)=>!d||String(p.date||'')<d?String(p.date||''):d,'');
-    return {...g, qProd, qLot, qEnc, vendus:vt.qty, stock:qProd-qLot-vt.qty, cout, pvAff, derniere, premiere,
+    return {...g, qProd, qLot, qEnc, qHV, vendus:vt.qty, stock:qProd-qHV-qLot-vt.qty, cout, pvAff, derniere, premiere,
       marge:pvAff&&cout>0?Math.round(((pvAff-cout)/pvAff)*100):null,
       lignesVues:filtreLigne?g.lignes.filter(filtreLigne):g.lignes};
   });
@@ -7873,7 +7927,7 @@ function renderRent() {
       prodHtml+=`<tr style="cursor:pointer" onclick="toggleProdDetail('pd_${bijId}')">
         <td style="font-size:12px;font-weight:600">${b.nom}${b.variante?' · '+b.variante:''}<div class="dim" style="font-weight:400;font-size:10px">${g.derniere?'dernière : '+g.derniere:''}</div></td>
         <td class="ref">${b.ref||'--'}</td>
-        <td><b>${n(g.qProd)}</b>${g.qEnc?` <span class="badge bp" title="En cours">🔧 ${n(g.qEnc)}</span>`:''}${g.qLot?` <span class="badge bm" title="Pièces assemblées dans des lots">🎁 −${n(g.qLot)}</span>`:''}</td>
+        <td><b>${n(g.qProd)}</b>${g.qEnc?` <span class="badge bp" title="En cours">🔧 ${n(g.qEnc)}</span>`:''}${g.qLot?` <span class="badge bm" title="Pièces utilisées dans des lots ou d'autres créations">${g.b.is_mat?'🧩':'🎁'} −${n(g.qLot)}</span>`:''}${g.qHV?` <span class="badge bm" title="Hors vente : vitrine, prototype…">🚫 ${n(g.qHV)}</span>`:''}</td>
         <td>${(()=>{ const t={}; g.lignes.forEach(p=>Object.entries(lireMiseEnVente(p).lieux).forEach(([l,qq])=>t[l]=(t[l]||0)+(+qq||0)));
           const e=Object.entries(t).filter(([,qq])=>qq>0); return e.length?e.map(([l,qq])=>`<span title="${l}">${iconeLieu(l)} ${n(qq)}</span>`).join(' '):'<span class="dim">--</span>'; })()}</td>
         <td style="color:var(--green)">${n(g.vendus)}</td>
@@ -7888,7 +7942,7 @@ function renderRent() {
             ${g.lignesVues.map(p=>`
               <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;font-size:12px">
                 <span class="badge bm">${p.date||'--'}</span>
-                ${+p.qty<0?`<span><b>${n(-p.qty)}</b> pcs</span><span class="badge bm">🎁 ${escA(String(p.perso_note||'utilisées dans un lot').replace(/^🎁 /,''))}</span>`:`<span><b>${n(p.qty)}</b> pcs</span>
+                ${+p.qty<0?`<span><b>${n(-p.qty)}</b> pcs</span><span class="badge bm">${/^🧩/.test(p.perso_note||'')?'':'🎁 '}${escA(noteSansLien(p.perso_note||'utilisées dans un lot').replace(/^🎁 /,''))}</span>`:`<span><b>${n(p.qty)}</b> pcs</span>
                 <span class="badge ${estProd(p)?'bgn':'bp'}">${estProd(p)?'✅ Produit':'🔧 En cours'}</span>`}
                 ${p.perso?`<span class="badge bm" style="cursor:pointer" onclick="event.stopPropagation();ouvrirPerso('${escPerso(p.perso)}')" title="${escPerso(p.perso_note||'')}">✨ ${escPerso(p.perso)}</span>`:''}
                 ${badgesMiseEnVente(p)}
