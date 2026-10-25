@@ -4166,7 +4166,7 @@ function rendreC3(){
   let corps='';
   if(C3_ONGLET==='breloques'){
     corps=`<p class="dim c3-aide">Les modèles 3D proposés au client, dans chaque parcours (breloque seule / bundle). Un modèle se publie dans 🧊 Modèles.</p>`
-      +(MODELES_3D.length?MODELES_3D.map(m=>c3Ligne(escA(m.nom||m.slug),c3Inter(vuM(m,'breloque'),`basculerModele('${escA(m.slug)}','breloque')`,'breloque seule')+c3Inter(vuM(m,'bundle'),`basculerModele('${escA(m.slug)}','bundle')`,'bundle'),{sous:m.publie?'':'non publié'})).join(''):'<p class="dim">Aucun modèle 3D enregistré (onglet 🧊 Modèles) : le configurateur montre les modèles d\'exemple.</p>')
+      +(MODELES_3D.length?MODELES_3D.map(m=>c3Ligne(escA(m.nom||m.slug),c3Inter(vuM(m,'breloque'),`basculerModele('${escA(m.slug)}','breloque')`,'breloque seule')+c3Inter(vuM(m,'bundle'),`basculerModele('${escA(m.slug)}','bundle')`,'bundle + chaîne de sac'),{sous:m.publie?'':'non publié'})).join(''):'<p class="dim">Aucun modèle 3D enregistré (onglet 🧊 Modèles) : le configurateur montre les modèles d\'exemple.</p>')
       +c3Groupe('formes','Breloque chainmail · formes',FORMES_3D.map(([f,nom])=>c3Ligne(escA(nom),c3Inter(c3Vu('forme:'+f),`basculerForme('${f}')`))).join(''))
       +`<p class="dim c3-aide">La fiche produit de chaque modèle / forme se relie dans 🔗 Références › Produits ↔ modèles 3D.</p>`;
   } else if(C3_ONGLET==='idees'){
@@ -4199,7 +4199,7 @@ async function c3Tous(ids,on){
 }
 // 🎁 offres du configurateur (non cumulables : la cliente choisit si elle a droit aux deux)
 let OFFRES_CFG=null;
-const OFFRES_DEF={ rond:{active:true,libelle:'Fermoir rond offert',min:2,prixMin:15,remise:1.5}, mousqueton:{active:true,libelle:'Mousqueton offert',minBundles:2,remise:null}, lettres:{active:true,libelle:'Breloques lettre offertes',min:3,prixMin:15} };
+const OFFRES_DEF={ rond:{active:true,libelle:'Fermoir rond offert',min:2,prixMin:15,remise:1.5}, mousqueton:{active:true,libelle:'Mousqueton offert',minBundles:2,minAchat:25,remise:null}, lettres:{active:true,libelle:'Breloques lettre offertes',min:3,prixMin:15} };
 async function chargerOffresCfg(){ try{ const {data}=await SB.from('config').select('value').eq('key','configurateur_offres').maybeSingle(); let v=data?.value; if(typeof v==='string'){ try{v=JSON.parse(v);}catch(e){v=null;} } OFFRES_CFG=v&&typeof v==='object'?v:{};
   if(OFFRES_CFG.perles&&!OFFRES_CFG.lettres){ const {libelle,...r}=OFFRES_CFG.perles; OFFRES_CFG.lettres=r; }   // ancienne offre « perles » → breloques lettre
   }catch(e){ OFFRES_CFG={}; } }
@@ -4210,7 +4210,7 @@ function renderOffres(){
   const bt=k=>`<button type="button" class="c3p ${o(k).active!==false?'on':''}" onclick="majOffre('${k}','active',${o(k).active===false})">${o(k).active!==false?'👁 affichée':'🚫 masquée'}</button>`;
   return `<details class="c3p-det" style="margin-top:8px"><summary><b>🎁 Offres du configurateur</b> <span class="dim">· non cumulables : si la cliente a droit aux deux, elle choisit</span> <span class="c3p-gerer">Gérer ▾</span></summary><div class="c3p-tab">
     <div class="c3p-l" style="flex-wrap:wrap;gap:6px"><span class="c3p-nom">Rond offert</span>${bt('rond')}${champ('rond','libelle','Libellé','text',160)}${champ('rond','min','dès')} breloques ${champ('rond','prixMin','à partir de (€)')}${champ('rond','remise','remise (€)')}</div>
-    <div class="c3p-l" style="flex-wrap:wrap;gap:6px"><span class="c3p-nom">Mousqueton offert</span>${bt('mousqueton')}${champ('mousqueton','libelle','Libellé','text',160)}${champ('mousqueton','minBundles','dès')} porte-clés montés sur le mousqueton ${champ('mousqueton','remise','remise (€, vide = offert)')}</div>
+    <div class="c3p-l" style="flex-wrap:wrap;gap:6px"><span class="c3p-nom">Mousqueton offert</span>${bt('mousqueton')}${champ('mousqueton','libelle','Libellé','text',160)}${champ('mousqueton','minBundles','dès')} porte-clés montés sur le mousqueton, ${champ('mousqueton','minAchat','achat minimum (€)')} ${champ('mousqueton','remise','remise (€, vide = offert)')} <span class="dim" style="font-size:11px">(proposée seulement avec plusieurs porte-clés)</span></div>
     <div class="c3p-l" style="flex-wrap:wrap;gap:6px"><span class="c3p-nom">Breloques lettre offertes</span>${bt('lettres')}${champ('lettres','libelle','Libellé','text',160)}${champ('lettres','min','dès')} breloques ${champ('lettres','prixMin','à partir de (€)')} <span class="dim" style="font-size:11px">(cumulable avec les offres porte-clés)</span></div>
   </div></details>`;
 }

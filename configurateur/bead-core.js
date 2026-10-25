@@ -2076,9 +2076,11 @@ export function genChaineByzantine({ motif = 'continu', anneau = ANNEAU_8, grand
 /* Ta chaîne d'environ 30 cm : nombre de motifs (doubles 4×4) par chaîne, et motifs montrés dans la vue « détail » */
 /* Mini chaîne (breloque) : n nœuds 4×4 (3 ou 4) de la chaîne fleur / intercalaire, verticale (+z), le 1er anneau de 10 mm pris par le fermoir en z = 0 */
 export const PETIT_ANNEAU = { R: 2.0, e: 0.25 };            // anneau 0,5 mm qui porte la pampille
+export let MINI_RECUL = 1;
+export const reglerMiniRecul = v => { MINI_RECUL = v; };
 export function genMiniChaine(motif, noeuds = 4) {
   // d'après tes fiches : 2 doubles 4×4 + connecteur (2) en 8 mm ;
-  //  fleur       : 1 anneau 10 mm en haut, connecteurs (2) 10 mm au milieu et au bout, 2 pétales par fleur (9 × 10 mm), puis le petit anneau
+  //  fleur       : 1 anneau 10 mm en haut, connecteur (2) 10 mm au milieu, 2 pétales par fleur (7 × 10 mm), connecteur (2) 8 mm au bout, puis le petit anneau
   //  alternative : 1 anneau 10 mm en haut, connecteurs (2) 10 mm au milieu et en bas (5 × 10 mm), puis le petit anneau
   const A = genChaineByzantine({ motif: 'fleur', nombre: 2 }), G = ANNEAU_10;
   const z0 = Math.min(...A.map(a => a.p[2])), tete = A.filter(a => a.R > 4 && Math.abs(a.p[1]) < 2 && a.p[2] < z0 + 1);
@@ -2088,9 +2090,12 @@ export function genMiniChaine(motif, noeuds = 4) {
   if (motif !== 'fleur') B = B.filter(a => !(a.R > 4 && Math.abs(a.p[1]) > 4));                        // alternative : sans pétales
   const dz = G.R - G.e * 0.4 - B[0].p[2];
   B = B.map(a => ({ ...a, p: [a.p[0], a.p[1], +(a.p[2] + dz).toFixed(3)] }));
-  // les deux : connecteur (2) 10 mm au bout, puis le petit anneau de la pampille 4 mm
-  const zf = zFin + dz;
-  B.push({ p: [0, 0, +(zf + G.R + PETIT_ANNEAU.R * 0.45).toFixed(3)], n: [0, 1, 0], R: PETIT_ANNEAU.R, e: PETIT_ANNEAU.e });
+  // connecteur (2) au bout, puis le petit anneau de la pampille 4 mm.
+  // fleur : ce connecteur est en 8 mm (ta fiche : 7 anneaux de 10 mm = 1 en haut + connecteur du milieu + 4 pétales)
+  let zf = zFin + dz, Rb = G.R;
+  if (motif === 'fleur') { const H = ANNEAU_8, recul = (G.R - H.R) * MINI_RECUL; Rb = H.R;
+    B = B.map(a => a.R > 4 && Math.abs(a.p[1]) < 2 && a.p[2] > zf - 1 ? { ...a, R: H.R, e: H.e, p: [a.p[0], a.p[1], +(a.p[2] - recul).toFixed(3)] } : a); zf -= recul; }
+  B.push({ p: [0, 0, +(zf + Rb + PETIT_ANNEAU.R * 0.45).toFixed(3)], n: [0, 1, 0], R: PETIT_ANNEAU.R, e: PETIT_ANNEAU.e });
   return B;
 }
 export const NB_MOTIFS = { 'chaine-8': 14, 'chaine-10': 11.5, 'chaine-intercalaire': 13, 'chaine-fleur': 13 };
@@ -2347,6 +2352,19 @@ export function fusionner(cible, sub, M, renum = j => j) {
     fusionnerSupport(out, sp.pieces, M.clone().multiply(new THREE.Matrix4().compose(new THREE.Vector3().fromArray(sp.pos || [0, 0, 0]), q.setFromEuler(e.set(r[0] * DEG, r[1] * DEG, r[2] * DEG)), un)));
   }
 }
+/* Encombrement d'un porte-clés composé, dans son repère : y (largeur), et longueur de pendaison sous l'accroche (h) */
+function etendueCompo(modele, h = 0) {
+  let y0 = Infinity, y1 = -Infinity, zMin = Infinity, zMax = -Infinity; const e = new THREE.Euler(), q = new THREE.Quaternion(), un = new THREE.Vector3(1, 1, 1), v = new THREE.Vector3();
+  for (const g of modele.groupes || []) {
+    const r = g.rot || [0, 0, 0], W = new THREE.Matrix4().compose(new THREE.Vector3().fromArray(g.pos || [0, 0, 0]), q.setFromEuler(e.set(r[0] * DEG, r[1] * DEG, r[2] * DEG)), un);
+    const pts = [...(g.perles || []), ...(g.anneaux || [])].map(b => b.p).filter(Boolean);
+    const marge = g.technique === 'argile' || pts.length < 3 ? 15 : 2.5;   // argile (un seul disque d'environ 30 mm) : sa vraie taille
+    for (const p of pts.length ? pts : [[0, 0, 0]]) { v.fromArray(p).applyMatrix4(W);
+      y0 = Math.min(y0, v.y - marge); y1 = Math.max(y1, v.y + marge); zMin = Math.min(zMin, v.z - marge); zMax = Math.max(zMax, v.z + marge); }
+  }
+  if (!isFinite(y0)) return { y0: -10, y1: 10, yc: 0, long: 30 };
+  return { y0, y1, yc: (y0 + y1) / 2, long: Math.max(Math.abs(h - zMin), Math.abs(zMax - h)) };
+}
 /* Plusieurs porte-clés (compositions bundle : un rond, un mini rond…), éventuellement montés ensemble sur un mousqueton.
    compos : [{ breloques, indices (numéros des breloques), pieces }] ; mousqueton : la pièce mousqueton (ou null) */
 export function composerCompos({ compos, mousqueton = null, fermoirs = [], catalogue = [] }) {
@@ -2356,14 +2374,23 @@ export function composerCompos({ compos, mousqueton = null, fermoirs = [], catal
   const hautDe = pcs => { const P = piecesAccroche(pcs); return P.length ? P[P.length - 1].z + (P[P.length - 1].haut || 0) : 0; };
   const K = ok.length, att = mousqueton ? piecesAccroche([mousqueton])[0].attache : null;
   if (mousqueton) fusionnerSupport(cible.modele, [mousqueton], new THREE.Matrix4());
-  ok.forEach((c, k) => {
-    const sub = composerBundle({ breloques: c.breloques, pieces: c.pieces, fermoirs, catalogue }), kk = k - (K - 1) / 2, h = hautDe(c.pieces);
-    let M;
-    if (att) { const a = K > 1 ? kk * 0.45 : 0, th = K > 1 ? -kk * 0.5 : 0;
-      M = new THREE.Matrix4().makeTranslation(0, att.rayon * Math.sin(a), att.centre + att.rayon * Math.cos(a)).multiply(new THREE.Matrix4().makeRotationX(th)).multiply(new THREE.Matrix4().makeTranslation(0, 0, -h)); }
-    else M = new THREE.Matrix4().makeTranslation(0, kk * 42, 0);           // porte-clés séparés : côte à côte
-    fusionner(cible, sub, M, j => c.indices[j]);
-  });
+  // chaque porte-clés prend la place qu'il occupe vraiment (largeur mesurée) : ils ne se chevauchent plus
+  const subs = ok.map(c => { const sub = composerBundle({ breloques: c.breloques, pieces: c.pieces, fermoirs, catalogue }), h = hautDe(c.pieces);
+    return { c, sub, h, ...etendueCompo(sub.modele, h) }; });
+  const GAP = 6;
+  if (att) {
+    // éventail autour du mousqueton : écart angulaire = (demi-largeurs + marge) / longueur de pendaison
+    const Lm = Math.max(20, subs.reduce((t, x) => t + x.long, 0) / K * 0.75);
+    const ang = [0]; for (let k = 1; k < K; k++) ang.push(ang[k - 1] + Math.min(0.9, ((subs[k - 1].y1 - subs[k - 1].yc) + (subs[k].yc - subs[k].y0) + GAP * 2) / Lm));
+    const mil = (ang[0] + ang[K - 1]) / 2;
+    subs.forEach((x, k) => { const th = -(ang[k] - mil), a = -th * 0.6;
+      const M = new THREE.Matrix4().makeTranslation(0, att.rayon * Math.sin(a), att.centre + att.rayon * Math.cos(a)).multiply(new THREE.Matrix4().makeRotationX(th)).multiply(new THREE.Matrix4().makeTranslation(0, -x.yc, -x.h));
+      fusionner(cible, x.sub, M, j => x.c.indices[j]); });
+  } else {                                                                  // porte-clés séparés : côte à côte
+    const larg = subs.map(x => x.y1 - x.y0), tot = larg.reduce((t, w) => t + w, 0) + GAP * (K - 1);
+    let y = -tot / 2;
+    subs.forEach((x, k) => { const M = new THREE.Matrix4().makeTranslation(0, y - x.y0, 0); y += larg[k] + GAP; fusionner(cible, x.sub, M, j => x.c.indices[j]); });
+  }
   return cible;
 }
 export const estChaineSac = m => m?.type === 'chaine' || !!m?.groupes?.some(g => g.technique === 'chaine');
@@ -3535,11 +3562,13 @@ export const estLettres = m => !!m?.lettres || m?.groupes?.some(g => g.technique
        les noms de couleurs et les références, + les articles du panier.
    -------------------------------------------------------------------------- */
 const nomBreloque = m => (m.nom || 'Breloque').replace(/\s*\(exemple\)\s*$/i, '').replace(/\s*Bona Nodi\s*$/i, '');
-export function noteBreloque(modele, { couleurs = {}, options = {}, catalogue = [], fermoirs = [], refs = true, sansCouleurs = false } = {}) {
+// modèle « unique » (chaîne de sac, perle de culture, argile, chainmail) : un seul modèle, c'est la fiche produit qui le nomme
+export const modeleUnique = m => !!m && (m.type === 'chaine' || estChaineSac(m) || estPerleCulture(m) || estArgile(m) || estChainmail(m) || !!m.bijZone);
+export function noteBreloque(modele, { couleurs = {}, options = {}, catalogue = [], fermoirs = [], refs = true, sansCouleurs = false, nomFiche = '' } = {}) {
   const parRef = Object.fromEntries(catalogue.map(c => [c.ref, c]));
   const fermParRef = Object.fromEntries(fermoirs.map(f => [f.ref, f]));
   const avec = ref => { const c = parRef[ref]; return (c?.nom || (refs ? ref : 'couleur choisie') || '—') + (refs && ref ? ' (' + ref + ')' : ''); };
-  const morceaux = [nomBreloque(modele)];
+  const morceaux = [nomFiche || nomBreloque(modele)];
   for (const z of (sansCouleurs ? [] : modele.zones || [])) {
     const ref = couleurs[z.id] || z.defaut;
     const nom = z.groupe ? z.groupe + ' ' + (z.libelle || '').toLowerCase() : z.nom;
@@ -3547,7 +3576,7 @@ export function noteBreloque(modele, { couleurs = {}, options = {}, catalogue = 
   }
   const optF = (modele.options || []).find(o => o.type === 'fermoir');
   const refF = (optF && options[optF.id]) || modele.groupes?.[0]?.accessoires?.[0]?.ref;
-  if (refF && modele.type === 'chaine') morceaux.push('mousquetons aux deux bouts' + (refs ? ' (' + refF + ')' : ''));
+  if (refF && modele.type === 'chaine') { if (refs) morceaux.push('mousquetons aux deux bouts (' + refF + ')'); }   // côté client : la fiche de la chaîne suffit
   else if (refF) {
     const f = fermParRef[refF], c = optF?.choix?.find(x => x.ref === refF);
     morceaux.push('fermoir ' + (c?.libelle || (f?.taille >= 15 ? 'grand' : 'petit')).toLowerCase() + (refs ? ' (' + refF + ')' : ''));
@@ -3565,7 +3594,7 @@ export function notePersonnalisation({ breloques, accroche = null, accroches = n
   const plusieurs = breloques.length > 1 || !!accroche || !!accroches?.length;
   const articles = [];
   const ajouter = a => { const x = articles.find(y => y.cle === a.cle && !a.note && !y.note); x ? x.quantite++ : articles.push({ quantite: 1, ...a }); };
-  const notesAtelier = [];
+  const notesAtelier = [], detail = [];      // détail des prix (re-détail de la facture), ligne par ligne
   const notes = breloques.map((b, i) => {
     const pre = titre + ' — ' + (plusieurs ? 'B' + (i + 1) + ' · ' : '');
     // la fiche bijou reconnue (ex. « Petit poisson · Sardine », #BIJ-013) : production et fiche atelier sur la bonne référence
@@ -3574,18 +3603,26 @@ export function notePersonnalisation({ breloques, accroche = null, accroches = n
     // modèle déjà existant (idée choisie telle quelle) : juste son nom ; sinon le détail des couleurs
     const sur = (b.surChaine === 'mini' ? ' — accrochée sur la mini chaîne' : b.surChaine ? ' — accrochée sur la chaîne' : '') + (b.principal ? ' — son mousqueton est le porte-clés principal (les autres breloques y sont accrochées)' : '');
     notesAtelier[notesAtelier.length - 1] += sur;
-    const note = pre + noteBreloque(b.modele, { ...b, catalogue, fermoirs, refs: false, sansCouleurs: !!b.modeleIdee }) + (b.ficheNom && b.modele?.type !== 'chaine' ? ' — Modèle : ' + nomSansParentheses(b.ficheNom) : '') + sur;   // le client ne voit que les noms (sans tes parenthèses)
+    // chaîne de sac, perle de culture, argile, chainmail : un seul modèle → le nom de la fiche, sans « Modèle : »
+    const uni = modeleUnique(b.modele), nf = b.ficheNom ? nomSansParentheses(b.ficheNom) : '';
+    const note = pre + noteBreloque(b.modele, { ...b, catalogue, fermoirs, refs: false, sansCouleurs: !!b.modeleIdee, nomFiche: uni ? nf : '' }) + (nf && !uni ? ' — Modèle : ' + nf : '') + sur;   // le client ne voit que les noms (sans tes parenthèses)
+    const nomD = (plusieurs ? 'B' + (i + 1) + ' · ' : '') + (uni && nf ? nf : nomBreloque(b.modele));
     ajouter({ cle: b.modele.slug, bij: b.bijRef || b.modele.bij_ref || '', libelle: nomBreloque(b.modele), prix: +(b.prixBase ?? b.modele.prix ?? 0), note });
+    detail.push({ libelle: nomD, prix: +(b.prixBase ?? b.modele.prix ?? 0) });
     const optF = (b.modele.options || []).find(o => o.type === 'fermoir');
     const cF = optF?.choix?.find(c => c.ref === b.options?.[optF.id]);
-    if (cF && +cF.supplement) ajouter({ cle: 'fermoir:' + cF.ref, libelle: fermParRef[cF.ref]?.nom || cF.ref, prix: +cF.supplement });
-    for (const o of b.modele.options || []) if (o.type === 'perle' && b.options?.[o.id] && +o.supplement)
+    if (cF && +cF.supplement) { ajouter({ cle: 'fermoir:' + cF.ref, libelle: fermParRef[cF.ref]?.nom || cF.ref, prix: +cF.supplement });
+      detail.push({ libelle: '   + fermoir ' + (cF.libelle || fermParRef[cF.ref]?.nom || '').toLowerCase(), prix: +cF.supplement }); }
+    for (const o of b.modele.options || []) if (o.type === 'perle' && b.options?.[o.id] && +o.supplement) {
       ajouter({ cle: 'option:' + o.id, libelle: (o.nom || 'Perle') + ' — ' + (parRef[b.options[o.id]]?.nom || ''), prix: +o.supplement });
+      detail.push({ libelle: '   + ' + (o.nom || 'perle').toLowerCase(), prix: +o.supplement }); }
     return note;
   });
   let ligneAcc = '', ligneAccAtelier = '';
   if (accroches?.length) {                         // plusieurs porte-clés et / ou mousqueton en supplément
-    for (const a of accroches) ajouter({ cle: 'accroche:' + a.id + (+a.remise ? ':offre' : ''), libelle: a.libelle + (+a.remise ? ' (offre)' : ''), prix: Math.max(0, (+a.supplement || 0) - (+a.remise || 0)) });
+    for (const a of accroches) { ajouter({ cle: 'accroche:' + a.id + (+a.remise ? ':offre' : ''), libelle: a.libelle + (+a.remise ? ' (offre)' : ''), prix: Math.max(0, (+a.supplement || 0) - (+a.remise || 0)) });
+      detail.push({ libelle: (a.nomCompo && a.nomCompo !== 'Mousqueton' ? a.nomCompo + ' · ' : '') + a.libelle, prix: +a.supplement || 0 });
+      if (+a.remise) detail.push({ libelle: '   ' + (a.offreLibelle || 'offre'), prix: -a.remise }); }
     ligneAcc = accroches.map(a => (a.lotNom ? 'Porte-clés tout prêt : ' + a.lotNom + ' — ' : (a.nomCompo || 'Porte-clés') + ' : ') + a.libelle + (+a.remise ? ' — ' + (a.offreLibelle || 'offre') : '')).join('\n');
     ligneAccAtelier = accroches.map(a => (a.nomCompo || 'Porte-clés') + ' : ' + a.libelle + ' — ' + (a.pieces || []).map(r => (fermParRef[r]?.nom || r) + ' (' + r + ')').join(' + ')
       + (a.contenu ? ' — ' + a.contenu : '') + (+a.remise ? ' — ' + (a.offreLibelle || 'offre') : '')).join('\n');
@@ -3594,16 +3631,21 @@ export function notePersonnalisation({ breloques, accroche = null, accroches = n
     const remise = offre ? Math.min(+accroche.offre.remise || 0, +accroche.supplement || 0) : 0;
     const prix = Math.max(0, (+accroche.supplement || 0) - remise);
     ajouter({ cle: 'accroche:' + accroche.id + (offre ? ':offre' : ''), libelle: accroche.libelle + (offre ? ' (offre)' : ''), prix });
+    detail.push({ libelle: 'Porte-clés · ' + accroche.libelle, prix: +accroche.supplement || 0 });
+    if (remise) detail.push({ libelle: '   ' + (accroche.offre.libelle || 'offre'), prix: -remise });
     ligneAcc = (accroche.lotNom ? 'Porte-clés tout prêt : ' + accroche.lotNom + ' — ' : 'Porte-clés : ') + accroche.libelle + (offre ? ' — ' + (accroche.offre.libelle || 'offre') : '');
     ligneAccAtelier = 'Porte-clés : ' + accroche.libelle + ' — ' + (accroche.pieces || []).map(r => (fermParRef[r]?.nom || r) + ' (' + r + ')').join(' + ')
       + (offre ? ' — ' + (accroche.offre.libelle || 'offre') : '');
   }
+  for (const r of remises || []) if (+r.montant > 0) detail.push({ libelle: 'Offre · ' + r.libelle, prix: -r.montant });
   for (const r of remises || []) if (+r.montant > 0) { articles.push({ quantite: 1, cle: 'remise:' + r.libelle, libelle: 'Offre — ' + r.libelle, prix: -r.montant }); ligneAcc = [ligneAcc, 'Offre : ' + r.libelle].filter(Boolean).join('\n'); ligneAccAtelier = [ligneAccAtelier, 'Offre : ' + r.libelle].filter(Boolean).join('\n'); }
   const total = Math.round(articles.reduce((s, a) => s + a.prix * a.quantite, 0) * 100) / 100;
   const prixTxt = 'Total : ' + total.toFixed(2).replace('.', ',') + ' €';
-  const texte = [titre, ligneAcc, ...notes.map(n => n.replace(titre + ' — ', '')), prixTxt].filter(Boolean).join('\n');
-  const texteAtelier = [titre, ligneAccAtelier, ...notesAtelier.map(n => n.replace(titre + ' — ', '')), prixTxt].filter(Boolean).join('\n');
-  return { titre, notes, notesAtelier, ligneAcc, ligneAccAtelier, articles, total, texte, texteAtelier };
+  const eu = v => (v < 0 ? '−' : '') + Math.abs(v).toFixed(2).replace('.', ',') + ' €';
+  const detailTxt = detail.length > 1 ? 'Détail des prix :\n' + detail.map(d => d.libelle + ' : ' + eu(d.prix)).join('\n') : '';
+  const texte = [titre, ligneAcc, ...notes.map(n => n.replace(titre + ' — ', '')), detailTxt, prixTxt].filter(Boolean).join('\n');
+  const texteAtelier = [titre, ligneAccAtelier, ...notesAtelier.map(n => n.replace(titre + ' — ', '')), detailTxt, prixTxt].filter(Boolean).join('\n');
+  return { titre, notes, notesAtelier, ligneAcc, ligneAccAtelier, articles, detail, total, texte, texteAtelier };
 }
 
 
