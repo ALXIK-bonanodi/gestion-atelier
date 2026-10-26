@@ -3609,7 +3609,7 @@ export function noteBreloque(modele, { couleurs = {}, options = {}, catalogue = 
 }
 
 /* breloques : [{ modele, couleurs, options, prixBase }] ; accroche : { id, libelle, pieces, supplement, offre } */
-export function notePersonnalisation({ breloques, accroche = null, accroches = null, remises = [], placements = [], catalogue = [], fermoirs = [], numero = '' }) {
+export function notePersonnalisation({ breloques, accroche = null, accroches = null, remises = [], placements = [], catalogue = [], fermoirs = [], numero = '', lien = '' }) {
   const fermParRef = Object.fromEntries(fermoirs.map(f => [f.ref, f]));
   const parRef = Object.fromEntries(catalogue.map(c => [c.ref, c]));
   const titre = 'Personnalisation sur mesure' + (numero ? ' ' + numero : '');
@@ -3666,9 +3666,10 @@ export function notePersonnalisation({ breloques, accroche = null, accroches = n
   const prixTxt = 'Total : ' + total.toFixed(2).replace('.', ',') + ' €';
   const eu = v => (v < 0 ? '−' : '') + Math.abs(v).toFixed(2).replace('.', ',') + ' €';
   const detailTxt = detail.length > 1 ? 'Détail des prix :\n' + detail.map(d => d.libelle + ' : ' + eu(d.prix)).join('\n') : '';
-  const texte = [titre, ligneAcc, ...notes.map(n => n.replace(titre + ' — ', '')), detailTxt, prixTxt].filter(Boolean).join('\n');
-  const texteAtelier = [titre, ligneAccAtelier, ...notesAtelier.map(n => n.replace(titre + ' — ', '')), detailTxt, prixTxt].filter(Boolean).join('\n');
-  return { titre, notes, notesAtelier, ligneAcc, ligneAccAtelier, articles, detail, total, texte, texteAtelier };
+  const lienTxt = lien ? 'Retrouver ou recommander ta personnalisation : ' + lien : '';
+  const texte = [titre, ligneAcc, ...notes.map(n => n.replace(titre + ' — ', '')), detailTxt, prixTxt, lienTxt].filter(Boolean).join('\n');
+  const texteAtelier = [titre, ligneAccAtelier, ...notesAtelier.map(n => n.replace(titre + ' — ', '')), detailTxt, prixTxt, lienTxt].filter(Boolean).join('\n');
+  return { titre, notes, notesAtelier, ligneAcc, ligneAccAtelier, articles, detail, total, texte, texteAtelier, lien };
 }
 
 

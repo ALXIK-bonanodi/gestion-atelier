@@ -324,8 +324,11 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
 }
 
 /* ── Accueil ── */
-.home-note{padding:12px 14px;margin:0 0 14px}.home-note-t{font-weight:700;color:var(--purple);margin-bottom:6px}
-.home-note textarea{width:100%;font-size:13px;padding:8px;border-radius:var(--rs);border:1.5px solid var(--border);resize:vertical}
+.note-carte{cursor:default;background:#FFFDF5;border-color:#E8D9B0}.note-carte textarea{width:100%;font-size:12px;padding:6px;border-radius:var(--rx);border:1px solid var(--border);resize:vertical;margin-top:6px;background:#fff}
+.note-titre{flex:1;min-width:0;border:none;background:transparent;font-weight:700;font-size:14px;color:var(--purple);padding:2px 4px}
+.glisser{cursor:grab;touch-action:none;user-select:none;color:var(--muted);font-size:16px;padding:0 6px 0 0}
+.mission-glisse{box-shadow:0 12px 30px rgba(60,17,75,.3);transform:rotate(1deg);opacity:.95}.mission-place{border:2px dashed var(--purple);background:var(--purpleP);box-shadow:none}
+.home-faites{margin-top:12px}.home-faites summary{cursor:pointer;font-weight:600;color:var(--muted);font-size:13px;margin-bottom:8px}
 .home-todo{display:grid;gap:4px;margin-top:8px}.home-todo-l{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer}
 .home-todo-l input{width:18px;height:18px;padding:0;flex:0 0 auto;appearance:auto;-webkit-appearance:checkbox;accent-color:var(--purple)}
 .home-todo-l span{flex:1}.home-todo-l.fait span{text-decoration:line-through;color:var(--muted)}
@@ -1617,6 +1620,10 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
     <input id="bij-pv" type="number" step="0.01" placeholder="0.00" style="flex:1">
     <span style="font-size:16px;font-weight:700;color:var(--purple)">€</span>
    </div></div>
+  <div class="r2">
+   <div class="fg"><label>⚖ Poids (g) <span style="font-weight:400;color:var(--muted);text-transform:none">pour l'emballage et l'envoi</span></label><input id="bij-poids" type="number" min="0" step="0.1" placeholder="ex. 6"></div>
+   <div class="fg"><label>📦 Kit d'emballage testé</label><select id="bij-kit"></select></div>
+  </div>
   <div class="fg"><label>Photo de la création</label>
    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
     <div id="bij-photo-prev" class="bij-photo-prev">💎</div>
@@ -2090,7 +2097,10 @@ async function loadAll() {
   { let em=cfg.find(c=>c.key==='emballages')?.value; if(typeof em==='string'){ try{ em=JSON.parse(em); }catch(e){ em=null; } }
     if(em&&typeof em==='object') EMB={kits:em.kits||[], modes:em.modes||[], poids:em.poids||{}, kitDe:em.kitDe||{}}; }
   { let an=cfg.find(c=>c.key==='accueil_note')?.value; if(typeof an==='string'){ try{ an=JSON.parse(an); }catch(e){ an=null; } }
-    if(an&&typeof an==='object') NOTE_ACCUEIL={texte:an.texte||'', todo:Array.isArray(an.todo)?an.todo:[]}; }
+    if(an&&typeof an==='object'){
+      if(Array.isArray(an.notes)) NOTES_ACCUEIL=an.notes;
+      else NOTES_ACCUEIL=[{id:'n1', titre:'Ma note', texte:an.texte||'', todo:Array.isArray(an.todo)?an.todo:[]}];   // ancienne note unique
+      ACCUEIL_ORDRE=Array.isArray(an.ordre)?an.ordre:[]; ACCUEIL_TRI=an.tri||'perso'; } }
   { let rp=cfg.find(c=>c.key==='reseaux_posts')?.value; if(typeof rp==='string'){ try{ rp=JSON.parse(rp); }catch(e){ rp=null; } }
     POSTS=Array.isArray(rp)?rp:[];
     let rr=cfg.find(c=>c.key==='reseaux_reglages')?.value; if(typeof rr==='string'){ try{ rr=JSON.parse(rr); }catch(e){ rr=null; } }
@@ -3281,6 +3291,40 @@ function badgeEnvoi(items){
   const t=[e.kit?`📦 ${escA(e.kit.nom)}`:e.sansKit?'📦 aucun kit ne convient (2 colis ?)':'', `⚖ ≈ ${n(Math.round(e.total))} g`, e.mode?`🚚 ${escA(e.mode.nom)}${+e.mode.prix?' · '+eur(+e.mode.prix):''}`:''].filter(Boolean).join(' · ');
   return `<span class="badge ${e.manquants.length||e.sansKit?'br':'bgn'}" title="${e.manquants.length?'Poids manquant : '+escA(e.manquants.map(b=>b.nom+(b.variante?' · '+b.variante:'')).join(', ')):'Kit et envoi conseillés (Paramètres › Emballages)'}">${t}${e.manquants.length?` · ⚠ ${e.manquants.length} sans poids`:''}</span>`;
 }
+// éditeur des kits d'emballage (dans 📦 Gestion › Matériaux › Envois) : chaque kit = des matériaux d'envoi + ses limites
+function rafraichirKits(){ if(document.getElementById('cfg-emballages')?.offsetParent) renderEmballages(); renderMat(); }
+function htmlKits(){
+  const envois=MATS.filter(m=>(m.type||'creation')==='envoi').sort(triMat);
+  const optMats=sel=>`<option value="">＋ ajouter un matériau d'envoi…</option>`+envois.map(m=>`<option value="${escA(m.ref)}" ${m.ref===sel?'selected':''}>${escA(libMatOption(m))}</option>`).join('');
+  const optModes=sel=>`<option value="">— automatique —</option>`+EMB.modes.map(m=>`<option ${m.nom===sel?'selected':''}>${escA(m.nom)}</option>`).join('');
+  return `<div class="card" style="padding:12px 14px;margin-bottom:12px;border:1.5px solid #E8D9B0;background:#FFFDF5">
+    <div class="info-box" style="margin-bottom:8px">📦 <b>Kits d'emballage</b> : compose chaque kit avec tes matériaux d'envoi (pochette, papier de soie, étiquette…) et note ses limites. Coche des matériaux ci-dessous (☑ Sélection) puis « 📦 Kit avec la sélection », ou ajoute-les ici. Le poids et le kit testé de chaque article se notent dans sa fiche produit ; les modes de livraison dans ⚙ Paramètres › Emballages.</div>
+    <div style="font-weight:700;margin:12px 0 6px">📦 Kits d'emballage</div>
+    ${EMB.kits.map((kt,i)=>`<div class="card" style="padding:10px;margin-bottom:8px">
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1.4fr auto;gap:6px;align-items:end">
+        <div class="fg" style="margin:0"><label>Nom</label><input value="${escA(kt.nom||'')}" oninput="EMB.kits[${i}].nom=this.value;sauverEmb()" placeholder="ex. Pochette kraft S"></div>
+        <div class="fg" style="margin:0"><label>Poids à vide (g)</label><input type="number" min="0" value="${kt.vide??''}" oninput="EMB.kits[${i}].vide=+this.value||0;sauverEmb()"></div>
+        <div class="fg" style="margin:0"><label>Contenu max (g)</label><input type="number" min="0" value="${kt.poidsMax??''}" oninput="EMB.kits[${i}].poidsMax=+this.value||null;sauverEmb()"></div>
+        <div class="fg" style="margin:0"><label>Pièces max</label><input type="number" min="0" value="${kt.nbMax??''}" oninput="EMB.kits[${i}].nbMax=+this.value||null;sauverEmb()"></div>
+        <div class="fg" style="margin:0"><label>Envoi conseillé</label><select onchange="EMB.kits[${i}].mode=this.value;sauverEmb()">${optModes(kt.mode)}</select></div>
+        <button class="btn btn-xs btn-red" onclick="if(confirm('Supprimer ce kit ?')){EMB.kits.splice(${i},1);sauverEmb();rafraichirKits();}">✕</button>
+      </div>
+      <div style="margin-top:6px;font-size:12px"><span class="dim">Contenu du kit :</span> ${(kt.mats||[]).map((l,j)=>`<span class="badge bm" style="margin:2px">${escA(getMat(l.ref)?libMatOption(getMat(l.ref)):l.ref)} × <input type="number" min="0" step="any" value="${l.qty}" style="width:52px;padding:2px 4px;font-size:11px" onchange="EMB.kits[${i}].mats[${j}].qty=+this.value||0;sauverEmb();rafraichirKits()"> <a href="#" onclick="event.preventDefault();EMB.kits[${i}].mats.splice(${j},1);sauverEmb();rafraichirKits()">✕</a></span>`).join('')||'<span class="dim">—</span>'}
+        <select style="font-size:12px;padding:5px;max-width:260px" onchange="if(this.value){(EMB.kits[${i}].mats ||= []).push({ref:this.value,qty:1});sauverEmb();rafraichirKits();}">${optMats('')}</select>
+        <span class="dim">· coût ≈ ${eur(coutKit(kt))}</span></div>
+    </div>`).join('')||'<p class="dim">Aucun kit pour l\'instant.</p>'}
+    <button class="btn btn-sm btn-ghost" onclick="EMB.kits.push({id:'k'+Date.now().toString(36),nom:'',vide:0,poidsMax:null,nbMax:null,mode:'',mats:[]});sauverEmb();rafraichirKits()">＋ Kit</button>
+
+    ${MODE_SELECTION&&CUR_MAT_TYPE==='envoi'?`<button class="btn btn-sm btn-p" style="margin-left:6px" onclick="kitDepuisSelection()">📦 Kit avec la sélection (${[...SEL_MATS].length})</button>`:''}
+  </div>`;
+}
+function kitDepuisSelection(){
+  const mats=[...SEL_MATS].map(id=>MATS.find(m=>m.id===id)).filter(m=>m&&(m.type||'creation')==='envoi');
+  if(!mats.length) return toast('Coche d\'abord des matériaux d\'envoi','err');
+  const nom=prompt('Nom du kit (ex. Pochette kraft S) :',''); if(nom===null) return;
+  EMB.kits.push({id:'k'+Date.now().toString(36), nom:nom.trim()||'Kit', vide:0, poidsMax:null, nbMax:null, mode:'', mats:mats.map(m=>({ref:m.ref,qty:1}))});
+  sauverEmb(); rafraichirKits(); toast('Kit créé ✓ — note son poids à vide et ses limites','ok');
+}
 let EMB_Q='', EMB_FLT='';
 function renderEmballages(){
   const el=document.getElementById('cfg-emballages'); if(!el) return;
@@ -3293,23 +3337,9 @@ function renderEmballages(){
   const k=cleNom(EMB_Q), vus=articles.filter(b=>(!k||cleNom(b.nom+' '+(b.variante||'')+' '+(b.ref||'')+' '+(b.collection||'')).includes(k))
     &&(!EMB_FLT||(EMB_FLT==='poids'?poidsBij(b)==null:EMB_FLT==='kit'?!kitBij(b):true)));
   const sansPoids=articles.filter(b=>poidsBij(b)==null).length, sansKit=articles.filter(b=>!kitBij(b)).length;
-  el.innerHTML=`<div class="info-box">1. Crée tes <b>kits d'emballage</b> (pochette, petite boîte…) avec leurs limites. 2. <b>Pèse</b> chaque article et note le kit dans lequel il passe après ton test. 3. Dans les ventes et les commandes sur mesure, l'app conseille le kit, le poids total et le <b>mode de livraison</b>.</div>
-    <div style="font-weight:700;margin:12px 0 6px">📦 Kits d'emballage</div>
-    ${EMB.kits.map((kt,i)=>`<div class="card" style="padding:10px;margin-bottom:8px">
-      <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1.4fr auto;gap:6px;align-items:end">
-        <div class="fg" style="margin:0"><label>Nom</label><input value="${escA(kt.nom||'')}" oninput="EMB.kits[${i}].nom=this.value;sauverEmb()" placeholder="ex. Pochette kraft S"></div>
-        <div class="fg" style="margin:0"><label>Poids à vide (g)</label><input type="number" min="0" value="${kt.vide??''}" oninput="EMB.kits[${i}].vide=+this.value||0;sauverEmb()"></div>
-        <div class="fg" style="margin:0"><label>Contenu max (g)</label><input type="number" min="0" value="${kt.poidsMax??''}" oninput="EMB.kits[${i}].poidsMax=+this.value||null;sauverEmb()"></div>
-        <div class="fg" style="margin:0"><label>Pièces max</label><input type="number" min="0" value="${kt.nbMax??''}" oninput="EMB.kits[${i}].nbMax=+this.value||null;sauverEmb()"></div>
-        <div class="fg" style="margin:0"><label>Envoi conseillé</label><select onchange="EMB.kits[${i}].mode=this.value;sauverEmb()">${optModes(kt.mode)}</select></div>
-        <button class="btn btn-xs btn-red" onclick="if(confirm('Supprimer ce kit ?')){EMB.kits.splice(${i},1);sauverEmb();renderEmballages();}">✕</button>
-      </div>
-      <div style="margin-top:6px;font-size:12px"><span class="dim">Contenu du kit :</span> ${(kt.mats||[]).map((l,j)=>`<span class="badge bm" style="margin:2px">${escA(getMat(l.ref)?libMatOption(getMat(l.ref)):l.ref)} × ${n(l.qty)} <a href="#" onclick="event.preventDefault();EMB.kits[${i}].mats.splice(${j},1);sauverEmb();renderEmballages()">✕</a></span>`).join('')||'<span class="dim">—</span>'}
-        <select style="font-size:12px;padding:5px;max-width:260px" onchange="if(this.value){(EMB.kits[${i}].mats ||= []).push({ref:this.value,qty:1});sauverEmb();renderEmballages();}">${optMats('')}</select>
-        <span class="dim">· coût ≈ ${eur(coutKit(kt))}</span></div>
-    </div>`).join('')||'<p class="dim">Aucun kit pour l\'instant.</p>'}
-    <button class="btn btn-sm btn-ghost" onclick="EMB.kits.push({id:'k'+Date.now().toString(36),nom:'',vide:0,poidsMax:null,nbMax:null,mode:'',mats:[]});sauverEmb();renderEmballages()">＋ Kit</button>
-
+  el.innerHTML=`<div class="info-box">1. Compose tes <b>kits d'emballage</b> avec tes matériaux d'envoi (📦 Gestion › Matériaux › Envois). 2. Note ici tes <b>modes de livraison</b> (poids max, prix). 3. <b>Pèse</b> chaque article et note le kit dans lequel il passe après ton test (ici ou dans sa fiche produit). Les ventes et les commandes sur mesure affichent alors le kit, le poids total et le mode de livraison conseillés.</div>
+    <div style="font-weight:700;margin:12px 0 6px">📦 Kits d'emballage <span class="dim" style="font-weight:400;font-size:12px">· ${EMB.kits.length} kit(s) — ils se composent avec tes matériaux d'envoi dans <a href="#" onclick="event.preventDefault();goTabNom('mat');switchGTab('mat');switchMatType('envoi')">📦 Gestion › Matériaux › Envois</a></span></div>
+    ${EMB.kits.map(k=>`<span class="badge bm" style="margin:2px">${escA(k.nom||'Kit')}${+k.poidsMax?' · ≤ '+k.poidsMax+' g':''}${+k.nbMax?' · '+k.nbMax+' pcs':''} · ${eur(coutKit(k))}</span>`).join('')}
     <div style="font-weight:700;margin:16px 0 6px">🚚 Modes de livraison</div>
     ${EMB.modes.map((m,i)=>`<div style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:6px;align-items:end;margin-bottom:6px">
       <div class="fg" style="margin:0"><label>Nom</label><input value="${escA(m.nom||'')}" oninput="EMB.modes[${i}].nom=this.value;sauverEmb()" placeholder="ex. Lettre suivie"></div>
@@ -3328,28 +3358,55 @@ function renderEmballages(){
         <td><select style="font-size:12px;padding:6px" onchange="if(this.value)EMB.kitDe['${b.id}']=this.value;else delete EMB.kitDe['${b.id}'];sauverEmb()">${optKits(EMB.kitDe[b.id]||'')}</select></td></tr>`).join('')}
     </tbody></table></div>`;
 }
-// ── Note d'accueil : un mot pour toi + une liste de choses à faire (cochables), enregistrées dans Supabase (config « accueil_note »)
-let NOTE_ACCUEIL={texte:'', todo:[
+// ── Accueil : notes à faire (plusieurs, chacune avec son titre, au format des missions), ordre des missions (glisser-déposer), missions faites archivées
+// config « accueil_note » = { notes:[{id,titre,texte,todo:[{id,t,fait}]}], ordre:['m:<titre>'|'n:<id>'…], tri:'perso'|'nb'|'nouveaux' }
+let NOTES_ACCUEIL=[{id:'n1', titre:'À faire', texte:'', todo:[
   {id:'t1', t:'Remplir les fiches matériaux laine', fait:false},
-  {id:'t2', t:'Gérer les matériaux des modèles sac et tapestry', fait:false}]};
+  {id:'t2', t:'Gérer les matériaux des modèles sac et tapestry', fait:false}]}];
+let ACCUEIL_ORDRE=[], ACCUEIL_TRI='perso';
 let _noteT=null;
-function sauverNoteAccueil(){ clearTimeout(_noteT); _noteT=setTimeout(()=>sbUpsertConfig('accueil_note',NOTE_ACCUEIL),600); }
-function blocNoteAccueil(){
-  const td=NOTE_ACCUEIL.todo||[], reste=td.filter(x=>!x.fait).length;
-  return `<div class="card home-note">
-    <div class="home-note-t">📝 Ma note <span class="dim" style="font-size:11px;font-weight:400">${td.length?`· ${reste} à faire sur ${td.length}`:''}</span></div>
-    <textarea id="home-note-txt" rows="2" placeholder="Un mot pour toi : idées, rappels, priorités de la semaine…" oninput="NOTE_ACCUEIL.texte=this.value;sauverNoteAccueil()">${escA(NOTE_ACCUEIL.texte||'')}</textarea>
-    <div class="home-todo">${td.map(x=>`<label class="home-todo-l ${x.fait?'fait':''}"><input type="checkbox" ${x.fait?'checked':''} onchange="cocherTodo('${x.id}',this.checked)"><span>${escA(x.t)}</span><button type="button" class="btn btn-xs btn-ghost" onclick="event.preventDefault();retirerTodo('${x.id}')" title="Retirer">✕</button></label>`).join('')}</div>
-    <div style="display:flex;gap:6px;margin-top:6px"><input id="home-todo-new" placeholder="Ajouter une chose à faire…" style="flex:1;font-size:13px;padding:8px" onkeydown="if(event.key==='Enter')ajouterTodo()"><button type="button" class="btn btn-sm btn-p" onclick="ajouterTodo()">＋</button>
-      ${td.some(x=>x.fait)?'<button type="button" class="btn btn-sm btn-ghost" onclick="viderTodoFaits()">Retirer les faits</button>':''}</div>
+function sauverNoteAccueil(){ clearTimeout(_noteT); _noteT=setTimeout(()=>sbUpsertConfig('accueil_note',{notes:NOTES_ACCUEIL, ordre:ACCUEIL_ORDRE, tri:ACCUEIL_TRI}),600); }
+const noteDe = id => NOTES_ACCUEIL.find(x=>x.id===id);
+const noteFaite = n => (n.todo||[]).length>0 && n.todo.every(t=>t.fait) && !String(n.texte||'').trim();
+function carteNote(nt){
+  const td=nt.todo||[], reste=td.filter(x=>!x.fait).length;
+  return `<div class="mission note-carte ${noteFaite(nt)?'faite':''}" data-k="n:${nt.id}">
+    <div class="mission-tete"><span class="glisser" title="Glisser pour ranger">⠿</span><input class="note-titre" value="${escA(nt.titre||'')}" placeholder="Titre" oninput="noteDe('${nt.id}').titre=this.value;sauverNoteAccueil()">
+      <span class="mission-nb">${reste||(td.length?'✓':'')}</span></div>
+    <textarea rows="2" placeholder="Un mot, une idée…" oninput="noteDe('${nt.id}').texte=this.value;sauverNoteAccueil()">${escA(nt.texte||'')}</textarea>
+    <div class="home-todo">${td.map(x=>`<label class="home-todo-l ${x.fait?'fait':''}"><input type="checkbox" ${x.fait?'checked':''} onchange="cocherTodo('${nt.id}','${x.id}',this.checked)"><span>${escA(x.t)}</span><button type="button" class="btn btn-xs btn-ghost" onclick="event.preventDefault();retirerTodo('${nt.id}','${x.id}')" title="Retirer">✕</button></label>`).join('')}</div>
+    <div style="display:flex;gap:4px;margin-top:6px"><input class="todo-new" placeholder="＋ Ajouter…" style="flex:1;font-size:12px;padding:6px" onkeydown="if(event.key==='Enter')ajouterTodo('${nt.id}',this)">
+      <button type="button" class="btn btn-xs btn-ghost" title="Supprimer cette note" onclick="supprimerNote('${nt.id}')">🗑</button></div>
   </div>`;
 }
-function majNoteAccueil(){ const el=document.querySelector('.home-note'); if(el) el.outerHTML=blocNoteAccueil(); }
-function cocherTodo(id,v){ const x=NOTE_ACCUEIL.todo.find(t=>t.id===id); if(x){ x.fait=v; sauverNoteAccueil(); majNoteAccueil(); } }
-function retirerTodo(id){ NOTE_ACCUEIL.todo=NOTE_ACCUEIL.todo.filter(t=>t.id!==id); sauverNoteAccueil(); majNoteAccueil(); }
-function viderTodoFaits(){ NOTE_ACCUEIL.todo=NOTE_ACCUEIL.todo.filter(t=>!t.fait); sauverNoteAccueil(); majNoteAccueil(); }
-function ajouterTodo(){ const i=document.getElementById('home-todo-new'), t=i.value.trim(); if(!t) return;
-  NOTE_ACCUEIL.todo.push({id:'t'+Date.now().toString(36), t, fait:false}); sauverNoteAccueil(); majNoteAccueil(); setTimeout(()=>document.getElementById('home-todo-new')?.focus(),0); }
+function cocherTodo(n,id,v){ const x=noteDe(n)?.todo.find(t=>t.id===id); if(x){ x.fait=v; sauverNoteAccueil(); renderAccueil(); } }
+function retirerTodo(n,id){ const nt=noteDe(n); if(!nt) return; nt.todo=nt.todo.filter(t=>t.id!==id); sauverNoteAccueil(); renderAccueil(); }
+function ajouterTodo(n,inp){ const t=inp.value.trim(), nt=noteDe(n); if(!t||!nt) return; (nt.todo ||= []).push({id:'t'+Date.now().toString(36), t, fait:false}); sauverNoteAccueil(); renderAccueil();
+  setTimeout(()=>document.querySelector(`[data-k="n:${n}"] .todo-new`)?.focus(),0); }
+function nouvelleNote(){ const id='n'+Date.now().toString(36); NOTES_ACCUEIL.push({id, titre:'', texte:'', todo:[]}); ACCUEIL_ORDRE=['n:'+id,...ACCUEIL_ORDRE.filter(k=>k!=='n:'+id)]; sauverNoteAccueil(); renderAccueil();
+  setTimeout(()=>document.querySelector(`[data-k="n:${id}"] .note-titre`)?.focus(),0); }
+function supprimerNote(id){ const nt=noteDe(id); if(nt&&(nt.texte||(nt.todo||[]).length)&&!confirm(`Supprimer la note « ${nt.titre||'sans titre'} » ?`)) return;
+  NOTES_ACCUEIL=NOTES_ACCUEIL.filter(x=>x.id!==id); ACCUEIL_ORDRE=ACCUEIL_ORDRE.filter(k=>k!=='n:'+id); sauverNoteAccueil(); renderAccueil(); }
+function trierAccueil(v){ ACCUEIL_TRI=v; sauverNoteAccueil(); renderAccueil(); }
+// glisser-déposer (souris et doigt) : la poignée ⠿ d'une carte la déplace ; l'ordre est gardé (tri « Mon ordre »)
+function activerGlisserAccueil(){
+  const grille=document.querySelector('.home-missions'); if(!grille) return;
+  grille.querySelectorAll('.glisser').forEach(h=>h.addEventListener('pointerdown',e=>{
+    const carte=h.closest('.mission'); if(!carte) return; e.preventDefault(); e.stopPropagation();
+    const r=carte.getBoundingClientRect(), place=document.createElement('div'); place.className='mission mission-place'; place.style.height=r.height+'px';
+    carte.after(place); carte.classList.add('mission-glisse'); Object.assign(carte.style,{position:'fixed',left:r.left+'px',top:r.top+'px',width:r.width+'px',zIndex:999,pointerEvents:'none'});
+    const dx=e.clientX-r.left, dy=e.clientY-r.top;
+    const bouge=ev=>{ carte.style.left=(ev.clientX-dx)+'px'; carte.style.top=(ev.clientY-dy)+'px';
+      const cible=document.elementFromPoint(ev.clientX,ev.clientY)?.closest('.home-missions .mission:not(.mission-place)');
+      if(cible&&cible!==carte){ const rc=cible.getBoundingClientRect(); (ev.clientX<rc.left+rc.width/2?cible.before(place):cible.after(place)); } };
+    const fin=()=>{ document.removeEventListener('pointermove',bouge); document.removeEventListener('pointerup',fin); document.removeEventListener('pointercancel',fin);
+      place.replaceWith(carte); carte.classList.remove('mission-glisse'); carte.removeAttribute('style');
+      ACCUEIL_ORDRE=[...grille.querySelectorAll('.mission[data-k]')].map(x=>x.dataset.k); ACCUEIL_TRI='perso'; sauverNoteAccueil();
+      const sel=document.getElementById('accueil-tri'); if(sel) sel.value='perso'; };
+    document.addEventListener('pointermove',bouge); document.addEventListener('pointerup',fin); document.addEventListener('pointercancel',fin);
+  }));
+  grille.querySelectorAll('.note-carte input, .note-carte textarea, .note-carte button, .note-carte label').forEach(x=>x.addEventListener('click',e=>e.stopPropagation()));
+}
 function renderAccueil() {
   const el=document.getElementById('home-body'); if(!el||!MATS) return;
   const h=new Date().getHours(), salut=h<5?'Bonne nuit':h<12?'Bonjour':h<18?'Bon après-midi':'Bonsoir';
@@ -3413,10 +3470,11 @@ function renderAccueil() {
     </div>
   </div>
 
-  ${blocNoteAccueil()}
-
-  <div class="home-titre" style="display:flex;justify-content:space-between;align-items:baseline">Missions du jour
-    <button class="btn btn-xs btn-ghost" onclick="const e=document.getElementById('home-aide');e.hidden=!e.hidden">ℹ️ D'où viennent les missions ?</button></div>
+  <div class="home-titre" style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap">Missions du jour
+    <span style="display:flex;gap:6px;align-items:center"><select id="accueil-tri" onchange="trierAccueil(this.value)" style="font-size:12px;padding:6px">
+      <option value="perso" ${ACCUEIL_TRI==='perso'?'selected':''}>Mon ordre (⠿ pour glisser)</option><option value="nb" ${ACCUEIL_TRI==='nb'?'selected':''}>Le plus à faire d'abord</option><option value="nouveaux" ${ACCUEIL_TRI==='nouveaux'?'selected':''}>Nouveautés d'abord</option></select>
+    <button class="btn btn-xs btn-p" onclick="nouvelleNote()">＋ Note</button>
+    <button class="btn btn-xs btn-ghost" onclick="const e=document.getElementById('home-aide');e.hidden=!e.hidden">ℹ️</button></span></div>
   <div id="home-aide" class="info-box" hidden>
     L'Accueil n'invente rien : il relit tes données à chaque ouverture et chaque modification.
     <b>✨ Sur mesure</b> = productions « en cours » créées par une commande du configurateur ;
@@ -3428,13 +3486,21 @@ function renderAccueil() {
     Une mission disparaît d'elle-même quand la tâche est faite. « 🆕 nouveau » = apparu depuis ta dernière visite de l'Accueil.
   </div>
   ${aFaire?'':`<div class="home-bravo">✨ Tout est rangé, l'atelier est à jour. Tu peux créer en paix !</div>`}
-  <div class="home-missions">${missions.map(m=>`
-    <div class="mission ${m.c} ${m.nb?'':'faite'}" onclick="${m.go}">
-      <div class="mission-tete"><span class="mission-ic">${m.nb?m.ic:'✓'}</span><span class="mission-nb">${m.nouveaux?`<span class="mission-new">+${m.nouveaux} nouveau${m.nouveaux>1?'x':''}</span>`:''}${m.nb||''}</span></div>
+  ${(()=>{ // missions et notes : à faire d'abord (dans ton ordre ou trié), faites archivées en dessous
+    const carteM=m=>`<div class="mission ${m.c} ${m.nb?'':'faite'}" data-k="m:${escA(m.t)}" onclick="${m.go}">
+      <div class="mission-tete"><span class="mission-ic">${m.nb?`<span class="glisser" title="Glisser pour ranger" onclick="event.stopPropagation()">⠿</span>${m.ic}`:'✓'}</span><span class="mission-nb">${m.nouveaux?`<span class="mission-new">+${m.nouveaux} nouveau${m.nouveaux>1?'x':''}</span>`:''}${m.nb||''}</span></div>
       <div class="mission-t">${m.t}</div>
       ${m.nb&&m.det?`<div class="mission-det">${m.det}</div>`:''}
       ${m.nb?'':'<div class="mission-ok">rien à faire</div>'}
-    </div>`).join('')}</div>
+    </div>`;
+    const cartes=[...missions.map(m=>({k:'m:'+m.t, nb:m.nb, nouveaux:m.nouveaux, fait:!m.nb, html:carteM(m)})),
+      ...NOTES_ACCUEIL.map(nt=>({k:'n:'+nt.id, nb:(nt.todo||[]).filter(t=>!t.fait).length, nouveaux:0, fait:noteFaite(nt), html:carteNote(nt)}))];
+    const rang=k=>{ const i=ACCUEIL_ORDRE.indexOf(k); return i<0?(k.startsWith('n:')?-1:999):i; };
+    const tri={perso:(a,b)=>rang(a.k)-rang(b.k), nb:(a,b)=>b.nb-a.nb||rang(a.k)-rang(b.k), nouveaux:(a,b)=>b.nouveaux-a.nouveaux||rang(a.k)-rang(b.k)}[ACCUEIL_TRI]||((a,b)=>rang(a.k)-rang(b.k));
+    const actives=cartes.filter(c=>!c.fait).sort(tri), faites=cartes.filter(c=>c.fait);
+    return `<div class="home-missions">${actives.map(c=>c.html).join('')}</div>`
+      +(faites.length?`<details class="home-faites"><summary>✓ Faites · ${faites.length} <span class="dim">(archivées, elles reviennent dès qu'il y a quelque chose à faire)</span></summary><div class="home-missions">${faites.map(c=>c.html).join('')}</div></details>`:'');
+  })()}
 
   <div class="home-titre">Ta constellation de ${nomMois}</div>
   <div class="card home-const">
@@ -3457,6 +3523,8 @@ function renderAccueil() {
     <button class="btn btn-ghost" onclick="ouvrirCourses()">🛒 Liste de courses</button>
     <button class="btn btn-ghost" onclick="ouvrirBilanMois()">📅 Bilan du mois</button>
   </div>`;
+  activerGlisserAccueil();
+  const fa=document.querySelector('.home-faites'); if(fa){ try{ fa.open=localStorage.getItem('accueil_faites')==='1'; }catch(e){} fa.addEventListener('toggle',()=>{ try{ localStorage.setItem('accueil_faites',fa.open?'1':'0'); }catch(e){} }); }
 }
 function goTabNom(p){ const t=document.querySelector('.tab[data-p="'+p+'"]'); if(t) goTab(t); }
 async function marquerPersoProduite(id){
@@ -4706,7 +4774,7 @@ function renderMat() {
     if(!tree[m.mc][m.sc])tree[m.mc][m.sc]=[];
     tree[m.mc][m.sc].push(m);
   });
-  let html='';
+  let html=CUR_MAT_TYPE==='envoi'?htmlKits():'';
   const toutOuvert=!!(search||filter||MAT_A_COMPLETER);          // recherche ou filtre : tout est déplié
   const jsq=t=>String(t).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
   Object.entries(tree).forEach(([mc,subs])=>{
@@ -4898,6 +4966,12 @@ function openBijModal(editId=null) {
     addMatRow();
     bandeauVarianteBij(null);
   }
+  { // poids et kit d'emballage (enregistrés avec les réglages d'emballage, comme dans ⚙ Paramètres › Emballages)
+    const b=editId?getBij(editId):null, ks=document.getElementById('bij-kit');
+    document.getElementById('bij-poids').value=b&&EMB.poids[b.id]!=null?EMB.poids[b.id]:'';
+    document.getElementById('bij-poids').placeholder=b&&poidsBij(b)!=null?String(poidsBij(b))+' (modèle)':'ex. 6';
+    ks.innerHTML='<option value="">— à tester —</option>'+[...EMB.kits].sort((a,c)=>rangKit(a.id)-rangKit(c.id)).map(k=>`<option value="${k.id}">${escA(k.nom||'Kit')}${+k.poidsMax?' · ≤ '+k.poidsMax+' g':''}</option>`).join('');
+    ks.value=b?(EMB.kitDe[b.id]||''):''; }
   setTimeout(majCoutLive,120);
   document.querySelectorAll('#bij-etapes button').forEach((b,i)=>b.classList.toggle('on',i===0));
   // reset to info tab
@@ -5177,7 +5251,13 @@ async function saveBij() {
   let ok;
   if(editId){ok=await sbUpdate('bijoux',editId,obj);if(ok){const i=BIJS.findIndex(b=>b.id===editId);BIJS[i]={...BIJS[i],...obj};}}
   else{ok=await sbInsert('bijoux',obj);if(ok)BIJS.push(obj);}
-  if(ok){closeModal('m-bij');renderBij();toast(editId?'Bijou modifié ✓':'Bijou ajouté ✓','ok');}
+  if(ok){
+    const id=editId||obj.id, po=document.getElementById('bij-poids').value, kt=document.getElementById('bij-kit').value;
+    if(id&&((po===''?null:+po)!==(EMB.poids[id]??null)||kt!==(EMB.kitDe[id]||''))){
+      if(po==='') delete EMB.poids[id]; else EMB.poids[id]=+po;
+      if(kt) EMB.kitDe[id]=kt; else delete EMB.kitDe[id];
+      sauverEmb(); }
+    closeModal('m-bij');renderBij();toast(editId?'Bijou modifié ✓':'Bijou ajouté ✓','ok');}
 }
 
 async function delBij(id) {
@@ -5496,6 +5576,30 @@ function voirReserve(base){
       <td>${n(x.p.qty)}</td><td><b>${n(Math.round(x.q*100)/100)}</b> ${u}</td></tr>`).join('')}</tbody></table></div>
       <p class="dim" style="font-size:12px;margin-top:8px">Quand une production passe à « Déjà produit », sa réserve devient « utilisé ».</p>`:'<p class="dim">Rien de réservé.</p>');
 }
+// détail du calcul d'une référence (et de ses variantes a/b/c) : départ + réappros + ajustements − utilisé − réservé = disponible
+function voirCalculStock(base){
+  const items=MATS.filter(m=>baseRef(m.ref)===base); if(!items.length) return; const u=getUniteShort(items[0]), r2=v=>n(Math.round(v*100)/100);
+  const refs=items.map(m=>m.ref), ids=new Set(items.map(m=>m.id));
+  const depart=items.reduce((t,m)=>t+(+m.qty||0),0);
+  const reap=REAPPROS.filter(r=>ids.has(r.mat_id)&&(!r.statut||r.statut==='valide')), reapT=reap.reduce((t,r)=>t+(+r.qty||0),0);
+  const reapAtt=REAPPROS.filter(r=>ids.has(r.mat_id)&&r.statut&&r.statut!=='valide');
+  const adj=AJUSTEMENTS.filter(a=>ids.has(a.mat_id)), adjT=adj.reduce((t,a)=>t+(+a.qty||0),0);
+  const par=filtre=>PRODS.filter(p=>+p.qty>0&&filtre(p)).map(p=>{ const c=matsDeProd(p); return {p,b:getBij(p.bij_id),q:refs.reduce((t,r)=>t+(c[r]||0),0)}; }).filter(x=>x.q>0);
+  const ut=par(estProduite), re=par(p=>!estProduite(p)), utT=ut.reduce((t,x)=>t+x.q,0), reT=re.reduce((t,x)=>t+x.q,0);
+  const liste=(l,vide)=>l.length?`<div class="tbl-wrap" style="max-height:220px;overflow:auto"><table><tbody>${l.map(x=>`<tr><td>${escA(x.p.date||'--')}</td><td style="font-size:12px">${x.b?escA(x.b.nom+(x.b.variante?' · '+x.b.variante:'')):'?'}${x.p.perso?' ✨ '+escA(x.p.perso):''}${horsVente(x.p)?' 🚫':''}</td><td>× ${n(x.p.qty)}</td><td><b>${r2(x.q)}</b> ${u}</td></tr>`).join('')}</tbody></table></div>`:`<p class="dim" style="font-size:12px">${vide}</p>`;
+  const ligne=(lib,v,signe='')=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)"><span>${lib}</span><b>${signe}${r2(v)} ${u}</b></div>`;
+  ouvrirInfo(`🔍 Calcul du stock · ${escA(items[0].designation||base)} <span class="dim" style="font-size:12px">${escA(refs.join(', '))}</span>`,
+    ligne('Quantité de départ (fiche matériau)',depart)
+    +ligne(`Réappros validés (${reap.length})`,reapT,'+ ')
+    +(adj.length?ligne(`Ajustements manuels (${adj.length})`,adjT,adjT<0?'':'+ '):'')
+    +ligne(`Utilisé : productions terminées (${ut.length})`,utT,'− ')
+    +ligne(`Réservé : productions en cours / sur mesure (${re.length})`,reT,'− ')
+    +`<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:15px"><span><b>Disponible</b></span><b style="color:var(--purple)">${r2(depart+reapT+adjT-utT-reT)} ${u}</b></div>`
+    +(reapAtt.length?`<p class="dim" style="font-size:12px">⏳ ${reapAtt.length} réappro(s) en attente, pas encore comptée(s) : ${reapAtt.map(r=>r2(+r.qty||0)+' '+u).join(', ')}</p>`:'')
+    +`<div style="font-weight:700;margin:10px 0 4px">Productions terminées qui l'utilisent</div>${liste(ut,'aucune')}`
+    +`<div style="font-weight:700;margin:10px 0 4px">Productions en cours qui la réservent</div>${liste(re,'aucune')}`
+    +`<p class="dim" style="font-size:11px;margin-top:8px">Chaque production compte la composition de sa fiche bijou (variantes : modèle + couleurs changées ; sur mesure : avec les écarts du configurateur). Une composition prise dans le stock des compositions toutes faites n'est pas recomptée.</p>`);
+}
 // vue d'ensemble : chaque production en cours et ce qu'elle réserve, avec le disponible restant
 function voirToutReserve(){
   const enc=PRODS.filter(p=>+p.qty>0&&!estProduite(p)).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
@@ -5551,7 +5655,7 @@ function renderStock() {
       <td>${g.tot?(n(g.tot)+' <span style="font-size:10px;color:var(--muted)">'+uS+'</span>'):'<span class="dim">--</span>'}</td>
       <td class="dim" title="Productions terminées">${n(Math.round(g.u*100)/100)||'0'}</td>
       <td>${g.r?`<button class="btn btn-xs btn-ghost" style="color:var(--orange)" onclick="voirReserve('${escA(g.base)}')" title="Voir les productions en cours qui réservent cette référence">🔧 ${n(Math.round(g.r*100)/100)} ›</button>`:'<span class="dim">0</span>'}</td>
-      <td><b style="color:${clr}">${n(Math.round(g.d*100)/100)}</b>${g.bas?' <span class="badge br"'+(g.seuil?' title="Seuil '+n(g.seuil)+'"':'')+'>stock bas</span>':''}${estPerleAuPoids(m0)?`<div style="font-size:10px;color:var(--muted)" title="Calibrage : ${calibrage(m0).source}">≈ ${n(Math.round(enPieces(m0,g.d)))} perles</div>`:''}
+      <td><b style="color:${clr};cursor:pointer;text-decoration:underline dotted" onclick="voirCalculStock('${escA(g.base)}')" title="Voir le détail du calcul">${n(Math.round(g.d*100)/100)}</b>${g.bas?' <span class="badge br"'+(g.seuil?' title="Seuil '+n(g.seuil)+'"':'')+'>stock bas</span>':''}${estPerleAuPoids(m0)?`<div style="font-size:10px;color:var(--muted)" title="Calibrage : ${calibrage(m0).source}">≈ ${n(Math.round(enPieces(m0,g.d)))} perles</div>`:''}
         <div class="sbar"><div class="sfill" style="width:${g.pct}%;background:${clr}"></div></div></td>
       <td style="white-space:nowrap">
         <button class="btn btn-xs btn-ghost" onclick="openReappro('${m0.id}')" style="padding:4px 8px">↑ Réappro</button>

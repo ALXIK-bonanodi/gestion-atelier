@@ -462,7 +462,7 @@ import {
   correspondCategorie, texteCatalogue, ordreModeles, chargerRuptures, appliquerRuptures,
   chargerLiens, appliquerLiens, relierModele, chargerMateriauxParRefs,
   chargerFichesConfig, chargerOffres, definirLiensFormes, lienModele, composerCompos, definirFichesConfig, ficheCfg, refsCouleurFiche, famillesFiche,
-} from './bead-core.js?v=14778c4d';
+} from './bead-core.js?v=0b698347';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER, PANIER_SHOPIFY } from './perles-config.js?v=e5e86015';
 
 const $ = s => document.querySelector(s);
@@ -666,7 +666,7 @@ function panierLocal() {
   try { const l = JSON.parse(localStorage.getItem('bn-panier')) || [];
     return l.filter(x => x && x.numero && Date.now() - new Date(x.date || 0).getTime() < 3 * 864e5); } catch { return []; } }
 let dansPanier = null;                                 // n° de la personnalisation en cours, déjà dans le panier (modifiée = remplacée)
-const offresDuPanier = () => { const n = valide?.numero, o = {};
+const offresDuPanier = () => { const n = valide?.numero, o = {}; if (!shopifyPret) return o;   // le panier ne sert qu'au paiement Shopify
   for (const x of panierLocal()) if (x.numero !== n && x.numero !== dansPanier) for (const t of x.offres || []) o[t] ||= x.numero; return o; };
 /* offre « breloques lettre » : une seule breloque lettre offerte par commande (la moins chère), cumulable avec l'offre porte-clés */
 function remisesLettres() {
@@ -1536,7 +1536,7 @@ function lotCorrespondant() {
   return ideesBundle().find(x => x.accroche === etat.accroche && x.breloques.length === etat.breloques.length
     && x.breloques.every((br, i) => br.slug === etat.breloques[i].slug && memeCouleurs(val(br), val(etat.breloques[i])))) || null;
 }
-const construireNote = (numero = '') => notePersonnalisation({ ...entreesNote(), numero });
+const construireNote = (numero = '', lien = '') => notePersonnalisation({ ...entreesNote(), numero, lien });
 
 /* état <-> données enregistrables */
 function choixActuels() {
@@ -1599,7 +1599,7 @@ async function enregistrer() {
           note: [brouillon.notesAtelier[i].replace(brouillon.titre + ' — ', ''), brouillon.ligneAccAtelier].filter(Boolean).join('\n') })) },
       total: lignes.total }));
   }
-  const n = construireNote(numero);
+  const n = construireNote(numero, lienReprise(cle));   // la note donne aussi à la cliente le lien de sa personnalisation
   valide = { numero: numero || 'APERÇU', cle, n, choix };
   $('#note').textContent = n.texte;
   // gardé sur cet appareil, pour le retrouver même sans le lien
@@ -1680,6 +1680,12 @@ $('#btEnregistrer').addEventListener('click', async () => {
 });
 /* Paiement Shopify : la personnalisation devient une commande provisoire Shopify (prix calculé,
    n° BN-P-… sur chaque ligne) ; la cliente paie sur la page sécurisée Shopify, dans un nouvel onglet. */
+/* Paiement Shopify seulement quand la boutique est reliée (fonction « shopify » déployée et ses secrets renseignés) ;
+   avant, le bouton garde l'ancien circuit (panier Wix), sans rien changer ici le jour où tu relies Shopify. */
+var shopifyPret = false;                 // var : lue aussi par les offres avant cette ligne
+if (PANIER_SHOPIFY && sb) avecDelai(fetch(SUPABASE_URL + '/functions/v1/shopify', { method: 'POST',
+  headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY }, body: JSON.stringify({ action: 'paiement-dispo' }) }), 8000)
+  .then(r => r.ok ? r.json() : null).then(d => { shopifyPret = !!d?.shopify; rendrePanier(); }).catch(() => { shopifyPret = false; });
 function ecrirePanier(l) { try { localStorage.setItem('bn-panier', JSON.stringify(l)); } catch {} }
 function ajouterAuPanierLocal() {
   const n = valide.n, offres = [...new Set((calcul().prestation || []).filter(l => +l.total < 0 && l.offre).map(l => l.offre))];
@@ -1690,7 +1696,7 @@ function ajouterAuPanierLocal() {
 }
 function rendrePanier() {
   const l = panierLocal(), el = $('#panierPerso'); if (!el) return;
-  el.hidden = !l.length || !PANIER_SHOPIFY || !sb;
+  el.hidden = !l.length || !PANIER_SHOPIFY || !sb || !shopifyPret;
   if (el.hidden) return;
   const tot = Math.round(l.reduce((t, x) => t + (+x.total || 0), 0) * 100) / 100;
   el.innerHTML = `<h3>Ton panier · ${l.length} personnalisation${l.length > 1 ? 's' : ''}</h3>
@@ -1706,7 +1712,7 @@ function rendrePanier() {
       const l2 = panierLocal();
       const r = await avecDelai(fetch(SUPABASE_URL + '/functions/v1/shopify', { method: 'POST',
         headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY },
-        body: JSON.stringify({ action: 'perso-panier', numero: l2[0].numero, cle: l2[0].cle, persos: l2.map(x => ({ numero: x.numero, cle: x.cle })) }) }), 15000);
+        body: JSON.stringify({ action: 'perso-panier', numero: l2[0].numero, cle: l2[0].cle, persos: l2.map(x => ({ numero: x.numero, cle: x.cle, lien: lienReprise(x.cle) })) }) }), 15000);
       const d = await r.json();
       if (!r.ok || !d.url) throw new Error(d.erreur || 'paiement indisponible');
       if (onglet && !onglet.closed) onglet.location.href = d.url;
@@ -1719,7 +1725,7 @@ function rendrePanier() {
 }
 $('#btPanier').addEventListener('click', async () => {
   erreur(''); $('#btPanier').disabled = true;
-  if (PANIER_SHOPIFY && sb) {
+  if (PANIER_SHOPIFY && sb && shopifyPret) {
     try { await enregistrer(); ajouterAuPanierLocal();
       afficherEnregistree('Ajoutée à ton panier', 'Tu peux payer maintenant, ou créer une autre personnalisation pour la même commande.'); }
     catch (x) { if (x.message === 'rupture') erreur(x.detail); else if (x.message !== 'texte') { console.error(x); erreur('Le paiement n\'a pas pu s\'ouvrir. Réessaie dans un instant.'); } else erreur('Le texte de ta breloque lettre est à corriger.'); }
