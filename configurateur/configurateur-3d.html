@@ -331,6 +331,7 @@ label.champ input:focus, label.champ textarea:focus { border-color: var(--prune)
     <button class="bt-idees" id="btIdees" type="button" hidden aria-expanded="false"><span class="ic-etoile"></span>Idées</button>
     <div class="idees" id="idees" hidden></div>
     <p class="indicatif" id="indicatif"></p>
+    <button type="button" class="bt-alt" id="btPhoto3D" hidden style="margin-top:6px">📸 Utiliser cette vue 3D comme photo de la fiche</button>
   </div>
 
   <div class="panneau">
@@ -878,6 +879,29 @@ $('#btParcours').addEventListener('click', () => { etat.parcours = null; etat.br
 $('#btVersBundle').addEventListener('click', () => choisirParcours('bundle'));
 $('#btVersChaine').addEventListener('click', () => choisirParcours('chaine', true));
 $('#btAltBundle').addEventListener('click', () => enregistrerAlternative(true));
+/* 📸 (dans l'app, connectée) : la vue 3D telle que tu l'as tournée devient la photo de la fiche produit (fond blanc, 1200 × 1200) —
+   la même image sert de vignette sur les factures et les bons de commande */
+function ficheCiblePhoto() {
+  if (enBundle()) { const l = lotCorrespondant(); return l ? { id: l.fiche.id, ref: l.fiche.ref, nom: [l.fiche.nom, l.fiche.variante].filter(Boolean).join(' · ') } : null; }
+  const b = etat.parcours === 'chaine' ? etat.breloques[0] : brel(), f = b && bijouDe(b);
+  return f?.id ? { id: f.id, ref: f.ref, nom: f.nom } : null;
+}
+$('#btPhoto3D').addEventListener('click', async () => {
+  const f = ficheCiblePhoto();
+  if (!f) return alert(enBundle() ? 'Compose exactement un bundle tout prêt (ou une breloque seule) pour savoir à quelle fiche donner la photo.' : 'Ces couleurs ne correspondent à aucune fiche produit.');
+  if (!confirm(`Remplacer la photo de « ${f.nom} » par cette vue 3D ?`)) return;
+  try {
+    const c = scene.rendreVue({ largeur: 1200, hauteur: 1200, deFace: false, marge: 1.12 }), blanc = document.createElement('canvas'); blanc.width = blanc.height = 1200;
+    const g = blanc.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, 1200, 1200); g.drawImage(c, 0, 0);
+    const blob = await new Promise(r => blanc.toBlob(r, 'image/jpeg', 0.9));
+    const path = `bijoux/${String(f.ref || f.id).replace(/[^A-Za-z0-9_-]/g, '')}/3d-${Date.now()}.jpg`;
+    const up = await sbAdmin.storage.from('materiaux-images').upload(path, blob, { upsert: false, contentType: 'image/jpeg' }); if (up.error) throw up.error;
+    const url = sbAdmin.storage.from('materiaux-images').getPublicUrl(path).data.publicUrl;
+    const { error } = await sbAdmin.from('bijoux').update({ photo: url }).eq('id', f.id); if (error) throw error;
+    window.parent?.postMessage({ type: 'bona-nodi:photo-fiche', id: f.id, url }, '*');
+    alert(`Photo de « ${f.nom} » enregistrée ✓`);
+  } catch (x) { console.error(x); alert('La photo n\'a pas pu être enregistrée : ' + (x.message || x)); }
+});
 
 function rendreCadre() {
   const p = etat.parcours;
@@ -1493,6 +1517,7 @@ function rendreRecap() {
 }
 function toutRendre() {
   const mA = modeleActif();
+  { const bp = document.getElementById('btPhoto3D'); if (bp) bp.hidden = !sbAdmin || !etat.parcours; }   // dans l'app seulement
   $('#t2').lastChild.textContent = estArgile(mA) ? 'Ton motif' : estChainmail(mA) ? 'Ton chainmail' : estPerleCulture(mA) ? 'Ta perle' : 'Tes couleurs';
   rendreCadre(); rendreAccroches(); rendreListeBreloques();
   rendreChaines(); rendreModeles(); rendreTexte(); rendreParties(); rendrePalette(); rendreOptions(); rendreRecap(); rendreIdees();

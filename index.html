@@ -324,6 +324,11 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
 }
 
 /* ── Accueil ── */
+.home-lancement{padding:12px 14px;margin:0 0 14px}.home-lancement summary{cursor:pointer;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.lanc-barre{flex:1;min-width:80px;height:8px;background:var(--purpleP);border-radius:6px;overflow:hidden}.lanc-barre span{display:block;height:100%;background:var(--purple)}
+.lanc-grille{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin-top:10px}.lanc-t{font-weight:700;font-size:13px;color:var(--purple);margin-bottom:4px}
+.lanc-l{display:flex;gap:6px;align-items:flex-start;font-size:12px;padding:3px 0;cursor:pointer}.lanc-l input{width:16px;height:16px;padding:0;flex:0 0 auto;appearance:auto;-webkit-appearance:checkbox;accent-color:var(--purple);margin-top:1px}
+.lanc-l span:nth-child(2){flex:1}.lanc-l.fait span:nth-child(2){color:var(--muted)}.lanc-auto{flex:0 0 auto;font-size:12px}
 .note-carte{cursor:default;background:#FFFDF5;border-color:#E8D9B0}.note-carte textarea{width:100%;font-size:12px;padding:6px;border-radius:var(--rx);border:1px solid var(--border);resize:vertical;margin-top:6px;background:#fff}
 .note-titre{flex:1;min-width:0;border:none;background:transparent;font-weight:700;font-size:14px;color:var(--purple);padding:2px 4px}
 .glisser{cursor:grab;touch-action:none;user-select:none;color:var(--muted);font-size:16px;padding:0 6px 0 0}
@@ -706,6 +711,8 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
       <div style="display:flex;border-bottom:2px solid var(--border)">
         <div id="gtab-mat" onclick="switchGTab('mat')" class="gtab gtab-on">📦 Matériaux</div>
         <div id="gtab-stock" onclick="switchGTab('stock')" class="gtab">📊 Stock</div>
+        <div id="gtab-orga" onclick="switchGTab('orga')" class="gtab">🗂 Organiser</div>
+        <div id="gtab-envoi" onclick="switchGTab('envoi')" class="gtab">🚚 Vente & envoi</div>
       </div>
       <!-- Sous-onglets matériaux -->
       <div id="subnav-mat" style="display:flex;border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none">
@@ -745,12 +752,26 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
 
   <!-- PANEL STOCK -->
   <div id="gpanel-stock" style="display:none;padding:12px;max-width:960px;margin:0 auto">
-    <div class="card">
-      <div class="card-hd"><h2>📊 Stock global</h2></div>
+    <div class="card" style="margin-top:0">
       <div class="card-bd">
-        <div class="info-box" style="margin-bottom:10px">Disponible = quantité initiale + réappros − <b>utilisé</b> (productions terminées) − <b>réservé</b> 🔧 (productions en cours et commandes sur mesure, d’après la composition de leur fiche bijou). Les variantes d’une même réf (#AI001, #AI001b…) forment un seul stock.</div>
+        <div class="barre-outils" id="stock-outils"></div>
+        <div id="barre-groupe-stock-place"></div>
         <div id="stock-body"><div class="loading">Chargement…</div></div>
       </div>
+    </div>
+  </div>
+  <!-- PANELS ORGANISER (catégories, fournisseurs, références) et VENTE & ENVOI (lieux de vente, emballages) : cartes déplacées depuis ⚙ Paramètres -->
+  <div id="gpanel-orga" style="display:none;padding:12px;max-width:960px;margin:0 auto">
+    <div class="sub-tabs-orga" id="orga-nav" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+      <button class="btn btn-sm btn-p" data-o="categories" onclick="switchOrga('categories')">🗂 Catégories</button>
+      <button class="btn btn-sm btn-ghost" data-o="fournisseurs" onclick="switchOrga('fournisseurs')">🏭 Fournisseurs</button>
+      <button class="btn btn-sm btn-ghost" data-o="references" onclick="switchOrga('references')">🔍 Références</button>
+    </div>
+  </div>
+  <div id="gpanel-envoi" style="display:none;padding:12px;max-width:960px;margin:0 auto">
+    <div id="envoi-nav" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+      <button class="btn btn-sm btn-p" data-o="emballages" onclick="switchEnvoi('emballages')">📦 Emballages & livraison</button>
+      <button class="btn btn-sm btn-ghost" data-o="lieux" onclick="switchEnvoi('lieux')">📍 Lieux de vente</button>
     </div>
   </div>
 </div>
@@ -1098,11 +1119,6 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
     <div class="sub-tab" data-cs="atelier" onclick="switchCfgTab('atelier')">🏷 Atelier</div>
     <div class="sub-tab" data-cs="sauvegarde" onclick="switchCfgTab('sauvegarde')">💾 Sauvegarde</div>
     <div class="sub-tab" data-cs="connexions" onclick="switchCfgTab('connexions')">🔌 Connexions</div>
-    <div class="sub-tab" data-cs="lieux" onclick="switchCfgTab('lieux')">📍 Lieux de vente</div>
-    <div class="sub-tab" data-cs="emballages" onclick="switchCfgTab('emballages')">📦 Emballages & envoi</div>
-    <div class="sub-tab" data-cs="categories" onclick="switchCfgTab('categories')">🗂 Catégories</div>
-    <div class="sub-tab" data-cs="fournisseurs" onclick="switchCfgTab('fournisseurs')">🏭 Fournisseurs</div>
-    <div class="sub-tab" data-cs="references" onclick="switchCfgTab('references')">🔍 Références</div>
   </div>
 
   <!-- Header personnalisé -->
@@ -2100,7 +2116,7 @@ async function loadAll() {
     if(an&&typeof an==='object'){
       if(Array.isArray(an.notes)) NOTES_ACCUEIL=an.notes;
       else NOTES_ACCUEIL=[{id:'n1', titre:'Ma note', texte:an.texte||'', todo:Array.isArray(an.todo)?an.todo:[]}];   // ancienne note unique
-      ACCUEIL_ORDRE=Array.isArray(an.ordre)?an.ordre:[]; ACCUEIL_TRI=an.tri||'perso'; } }
+      ACCUEIL_ORDRE=Array.isArray(an.ordre)?an.ordre:[]; ACCUEIL_TRI=an.tri||'perso'; LANCEMENT_FAIT=an.lancement&&typeof an.lancement==='object'?an.lancement:{}; } }
   { let rp=cfg.find(c=>c.key==='reseaux_posts')?.value; if(typeof rp==='string'){ try{ rp=JSON.parse(rp); }catch(e){ rp=null; } }
     POSTS=Array.isArray(rp)?rp:[];
     let rr=cfg.find(c=>c.key==='reseaux_reglages')?.value; if(typeof rr==='string'){ try{ rr=JSON.parse(rr); }catch(e){ rr=null; } }
@@ -2625,7 +2641,7 @@ function memoOnglet(k,v){ try{ localStorage.setItem('onglet_'+k, v); }catch(e){}
 function lireOnglet(k){ try{ return localStorage.getItem('onglet_'+k); }catch(e){ return null; } }
 function restaurerOnglets(){
   const g=lireOnglet('gestion'), c=lireOnglet('creation'), cp=lireOnglet('compta'), p=lireOnglet('principal');
-  if(g==='stock') switchGTab('stock');
+  if(g&&g!=='mat') switchGTab(g);
   if(c && c!=='perso' && document.getElementById('ctab-'+c)) switchCreatTab(c);
   if(cp && document.getElementById('ctab-'+cp)) switchComptaTab(cp);
   const t=p && document.querySelector('.tab[data-p="'+p+'"]');
@@ -3262,6 +3278,10 @@ function succesAtelier() {
     ['💶','Première vente',ventes>=1],['🛍️','25 ventes',ventes>=25],['✨','Premier sur mesure',perso>=1],['🎨','10 créations',crea>=10],['📸','10 photos',photos>=10],
   ];
 }
+// 📸 photo de fiche prise depuis la vue 3D du configurateur (Conception 3D › aperçu) : la fiche est mise à jour tout de suite
+window.addEventListener('message',e=>{ const d=e.data; if(d&&d.type==='bona-nodi:photo-fiche'&&d.id){ const b=getBij(d.id); if(b){ b.photo=d.url; renderBij(); toast('📸 Photo 3D enregistrée sur la fiche ✓','ok'); } } });
+// Molette / pavé tactile : ne jamais changer une quantité en faisant défiler la page (un champ nombre qui a le focus perd le focus au défilement)
+document.addEventListener('wheel',e=>{ const a=document.activeElement; if(a&&((a.tagName==='INPUT'&&a.type==='number')||a.tagName==='SELECT')&&(e.target===a||a.contains(e.target))) a.blur(); },{passive:true,capture:true});
 // ── Emballages & envoi : poids des articles, kits d'emballage (avec leurs limites) testés pour chaque article, mode de livraison conseillé
 // config « emballages » = { kits:[{id,nom,vide,poidsMax,nbMax,mode,mats:[{ref,qty}]}], modes:[{id,nom,poidsMax,prix}], poids:{bijId:g}, kitDe:{bijId:kitId} }
 let EMB={kits:[], modes:[], poids:{}, kitDe:{}};
@@ -3363,9 +3383,68 @@ function renderEmballages(){
 let NOTES_ACCUEIL=[{id:'n1', titre:'À faire', texte:'', todo:[
   {id:'t1', t:'Remplir les fiches matériaux laine', fait:false},
   {id:'t2', t:'Gérer les matériaux des modèles sac et tapestry', fait:false}]}];
-let ACCUEIL_ORDRE=[], ACCUEIL_TRI='perso';
+let ACCUEIL_ORDRE=[], ACCUEIL_TRI='perso', LANCEMENT_FAIT={};
+// ── 🚀 Feuille de route du lancement (Shopify + Wix) : les étapes vérifiables se cochent toutes seules d'après tes données
+function etapesLancement(){
+  const vend=BIJS.filter(b=>!compoPure(b)&&!b.no_sell&&!isDraft(b));
+  const sansPhoto=vend.filter(b=>!b.photo&&!b.parent_id).length, sansTemps=vend.filter(b=>tempsBij(b)==null&&!b.parent_id).length;
+  const sousPrix=vend.filter(b=>{ const pv=+(b.pv||getBij(b.parent_id)?.pv||0); return pv&&pv<prixConseille(b)-0.01; }).length;
+  const sansPoids=vend.filter(b=>poidsBij(b)==null).length, sansKit=vend.filter(b=>!kitBij(b)).length;
+  const enLigne=BIJS.filter(venduEnLigne), nonRelies=enLigne.filter(b=>!b.shopify_variant_id).length;
+  const sh=SHOPIFY.etat?.configure;
+  const A=(ok,det)=>({auto:true, ok:!!ok, det});
+  return [
+    ['📸 Catalogue prêt',[
+      ['photos','Chaque création a sa photo', A(!sansPhoto, sansPhoto?sansPhoto+' sans photo':'✓'), "goTabNom('bij');switchCreatTab('bij')"],
+      ['temps','Temps de fabrication noté (⏱) sur les fiches', A(!sansTemps, sansTemps?sansTemps+' sans temps':'✓'), "goTabNom('bij');switchCreatTab('bij')"],
+      ['prix','Prix au moins au prix conseillé', A(!sousPrix, sousPrix?sousPrix+' sous le conseillé':'✓'), "goTabNom('c3d');switchC3dTab('cfg');C3_ONGLET='offres';renderModelesProposes()"],
+      ['poids','Poids et kit d\'emballage de chaque article', A(!sansPoids&&!sansKit, [sansPoids?sansPoids+' sans poids':'',sansKit?sansKit+' kit à tester':''].filter(Boolean).join(' · ')||'✓'), "switchCfgTab('emballages')"],
+      ['livraison','Modes de livraison et leurs tarifs', A(EMB.modes.length, EMB.modes.length?EMB.modes.length+' mode(s)':'aucun'), "switchCfgTab('emballages')"],
+    ]],
+    ['🛍 Shopify',[
+      ['sh-forfait','Forfait Shopify avec boutons d\'achat (Buy Button) et commandes provisoires', null, ''],
+      ['sh-app','App « Bona Nodi atelier » créée et installée (Client ID / secret)', null, ''],
+      ['sh-sql','SQL sql-boutique-en-ligne.sql lancé dans Supabase', null, ''],
+      ['sh-fonction','Fonction Supabase « shopify » déployée avec ses secrets', A(sh, sh?'reliée à '+(SHOPIFY.etat.boutique||''):SHOPIFY.etat?'pas encore reliée':'à vérifier (onglet Boutique en ligne)'), "goTabNom('bij');switchCreatTab('boutique')"],
+      ['sh-webhook','Webhook « Création de commande » vers la fonction', null, ''],
+      ['sh-relies','Créations reliées à leur produit Shopify', A(sh&&!nonRelies, sh?(nonRelies?nonRelies+' à relier':'✓'):'après la connexion'), "goTabNom('bij');switchCreatTab('boutique')"],
+      ['sh-stock','Stock envoyé à Shopify (🔄 Envoyer tout le stock)', null, "goTabNom('bij');switchCreatTab('boutique')"],
+    ]],
+    ['🌐 Wix',[
+      ['wx-boutons','Boutons d\'achat Shopify intégrés aux pages produits', null, ''],
+      ['wx-config','Configurateur 3D intégré (élément HTML) et testé sur téléphone', null, ''],
+      ['wx-pages','Pages livraison, CGV, mentions légales, contact', null, ''],
+      ['wx-seo','Titres et descriptions des pages (référencement)', null, ''],
+    ]],
+    ['✅ Tests et lancement',[
+      ['t-piece','Commande test d\'une pièce prête (code promo 100 %)', null, ''],
+      ['t-perso','Commande test sur mesure avec 2 personnalisations', null, ''],
+      ['t-sauv','Sauvegarde de l\'app faite', A(joursDepuisSauv()!==null&&joursDepuisSauv()<=7, joursDepuisSauv()===null?'jamais':'il y a '+joursDepuisSauv()+' j'), "goTabNom('cfg');switchCfgTab('sauvegarde')"],
+      ['t-drop','Drop de lancement préparé', A(DROPS.some(d=>(d.items||[]).length), DROPS.length?DROPS.length+' drop(s)':'aucun'), "goTabNom('bij');switchCreatTab('drops')"],
+      ['t-post','Post d\'annonce prévu', A(POSTS.some(p=>p.statut==='prevu'), POSTS.some(p=>p.statut==='prevu')?'✓':'aucun prévu'), "goTabNom('res');switchResTab('posts')"],
+    ]],
+  ];
+}
+function cocherLancement(id,v){ if(v) LANCEMENT_FAIT[id]=today(); else delete LANCEMENT_FAIT[id]; sauverNoteAccueil(); renderAccueil(); }
+function blocLancement(){
+  if(LANCEMENT_FAIT.__masque) return `<div style="margin:0 0 10px"><button class="btn btn-xs btn-ghost" onclick="cocherLancement('__masque',false)">🚀 Afficher la feuille de route du lancement</button></div>`;
+  const E=etapesLancement(), tout=E.flatMap(([,l])=>l), fait=x=>x[2]?x[2].ok:!!LANCEMENT_FAIT[x[0]];
+  const nb=tout.filter(fait).length, pc=Math.round(nb/tout.length*100);
+  let ouvert=false; try{ ouvert=localStorage.getItem('lancement_ouvert')!=='0'; }catch(e){}
+  return `<details class="card home-lancement" ${ouvert?'open':''} ontoggle="try{localStorage.setItem('lancement_ouvert',this.open?'1':'0')}catch(e){}">
+    <summary><b>🚀 Feuille de route · lancement Shopify + Wix</b> <span class="dim">${nb}/${tout.length} étapes</span>
+      <span class="lanc-barre"><span style="width:${pc}%"></span></span></summary>
+    <div class="lanc-grille">${E.map(([titre,l])=>`<div class="lanc-phase"><div class="lanc-t">${titre} <span class="dim">${l.filter(fait).length}/${l.length}</span></div>
+      ${l.map(x=>{ const [id,t,a,go]=x, ok=fait(x);
+        return `<label class="lanc-l ${ok?'fait':''}">${a?`<span class="lanc-auto" title="Vérifié automatiquement d'après tes données">${ok?'✅':'⬜'}</span>`:`<input type="checkbox" ${ok?'checked':''} onchange="cocherLancement('${id}',this.checked)">`}
+          <span>${t}${a?` <span class="dim">· ${escA(a.det||'')}</span>`:LANCEMENT_FAIT[id]?` <span class="dim">· ${dateCourte(LANCEMENT_FAIT[id])}</span>`:''}</span>
+          ${go?`<button type="button" class="btn btn-xs btn-ghost" onclick="event.preventDefault();${go}">›</button>`:''}</label>`; }).join('')}</div>`).join('')}</div>
+    <div style="display:flex;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-top:6px"><span class="dim" style="font-size:11px">Le détail de chaque étape Shopify / Wix est dans le LISEZMOI (« Boutique en ligne : Shopify + Wix »).</span>
+      <button class="btn btn-xs btn-ghost" onclick="cocherLancement('__masque',true)">Masquer</button></div>
+  </details>`;
+}
 let _noteT=null;
-function sauverNoteAccueil(){ clearTimeout(_noteT); _noteT=setTimeout(()=>sbUpsertConfig('accueil_note',{notes:NOTES_ACCUEIL, ordre:ACCUEIL_ORDRE, tri:ACCUEIL_TRI}),600); }
+function sauverNoteAccueil(){ clearTimeout(_noteT); _noteT=setTimeout(()=>sbUpsertConfig('accueil_note',{notes:NOTES_ACCUEIL, ordre:ACCUEIL_ORDRE, tri:ACCUEIL_TRI, lancement:LANCEMENT_FAIT}),600); }
 const noteDe = id => NOTES_ACCUEIL.find(x=>x.id===id);
 const noteFaite = n => (n.todo||[]).length>0 && n.todo.every(t=>t.fait) && !String(n.texte||'').trim();
 function carteNote(nt){
@@ -3422,7 +3501,7 @@ function renderAccueil() {
   const perso=PRODS.filter(p=>p.perso&&p.statut==='en_cours').sort((a,b)=>String(a.date).localeCompare(String(b.date)));
   const avendre=PRODS.filter(p=>(!p.statut||p.statut==='produit')&&+p.qty>0&&!Object.keys(lireMiseEnVente(p).lieux).length&&!dropDeProd(p.id)&&!horsVente(p)&&!compoPure(getBij(p.bij_id)));
   const dropsDus=DROPS.filter(d=>d.statut!=='en_ligne'&&d.date&&d.date<=today()&&(d.items||[]).length);
-  const grpS=groupesStock(), bas=grpS.filter(g=>g.bas), bientot=grpS.filter(g=>g.bientot), brouillons=BIJS.filter(isDraft), incompl=MATS.filter(m=>champsManquants(m).length), enG=lignesPerlesEnGrammes();
+  const grpS=groupesStock(), bas=grpS.filter(g=>g.bas), bientot=grpS.filter(g=>g.bientot), brouillons=BIJS.filter(isDraft), incompl=MATS.filter(m=>champsManquants(m).length), enG=lignesPerlesEnGrammes(), laineV=lignesLaineAVerifier();
   const idees1=ideesPosts().filter(x=>x.prio===1), postAuj=POSTS.filter(p=>p.statut==='prevu'&&p.date<=today());
   const sansPhoto=BIJS.filter(b=>b.parent_id&&!b.photo&&!b.is_mat&&!b.no_sell);
   const fichesSansPhoto=BIJS.filter(b=>!b.parent_id&&!b.photo&&!b.is_mat&&!b.no_sell&&!isDraft(b));
@@ -3441,11 +3520,17 @@ function renderAccueil() {
       det:(postAuj.length?postAuj.map(p=>`<div class="mis-l"><span>${(p.titre||'').replace(/</g,'&lt;')}</span></div>`):idees1.slice(0,2).map(x=>`<div class="mis-l"><span>${x.ic} ${x.t}</span></div>`)).join('')},
     {ic:'📝',t:'Créations en brouillon',nb:brouillons.length,ids:brouillons.map(b=>b.id),c:'lilas',go:"goTabNom('bij');switchCreatTab('bij');document.getElementById('flt-status').value='draft';renderBij()"},
     {ic:'🧩',t:'Références à compléter',nb:incompl.length,ids:incompl.map(m=>m.id),c:'lilas',go:"goTabNom('mat');switchGTab('mat');if(!MAT_A_COMPLETER)toggleACompleter()"},
-    {ic:'🔎',t:'Fiches à vérifier (perles en g)',nb:enG.length,ids:enG.map(x=>x.b.id+':'+x.i),c:'rose',go:"goTabNom('mat');switchGTab('stock')"},
+    {ic:'🔎',t:'Fiches à vérifier (perles en g, laine)',nb:enG.length+laineV.length,ids:[...enG.map(x=>x.b.id+':'+x.i),...laineV.map(x=>'l:'+x.b.id+':'+x.i)],c:'rose',go:"goTabNom('mat');switchGTab('stock')",
+      det:[...enG.slice(0,2).map(x=>`<div class="mis-l"><span>${escA(x.b.nom)} · ${n(x.m.qty)} g de perles</span></div>`),...laineV.slice(0,2).map(x=>`<div class="mis-l"><span>${escA(x.b.nom)} · ${n(x.m.qty)} pelotes ?</span></div>`)].join('')},
     {ic:'🖼',t:'Fiches bijoux sans photo',nb:fichesSansPhoto.length,ids:fichesSansPhoto.map(b=>b.id),c:'creme',go:"goTabNom('bij');switchCreatTab('bij')",
       det:fichesSansPhoto.slice(0,3).map(b=>`<div class="mis-l"><span>${escA(b.nom)} <span class="dim">${escA(b.ref||'')}</span></span><button class="btn btn-xs btn-p" onclick="event.stopPropagation();photoRapide('${b.id}')">📷</button></div>`).join('')},
     {ic:'📷',t:'Couleurs sans photo',nb:sansPhoto.length,ids:sansPhoto.map(b=>b.id),c:'creme',go:"goTabNom('bij');switchCreatTab('bij')",
       det:sansPhoto.slice(0,3).map(b=>`<div class="mis-l"><span>${escA(b.nom)} · ${escA(b.variante||'')}</span><button class="btn btn-xs btn-p" onclick="event.stopPropagation();photoRapide('${b.id}')">📷</button></div>`).join('')},
+    // boutique en ligne : ce qui bloque la vente ou l'envoi
+    ...(()=>{ const enL=BIJS.filter(venduEnLigne), nonR=SHOPIFY.etat?.configure?enL.filter(b=>!b.shopify_variant_id):[], sansP=EMB.kits.length?enL.filter(b=>poidsBij(b)==null):[];
+      return [{ic:'🛍',t:'Créations à relier à Shopify',nb:nonR.length,ids:nonR.map(b=>b.id),c:'violet',go:"goTabNom('bij');switchCreatTab('boutique')"},
+        {ic:'⚖',t:'Articles à peser (envoi)',nb:sansP.length,ids:sansP.map(b=>b.id),c:'creme',go:"switchCfgTab('emballages')",
+          det:sansP.slice(0,3).map(b=>`<div class="mis-l"><span>${escA(b.nom)}${b.variante?' · '+escA(b.variante):''}</span></div>`).join('')}]; })(),
     {ic:'💾',t:'Sauvegarde à faire',nb:sauvAFaire?1:0,ids:sauvAFaire?['sauv-'+(DERNIERE_SAUV||'jamais')]:[],c:'lilas',go:"goTabNom('cfg');switchCfgTab('sauvegarde')"},
   ];
   const aFaire=missions.reduce((t,m)=>t+m.nb,0);
@@ -3469,6 +3554,8 @@ function renderAccueil() {
       ${nbNouveaux?`<span class="home-chip nouveau">🆕 ${nbNouveaux} nouveau${nbNouveaux>1?'x':''} depuis ta dernière visite</span>`:''}
     </div>
   </div>
+
+  ${blocLancement()}
 
   <div class="home-titre" style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap">Missions du jour
     <span style="display:flex;gap:6px;align-items:center"><select id="accueil-tri" onchange="trierAccueil(this.value)" style="font-size:12px;padding:6px">
@@ -3542,7 +3629,7 @@ function majBadgesOnglets(){
     const perso=PRODS.filter(p=>p.perso&&p.statut==='en_cours').length;
     const avendre=PRODS.filter(p=>(!p.statut||p.statut==='produit')&&+p.qty>0&&!Object.keys(lireMiseEnVente(p).lieux).length&&!dropDeProd(p.id)&&!horsVente(p)&&!compoPure(getBij(p.bij_id))).length;
     const brouillons=BIJS.filter(isDraft).length;
-    const incompl=MATS.filter(m=>champsManquants(m).length).length, enG=lignesPerlesEnGrammes().length;
+    const incompl=MATS.filter(m=>champsManquants(m).length).length, enG=lignesPerlesEnGrammes().length+lignesLaineAVerifier().length;
     pastille('.tab[data-p="home"]', perso+avendre+stocksBas().length+brouillons+incompl+enG, 'choses à faire');
     pastille('.tab[data-p="bij"]', perso+avendre, `${perso} sur mesure à faire · ${avendre} production(s) à mettre en vente`);
     pastille('#ctab-prod', perso+avendre, `${perso} sur mesure à faire · ${avendre} à mettre en vente`);
@@ -4641,19 +4728,37 @@ function onDepMatConfirm() {
   openReappro(id);
 }
 
+const G_ONGLETS=['mat','stock','orga','envoi'];
 function switchGTab(tab) {
+  if(!G_ONGLETS.includes(tab)) tab='mat';
   memoOnglet('gestion', tab);
-  const isPanMat = tab==='mat';
-  document.getElementById('gpanel-mat').style.display = isPanMat?'block':'none';
-  document.getElementById('gpanel-stock').style.display = isPanMat?'none':'block';
-  document.getElementById('gtab-mat').className = 'gtab'+(isPanMat?' gtab-on':'');
-  document.getElementById('gtab-stock').className = 'gtab'+(!isPanMat?' gtab-on':'');
-  const subMat=document.getElementById('subnav-mat');
-  const subStock=document.getElementById('subnav-stock');
-  if(subMat) subMat.style.display=isPanMat?'flex':'none';
-  if(subStock) subStock.style.display=isPanMat?'none':'flex';
-  if(!isPanMat) renderStock();
+  deplacerCartesGestion();
+  G_ONGLETS.forEach(t=>{ const p=document.getElementById('gpanel-'+t), o=document.getElementById('gtab-'+t);
+    if(p) p.style.display=t===tab?'block':'none'; if(o) o.className='gtab'+(t===tab?' gtab-on':''); });
+  const subMat=document.getElementById('subnav-mat'), subStock=document.getElementById('subnav-stock');
+  if(subMat) subMat.style.display=tab==='mat'?'flex':'none';
+  if(subStock) subStock.style.display=tab==='stock'?'flex':'none';
+  // une seule barre de modification groupée : elle suit l'onglet (matériaux ou stock)
+  const bg=document.getElementById('barre-groupe'), dest=tab==='stock'?document.getElementById('barre-groupe-stock-place'):document.getElementById('mat-body');
+  if(bg&&dest&&tab==='stock') dest.appendChild(bg); else if(bg&&tab==='mat') document.getElementById('mat-body').before(bg);
+  if(tab==='stock') renderStock();
+  if(tab==='orga') switchOrga(ORGA_ONGLET);
+  if(tab==='envoi') switchEnvoi(ENVOI_ONGLET);
 }
+// cartes de réglages « matériaux » et « vente » rangées dans Gestion (elles étaient dans ⚙ Paramètres)
+let ORGA_ONGLET='categories', ENVOI_ONGLET='emballages';
+function deplacerCartesGestion(){
+  const o=document.getElementById('gpanel-orga'), e=document.getElementById('gpanel-envoi'); if(!o||o.dataset.pret) return; o.dataset.pret=1;
+  ['categories','fournisseurs','references'].forEach(k=>document.querySelectorAll(`#p-cfg > .card[data-cs="${k}"]`).forEach(c=>{ c.dataset.orga=k; o.appendChild(c); }));
+  ['emballages','lieux'].forEach(k=>document.querySelectorAll(`#p-cfg > .card[data-cs="${k}"]`).forEach(c=>{ c.dataset.envoi=k; e.appendChild(c); }));
+}
+function switchOrga(k){ ORGA_ONGLET=k; deplacerCartesGestion();
+  document.querySelectorAll('#gpanel-orga > .card').forEach(c=>c.style.display=c.dataset.orga===k?'':'none');
+  document.querySelectorAll('#orga-nav [data-o]').forEach(b=>b.className='btn btn-sm '+(b.dataset.o===k?'btn-p':'btn-ghost')); }
+function switchEnvoi(k){ ENVOI_ONGLET=k; deplacerCartesGestion();
+  document.querySelectorAll('#gpanel-envoi > .card').forEach(c=>c.style.display=c.dataset.envoi===k?'':'none');
+  document.querySelectorAll('#envoi-nav [data-o]').forEach(b=>b.className='btn btn-sm '+(b.dataset.o===k?'btn-p':'btn-ghost'));
+  if(k==='emballages') renderEmballages(); if(k==='lieux') renderLieuxCfg(); }
 
 function switchMatType(type) {
   CUR_MAT_TYPE = type;
@@ -4688,9 +4793,11 @@ function switchStockFlt(flt) {
 let MAT_A_COMPLETER=false;
 // ── Actions groupées : plusieurs références modifiées en une fois ──
 let MODE_SELECTION=false; const SEL_MATS=new Set();
-function basculerSelection(){ MODE_SELECTION=!MODE_SELECTION; SEL_MATS.clear(); document.getElementById('bt-selection').classList.toggle('btn-p',MODE_SELECTION); renderMat(); }
+function basculerSelection(){ MODE_SELECTION=!MODE_SELECTION; SEL_MATS.clear(); document.getElementById('bt-selection').classList.toggle('btn-p',MODE_SELECTION); renderMat(); if(document.getElementById('gpanel-stock')?.style.display==='block') renderStock(); }
+function cocherGroupeStock(c){ c.dataset.ids.split(',').forEach(id=>c.checked?SEL_MATS.add(id):SEL_MATS.delete(id)); majBarreGroupe(); }
 function cocherMat(id,on){ on?SEL_MATS.add(id):SEL_MATS.delete(id); majBarreGroupe(); }
-function cocherTout(on){ document.querySelectorAll('#mat-body .sel-mat').forEach(c=>{ c.checked=on; on?SEL_MATS.add(c.dataset.id):SEL_MATS.delete(c.dataset.id); }); majBarreGroupe(); }
+function cocherTout(on){ const stock=document.getElementById('gpanel-stock')?.style.display==='block';
+  document.querySelectorAll((stock?'#stock-body':'#mat-body')+' .sel-mat').forEach(c=>{ c.checked=on; (c.dataset.ids||c.dataset.id).split(',').forEach(id=>on?SEL_MATS.add(id):SEL_MATS.delete(id)); }); majBarreGroupe(); }
 // « Hors catégories » : coche les références de cette sous-catégorie et ouvre la barre pour les ranger
 function rangerOrphelins(sc){
   if(!MODE_SELECTION){ MODE_SELECTION=true; document.getElementById('bt-selection')?.classList.add('btn-p'); }
@@ -4730,7 +4837,7 @@ async function appliquerGroupe(){
     if(await sbUpdate('materiaux',id,maj)){ Object.assign(m,maj); ok++; }
   }
   if(garderCat) await saveCatsByType();
-  toast(ok+' référence(s) modifiée(s) ✓','ok'); SEL_MATS.clear(); renderMat(); majBarreGroupe(); buildCatBar();
+  toast(ok+' référence(s) modifiée(s) ✓','ok'); SEL_MATS.clear(); renderMat(); renderStock(); majBarreGroupe(); buildCatBar();
 }
 // Catégories de matériaux repliées (mémorisé sur cet appareil)
 const MAT_FERMES=(()=>{ try{ return new Set(JSON.parse(localStorage.getItem('mat_fermes')||'[]')); }catch(e){ return new Set(); } })();
@@ -5531,7 +5638,34 @@ function lignesPerlesEnGrammes() {
   }));
   return out;
 }
+// laine stockée en pelotes : une fiche qui en compte 10 ou plus « en pelotes » a sans doute été saisie en grammes
+function lignesLaineAVerifier() {
+  const out=[];
+  BIJS.forEach(b=>(b.mats||[]).forEach((m,i)=>{
+    const mat=getMat(m.ref);
+    if(mat && mat.unite==='pelote' && (m.qty_unite||'native')==='native' && +m.qty>=10) out.push({b,i,m,mat});
+  }));
+  return out;
+}
+async function corrigerUniteLaine(bijId, i, enGrammes) {
+  const b=BIJS.find(x=>x.id===bijId); if(!b) return;
+  const mats=(b.mats||[]).map((m,k)=>k===i?{...m, qty_unite:enGrammes?'gramme':'pelote'}:m);
+  if(await sbUpdate('bijoux',bijId,{mats})){ b.mats=mats; renderStock(); renderMat(); renderAccueil(); toast(enGrammes?'Compté en grammes ✓ — stock recalculé':'Gardé en pelotes ✓','ok'); }
+}
 function verifCompositionsPerles() {
+  const ll=lignesLaineAVerifier();
+  const hLaine=ll.length?`<div class="card" style="margin:0 0 12px;border:1.5px solid var(--orange)"><div class="card-bd">
+    <div style="font-weight:700;color:var(--orange);margin-bottom:6px">⚠ ${ll.length} ligne(s) de fiches bijoux comptent beaucoup de pelotes de laine</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px">La laine est stockée en pelotes. Si la quantité de la fiche est en <b>grammes</b>, clique « en g » : elle est convertie avec le poids d'une pelote (fiche matériau, 100 g par défaut).</div>
+    ${ll.map(x=>`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:5px 0;border-top:1px solid var(--border);font-size:12px">
+      <span style="flex:1;min-width:180px"><b>${escA(x.b.nom)}${x.b.variante?' · '+escA(x.b.variante):''}</b> — ${escA(x.mat.variante||x.mat.designation||'')} <span class="ref">${x.m.ref}</span> : <b>${n(x.m.qty)} pelotes</b>
+        <span class="dim">(pelote de ${n(+x.mat.meta?.poids||100)} g)</span></span>
+      <button class="btn btn-xs btn-p" onclick="corrigerUniteLaine('${x.b.id}',${x.i},true)">= ${n(x.m.qty)} g</button>
+      <button class="btn btn-xs btn-ghost" onclick="corrigerUniteLaine('${x.b.id}',${x.i},false)">c'est bien en pelotes</button>
+    </div>`).join('')}</div></div>`:'';
+  return hLaine+verifCompositionsPerlesSeules();
+}
+function verifCompositionsPerlesSeules() {
   const l=lignesPerlesEnGrammes();
   const sansCalib=MATS.filter(m=>estPerleAuPoids(m)&&!(+m.meta?.calib_g_per_piece>0));
   const tailles=[...new Set(sansCalib.map(m=>m.sc+' '+(tailleRocaille(m)||'')))];
@@ -5555,7 +5689,7 @@ async function corrigerUnitePerles(bijId, i, garderGrammes=false) {
 }
 // ── Gestion des stocks : recherche, filtres, tri, et détail de ce qui est réservé par les productions en cours
 let STOCK_VUE={q:'', flt:'', tri:'cat', cat:''}; try{ Object.assign(STOCK_VUE, JSON.parse(localStorage.getItem('stock_vue')||'{}')); STOCK_VUE.q=''; }catch(e){}
-function majStockVue(k,v){ STOCK_VUE[k]=v; try{ localStorage.setItem('stock_vue',JSON.stringify({...STOCK_VUE,q:''})); }catch(e){} renderStock(); if(k==='q') setTimeout(()=>{ const i=document.getElementById('stock-q'); if(i){ i.focus(); i.setSelectionRange(i.value.length,i.value.length); } },0); }
+function majStockVue(k,v){ STOCK_VUE[k]=v; try{ localStorage.setItem('stock_vue',JSON.stringify({...STOCK_VUE,q:''})); }catch(e){} renderStock(); }
 // productions en cours (et sur mesure) qui réservent une référence : [{p, b, q}]
 function reservesDe(refs){
   const set=new Set(refs);
@@ -5636,21 +5770,31 @@ function renderStock() {
   const F={bas:g=>g.bas, vide:g=>g.d<=0, reserve:g=>g.r>0, utilise:g=>g.u>0, inutilise:g=>!g.u&&!g.r}[STOCK_VUE.flt]; if(F) lignes=lignes.filter(F);
   const nbBas=stocksBas().length, nbRes=PRODS.filter(p=>+p.qty>0&&!estProduite(p)).length;
   const sel=(k,opts)=>`<select onchange="majStockVue('${k}',this.value)" style="font-size:12px;padding:7px">${opts.map(([v,l])=>`<option value="${escA(v)}" ${STOCK_VUE[k]===v?'selected':''}>${escA(l)}</option>`).join('')}</select>`;
-  let html=`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 10px">
-    <button class="btn ${nbBas?'btn-p':'btn-ghost'}" onclick="ouvrirCourses()">🛒 Liste de courses${nbBas?' ('+nbBas+')':''}</button>
-    <button class="btn btn-ghost" onclick="voirToutReserve()">🔧 Réservé par les productions${nbRes?' ('+nbRes+')':''}</button></div>
-    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:0 0 10px">
-    <input id="stock-q" type="search" placeholder="🔍 Réf., nom, couleur, fournisseur…" value="${escA(STOCK_VUE.q||'')}" oninput="majStockVue('q',this.value)" style="flex:1;min-width:180px;font-size:13px;padding:8px">
-    ${sel('cat',[['','Toutes les catégories'],...cats.map(c=>[c,c])])}
-    ${sel('flt',[['','Tous'],['bas','⚠ Stock bas'],['vide','⛔ Épuisés'],['reserve','🔧 Avec réservé'],['utilise','Déjà utilisés'],['inutilise','Jamais utilisés']])}
-    ${sel('tri',[['cat','Tri : catégories'],['dispo','Disponible ↑'],['pct','% restant ↑'],['reserve','Réservé ↓'],['utilise','Utilisé ↓'],['nom','Nom A→Z'],['ref','Référence']])}
-    <span class="dim" style="font-size:12px">${lignes.length} réf.</span></div>`+verifCompositionsPerles();
+  // barre d'outils compacte (comme Matériaux) : construite une fois, la recherche garde le focus pendant la frappe
+  const bo=document.getElementById('stock-outils');
+  if(bo&&!bo.dataset.pret){ bo.dataset.pret=1;
+    bo.innerHTML=`<input id="stock-q" type="search" placeholder="🔍 Réf., nom, couleur, fournisseur…" oninput="STOCK_VUE.q=this.value;renderStock()">
+      <select id="stock-cat" onchange="majStockVue('cat',this.value)" title="Catégorie"></select>
+      <select id="stock-flt" onchange="majStockVue('flt',this.value)" title="Filtrer"><option value="">Tous</option><option value="bas">⚠ Stock bas</option><option value="vide">⛔ Épuisés</option><option value="reserve">🔧 Avec réservé</option><option value="utilise">Déjà utilisés</option><option value="inutilise">Jamais utilisés</option></select>
+      <select id="stock-tri" onchange="majStockVue('tri',this.value)" title="Trier"><option value="cat">↕ Catégories</option><option value="dispo">↕ Disponible ↑</option><option value="pct">↕ % restant ↑</option><option value="reserve">↕ Réservé ↓</option><option value="utilise">↕ Utilisé ↓</option><option value="nom">↕ Nom A→Z</option><option value="ref">↕ Référence</option></select>
+      <button class="btn btn-sm btn-ghost ico" id="bt-courses" onclick="ouvrirCourses()" title="Liste de courses">🛒</button>
+      <button class="btn btn-sm btn-ghost ico" id="bt-reserve" onclick="voirToutReserve()" title="Réservé par les productions en cours">🔧</button>
+      <button class="btn btn-sm btn-ghost ico" id="bt-selection-stock" onclick="basculerSelection()" title="Sélectionner plusieurs références pour les modifier ensemble">☑</button>
+      <button class="btn btn-sm btn-ghost ico" onclick="const e=document.getElementById('stock-aide');e.hidden=!e.hidden" title="Comment c'est calculé">ℹ️</button>`; }
+  { const sc=document.getElementById('stock-cat'); if(sc){ sc.innerHTML=[['','Toutes catégories'],...cats.map(c=>[c,c])].map(([v,l])=>`<option value="${escA(v)}">${escA(l)}</option>`).join(''); sc.value=STOCK_VUE.cat||''; }
+    ['flt','tri'].forEach(k=>{ const e=document.getElementById('stock-'+k); if(e) e.value=STOCK_VUE[k]||(k==='tri'?'cat':''); });
+    const bc=document.getElementById('bt-courses'); if(bc){ bc.textContent=nbBas?'🛒 '+nbBas:'🛒'; bc.className='btn btn-sm ico '+(nbBas?'btn-p':'btn-ghost'); }
+    const br=document.getElementById('bt-reserve'); if(br) br.textContent=nbRes?'🔧 '+nbRes:'🔧';
+    const bs=document.getElementById('bt-selection-stock'); if(bs){ bs.className='btn btn-sm ico '+(MODE_SELECTION?'btn-p':'btn-ghost'); bs.textContent=MODE_SELECTION?'✕ Sélection':'☑'; } }
+  let html=`<div id="stock-aide" class="info-box" style="margin-bottom:10px" hidden>Disponible = quantité de départ + réappros validés + ajustements − <b>utilisé</b> (productions terminées) − <b>réservé</b> 🔧 (productions en cours et sur mesure, d'après la composition de leur fiche bijou). Les variantes d'une même réf (#AI001, #AI001b…) forment un seul stock. Clique sur un chiffre « Disponible » pour voir son calcul.</div>
+    <div class="dim" style="font-size:11px;margin:-2px 0 8px">${lignes.length} référence(s)${MODE_SELECTION?' · coche les lignes puis modifie-les ensemble dans la barre':''}</div>`+verifCompositionsPerles();
   const ligneHtml=(g,avecCat)=>{
     const clr=g.pct>50?'#2E7D4F':g.pct>20?'#C05820':'#C0392B', m0=g.items[0], uS=getUniteShort(m0);
     const refs=g.items.map(m=>`<span class="badge bm" style="margin:1px 2px">${m.ref}${m.variante?' ('+m.variante+')':''}</span>`).join('');
-    return `<tr>
-      ${avecCat?`<td style="font-size:11px"><span class="dim">${escA(g.mc)}</span><br>${escA(g.sc)}</td>`:''}
-      <td style="font-size:12px">${escA(g.des)}</td>
+    const coche=MODE_SELECTION?`<input type="checkbox" class="sel-mat" data-ids="${g.items.map(m=>m.id).join(',')}" ${g.items.every(m=>SEL_MATS.has(m.id))?'checked':''} onclick="event.stopPropagation();cocherGroupeStock(this)" style="width:18px;height:18px;padding:0;appearance:auto;-webkit-appearance:checkbox;accent-color:var(--purple);margin-right:6px;vertical-align:middle">`:'';
+    return `<tr${MODE_SELECTION?` style="cursor:pointer" onclick="this.querySelector('.sel-mat').click()"`:''}>
+      ${avecCat?`<td style="font-size:11px">${coche}<span class="dim">${escA(g.mc)}</span><br>${escA(g.sc)}</td>`:''}
+      <td style="font-size:12px">${avecCat?'':coche}${escA(g.des)}</td>
       <td style="line-height:1.8">${refs}</td>
       <td>${g.tot?(n(g.tot)+' <span style="font-size:10px;color:var(--muted)">'+uS+'</span>'):'<span class="dim">--</span>'}</td>
       <td class="dim" title="Productions terminées">${n(Math.round(g.u*100)/100)||'0'}</td>
@@ -6153,6 +6297,8 @@ async function exportBilanPDF() {
 }
 
 // ── FACTURE ────────────────────────────────────────────
+// vignette d'un article sur la facture : la photo de la fiche (ta miniature 3D ou ta photo), sinon celle du modèle
+const photoFacture = b => { const u=b?.photo||(b?.parent_id&&getBij(b.parent_id)?.photo)||''; return u?`<img src="${u}" alt="" style="width:44px;height:44px;object-fit:cover;border-radius:8px;vertical-align:middle;margin-right:8px;background:#f6f0f8">`:''; };
 function genFactureCmd(cmdKey) {
   // Facture pour une commande complète
   const cmd=COMMANDES.find(x=>x.id===cmdKey);
@@ -6163,7 +6309,7 @@ function genFactureCmd(cmdKey) {
   const lignesHTML=lignes.map(v=>{
     const b=getBij(v.bij_id);
     const nom=b?b.nom+(b.variante?' · '+b.variante:''):'Article';
-    return `<tr><td>${nom} ${b?.ref?'<small>['+b.ref+']</small>':''}</td><td style="text-align:center">${v.qty}</td><td style="text-align:right">${eur(v.prix)}</td><td style="text-align:right;font-weight:700">${eur((+v.qty||0)*(+v.prix||0))}</td></tr>`;
+    return `<tr><td>${photoFacture(b)}${nom} ${b?.ref?'<small>['+b.ref+']</small>':''}</td><td style="text-align:center">${v.qty}</td><td style="text-align:right">${eur(v.prix)}</td><td style="text-align:right;font-weight:700">${eur((+v.qty||0)*(+v.prix||0))}</td></tr>`;
   }).join('');
   const sousTotal=lignes.reduce((s,v)=>s+(+v.qty||0)*(+v.prix||0),0);
   const livraison=cmd?.frais_livraison||0;
@@ -6243,7 +6389,7 @@ function genFacture(venteId) {
     <table>
       <thead><tr><th>Désignation</th><th>Qté</th><th>Prix/u</th><th>Total HT</th></tr></thead>
       <tbody>
-        <tr><td>${nom}</td><td>${v.qty}</td><td>${eur(v.prix)}</td><td>${eur((+v.qty||0)*(+v.prix||0))}</td></tr>
+        <tr><td>${photoFacture(b)}${nom}</td><td>${v.qty}</td><td>${eur(v.prix)}</td><td>${eur((+v.qty||0)*(+v.prix||0))}</td></tr>
       </tbody>
     </table>
     ${v.note?`<p style="font-size:12px;color:#666">Note : ${v.note}</p>`:''}
@@ -8338,8 +8484,11 @@ function renderRent() {
 // ═══════════════════════════════════════════════════════
 let HDR_CFG = {name:'Atelier', sub:'bijoux', dark:'#1A1228', gold:'#C8A951'};
 
-const CFG_ONGLETS=['atelier','sauvegarde','connexions','lieux','emballages','categories','fournisseurs','references'];
+const CFG_ONGLETS=['atelier','sauvegarde','connexions'];
 function switchCfgTab(t){
+  // catégories, fournisseurs, références → Gestion › Organiser ; lieux de vente, emballages → Gestion › Vente & envoi
+  if(['categories','fournisseurs','references'].includes(t)){ ORGA_ONGLET=t; goTabNom('mat'); switchGTab('orga'); return; }
+  if(['lieux','emballages'].includes(t)){ ENVOI_ONGLET=t; goTabNom('mat'); switchGTab('envoi'); return; }
   if(!CFG_ONGLETS.includes(t)) t='atelier';
   try{ localStorage.setItem('cfg_onglet',t); }catch(e){}
   document.querySelectorAll('#cfg-nav .sub-tab').forEach(x=>x.classList.toggle('sub-tab-on',x.dataset.cs===t));
@@ -8408,7 +8557,7 @@ async function retirerLieuCfg(l){
   LIEUX_VENTE=LIEUX_VENTE.filter(x=>x!==l); await sbUpsertConfig('lieux_vente', LIEUX_VENTE); renderLieuxCfg(); }
 function renderCfg() {
   let t='atelier'; try{ t=localStorage.getItem('cfg_onglet')||'atelier'; }catch(e){}
-  switchCfgTab(t);
+  switchCfgTab(CFG_ONGLETS.includes(t)?t:'atelier');
   // Prefill header fields
   document.getElementById('cfg-hdr-name').value = HDR_CFG.name||'';
   document.getElementById('cfg-hdr-sub').value  = HDR_CFG.sub||'';

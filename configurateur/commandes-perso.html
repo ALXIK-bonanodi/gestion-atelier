@@ -47,6 +47,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .doc { width: 210mm; max-width: 100%; min-height: 297mm; background: #fff; color: var(--prune); padding: 16mm 15mm; box-shadow: 0 2px 16px rgba(60,17,75,.12); display: grid; gap: 8mm; align-content: start; font-size: 10.5pt; }
 .doc-tete { display: grid; grid-template-columns: auto 1fr auto; gap: 6mm; align-items: center; }
 .doc-tete img { width: 26mm; height: 26mm; }
+.vignette { width: 12mm; height: 12mm; object-fit: cover; border-radius: 2mm; vertical-align: middle; margin-right: 2mm; }
 .doc-tete .atelier { font-size: 9pt; color: var(--prune-doux); line-height: 1.5; }
 .doc-tete .atelier b { color: var(--prune); font: 600 11pt var(--f-titre); }
 .doc-type { text-align: right; }
@@ -126,6 +127,7 @@ const date = d => new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', mont
 const STATUTS = { nouvelle: 'Nouvelle', validee: 'Validée', en_creation: 'En création', envoyee: 'Envoyée', annulee: 'Annulée' };
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let demandes = [], filtre = 'tout', courante = null, catalogue = null, fermoirs = null, bijoux = [];
+let PHOTOS = {};   // réf. de fiche → photo (ta miniature 3D ou ta photo), en vignette sur le bon de commande / la facture
 
 async function demarrer() {
   const { data } = await sb.auth.getSession();
@@ -138,6 +140,8 @@ async function demarrer() {
   [catalogue, fermoirs, bijoux] = await Promise.all([chargerCatalogueBoutique(sb).catch(() => []), chargerFermoirsBoutique(sb).catch(() => []),
     chargerBijouxBoutique(sb).catch(() => [])]);
   catalogue = completerCatalogue(catalogue, bijoux);
+  try { const { data } = await sb.from('bijoux').select('id,ref,photo,parent_id'); const parId = Object.fromEntries((data || []).map(b => [b.id, b]));
+    for (const b of data || []) { const ph = b.photo || parId[b.parent_id]?.photo; if (b.ref && ph) PHOTOS[b.ref] = ph; } } catch { PHOTOS = {}; }
   rendreListe();
   // ouverture directe depuis l'app de gestion : commandes-perso.html?numero=BN-P-2026-0042
   const voulu = new URLSearchParams(location.search).get('numero');
@@ -220,7 +224,7 @@ async function ouvrir(id) {
       </div>
       <table>
         <thead><tr><th>Désignation</th><th>Réf.</th><th class="n">Qté</th><th class="n">Prix unit.</th><th class="n">Total</th></tr></thead>
-        <tbody>${(L.prestation || []).map(l => `<tr><td>${esc(l.designation)}</td><td class="ref">${esc(l.ref)}</td><td class="n">${l.qte}</td><td class="n">${l.pu ? euros(l.pu) : 'inclus'}</td><td class="n">${euros(l.total)}</td></tr>`).join('')}</tbody>
+        <tbody>${(L.prestation || []).map(l => `<tr><td>${PHOTOS[l.ref] ? `<img class="vignette" src="${esc(PHOTOS[l.ref])}" alt="">` : ''}${esc(l.designation)}</td><td class="ref">${esc(l.ref)}</td><td class="n">${l.qte}</td><td class="n">${l.pu ? euros(l.pu) : 'inclus'}</td><td class="n">${euros(l.total)}</td></tr>`).join('')}</tbody>
       </table>
       <div class="totaux">
         <div class="grand"><span>Total TTC</span><span>${euros(d.total)}</span></div>
