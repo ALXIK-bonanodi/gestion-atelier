@@ -255,6 +255,9 @@ input[type=checkbox]{width:18px;height:18px;cursor:pointer;accent-color:var(--pu
 .bij-resume .ok{color:#7ee2a8;font-weight:700}.bij-resume .moyen{color:#f5c26b;font-weight:700}.bij-resume .bas{color:#ff9a9a;font-weight:700}
 .bij-var{margin:6px 0 6px 18px;border-color:var(--purpleP)}
 .bij-var .bij-hd{background:#5B2A6B;padding:7px 12px}
+.bij-nosell>.bij-hd{background:#45505e}
+.nosell-pill{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;background:rgba(255,255,255,.16);color:#e8edf2;border-radius:999px;padding:2px 7px}
+.sansprix-pill{font-size:10px;font-weight:700;background:#ffcf9e;color:#7a3a00;border-radius:999px;padding:2px 8px}
 .bij-vars-tete{padding:7px 14px;font-size:12px;font-weight:600;color:var(--purple);background:var(--purpleP);cursor:pointer;-webkit-user-select:none}
 .bij-vars{padding:2px 8px 4px;background:var(--purpleP)}
 .bij-foot{background:#FBF7FB;padding:7px 14px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:6px;align-items:center}
@@ -875,6 +878,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
           <input id="bij-search" type="search" placeholder="🔍 Nom, réf., collection…" oninput="renderBij()">
           <select id="flt-status" onchange="renderBij()" title="Statut">
             <option value="">Toutes</option><option value="ok">Complètes</option><option value="draft">Brouillons</option>
+            <option value="sansprix">⚠ Vendables sans prix</option><option value="nosell">Non vendables seules</option>
           </select>
           <select id="bij-tri" onchange="renderBij()" title="Trier">
             <option value="nom">Tri : nom</option><option value="ref">Tri : référence</option><option value="pv">Tri : prix</option>
@@ -2372,6 +2376,8 @@ function stockPris(ref, filtre) {
 }
 // composition « pure » : sert seulement de composant (non vendue, ou sans prix) — une composition vendue (ex. petit poisson utilisé dans un lot) reste un article
 const compoPure = b => !!b?.is_mat && (!!b.no_sell || !(+b.pv || +(b.parent_id && getBij(b.parent_id)?.pv)));
+// vendable seule mais sans prix de vente (ni le sien, ni celui de son modèle) : à compléter
+const sansPrix = b => !b.no_sell && !b.is_mat && !(+b.pv || +(b.parent_id && getBij(b.parent_id)?.pv));
 // Pièces mises de côté : vitrine, prototype, cadeau… — articles déduits, mais pas en vente
 function horsVente(p){ const v=lireMiseEnVente(p); return !!v.hors_vente || (!Object.keys(v.lieux).length && /vitrine|proto/i.test(v.note)); }
 // Stock fini d'une composition (ou d'un bijou) : produit − vendu − utilisé ailleurs (lignes négatives), hors pièces mises de côté
@@ -5529,6 +5535,9 @@ function renderBij() {
   if(fc) bijs=bijs.filter(b=>b.collection===fc);
   if(fs==='ok') bijs=bijs.filter(b=>!isDraft(b));
   if(fs==='draft') bijs=bijs.filter(b=>isDraft(b));
+  if(fs==='sansprix') bijs=bijs.filter(b=>sansPrix(b)||BIJS.some(v=>v.parent_id===b.id&&sansPrix(v)));
+  if(fs==='nosell') bijs=bijs.filter(b=>b.no_sell);
+  { const n=BIJS.filter(sansPrix).length, o=document.querySelector('#flt-status option[value="sansprix"]'); if(o) o.textContent='⚠ Vendables sans prix ('+n+')'; }
   if(search) bijs=bijs.filter(b=>
     (b.nom||'').toLowerCase().includes(search)||
     (b.variante||'').toLowerCase().includes(search)||
@@ -5563,7 +5572,7 @@ function renderBij() {
     const stock=(prodPar[b.id]||0)-(ventePar[b.id]||0), enc=encoursPar[b.id]||0;
     const vars=estVar?[]:variantes.filter(v=>v.parent_id===b.id).sort(cle);
     const varOuv=BIJ_VAR_OUVERTS.has(b.id);
-    return `<div class="bij-card ${ouvert?'ouvert':''} ${estVar?'bij-var':''}">
+    return `<div class="bij-card ${ouvert?'ouvert':''} ${estVar?'bij-var':''} ${noSell?'bij-nosell':''}">
         <div class="bij-hd" onclick="toggleBij('${b.id}')" title="${ouvert?'Replier':'Déplier'} la fiche">
           <div style="min-width:0;flex:1">
             <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
@@ -5572,6 +5581,7 @@ function renderBij() {
               <span style="font-family:Georgia,serif;color:var(--gold);font-size:15px;font-style:italic">${estVar?'':b.nom}</span>
               ${b.variante?`<span class="badge bp">${b.variante}</span>`:''}
               ${draft?'<span class="draft-pill">brouillon</span>':''}
+              ${noSell?'<span class="nosell-pill">non vendable seule</span>':sansPrix(b)?'<span class="sansprix-pill" title="Vendable seule mais sans prix de vente">⚠ sans prix</span>':''}
               ${b.is_mat?`<span class="badge bgn" style="font-size:8px">💎 composant</span>`:''}
               ${b.ref?`<span style="font-size:11px;color:var(--gold2);letter-spacing:.3px;opacity:.8">${b.ref}</span>`:''}
             </div>

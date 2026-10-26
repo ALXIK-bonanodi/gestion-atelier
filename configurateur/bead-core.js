@@ -2108,7 +2108,8 @@ export const estCorpsChainmail = x => ['double', 'fleur', 'noeud'].includes(elem
 export function nomElementChainmail(x) {
   const e = elementChainmail(x), t = (e.taille || 8) + ' mm';
   if (e.k === 'double') return `Double 4×4 + connecteur (${e.conn || 3}) · ${t}`;
-  if (e.k === 'fleur') return 'Fleur · double 8 mm + ' + (e.petales === 0 ? 'sans pétale' : e.petales === 'haut' || e.petales === 'bas' ? '1 pétale (' + e.petales + ')' : '2 pétales') + ' 10 mm';
+  if (e.k === 'fleur') return ((e.coeur || 8) === 10 && e.petale === '8x2' ? 'Mini fleur' : 'Fleur') + ' · cœur ' + (e.coeur || 8) + ' mm + '
+    + (e.petales === 0 ? 'sans pétale' : (e.petales === 'haut' || e.petales === 'bas' ? '1 pétale (' + e.petales + ')' : '2 pétales') + (e.petale === '8x2' ? ' en connecteur (2) 8 mm' : ' 10 mm'));
   if (e.k === 'noeud') return 'Nœud 4×4 + connecteur du milieu · ' + t;
   if (e.k === 'conn') return (e.nb === 1 ? 'Anneau solo' : `Connecteur (${e.nb || 2})`) + ' · ' + ((e.taille || 8) === 10 ? '10 mm' : '8 mm');
   if (e.k === 'pampille') return 'Pampille ' + (e.taille || 4) + ' mm';
@@ -2130,7 +2131,17 @@ export function definirGabaritsElementsAJour() { _gabEl = null; }
 export function anneauxElement(x) {
   const e = elementChainmail(x), { G, corps, jointDe, demi } = gabaritsElements(), dix = (e.taille || 8) === 10;
   if (e.k === 'double') { const g = dix ? G.c10 : (e.conn || 3) === 2 ? G.i8 : G.c8; return { anneaux: corps(g), T: g.T }; }
-  if (e.k === 'fleur') { const A = corps(G.fl).filter(a => !(a.R > 4 && Math.abs(a.p[1]) > 4 && (e.petales === 0 || (e.petales === 'haut' && a.p[1] < 0) || (e.petales === 'bas' && a.p[1] > 0)))); return { anneaux: A, T: G.fl.T }; }
+  if (e.k === 'fleur') {
+    // fleur = cœur (double 4×4 + connecteur (2) du milieu, en 8 ou 10 mm) + pétales de chaque côté (1 anneau 10 mm, ou connecteur (2) 8 mm)
+    const estPetale = a => a.R > 4 && Math.abs(a.p[1]) > 4, garde = a => !(e.petales === 0 || (e.petales === 'haut' && a.p[1] < 0) || (e.petales === 'bas' && a.p[1] > 0));
+    const c10 = (e.coeur || 8) === 10, T = c10 ? G.c10.T : G.fl.T, dz = (T - G.fl.T) / 2;
+    const coeur = c10 ? corps(G.c10) : corps(G.fl).filter(a => !estPetale(a));
+    let P = corps(G.fl).filter(a => estPetale(a) && garde(a)).map(a => ({ ...a, p: [a.p[0], a.p[1], +(a.p[2] + dz).toFixed(3)] }));
+    if (e.petale === '8x2') { const H = ANNEAU_8, d = H.e * 1.05;
+      P = P.flatMap(a => { const sy = Math.sign(a.p[1]), n = a.n, l = Math.hypot(...n) || 1, y = a.p[1] - sy * (ANNEAU_10.R - H.R);
+        return [-1, 1].map(k => ({ ...a, R: H.R, e: H.e, p: [+(a.p[0] + k * d * n[0] / l).toFixed(3), +(y + k * d * n[1] / l).toFixed(3), +(a.p[2] + k * d * n[2] / l).toFixed(3)] })); }); }
+    return { anneaux: [...coeur, ...P], T };
+  }
   if (e.k === 'noeud') { const g = dix ? G.c10 : G.c8; return { anneaux: demi(g), T: g.T / 2 }; }
   if (e.k === 'conn') {
     const nb = e.nb || 2, base = dix ? (nb === 2 ? jointDe(G.c10) : nb === 1 ? jointDe(G.i8) : null) : (nb === 3 ? jointDe(G.c8) : null);
@@ -2143,11 +2154,11 @@ export function anneauxElement(x) {
 // une fiche bijou (composition ou produit) → l'élément 3D qu'elle représente, d'après son nom (ex. « Nœud 4x4 10mm », « Double 4x4 + connecteur (2) 8 mm »)
 export function elementDepuisNom(texte) {
   const t = norm(texte), dix = /\b10 ?mm\b/.test(t), nbP = (/\((\d)\)/.exec(t) || /connecteur ?(\d)\b/.exec(t) || [])[1];
-  if (/mini|croix|chaine|chaîne|collier|choker|chocker|breloque|bracelet|porte/.test(t)) return null;          // un produit, pas un élément
+  if (/mini[ -]?cha|croix|chaine|chaîne|collier|choker|chocker|breloque|bracelet|porte|boucle|\bbo\b|sac/.test(t)) return null;          // un produit, pas un élément
   if (/pampille/.test(t)) return { k: 'pampille', taille: /\b3 ?mm\b/.test(t) ? 3 : 4 };
   if (/petit anneau|0[,.]5 ?mm/.test(t)) return { k: 'petit' };
   if (/fermoir/.test(t) && dix) return { k: 'fermoir-10' };
-  if (/fleur|petale/.test(t)) return { k: 'fleur', petales: /sans petale/.test(t) ? 0 : /1 petale|un petale/.test(t) ? 'haut' : 2 };
+  if (/fleur|petale/.test(t)) return { k: 'fleur', petales: /sans petale/.test(t) ? 0 : /1 petale|un petale/.test(t) ? 'haut' : 2, ...(/mini/.test(t) ? { coeur: 10, petale: '8x2' } : {}) };
   if (/double/.test(t) && /4 ?x ?4|byzant|noeud/.test(t)) return { k: 'double', taille: dix ? 10 : 8, conn: dix ? 2 : (nbP === '3' ? 3 : nbP === '2' ? 2 : 3) };
   if (/n(oe|œ)ud/.test(t) || /\b4 ?x ?4\b/.test(t)) return { k: 'noeud', taille: dix ? 10 : 8 };
   if (/solo/.test(t)) return { k: 'conn', nb: 1, taille: /\b8 ?mm\b/.test(t) ? 8 : 10 };
@@ -2182,7 +2193,7 @@ export function sequenceComposition(c, { detail = false } = {}) {
 // distance du centre d'un corps au connecteur voisin, prise sur tes gabarits (8 mm ↔ 8 mm, 8 mm ↔ 10 mm, 10 mm ↔ 10 mm)
 function demiPas(corps, joint) {
   const { G } = gabaritsElements(), j10 = (elementChainmail(joint || {}).taille || 8) === 10, e = elementChainmail(corps);
-  if ((e.taille || 8) === 10 && e.k !== 'fleur') return j10 ? G.c10.T / 2 : G.c10.T / 2 - (ANNEAU_10.R - ANNEAU_8.R);
+  if (((e.taille || 8) === 10 && e.k !== 'fleur') || (e.k === 'fleur' && (e.coeur || 8) === 10)) return j10 ? G.c10.T / 2 : G.c10.T / 2 - (ANNEAU_10.R - ANNEAU_8.R);
   return e.k === 'fleur' ? (j10 ? G.fl.T / 2 : G.fl.T / 2 - (ANNEAU_10.R - ANNEAU_8.R) * MINI_RECUL) : (j10 ? G.i8.T / 2 : G.c8.T / 2);
 }
 export function assemblerComposition(c, { detail = false } = {}) {
@@ -2228,7 +2239,7 @@ export function definirCompositions(liste = []) {
   for (const k of Object.keys(FORMES_CHAINMAIL)) if (FORMES_CHAINMAIL[k].compo) delete FORMES_CHAINMAIL[k];
   for (const c of liste || []) { if (!c?.id || !(c.motif || []).length) continue;
     const breloque = c.usage === 'breloque';
-    FORMES_CHAINMAIL['compo-' + c.id] = { nom: c.nom || 'Composition', compo: true, chaine: !breloque, mini: breloque, bouts: c.bouts || 'mousquetons',
+    FORMES_CHAINMAIL['compo-' + c.id] = { nom: c.nom || 'Composition', compo: true, chaine: !breloque, mini: breloque, bouts: c.bouts || 'mousquetons', boutsF: c.boutsF || null,
       ...(breloque && c.pampille ? { pampille: 'ronde-4', pampilleK: ['#PM-ex01', 'ronde argentée 4 mm'] } : {}),
       gen: L => assemblerComposition(c, { detail: L === 'detail' || typeof L === 'number' }) };   // un nombre = un tronçon (vignette)
   }
@@ -2846,6 +2857,8 @@ export class ScenePerles {
     if (!f?.bouts || f.bouts === 'mousquetons') return acc;
     const autres = acc.filter(a => !a.bout);
     if (f.bouts === 'fermoir-10') return [...autres, { ref: null, type: 'mousqueton', metal: 'argent', taille: 16, bout: 'debut', pos: [0, 0, 0], rot: [90, 0, 0] }];
+    if (f.bouts === 'autre' && f.boutsF?.type) { const F = f.boutsF, a = { ref: F.ref || null, type: F.type, metal: F.metal || 'argent', taille: F.taille || 16, pos: [0, 0, 0], rot: [90, 0, 0] };
+      return [...autres, { ...a, bout: 'debut' }, ...(F.deux ? [{ ...a, bout: 'fin' }] : [])]; }
     return autres;
   }
   /* Anneaux d'un groupe chainmail : ceux de la forme choisie par le client (croix…) */

@@ -80,7 +80,7 @@ select, input[type=number] { font: 14px var(--f-body); padding: 6px 8px; border:
 .etape > .corps { padding: 0 14px 14px; display: grid; gap: 12px; }
 .sous { font: 700 13px var(--f-body); color: var(--muted); margin: 2px 0 -4px; text-transform: uppercase; letter-spacing: .4px; }
 .badge { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--accent-soft); }
-.badge.ok { background: #dff1e4; color: #24683a; } .badge.a { background: #fbe3e3; color: #9b2d2d; }
+.badge.ok { background: #dff1e4; color: #24683a; } .badge.att { background: #fff1d6; color: #8a5a00; } .badge.a { background: #fbe3e3; color: #9b2d2d; }
 table.p { width: 100%; border-collapse: collapse; font-size: 13px; } table.p td { padding: 4px 6px; border-top: 1px solid var(--line); vertical-align: top; }
 table.p td.n { text-align: right; font-weight: 700; white-space: nowrap; width: 1%; }
 aside > *, .etape .corps > *, .seq-l, .seq-l .t { min-width: 0; }
@@ -136,6 +136,7 @@ aside > *, .etape .corps > *, .seq-l, .seq-l .t { min-width: 0; }
 
     <details class="etape" id="e1" open><summary><span class="n">1</span>La fiche<span class="etat" id="etat1"></span></summary><div class="corps">
       <div class="ligne"><label style="flex:1">Fiche reliée <select id="ficheCible" style="width:100%"></select></label></div>
+      <div id="compoFiche"></div>
       <div class="ligne"><span class="aide" style="margin:0">Commencer :</span>
         <button class="btn mini" type="button" id="btVierge">Vierge</button>
         <select id="depuisModele"><option value="">un modèle existant…</option></select>
@@ -153,7 +154,10 @@ aside > *, .etape .corps > *, .seq-l, .seq-l .t { min-width: 0; }
       <div class="ligne" id="ligneBouts"><label>Bouts <select id="bouts">
         <option value="mousquetons">Mousquetons aux deux bouts (chaîne de sac)</option>
         <option value="fermoir-10">Fermoir 10 mm + rallonge (collier, choker)</option>
+        <option value="autre">Autre fermoir (une réf. de ta base)…</option>
         <option value="aucun">Rien</option></select></label></div>
+      <div class="ligne" id="ligneBoutsAutre" hidden><label style="flex:1">Fermoir <select id="boutsRef" style="width:100%"></select></label>
+        <label><input type="checkbox" id="boutsDeux"> aux deux bouts</label></div>
       <div class="sous">Début</div><div id="debut" class="seq"></div>
       <div class="sous">Motif qui se répète</div>
       <div class="seq" id="seq"></div>
@@ -200,9 +204,9 @@ aside > *, .etape .corps > *, .seq-l, .seq-l .t { min-width: 0; }
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { ScenePerles, cleFixe, assemblerComposition, decompteComposition, definirCompositions, elementChainmail, nomElementChainmail, estCorpsChainmail,
+import { ScenePerles, cleFixe, fermoirDepuisMateriau, assemblerComposition, decompteComposition, definirCompositions, elementChainmail, nomElementChainmail, estCorpsChainmail,
   elementDepuisNom, piecesComposition, connecteurEntre, modeleChaineSacDemo, modeleChainmailDemo, catalogueChaineDepuisBijoux, catalogueChainmailDepuisBijoux,
-  definirLiensFormes, NOMS_CHAINE, FORMES_CHAINMAIL, CATALOGUE_DEMO } from './bead-core.js?v=44ab0c9f';
+  definirLiensFormes, NOMS_CHAINE, FORMES_CHAINMAIL, CATALOGUE_DEMO } from './bead-core.js?v=17d62b5a';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure } from './perles-config.js?v=e5e86015';
 
 const $ = s => document.querySelector(s);
@@ -213,7 +217,7 @@ const clone = x => JSON.parse(JSON.stringify(x));
 
 /* ---------- éléments de base (sans fiche) ---------- */
 const C = (nb, taille) => ({ k: 'conn', nb, taille }), D = (taille, conn) => ({ k: 'double', taille, conn });
-const BASE = [D(8, 3), D(8, 2), D(10, 2), { k: 'fleur', petales: 2 }, { k: 'noeud', taille: 8 }, { k: 'noeud', taille: 10 }, C(3, 8), C(2, 8), C(2, 10), C(1, 10)];
+const BASE = [D(8, 3), D(8, 2), D(10, 2), { k: 'fleur', petales: 2 }, { k: 'fleur', petales: 2, coeur: 10, petale: '8x2' }, { k: 'noeud', taille: 8 }, { k: 'noeud', taille: 10 }, C(3, 8), C(2, 8), C(2, 10), C(1, 10)];
 const imgDe = x => { const e = elementChainmail(x);
   if (e.k === 'double') return e.taille === 10 ? 'double-4x4-connecteur-2-10mm' : e.conn === 2 ? 'double-4x4-connecteur-2-8mm' : 'double-4x4-connecteur-3-8mm';
   if (e.k === 'fleur') return 'fleur-double-petales'; if (e.k === 'noeud') return e.taille === 10 ? 'noeud-4x4-10mm' : 'noeud-4x4-8mm';
@@ -224,12 +228,13 @@ const vignette = x => { const e = elementChainmail(x), b = e.fiche && ficheDe(e.
 function reglages(x, attr) {     // taille, connecteur, pétales, nombre d'anneaux
   const e = elementChainmail(x), sel = (cle, opts) => `<select ${attr} data-cle="${cle}">${opts.map(([v, l]) => `<option value="${v}" ${String(e[cle] ?? '') === String(v) ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
   if (e.k === 'double') return sel('taille', [[8, '8 mm'], [10, '10 mm']]) + (e.taille === 10 ? '' : sel('conn', [[3, 'connecteur (3)'], [2, 'connecteur (2)']]));
-  if (e.k === 'fleur') return sel('petales', [[2, '2 pétales'], ['haut', '1 pétale haut'], ['bas', '1 pétale bas'], [0, 'sans pétale']]);
+  if (e.k === 'fleur') return sel('coeur', [[8, 'cœur 8 mm'], [10, 'cœur 10 mm']]) + sel('petale', [['', 'pétales : 1 anneau 10 mm'], ['8x2', 'pétales : connecteur (2) 8 mm']])
+    + sel('petales', [[2, '2 pétales'], ['haut', '1 pétale haut'], ['bas', '1 pétale bas'], [0, 'sans pétale']]);
   if (e.k === 'noeud') return sel('taille', [[8, '8 mm'], [10, '10 mm']]);
   if (e.k === 'conn') return sel('nb', [[1, '1 anneau (solo)'], [2, '2 anneaux'], [3, '3 anneaux']]) + sel('taille', [[8, '8 mm'], [10, '10 mm']]);
   return '';
 }
-const lireReglage = (e, cle, v) => { e[cle] = cle === 'petales' ? (v === 'haut' || v === 'bas' ? v : +v) : +v; delete e.fiche; return e; };
+const lireReglage = (e, cle, v) => { e[cle] = cle === 'petales' ? (v === 'haut' || v === 'bas' ? v : +v) : cle === 'petale' ? (v || undefined) : +v; if (e[cle] === undefined) delete e[cle]; delete e.fiche; return e; };
 
 /* ---------- modèles existants ---------- */
 const RECETTES = {
@@ -249,7 +254,7 @@ let compo = depuisRecette('Double byzantine 8 mm', 'Ma chaîne'); compo.nb = 3;
 try { const b = JSON.parse(localStorage.getItem('bn-compo-brouillon')); if (b && Array.isArray(b.motif)) compo = b; } catch {}
 
 /* ---------- base ---------- */
-let sb = null, mes = [], bijoux = [], mats = [], liens = {}, REG = {}, FICHES_CFG = {};
+let sb = null, mes = [], bijoux = [], mats = [], liens = {}, REG = {}, FICHES_CFG = {}, AUTO = new Map();
 try { if (supabaseConfigure() && window.supabase) { const c = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); const { data } = await c.auth.getSession(); if (data?.session) sb = c; } } catch { sb = null; }
 const lireCfg = async cle => { const { data } = await sb.from('config').select('value').eq('key', cle).maybeSingle(); let v = data?.value; if (typeof v === 'string') { try { v = JSON.parse(v); } catch { v = null; } } return v; };
 const ecrireCfg = async (cle, v) => { const { error } = await sb.from('config').upsert({ key: cle, value: v }); if (error) throw error; };
@@ -267,7 +272,7 @@ const texteFiche = b => [parent(b.parent_id)?.nom, b.nom, b.variante].filter(Boo
 // tes fiches composition qui représentent un élément (« Nœud 4x4 10mm »…) : elles portent le modèle 3D de l'élément
 const ELEMENTS_FICHES = bijoux.map(b => ({ b, e: elementDepuisNom(texteFiche(b)) })).filter(x => x.e);
 const memeElement = (a, b) => { const x = elementChainmail(a), y = elementChainmail(b);
-  return x.k === y.k && (x.taille || 8) === (y.taille || 8) && (x.k !== 'conn' || (x.nb || 2) === (y.nb || 2)) && (x.k !== 'double' || x.taille === 10 || (x.conn || 3) === (y.conn || 3)) && (x.k !== 'fleur' || String(x.petales ?? 2) === String(y.petales ?? 2)); };
+  return x.k === y.k && (x.taille || 8) === (y.taille || 8) && (x.k !== 'conn' || (x.nb || 2) === (y.nb || 2)) && (x.k !== 'double' || x.taille === 10 || (x.conn || 3) === (y.conn || 3)) && (x.k !== 'fleur' || (String(x.petales ?? 2) === String(y.petales ?? 2) && (x.coeur || 8) === (y.coeur || 8) && (x.petale || '') === (y.petale || ''))); };
 const ficheElement = e => ELEMENTS_FICHES.find(x => memeElement(x.e, e))?.b || null;     // la fiche composition d'un élément (pour les connecteurs ajoutés tout seuls)
 
 /* ---------- 3D : la composition passe par une forme du configurateur (bouts, fermoir, pampille comme en boutique) ---------- */
@@ -306,7 +311,7 @@ const R = k => { if (REG[k]) return { ref: REG[k], src: 'ton choix' }; const [re
 const REGLAGES = [['anneau8', 'Anneau 8 mm', /anneau|8 ?mm/], ['anneau10', 'Anneau 10 mm', /anneau|10 ?mm/], ['petit', 'Petit anneau 0,5 mm', /0[,.]5|petit/], ['pampille', 'Perle de la pampille 4 mm', /ronde|4 ?mm|pampille/],
   ['mousqueton', 'Mousqueton de chaîne (×2)', /mousqueton/], ['fermoir10', 'Fermoir du collier (fermoir 10 mm)', /fermoir|mousqueton/]];
 function listeAFaire() {       // [{ ref, nom, qte, sc, detail }] — ce qui sera la composition de la fiche
-  const out = new Map(), ajouter = (ref, nom, qte, sc, detail) => { if (!qte) return; const x = out.get(ref || nom) || { ref, nom, qte: 0, sc, detail: [] }; x.qte += qte; if (detail) x.detail.push(detail); out.set(ref || nom, x); };
+  const out = new Map(), ajouter = (ref, nom, qte, sc, detail, cle) => { if (!qte) return; const x = out.get(ref || nom) || { ref, nom, qte: 0, sc, detail: [], cle }; x.qte += qte; if (detail) x.detail.push(detail); out.set(ref || nom, x); };
   const anneaux = { 8: 0, 10: 0, petit: 0 };
   for (const p of compo.motif.length || compo.debut ? piecesComposition(compo) : []) {
     const fiche = p.element.fiche ? ficheDe(p.element.fiche) : ficheElement(p.element);
@@ -315,21 +320,22 @@ function listeAFaire() {       // [{ ref, nom, qte, sc, detail }] — ce qui ser
       for (const a of A) anneaux[a.R > 4 ? 10 : 8] += p.nb; }
   }
   const fp = ELEMENTS_FICHES.find(x => x.e.k === 'pampille' && (x.e.taille || 4) === 4)?.b, fpetit = ELEMENTS_FICHES.find(x => x.e.k === 'petit')?.b;
-  if (compo.pampille) { if (fp) ajouter(fp.ref, nomFiche(fp), 1, 'Bijou (composition)'); else { anneaux.petit += 1; ajouter(R('pampille').ref, 'Perle de la pampille 4 mm', 1, ''); } }
+  if (compo.pampille) { if (fp) ajouter(fp.ref, nomFiche(fp), 1, 'Bijou (composition)'); else { anneaux.petit += 1; ajouter(R('pampille').ref, 'Perle de la pampille 4 mm', 1, '', '', 'pampille'); } }
   if (compo.usage !== 'breloque' && compo.bouts === 'fermoir-10') { const ff = ELEMENTS_FICHES.find(x => x.e.k === 'fermoir-10')?.b;
-    if (ff) ajouter(ff.ref, nomFiche(ff), 1, 'Bijou (composition)'); else { anneaux[10] += 11; ajouter(R('fermoir10').ref, 'Fermoir du collier', 1, ''); } }
-  if (compo.usage !== 'breloque' && compo.bouts === 'mousquetons') ajouter(R('mousqueton').ref, 'Mousqueton de chaîne', 2, '');
-  if (anneaux[8]) ajouter(R('anneau8').ref, 'Anneau 8 mm', anneaux[8], '');
-  if (anneaux[10]) ajouter(R('anneau10').ref, 'Anneau 10 mm', anneaux[10], '');
-  if (anneaux.petit) ajouter(fpetit?.ref || R('petit').ref, 'Petit anneau 0,5 mm', anneaux.petit, fpetit ? 'Bijou (composition)' : '');
+    if (ff) ajouter(ff.ref, nomFiche(ff), 1, 'Bijou (composition)'); else { anneaux[10] += 11; ajouter(R('fermoir10').ref, 'Fermoir du collier', 1, '', '', 'fermoir10'); } }
+  if (compo.usage !== 'breloque' && compo.bouts === 'mousquetons') ajouter(R('mousqueton').ref, 'Mousqueton de chaîne', 2, '', '', 'mousqueton');
+  if (compo.usage !== 'breloque' && compo.bouts === 'autre') ajouter(compo.boutsF?.ref || null, 'Fermoir des bouts', compo.boutsF?.deux ? 2 : 1, ficheDe(compo.boutsF?.ref) ? 'Bijou (composition)' : '', '', 'bouts');
+  if (anneaux[8]) ajouter(R('anneau8').ref, 'Anneau 8 mm', anneaux[8], '', '', 'anneau8');
+  if (anneaux[10]) ajouter(R('anneau10').ref, 'Anneau 10 mm', anneaux[10], '', '', 'anneau10');
+  if (anneaux.petit) ajouter(fpetit?.ref || R('petit').ref, 'Petit anneau 0,5 mm', anneaux.petit, fpetit ? 'Bijou (composition)' : '', '', 'petit');
   return [...out.values()];
 }
 const nomMat = r => { const m = mats.find(x => x.ref === r); if (m) return [m.designation, m.variante].filter(Boolean).join(' · '); const b = ficheDe(r); return b ? nomFiche(b) : ''; };
 function rendrePieces(d) {
   const L = listeAFaire(), manque = L.filter(x => !x.ref);
   $('#resume').innerHTML = `${Object.entries(d.t).filter(([, n]) => n).map(([k, n]) => `<b>${n}</b> anneaux de ${k}`).join(' · ') || 'aucun anneau'}${compo.pampille ? ' · <b>1</b> pampille 4 mm' : ''} · longueur ≈ <b>${(d.L / 10).toFixed(1)} cm</b> (anneaux seuls)`;
-  $('#pieces').innerHTML = `<tr><td colspan="3" class="aide" style="border:0;padding:0 0 4px">Composition de la fiche produit :</td></tr>` + L.map(x => `<tr><td class="n">${x.qte} ×</td><td>${esc(x.ref ? (nomMat(x.ref) || x.nom) : x.nom)}${x.ref ? ` <span class="badge">${esc(x.ref)}</span>` : ' <span class="badge a">matériau à choisir (⚙)</span>'}${x.detail.length ? `<br><span class="aide">${esc(x.detail.join(' · '))}</span>` : ''}</td></tr>`).join('');
-  $('#etat3').textContent = manque.length ? `⚠ ${manque.length} à choisir` : L.length ? `${L.length} ligne(s) ✓` : '';
+  $('#pieces').innerHTML = `<tr><td colspan="3" class="aide" style="border:0;padding:0 0 4px">Composition de la fiche produit :</td></tr>` + L.map(x => `<tr><td class="n">${x.qte} ×</td><td>${esc(x.ref ? (nomMat(x.ref) || x.nom) : x.nom)}${x.ref ? ` <span class="badge">${esc(x.ref)}</span>` : ' <span class="badge att">⏳ pas encore de fiche matériau</span><br><span class="aide">compté : ' + x.qte + ' — ajouté à la fiche dès que tu crées le matériau (reconnu d\'après son nom, ou choisi dans ⚙)</span>'}${x.detail.length ? `<br><span class="aide">${esc(x.detail.join(' · '))}</span>` : ''}</td></tr>`).join('');
+  $('#etat3').textContent = manque.length ? `${L.length - manque.length} ✓ · ${manque.length} ⏳` : L.length ? `${L.length} ligne(s) ✓` : '';
   $('#etat2').textContent = `${compo.motif.length} élément(s) × ${compo.nb | 0}${compo.demi ? ',5' : ''}`;
 }
 function rendreReglages() {
@@ -361,6 +367,11 @@ function rendreTout(cadrer = false) {
   $('#nom').value = compo.nom || '';
   document.querySelectorAll('[name=usage]').forEach(r => r.checked = r.value === (compo.usage || 'chaine'));
   $('#ligneBouts').hidden = compo.usage === 'breloque'; $('#bouts').value = compo.bouts || 'mousquetons';
+  $('#ligneBoutsAutre').hidden = compo.usage === 'breloque' || compo.bouts !== 'autre';
+  { const fer = mats.filter(m => /fermoir|mousqueton|rond|ressort|crochet/.test(txtMat(m))), sel = compo.boutsF?.ref || '';
+    $('#boutsRef').innerHTML = '<option value="">— choisir le fermoir —</option>' + fer.map(m => `<option value="${esc(m.ref)}" ${m.ref === sel ? 'selected' : ''}>${esc(m.ref)} · ${esc([m.designation, m.variante].filter(Boolean).join(' · '))}</option>`).join('')
+      + bijoux.filter(b => b.is_mat && /fermoir|mousqueton/.test(norm(b.nom))).map(b => `<option value="${esc(b.ref)}" ${b.ref === sel ? 'selected' : ''}>${esc(b.ref)} · ${esc(nomFiche(b))}</option>`).join('');
+    $('#boutsDeux').checked = !!compo.boutsF?.deux; }
   const bout = zone => { const v = compo[zone], el = v && v !== 'motif' && v !== 'aucune';
     return el ? ligneElement(v, 0, zone) : `<div class="ligne">${zone === 'fin' ? `<select data-mode-fin><option value="motif" ${v !== 'aucune' ? 'selected' : ''}>Le connecteur du motif</option><option value="aucune" ${v === 'aucune' ? 'selected' : ''}>Rien (finir sur le double)</option></select>` : '<span class="aide" style="margin:0">aucun</span>'}
       <button class="btn mini" type="button" data-ajout-bout="${zone}">＋ un connecteur</button></div>`; };
@@ -372,6 +383,7 @@ function rendreTout(cadrer = false) {
   $('#badgeFiche').textContent = b ? 'fiche ' + nomFiche(b) + ' (' + b.ref + ')' : 'pas de fiche reliée';
   $('#etat1').textContent = b ? nomFiche(b) : 'aucune';
   $('#btCreerFiche').hidden = !!b || !sb; $('#btMajFiche').hidden = !b || !!b.parent_id;
+  rendreCompoFiche(b);
   rendre(cadrer);
 }
 $('#paletteFiches').innerHTML = ELEMENTS_FICHES.filter(x => !['pampille', 'petit', 'fermoir-10'].includes(x.e.k)).map((x, i) => `<button class="el" type="button" data-el-fiche="${esc(x.b.ref)}">${img(x.b.photo || `composants/${imgDe(x.e)}.jpg`)}<span>${esc(nomFiche(x.b))}</span><small>${esc(x.b.ref)}</small></button>`).join('')
@@ -395,7 +407,13 @@ document.addEventListener('change', e => {
   else if (t.dataset.modeFin !== undefined) { compo.fin = t.value; rendreTout(true); }
   else if (t.name === 'usage') { compo.usage = t.value; rendreTout(true); }
 });
-$('#bouts').addEventListener('change', e => { compo.bouts = e.target.value; rendre(true); });
+$('#bouts').addEventListener('change', e => { compo.bouts = e.target.value; if (compo.bouts === 'autre' && !compo.boutsF) majBoutsF(); rendreTout(true); });
+/* fermoir choisi pour les bouts : son type 3D vient de son nom (mousqueton, rond, fermoir de breloque…) */
+function majBoutsF() { const r = $('#boutsRef').value, m = mats.find(x => x.ref === r), b = ficheDe(r);
+  const f = m ? fermoirDepuisMateriau(m) : b ? { type: /rond|ressort/.test(norm(b.nom)) ? 'anneau-ressort' : 'mousqueton', taille: 16, metal: 'argent' } : null;
+  compo.boutsF = r ? { ref: r, type: f?.type === 'anneau' ? 'mousqueton' : (f?.type || 'mousqueton'), taille: f?.taille || 16, metal: f?.metal || 'argent', deux: $('#boutsDeux').checked } : null; }
+$('#boutsRef').addEventListener('change', () => { majBoutsF(); rendre(true); });
+$('#boutsDeux').addEventListener('change', () => { majBoutsF(); rendre(true); });
 $('#nom').addEventListener('input', e => { compo.nom = e.target.value; rendre(); });
 $('#nb').addEventListener('input', e => { compo.nb = Math.max(1, Math.min(60, +e.target.value || 1)); rendre(true); });
 $('#demi').addEventListener('change', e => { compo.demi = e.target.checked; rendre(true); });
@@ -406,6 +424,39 @@ $('#btCopier').addEventListener('click', async () => {
   const txt = compo.nom + '\n' + listeAFaire().map(x => `${x.qte} × ${x.ref ? (nomMat(x.ref) || x.nom) + ' (' + x.ref + ')' : x.nom}`).join('\n');
   try { await navigator.clipboard.writeText(txt); toast('Liste copiée'); } catch { prompt('Liste :', txt); }
 });
+
+/* ---------- étape 1 : la composition de la fiche reliée, pièce par pièce (modélisée ou non) ---------- */
+function lignesFiche(b) { return ((b.parent_id && !(b.mats || []).length ? parent(b.parent_id)?.mats : b.mats) || []).map(l => {
+  const m = mats.find(x => x.ref === l.ref), c = bijoux.find(x => x.ref === l.ref), el = c ? elementDepuisNom(texteFiche(c)) : null;
+  const nom = m ? [m.designation, m.variante].filter(Boolean).join(' · ') : c ? nomFiche(c) : l.ref;
+  const etat = el ? ['ok', '✓ élément 3D : ' + nomElementChainmail(el)] : m ? (ignoreMat(m) ? ['', 'pas dans le 3D (emballage, fil…)'] : matModelise(m) ? ['ok', '✓ connu du 3D'] : ['a', '✗ pas modélisé'])
+    : c ? (() => { const e = etatFiche(c, AUTO); return [e.ok ? 'ok' : e.partiel ? 'att' : 'a', (e.ok ? '✓ ' : '✗ ') + e.txt]; })() : ['a', '✗ réf. introuvable'];
+  return { ref: l.ref, qte: +l.qty || 0, nom, el: el ? { ...el, fiche: c.ref } : null, etat }; }); }
+function rendreCompoFiche(b) {
+  if (!b) { $('#compoFiche').innerHTML = ''; return; }
+  const L = lignesFiche(b);
+  $('#compoFiche').innerHTML = `<div class="sous" style="margin-top:4px">Composition de la fiche</div>` + (L.length ? `<table class="p">${L.map(x => `<tr><td class="n">${x.qte} ×</td><td>${esc(x.nom)} <span class="badge">${esc(x.ref)}</span><br><span class="badge ${x.etat[0]}">${esc(x.etat[1])}</span></td></tr>`).join('')}</table>
+    ${L.some(x => x.el && estCorpsChainmail(x.el)) ? '<button class="btn mini prim" type="button" id="btDepuisFiche">⛓ Construire avec les éléments de la fiche, dans l\'ordre</button>' : ''}`
+    : '<p class="aide">Fiche sans composition : pars d\'un modèle ou de « Vierge ».</p>');
+  $('#btDepuisFiche')?.addEventListener('click', () => { construireDepuisFiche(b); });
+}
+/* les éléments chainmail de la fiche, dans l'ordre de sa composition : le nombre de corps donne les répétitions,
+   un connecteur en plus (n + 1) devient le début de la chaîne */
+function construireDepuisFiche(b) {
+  const E = lignesFiche(b).filter(x => x.el && !['pampille', 'petit', 'fermoir-10'].includes(x.el.k) && x.qte > 0);
+  const corps = E.filter(x => estCorpsChainmail(x.el)); if (!corps.length) return;
+  const nb = Math.max(1, Math.min(...corps.map(x => x.qte)));
+  const motif = [], debut = [];
+  for (const x of E) { const k = Math.floor(x.qte / nb), reste = x.qte - k * nb;
+    if (!k && !estCorpsChainmail(x.el)) { debut.push(clone(x.el)); continue; }          // moins que de motifs : c'est le connecteur du début
+    for (let i = 0; i < Math.max(1, k); i++) motif.push(clone(x.el));
+    if (reste === 1 && !estCorpsChainmail(x.el)) debut.push(clone(x.el)); }
+  const t = norm(texteFiche(b)), breloque = /mini|breloque/.test(t);
+  compo = { ...VIERGE(), id: compo.fiche === b.ref ? compo.id : null, nom: nomFiche(b), fiche: b.ref, usage: breloque ? 'breloque' : 'chaine',
+    bouts: /collier|choker|chocker|ras du cou/.test(t) ? 'fermoir-10' : 'mousquetons', debut: debut[0] || null, motif, nb,
+    pampille: breloque && lignesFiche(b).some(x => x.el?.k === 'pampille' || /pampille/.test(norm(x.nom)) || (/ronde|boule/.test(norm(x.nom)) && /\b4 ?mm/.test(norm(x.nom)))), fin: 'motif' };
+  rendreTout(true); allerPas(2); toast(`Construit depuis la fiche : ${motif.length} élément(s) × ${nb}. Vérifie l'ordre et les bouts.`);
+}
 
 /* ---------- étape 1 : départ, fiches ---------- */
 $('#depuisModele').innerHTML += Object.keys(RECETTES).map(n => `<option>${esc(n)}</option>`).join('');
@@ -424,6 +475,19 @@ const chainmailish = b => /chain|byzant|maille|croix|collier|choker|chocker|mini
 const piecesFiche = b => { const ids = new Set((FICHES_CFG[b.id]?.pieces || []).map(p => p.bij_id));
   for (const m of b.mats || []) { const c = bijoux.find(x => x.ref === m.ref); if (c) ids.add(c.id); }
   return [...ids].map(id => bijoux.find(x => x.id === id)).filter(Boolean); };
+/* une pièce de la fiche est-elle connue du modèle 3D ?
+   matériau : anneaux (chainmail), fermoirs / mousquetons / ronds, perles → oui ; crochets de BO, sac, cuir, chaîne… → non ; emballage, fil → ignoré */
+const ignoreMat = m => /emballage|consommable|outil|\bfil\b|etiquette|sachet|pochette|boite/.test(txtMat(m));
+const matModelise = m => Object.values(liens).includes(m.ref) || /anneau|fermoir|mousqueton|ressort|\brond\b|perle|rocaille|heishi|etoile|culture|lettre|pampille|ronde/.test(txtMat(m));
+function piecesNonModelisees(b, auto, prof) {          // [noms] des pièces de la fiche que le 3D ne connaît pas
+  const out = [];
+  for (const l of (b.parent_id && !(b.mats || []).length ? parent(b.parent_id)?.mats : b.mats) || []) {
+    const m = mats.find(x => x.ref === l.ref), c = bijoux.find(x => x.ref === l.ref);
+    if (m) { if (!ignoreMat(m) && !matModelise(m)) out.push([m.designation, m.variante].filter(Boolean).join(' ')); }
+    else if (c && prof < 4) { const e = etatFiche(c, auto, prof + 1); if (!e.ok) out.push(nomFiche(c)); }
+  }
+  return [...new Set(out)];
+}
 function etatFiche(b, auto, prof = 0) {
   const el = elementDepuisNom(texteFiche(b)); if (el) return { ok: true, txt: 'élément 3D : ' + nomElementChainmail(el), compo: false };
   const f = auto.get(b.ref), c = f?.startsWith('compo-') && mes.find(x => 'compo-' + x.id === f);
@@ -431,24 +495,24 @@ function etatFiche(b, auto, prof = 0) {
   const lie = Object.entries(liens).find(([k, v]) => /^(forme|modele):/.test(k) && (v === b.ref || v === parent(b.parent_id)?.ref));
   if (lie) { const k = lie[0].replace(/^(forme|modele):/, ''), cc = k.startsWith('compo-') && mes.find(x => 'compo-' + x.id === k);
     return { ok: true, txt: cc ? 'ta composition « ' + cc.nom + ' »' : 'reliée dans 🔗 Références (' + (NOMS_CHAINE[k] || FORMES_CHAINMAIL[k]?.nom || k) + ')', compo: cc || false }; }
-  if (f) return { ok: true, txt: 'forme ' + (NOMS_CHAINE[f] || FORMES_CHAINMAIL[f]?.nom || f) + ' (d\'après le nom)', compo: false };
-  if (b.is_mat && (b.photo || parent(b.parent_id)?.photo)) return { ok: true, txt: 'composition avec sa photo', compo: false };
+  const nm = piecesNonModelisees(b, auto, prof);
+  const partiel = base => nm.length ? { ok: false, partiel: true, txt: base + ' · pas modélisé : ' + nm.slice(0, 3).join(', ') + (nm.length > 3 ? '…' : ''), compo: false } : null;
+  if (f) return partiel('forme ' + (NOMS_CHAINE[f] || FORMES_CHAINMAIL[f]?.nom || f)) || { ok: true, txt: 'forme ' + (NOMS_CHAINE[f] || FORMES_CHAINMAIL[f]?.nom || f) + ' (d\'après le nom)', compo: false };
+  if (b.is_mat && (b.photo || parent(b.parent_id)?.photo) && !nm.length) return { ok: true, txt: 'composition avec sa photo', compo: false };
   const P = prof < 4 ? piecesFiche(b) : [];
-  if (P.length) { const ko = P.filter(p => chainmailish(p) && !etatFiche(p, auto, prof + 1).ok);
-    if (!ko.length) return { ok: true, txt: 'faite de fiches déjà modélisées (' + P.map(nomFiche).slice(0, 3).join(' + ') + (P.length > 3 ? '…' : '') + ')', compo: false };
-    return { ok: false, txt: 'à modéliser : ' + ko.map(nomFiche).join(', '), compo: false }; }
-  if (b.parent_id && parent(b.parent_id)) { const e = etatFiche(parent(b.parent_id), auto, prof + 1); if (e.ok) return { ...e, txt: e.txt + ' · variante' }; }
-  return { ok: false, txt: 'à modéliser', compo: false };
+  if (P.length) return partiel('faite de ' + P.map(nomFiche).slice(0, 2).join(' + ')) || { ok: true, txt: 'faite de fiches déjà modélisées (' + P.map(nomFiche).slice(0, 3).join(' + ') + (P.length > 3 ? '…' : '') + ')', compo: false };
+  if (b.parent_id && parent(b.parent_id)) { const e = etatFiche(parent(b.parent_id), auto, prof + 1); if (e.ok && !nm.length) return { ...e, txt: e.txt + ' · variante' }; }
+  return nm.length ? { ok: false, partiel: true, txt: 'pas modélisé : ' + nm.slice(0, 3).join(', '), compo: false } : { ok: false, txt: 'à modéliser', compo: false };
 }
 function rendreFiches() {
   if (!sb) { $('#fiches').innerHTML = '<p class="aide">Ouvre le compositeur depuis l\'app (Conception 3D › ⛓ Composer) pour voir tes fiches.</p>'; return; }
   definirLiensFormes(liens); definirCompositions(mes);
-  const auto = new Map([...catalogueChaineDepuisBijoux(bijoux), ...catalogueChainmailDepuisBijoux(bijoux)].map(c => [c.ref, c.forme]));
+  const auto = AUTO = new Map([...catalogueChaineDepuisBijoux(bijoux), ...catalogueChainmailDepuisBijoux(bijoux)].map(c => [c.ref, c.forme]));
   const L = bijoux.filter(b => chainmailish(b) || chainmailish(parent(b.parent_id) || { nom: '' })).map(b => ({ b, s: etatFiche(b, auto) }))
     .filter(x => !$('#aModeliser').checked || !x.s.ok).sort((a, b) => (a.s.ok - b.s.ok) || nomFiche(a.b).localeCompare(nomFiche(b.b), 'fr'));
   const nbA = bijoux.filter(b => chainmailish(b)).map(b => etatFiche(b, auto)).filter(s => !s.ok).length;
-  $('#fiches').innerHTML = L.map(({ b, s }) => `<div class="seq-l">${b.photo ? img(b.photo) : '<span class="ic">⛓</span>'}<span class="t"><b>${esc(nomFiche(b))}</b> <span class="badge">${esc(b.ref || '')}</span><small><span class="badge ${s.ok ? 'ok' : 'a'}">${s.ok ? '✓' : '⚠'} ${esc(s.txt)}</span>${b.photo ? ' · photo ✓' : ''}</small></span>
-    ${s.compo ? `<button class="btn mini" type="button" data-ouvrir-c="${esc(s.compo.id)}">Modifier</button>` : s.ok ? '' : `<button class="btn mini prim" type="button" data-composer="${esc(b.ref)}">Composer</button>`}</div>`).join('')
+  $('#fiches').innerHTML = L.map(({ b, s }) => `<div class="seq-l">${b.photo ? img(b.photo) : '<span class="ic">⛓</span>'}<span class="t"><b>${esc(nomFiche(b))}</b> <span class="badge">${esc(b.ref || '')}</span><small><span class="badge ${s.ok ? 'ok' : s.partiel ? 'att' : 'a'}">${s.ok ? '✓' : s.partiel ? '◐' : '⚠'} ${esc(s.txt)}</span>${b.photo ? ' · photo ✓' : ''}</small></span>
+    ${s.compo ? `<button class="btn mini" type="button" data-ouvrir-c="${esc(s.compo.id)}">Modifier</button>` : `<button class="btn mini ${s.ok ? '' : 'prim'}" type="button" data-composer="${esc(b.ref)}">${s.ok ? 'Éditer' : 'Composer'}</button>`}</div>`).join('')
     || `<p class="aide">${$('#aModeliser').checked ? '✓ Toutes tes fiches chainmail ont un visuel 3D.' : 'Aucune fiche chainmail.'}</p>`;
   $('#etat1').textContent = (ficheDe(compo.fiche) ? nomFiche(ficheDe(compo.fiche)) + ' · ' : '') + (nbA ? nbA + ' à modéliser' : 'tout est modélisé');
   $('#fiches').querySelectorAll('[data-composer]').forEach(bt => bt.addEventListener('click', () => {
@@ -471,6 +535,7 @@ async function relierFiche(c) {          // la fiche reliée prend cette composi
 }
 async function sauver() {
   compo.nom = (compo.nom || '').trim() || 'Ma chaîne'; compo.id ||= Date.now().toString(36);
+  compo.manquants = listeAFaire().filter(x => !x.ref && x.cle).map(x => ({ cle: x.cle, nom: x.nom, qte: x.qte }));   // comptés : ajoutés à la fiche quand le matériau existera
   const i = mes.findIndex(c => c.id === compo.id), copie = { ...clone(compo), maj: new Date().toISOString() };
   if (i >= 0) mes[i] = copie; else mes.unshift(copie);
   await ecrireMes(mes); await relierFiche(copie); rendreMes(); rendreFiches();
@@ -478,8 +543,17 @@ async function sauver() {
 function rendreMes() {
   $('#depuisCompo').innerHTML = '<option value="">une de mes compositions…</option>' + mes.map(c => `<option value="${esc(c.id)}">${esc(c.nom)}</option>`).join('');
   $('#mesCompos').innerHTML = mes.map((c, i) => { const b = ficheDe(c.fiche);
-    return `<div class="seq-l">${b?.photo ? img(b.photo) : vignette((c.motif || []).find(estCorpsChainmail) || c.motif?.[0] || {})}<span class="t"><b>${esc(c.nom)}</b><small>${b ? 'fiche ' + esc(nomFiche(b)) + ' (' + esc(b.ref) + ')' : 'sans fiche'}</small></span>
+    const prets = b ? (c.manquants || []).filter(x => x.cle !== 'bouts' && R(x.cle).ref) : [], attente = (c.manquants || []).length - prets.length;
+    return `<div class="seq-l">${b?.photo ? img(b.photo) : vignette((c.motif || []).find(estCorpsChainmail) || c.motif?.[0] || {})}<span class="t"><b>${esc(c.nom)}</b><small>${b ? 'fiche ' + esc(nomFiche(b)) + ' (' + esc(b.ref) + ')' : 'sans fiche'}${attente > 0 ? ' · ⏳ ' + attente + ' pièce(s) sans fiche matériau' : ''}</small>
+      ${prets.length ? `<button class="btn mini prim" type="button" data-ajout-manq="${i}">↻ Ajouter à la fiche : ${esc(prets.map(x => x.qte + ' × ' + x.nom).join(', '))}</button>` : ''}</span>
       <button class="btn mini" type="button" data-ouvrir="${i}">Ouvrir</button><button class="btn mini" type="button" data-oublier="${i}" title="Supprimer">✕</button></div>`; }).join('') || '<p class="aide">Aucune pour l\'instant.</p>';
+  $('#mesCompos').querySelectorAll('[data-ajout-manq]').forEach(bt => bt.addEventListener('click', async () => {
+    const c = mes[+bt.dataset.ajoutManq], b = ficheDe(c.fiche); if (!b || !sb) return;
+    const prets = (c.manquants || []).filter(x => x.cle !== 'bouts' && R(x.cle).ref), m = [...(b.mats || [])];
+    for (const x of prets) { const ref = R(x.cle).ref, l = m.find(y => y.ref === ref); if (l) l.qty = (+l.qty || 0) + x.qte; else m.push({ ref, qty: x.qte, qty_unite: 'native', sc: mats.find(y => y.ref === ref)?.sc || '' }); }
+    const { error } = await sb.from('bijoux').update({ mats: m }).eq('id', b.id); if (error) return toast('Mise à jour impossible : ' + error.message);
+    b.mats = m; c.manquants = (c.manquants || []).filter(x => !prets.includes(x)); try { await ecrireMes(mes); } catch {}
+    rendreMes(); toast('Ajouté à la composition de ' + nomFiche(b) + ' ✓ (le stock suit)'); }));
   $('#mesCompos').querySelectorAll('[data-ouvrir]').forEach(b => b.addEventListener('click', () => { compo = clone(mes[+b.dataset.ouvrir]); rendreTout(true); allerPas(2); }));
   $('#mesCompos').querySelectorAll('[data-oublier]').forEach(b => b.addEventListener('click', async () => { const c = mes[+b.dataset.oublier]; if (!confirm(`Supprimer « ${c.nom} » ?`)) return;
     mes.splice(+b.dataset.oublier, 1); try { await ecrireMes(mes); if (c.fiche) await relierFiche({ ...c, fiche: null }); } catch (x) { toast('Suppression impossible : ' + (x.message || x)); } rendreMes(); rendreFiches(); }));
@@ -495,7 +569,7 @@ function prochaineRef() {        // même numérotation que l'app : BIJ-001… (
 $('#btCreerFiche').addEventListener('click', async () => {
   if (!sb) return; const manque = listeAFaire().filter(x => !x.ref);
   const nom = prompt('Nom de la nouvelle fiche produit :', compo.nom || ''); if (!nom) return;
-  if (manque.length && !confirm(`${manque.map(x => x.nom).join(', ')} : matériau non choisi (⚙ étape 3), pas mis dans la fiche. Créer quand même ?`)) return;
+  if (manque.length && !confirm(`${manque.map(x => x.qte + ' × ' + x.nom).join(', ')} : pas encore de fiche matériau. C'est compté : tu pourras les ajouter à la fiche dès que le matériau existera (↻ dans « Tes compositions »). Créer la fiche ?`)) return;
   const obj = { id: crypto.randomUUID(), collection: 'Chainmail', nom: nom.trim(), variante: '', ref: prochaineRef(), pv: null, mats: matsFiche(), is_mat: false, no_sell: false, draft: true, created_at: new Date().toISOString() };
   const { error } = await sb.from('bijoux').insert(obj); if (error) return toast('Fiche non créée : ' + error.message);
   bijoux.push(obj); compo.fiche = obj.ref; compo.nom = obj.nom;
@@ -507,7 +581,7 @@ $('#btMajFiche').addEventListener('click', async () => {
   const b = ficheDe(compo.fiche); if (!b || !sb) return;
   const m = matsFiche(); if (!confirm(`Remplacer la composition de « ${nomFiche(b)} » par :\n${m.map(x => x.qty + ' × ' + (nomMat(x.ref) || x.ref)).join('\n')}`)) return;
   const { error } = await sb.from('bijoux').update({ mats: m }).eq('id', b.id); if (error) return toast('Mise à jour impossible : ' + error.message);
-  b.mats = m; toast('Composition de la fiche mise à jour ✓ (le stock suit)');
+  b.mats = m; try { await sauver(); } catch {} toast('Composition de la fiche mise à jour ✓ (le stock suit)');
 });
 
 function image(detail = false) {         // fond blanc, 1200 × 1200 ; détail = 1 à 2 motifs, droite
