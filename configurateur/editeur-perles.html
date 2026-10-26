@@ -200,11 +200,10 @@ details summary { cursor: pointer; font-weight: 700; font-size: 13.5px; }
         <!-- ACCUEIL : ouvrir un modèle, en commencer un, composer une chaîne -->
         <div data-panneau="accueil" class="pile" style="gap:22px">
           <section>
-            <h2>Que veux-tu faire ?</h2>
+            <h2>Que veux-tu faire ?<span class="aide">Les chaînes et breloques chainmail se composent dans l'onglet ⛓ Composer.</span></h2>
             <div class="choix-accueil">
               <button class="carte-acc" type="button" data-aller="liste">✏️ <b>Modifier un modèle</b><span>publié ou en brouillon, enregistré dans ta boutique</span></button>
               <button class="carte-acc" type="button" data-aller="nouveau">＋ <b>Nouveau modèle en perles</b><span>à partir d'un exemple (poisson, arête, lettre…)</span></button>
-              <a class="carte-acc" href="compositeur-chainmail.html">⛓ <b>Composer une chaîne chainmail</b><span>avec les éléments : nœuds, doubles, connecteurs, anneaux 10 mm, pétales…</span></a>
             </div>
           </section>
           <section id="secMesModeles">
@@ -568,7 +567,7 @@ import {
   couleursProposees, chargerCatalogueBoutique, affinerCouleursDepuisPhotos, resoudreDefauts, TAILLES_MOUSQUETON,
   FERMOIRS_DEMO, chargerFermoirsBoutique, prixConfiguration,
   genArete, PATRON_TETE_ARETE, estAccroche, modeleAreteDemo, modeleLettresDemo, modeleArgileDemo, modeleChainmailDemo, modelePerleCultureDemo, modeleChaineSacDemo, chargerModeleBoutique, listerModelesBoutique, enregistrerModeleBoutique,
-} from './bead-core.js?v=093fcf66';
+} from './bead-core.js?v=86eba9bf';
 const raisonConnexion = e => /invalid login/i.test(e.message) ? 'e-mail ou mot de passe incorrect'
   : /not confirmed/i.test(e.message) ? 'adresse e-mail pas encore confirmée (Supabase › Authentication › Users)'
   : e.message;

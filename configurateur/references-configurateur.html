@@ -53,6 +53,10 @@ button:disabled { opacity: .5; cursor: default; }
   <p class="aide">Les éléments ci-dessous utilisent encore une <b>référence d'exemple</b> (#…-ex…). Pour chacun, choisis la vraie référence de ta base
     (un matériau ou une <b>composition</b> de tes fiches bijoux), ou crée-la. La vraie référence prend alors sa place partout : choix proposés au client, note atelier, fiche de fabrication.<br>
     Les variantes d'une même référence (ex. <b>#AI001</b> moyen A et <b>#AI001b</b> moyen B) ne sont qu'<b>un seul stock</b> : elles apparaissent sur une seule ligne.</p>
+  <details class="groupe" id="supplementsBloc" open><summary><h2 style="display:inline">💶 Suppléments du configurateur → stock</h2></summary>
+    <p class="aide" style="padding:8px 14px;margin:0">Chaque supplément payant (fermoirs, porte-clés, mousqueton, perle en option, pampille) et le matériau (ou la composition) qu'il retire de ton stock à chaque commande.
+    <b>⚠ non relié</b> = la cliente paie le supplément mais <b>rien n'est déduit</b> : choisis le matériau dans le menu, puis « Enregistrer les liens ».</p>
+    <div id="supplements"></div></details>
   <details class="groupe utilises" id="utilisesBloc" open><summary><h2 style="display:inline">🧩 Matériaux utilisés par le configurateur (vérification)</h2></summary>
     <p class="aide" style="padding:8px 14px;margin:0">Pour chaque breloque : la référence réellement utilisée pour chaque couleur par défaut, chaque perle fixe (petites perles argent des lettres, de la pampille chainmail, de la perle de culture…), chaque fermoir et chaque porte-clés du bundle.
     ✓ = vraie référence de ta base · ⚠ = référence d'exemple ou mauvaise teinte. Une <b>perle fixe</b> se relie directement ici (menu à droite).</p>
@@ -72,8 +76,8 @@ import {
   listerModelesPublies, chargerCatalogueBoutique, chargerFermoirsBoutique, chargerPartiesConfigurateur, chargerBijouxBoutique,
   completerCatalogue, definirLiensFormes, catalogueChainmailDepuisBijoux, catalogueChaineDepuisBijoux, NOMS_CHAINE, completerModeleChainmail, modeleChaineSacDemo, estChaineSac, FORMES_CHAINMAIL, resoudreDefauts, couleursProposees, correspondCategorie, ordreModeles, estLettres, accrochesProposees,
   chargerLiens, enregistrerLiens, estExemple, exemplesParRef, apercuArgile, apercuChainmail, baseRef,
-  appliquerLiens, relierModele, definirLiensFixes, cleFixe, refFixe, catalogueDepuisMateriaux, perlesFixesDe, allureFixe, bijouBreloque,
-} from './bead-core.js?v=093fcf66';
+  appliquerLiens, relierModele, definirLiensFixes, cleFixe, refFixe, catalogueDepuisMateriaux, perlesFixesDe, allureFixe, bijouBreloque, definirCompositions,
+} from './bead-core.js?v=86eba9bf';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './perles-config.js?v=e5e86015';
 
 const $ = s => document.querySelector(s);
@@ -101,6 +105,7 @@ async function chargerMats() {
 const [m, c, f, p, bj, li] = await Promise.allSettled([listerModelesPublies(sb), chargerCatalogueBoutique(sb), chargerFermoirsBoutique(sb),
   chargerPartiesConfigurateur(sb), chargerBijouxBoutique(sb), chargerLiens(sb), chargerMats()]);
 const bijoux = bj.value || [];
+try { const r = await sb.from('config').select('value').eq('key', 'chainmail_compositions').maybeSingle(); let v = r.data?.value; if (typeof v === 'string') v = JSON.parse(v); if (Array.isArray(v)) definirCompositions(v); } catch { /* pas de compositions */ }
 const liens = { ...(li.value || {}) };
 // catalogue SANS les liens : on veut voir quels exemples le configurateur utilise
 definirLiensFormes(liens);
@@ -366,13 +371,46 @@ function rendreProduits() {
     L.push(ligneP(mo.nom || mo.slug, 'modele:' + mo.slug, r.id ? nomB(bijoux.find(b => b.id === r.id)) : '')); }
   L.push('<div class="ligne"><b style="grid-column:1/-1;font-size:12px;color:var(--prune)">BRELOQUE CHAINMAIL · FORMES</b></div>');
   for (const [f, t] of [['croix', 'Croix'], ['mini-fleur-4', 'Mini chain · Byzantine fleur'], ['mini-intercalaire-4', 'Mini chain · Byzantine alternative']]) L.push(ligneP(t, 'forme:' + f, nomB(auto.mm[f])));
+  const compos = Object.entries(FORMES_CHAINMAIL).filter(([, F]) => F.compo);
+  if (compos.length) { L.push('<div class="ligne"><b style="grid-column:1/-1;font-size:12px;color:var(--prune)">TES COMPOSITIONS (⛓ COMPOSER)</b></div>');
+    for (const [f, F] of compos) L.push(ligneP(F.nom + (F.chaine ? ' · chaîne' : ' · breloque'), 'forme:' + f, '')); }
   L.push('<div class="ligne"><b style="grid-column:1/-1;font-size:12px;color:var(--prune)">CHAÎNES DE SAC</b></div>');
   for (const f of ['chaine-8', 'chaine-10', 'chaine-fleur', 'chaine-intercalaire']) L.push(ligneP(NOMS_CHAINE[f], 'forme:' + f, (auto.ch[f] || []).filter(Boolean).map(nomB).join(' / ')));
   $('#produits').innerHTML = L.join('');
   $('#produits').querySelectorAll('[data-prod]').forEach(x => x.addEventListener('change', () => { x.value ? liens[x.dataset.prod] = x.value : delete liens[x.dataset.prod]; modifie(); rendreProduits(); }));
 }
+/* 💶 Suppléments → stock : une ligne par pièce payante, son lien vers ta base (même lien que « Références d'exemple à relier ») */
+function rendreSupplements() {
+  const sup = new Map(), eur = v => (+v || 0).toFixed(2).replace('.', ',') + ' €';
+  const noterS = (ref, role, prix, modele) => { if (!ref) return; const x = sup.get(ref) || { ref, roles: new Set(), prix: new Set(), modeles: new Set() };
+    x.roles.add(role); if (+prix) x.prix.add(eur(prix)); if (modele) x.modeles.add(modele); sup.set(ref, x); };
+  for (const m0 of modelesBruts.map(completerModeleChainmail)) {
+    const nomM = m0.nom || m0.slug;
+    for (const o of m0.options || []) {
+      if (o.type === 'fermoir') (o.choix || []).forEach(ch => +ch.supplement && noterS(ch.ref, 'Fermoir « ' + (ch.libelle || ch.nom || ch.ref) + ' »', ch.supplement, nomM));
+      if (o.type === 'accroche') (o.choix || []).forEach(ch => (ch.pieces || []).forEach((r, i) => noterS(r, 'Porte-clés « ' + (ch.libelle || ch.id) + ' »' + ((ch.pieces || []).length > 1 ? ' · pièce ' + (i + 1) : ''), i === 0 ? ch.supplement : 0, nomM)));
+      if (o.type === 'perle' && +o.supplement) noterS('option:' + (o.nom || o.id), 'Option « ' + (o.nom || 'perle') + ' » (la perle choisie par la cliente)', o.supplement, nomM);
+    }
+    for (const g of m0.groupes || []) if (g.zoneForme) Object.values(FORMES_CHAINMAIL).forEach(F => F.pampilleK && noterS(F.pampilleK[0], 'Pampille des mini chains (' + F.pampilleK[1] + ')', 0, nomM));
+  }
+  const nomRef = r => { const l = mats.find(y => y.ref === r); if (l) return [l.designation, l.variante].filter(Boolean).join(' · ');
+    const b = bijoux.find(y => y.ref === r); if (b) return 'composition ' + [b.nom, b.variante].filter(Boolean).join(' · '); return null; };
+  const L = [...sup.values()].map(x => {
+    if (x.ref.startsWith('option:')) return `<div class="ligne liee"><span class="pastille" style="background:#9fc7ab"></span><span>${esc([...x.roles].join(' · '))} ${x.prix.size ? '<b>+' + esc([...x.prix].join(' / ')) + '</b>' : ''}<br><span class="ref">${esc([...x.modeles].join(', '))}</span></span>
+      <span><b class="ok">✓</b> la perle choisie est ajoutée à la production (couleurs reliées ci-dessous, « Matériaux utilisés »)</span><span></span></div>`;
+    const ex = estExemple(x.ref), lie = ex ? liens[x.ref] : x.ref, n = lie && nomRef(lie), d = EX.get(x.ref);
+    const ok = !!(lie && n);
+    return `<div class="ligne ${ok ? 'liee' : ''}"><span class="pastille" style="background:${ok ? '#2f7a46' : '#e8a0a0'}"></span>
+      <span>${esc([...x.roles].join(' · '))} ${x.prix.size ? '<b>+' + esc([...x.prix].join(' / ')) + '</b>' : ''}<br><span class="ref">${esc(x.ref)} · ${esc([...x.modeles].join(', '))}</span></span>
+      <span>${ok ? `<b class="ok">✓</b> déduit à chaque commande : <span class="ref">${esc(lie)}</span> ${esc(n)}` : `<b class="alerte">⚠ non relié</b> : rien n'est déduit du stock`}</span>
+      <span>${ex && d ? `<select data-sup="${esc(x.ref)}">${options(d, liens[x.ref])}</select>` : ''}</span></div>`;
+  });
+  const nbA = L.filter(h => h.includes('class="alerte"')).length;
+  $('#supplements').innerHTML = (nbA ? `<p class="alerte" style="margin:0 14px 8px;padding:6px 10px">⚠ ${nbA} supplément(s) non relié(s)</p>` : '<p class="ok" style="margin:0 14px 8px">✓ Tous les suppléments retirent bien leur pièce du stock.</p>') + L.join('');
+  $('#supplements').querySelectorAll('[data-sup]').forEach(sel => sel.addEventListener('change', () => { sel.value ? liens[sel.dataset.sup] = sel.value : delete liens[sel.dataset.sup]; modifie(); rendre(); }));
+}
 const rendreSansUtilises = rendre;
-rendre = () => { rendreSansUtilises(); rendreUtilises(); rendreProduits(); };
+rendre = () => { rendreSansUtilises(); rendreSupplements(); rendreUtilises(); rendreProduits(); };
 rendre();
 $('#etat').textContent = Object.keys(liens).length ? Object.keys(liens).length + ' lien(s) enregistré(s)' : '';
 $('#btEnregistrer').addEventListener('click', async () => {

@@ -457,13 +457,13 @@ import {
   ScenePerles, composerChaine, FORMES_CHAINMAIL, LONGUEUR_MOTIF, modeleChaineSacDemo, estChaineSac, alternativesConfig, refParNom, baseRef, definirLiensFixes, apparenceFixes, lignesCommande, estExemple, catalogueDepuisMateriaux, CATALOGUE_DEMO, FERMOIRS_DEMO, modeleDemo, modeleAreteDemo, modeleLettresDemo,
   couleursProposees, validerConfiguration, couleursEpuisees, listerModelesPublies, chargerCatalogueBoutique, chargerFermoirsBoutique,
   chargerPartiesConfigurateur, chargerPrixBijou, affinerCouleursDepuisPhotos, resoudreDefauts, envoyerDemande,
-  composerBundle, lignesCommandeBundle, pointsModele, accrochesProposees, construireLettres, verifierTexte, estLettres, offreApplicable,
+  composerBundle, lignesCommandeBundle, pointsModele, definirCompositions, accrochesProposees, construireLettres, verifierTexte, estLettres, offreApplicable,
   notePersonnalisation, chargerPersonnalisation, modeleArgileDemo, completerCatalogue, apercuArgile, estArgile,
   modeleChainmailDemo, estChainmail, formeChainmail, motifArgile, modeleMiniChaineDemo, completerModeleChainmail, estMiniChaine, estMiniForme, pointsSurChaine, anneauxDeForme, COLLECTION_CHAINE, chargerBijouxBoutique, bijouBreloque, modelePerleCultureDemo, estPerleCulture, apercuChainmail,
   correspondCategorie, texteCatalogue, ordreModeles, chargerRuptures, appliquerRuptures,
   chargerLiens, appliquerLiens, relierModele, chargerMateriauxParRefs,
   chargerFichesConfig, chargerOffres, definirLiensFormes, lienModele, composerCompos, definirFichesConfig, ficheCfg, refsCouleurFiche, famillesFiche,
-} from './bead-core.js?v=093fcf66';
+} from './bead-core.js?v=86eba9bf';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER, PANIER_SHOPIFY } from './perles-config.js?v=e5e86015';
 
 const $ = s => document.querySelector(s);
@@ -504,8 +504,11 @@ if (sb) {
   const res = await Promise.allSettled([
     listerModelesPublies(sb), chargerCatalogueBoutique(sb), chargerFermoirsBoutique(sb), chargerPartiesConfigurateur(sb), chargerBijouxBoutique(sb),
     chargerRuptures(sb), chargerLiens(sb), chargerFichesConfig(sb), chargerOffres(sb),
+    // compositions du ⛓ compositeur : chacune devient une forme 3D (chaîne ou breloque), reliée à sa fiche dans configurateur_liens
+    sb.from('config').select('value').eq('key', 'chainmail_compositions').maybeSingle().then(r => { let v = r.data?.value; if (typeof v === 'string') { try { v = JSON.parse(v); } catch { v = null; } } return Array.isArray(v) ? v : []; }),
   ].map(x => avecDelai(x)));
-  const [m, c, f, p, bj, rup, li, fc, of] = res;
+  const [m, c, f, p, bj, rup, li, fc, of, cmp] = res;
+  if (cmp.value?.length) definirCompositions(cmp.value);
   if (of.value) offresCfg = of.value;
   if (rup.value?.length) ruptures = rup.value;
   if (li.value) liens = li.value;
