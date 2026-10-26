@@ -2022,6 +2022,13 @@ export const DEMI_DOUBLE = 2.95;                     // du centre d'un double 4�
 /* GABARITS (anneaux dégagés, calculés une fois par degager() ; voir outils/gabarits) */
 let GABARITS_CHAINE = {}, CROIX_DEGAGEE = null;
 export function definirGabarits(g = {}, croix = null) { GABARITS_CHAINE = g || {}; CROIX_DEGAGEE = croix; }
+/* Gabarit d'une période de chaîne (dégagé si disponible) : { anneaux, T, fin } — base des éléments du compositeur de chaînes */
+export function gabaritChaine(motif = 'continu', dix = false) {
+  const cle = motif + (dix ? '-10' : ''), opts = dix ? { anneau: ANNEAU_10, connecteur: 2 } : motif === 'continu' ? {} : {};
+  const per = periodeChaine(motif, opts);
+  const g = GABARITS_CHAINE[cle] || { anneaux: per.anneaux, T: per.T, fin: per.fin };
+  return { anneaux: g.anneaux.map(a => ({ ...a, p: [...a.p], n: [...a.n] })), T: g.T, fin: (g.fin || per.fin).map(a => ({ ...a, p: [...a.p], n: [...a.n] })) };
+}
 export const PAS_BYZANTIN = 2 * DEMI_DOUBLE;
 /* Chaînes de sac (axe Z, face vers X) :
    'continu'      double 4×4 + connecteur, reliés par des connecteurs (3 en 8 mm, 2 en 10 mm) ; tous les anneaux identiques

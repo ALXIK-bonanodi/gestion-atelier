@@ -76,9 +76,19 @@ main { display: grid; grid-template-columns: minmax(0, 1fr) 380px; min-height: 0
 .info-bas span { background: var(--surface); border: 1px solid var(--line); padding: 4px 9px; border-radius: 6px; }
 
 aside.panneau { border-left: 1px solid var(--line); background: var(--surface); display: grid; grid-template-rows: auto 1fr; min-height: 0; }
-.onglets { display: grid; grid-template-columns: repeat(5, 1fr); border-bottom: 1px solid var(--line); }
+.onglets { display: grid; grid-template-columns: repeat(6, 1fr); border-bottom: 1px solid var(--line); }
 .onglets button { border: 0; background: none; padding: 12px 4px; cursor: pointer; font-weight: 700; color: var(--muted); border-bottom: 2px solid transparent; }
 .onglets button[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); }
+.onglets button b { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--line); font-size: 11px; margin-right: 3px; }
+.onglets button[aria-selected="true"] b { background: var(--accent); color: #fff; }
+.choix-accueil { display: grid; gap: 8px; }
+.carte-acc { display: grid; gap: 2px; text-align: left; padding: 12px 14px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--bg); color: var(--fg); cursor: pointer; text-decoration: none; font: inherit; }
+.carte-acc:hover { border-color: var(--accent); }
+.carte-acc span { color: var(--muted); font-size: 12px; }
+.etapes-acc { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 13px; }
+.suivant { justify-self: end; }
+.etat-modele { font-size: 12px; color: var(--muted); white-space: nowrap; }
+details.avance > summary { cursor: pointer; font-weight: 700; color: var(--muted); padding: 4px 0; }
 .contenu { overflow: auto; padding: 16px; display: grid; gap: 22px; align-content: start; }
 section h2 { font: 700 15px/1.2 var(--f-display); margin: 0 0 10px; letter-spacing: .01em; }
 section h2 .aide { font: 400 12.5px var(--f-body); color: var(--muted); display: block; margin-top: 3px; letter-spacing: 0; }
@@ -152,6 +162,9 @@ details summary { cursor: pointer; font-weight: 700; font-size: 13.5px; }
     <div class="marque">Atelier perles 3D<small>Bona Nodi · éditeur de modèles</small></div>
     <input id="nomModele" type="text" aria-label="Nom du modèle">
     <span class="compteur" id="compteur">0 perles</span>
+    <span class="etat-modele" id="etatModele"></span>
+    <button class="btn" id="btHautBrouillon" type="button" title="Enregistrer en brouillon (non visible en boutique)">💾 Brouillon</button>
+    <button class="btn prim" id="btHautPublier" type="button" title="Publier en boutique">🚀 Publier</button>
   </header>
 
   <main>
@@ -174,16 +187,47 @@ details summary { cursor: pointer; font-weight: 700; font-size: 13.5px; }
 
     <aside class="panneau">
       <div class="onglets" role="tablist">
-        <button role="tab" data-onglet="groupes" aria-selected="true">Groupes</button>
-        <button role="tab" data-onglet="zones" aria-selected="false">Zones</button>
-        <button role="tab" data-onglet="couleurs" aria-selected="false">Couleurs</button>
-        <button role="tab" data-onglet="client" aria-selected="false">Client</button>
-        <button role="tab" data-onglet="fichier" aria-selected="false">Fichier</button>
+        <button role="tab" data-onglet="accueil" aria-selected="true">🏠 Modèles</button>
+        <button role="tab" data-onglet="groupes" aria-selected="false"><b>1</b> Forme</button>
+        <button role="tab" data-onglet="zones" aria-selected="false"><b>2</b> Zones</button>
+        <button role="tab" data-onglet="couleurs" aria-selected="false"><b>3</b> Couleurs</button>
+        <button role="tab" data-onglet="client" aria-selected="false"><b>4</b> Client</button>
+        <button role="tab" data-onglet="fichier" aria-selected="false"><b>5</b> Publier</button>
       </div>
       <div class="contenu">
 
         <!-- GROUPES -->
-        <div data-panneau="groupes" class="pile" style="gap:22px">
+        <!-- ACCUEIL : ouvrir un modèle, en commencer un, composer une chaîne -->
+        <div data-panneau="accueil" class="pile" style="gap:22px">
+          <section>
+            <h2>Que veux-tu faire ?</h2>
+            <div class="choix-accueil">
+              <button class="carte-acc" type="button" data-aller="liste">✏️ <b>Modifier un modèle</b><span>publié ou en brouillon, enregistré dans ta boutique</span></button>
+              <button class="carte-acc" type="button" data-aller="nouveau">＋ <b>Nouveau modèle en perles</b><span>à partir d'un exemple (poisson, arête, lettre…)</span></button>
+              <a class="carte-acc" href="compositeur-chainmail.html">⛓ <b>Composer une chaîne chainmail</b><span>avec les éléments : nœuds, doubles, connecteurs, anneaux 10 mm, pétales…</span></a>
+            </div>
+          </section>
+          <section id="secMesModeles">
+            <h2>Tes modèles<span class="aide">Touche « Ouvrir » : le modèle s'affiche, puis suis les étapes 1 → 5.</span></h2>
+            <div class="liste" id="listeAccueil"><p class="note">Connexion…</p></div>
+          </section>
+          <section id="secNouveau">
+            <h2>Partir d'un exemple<span class="aide">L'exemple remplace le modèle affiché (pense à enregistrer le tien avant).</span></h2>
+            <div class="ligne" id="exemplesAccueil"></div>
+          </section>
+          <section>
+            <h2>Les étapes</h2>
+            <ol class="etapes-acc">
+              <li><b>Forme</b> : les groupes de perles (rangées) et leur placement.</li>
+              <li><b>Zones</b> : ce que la cliente peut colorer (dos, ventre, queue…), à peindre sur les perles.</li>
+              <li><b>Couleurs</b> : les couleurs fixes (yeux, détails) et le type de chaque perle.</li>
+              <li><b>Client</b> : prix, parties proposées, fermoirs, porte-clés, options.</li>
+              <li><b>Publier</b> : enregistrer en brouillon ou publier dans la boutique.</li>
+            </ol>
+          </section>
+        </div>
+
+        <div data-panneau="groupes" class="pile" style="gap:22px" hidden>
           <section>
             <h2>Groupes de perles<span class="aide">Un groupe = un morceau du modèle construit par rangées. Touche une perle en mode « Tourner » pour activer son groupe.</span></h2>
             <div class="liste" id="listeGroupes"></div>
@@ -315,6 +359,7 @@ details summary { cursor: pointer; font-weight: 700; font-size: 13.5px; }
               <button class="btn danger" id="btBiblioSuppr">Retirer</button>
             </div>
           </section>
+          <button class="btn prim suivant" type="button" data-aller-onglet="zones">Étape suivante : 2 Zones ›</button>
         </div>
 
         <!-- ZONES -->
@@ -362,6 +407,7 @@ details summary { cursor: pointer; font-weight: 700; font-size: 13.5px; }
               </div>
             </div>
           </section>
+          <button class="btn prim suivant" type="button" data-aller-onglet="couleurs">Étape suivante : 3 Couleurs ›</button>
         </div>
 
         <!-- COULEURS -->
@@ -396,6 +442,7 @@ details summary { cursor: pointer; font-weight: 700; font-size: 13.5px; }
               </details>
             </div>
           </section>
+          <button class="btn prim suivant" type="button" data-aller-onglet="client">Étape suivante : 4 Client ›</button>
         </div>
 
         <!-- CLIENT -->
@@ -449,6 +496,7 @@ details summary { cursor: pointer; font-weight: 700; font-size: 13.5px; }
             <div class="ligne" id="cApercu"></div>
             <p class="note" id="cPrixApercu"></p>
           </section>
+          <button class="btn prim suivant" type="button" data-aller-onglet="fichier">Étape suivante : 5 Publier ›</button>
         </div>
 
         <!-- FICHIER -->
@@ -520,7 +568,7 @@ import {
   couleursProposees, chargerCatalogueBoutique, affinerCouleursDepuisPhotos, resoudreDefauts, TAILLES_MOUSQUETON,
   FERMOIRS_DEMO, chargerFermoirsBoutique, prixConfiguration,
   genArete, PATRON_TETE_ARETE, estAccroche, modeleAreteDemo, modeleLettresDemo, modeleArgileDemo, modeleChainmailDemo, modelePerleCultureDemo, modeleChaineSacDemo, chargerModeleBoutique, listerModelesBoutique, enregistrerModeleBoutique,
-} from './bead-core.js?v=0b698347';
+} from './bead-core.js?v=093fcf66';
 const raisonConnexion = e => /invalid login/i.test(e.message) ? 'e-mail ou mot de passe incorrect'
   : /not confirmed/i.test(e.message) ? 'adresse e-mail pas encore confirmée (Supabase › Authentication › Users)'
   : e.message;
@@ -1383,7 +1431,7 @@ async function enregistrerBoutique(publie) {
   modele.slug = sl; $('#sbSlug').value = sl;
   try {
     await enregistrerModeleBoutique(sb, { slug: sl, modele, publie, bij_id: $('#sbBijou').value.trim() || null });
-    toast(publie ? 'Publié en boutique' : 'Brouillon enregistré'); listerBoutique();
+    toast(publie ? 'Publié en boutique' : 'Brouillon enregistré'); listerBoutique(); listerAccueil();
   } catch (e) {
     toast(/row-level|permission|policy/i.test(e.message)
       ? 'Refusé : ce compte n\'est pas l\'administrateur déclaré dans sql-modeles-3d.sql'
@@ -1394,7 +1442,7 @@ $('#btConnexion').addEventListener('click', async () => {
   const { error } = await sb.auth.signInWithPassword({ email: $('#sbEmail').value.trim(), password: $('#sbMdp').value });
   $('#sbMdp').value = '';
   if (error) return toast('Connexion refusée : ' + raisonConnexion(error));
-  majBoutique();
+  majBoutique().then(listerAccueil);
 });
 $('#btDeconnexion').addEventListener('click', async () => { await sb.auth.signOut(); majBoutique(); });
 $('#btBrouillon').addEventListener('click', () => enregistrerBoutique(false));
@@ -1417,13 +1465,57 @@ async function catalogueDepuisBoutique() {
   catch (e) { console.warn('Catalogue boutique indisponible', e); }
 }
 
+/* ---------- prise en main : accueil « Modèles », étapes, enregistrement rapide ---------- */
+const allerOnglet = o => { const b = document.querySelector(`.onglets button[data-onglet="${o}"]`); if (b) b.click(); document.querySelector('.contenu')?.scrollTo?.({ top: 0 }); };
+$$('[data-aller-onglet]').forEach(b => b.addEventListener('click', () => allerOnglet(b.dataset.allerOnglet)));
+$$('[data-aller]').forEach(b => b.addEventListener('click', () => document.getElementById(b.dataset.aller === 'liste' ? 'secMesModeles' : 'secNouveau')?.scrollIntoView({ behavior: 'smooth' })));
+// les exemples (onglet Publier › Modèle JSON) repris en gros boutons dans l'accueil
+for (const id of ['btExemple', 'btExempleArete', 'btExempleLettres', 'btExempleArgile', 'btExempleCroix', 'btExempleCulture', 'btExempleChaine', 'btVide']) {
+  const o = document.getElementById(id); if (!o) continue;
+  const c = document.createElement('button'); c.className = 'btn'; c.type = 'button'; c.textContent = o.textContent.replace(/^Exemple /, '');
+  c.addEventListener('click', () => { if (!confirm(`Remplacer le modèle affiché par « ${c.textContent} » ?`)) return; o.click(); majEtatModele(); allerOnglet('groupes'); });
+  $('#exemplesAccueil').appendChild(c);
+}
+// sections avancées repliées (on les ouvre seulement quand on en a besoin)
+for (const titre of ['Bibliothèque de groupes', 'Attribution par rangs', 'Charger ton catalogue', 'Modèle JSON', 'Comptage des perles', 'Type pour l']) {
+  const h = [...document.querySelectorAll('section > h2')].find(x => x.firstChild?.textContent?.trim().startsWith(titre)); if (!h) continue;
+  const sec = h.parentElement, d = document.createElement('details'); d.className = 'avance';
+  const sm = document.createElement('summary'); sm.textContent = '▸ ' + h.firstChild.textContent.trim() + ' (avancé)'; d.appendChild(sm);
+  sec.before(d); d.appendChild(sec);
+}
+let modelesConnus = [];
+function majEtatModele() {
+  const sl = $('#sbSlug').value || modele.slug || '', m = modelesConnus.find(x => x.slug === sl);
+  $('#etatModele').textContent = sl ? (m ? (m.publie ? '● publié' : '○ brouillon') + ' · ' + sl : '○ pas encore enregistré') : '';
+}
+async function listerAccueil() {
+  if (!sb || !sbSession) { $('#listeAccueil').innerHTML = `<p class="note">${sb ? 'Connecte-toi dans l\'étape 5 Publier pour voir tes modèles.' : 'Boutique non reliée : le modèle est gardé sur cet appareil.'}</p>`; return; }
+  try {
+    modelesConnus = await listerModelesBoutique(sb);
+    $('#listeAccueil').innerHTML = modelesConnus.map(m => `<div class="item" data-slug="${esc(m.slug)}"><span class="mono">${m.publie ? '● publié' : '○ brouillon'}</span>
+      <span class="titre">${esc(m.nom)} <span class="mono">${esc(m.slug)}</span></span><button class="btn prim" data-ouvrir-acc>Ouvrir</button></div>`).join('') || '<p class="note">Aucun modèle enregistré pour l\'instant : pars d\'un exemple ci-dessous.</p>';
+    $$('#listeAccueil [data-ouvrir-acc]').forEach(b => b.addEventListener('click', async () => {
+      const sl = b.closest('[data-slug]').dataset.slug;
+      try { const m = await chargerModeleBoutique(sb, sl, { brouillon: true }); m.slug = sl; chargerModele(m); $('#sbSlug').value = sl; majEtatModele(); allerOnglet('groupes'); toast('« ' + (m.nom || sl) + ' » ouvert'); }
+      catch (e) { toast('Ouverture impossible : ' + e.message); }
+    }));
+    majEtatModele();
+  } catch (e) { $('#listeAccueil').innerHTML = `<p class="note">Lecture impossible : ${esc(e.message)}</p>`; }
+}
+for (const [id, pub] of [['btHautBrouillon', false], ['btHautPublier', true]]) $('#' + id).addEventListener('click', async () => {
+  if (!sbSession) { allerOnglet('fichier'); return toast('Connecte-toi d\'abord (étape 5 Publier)'); }
+  if (pub && !confirm('Publier ce modèle en boutique ? Les clientes le verront dans le configurateur.')) return;
+  await enregistrerBoutique(pub); await listerAccueil();
+});
+$('#btHautBrouillon').hidden = $('#btHautPublier').hidden = !sb;
+
 /* ---------- démarrage ---------- */
 function toutAfficher() {
   $('#nomModele').value = modele.nom || '';
   afficherGroupes(); afficherTransfo(); afficherZones(); afficherCouleurs(); afficherBiblio(); majPastilles(); majCompteur();
 }
 remplirTypes(); remplirFermoirs(); majFormeNouv(); toutAfficher(); choisirOutil('orbite');
-majBoutique(); catalogueDepuisBoutique();
+majBoutique().then(listerAccueil); catalogueDepuisBoutique();
 window.atelier = { scene, get modele() { return modele; } };   // pour la console
 </script>
 </body>

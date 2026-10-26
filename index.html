@@ -782,6 +782,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
     <div style="display:flex;border-bottom:2px solid var(--border);overflow-x:auto">
       <div id="c3tab-cfg" onclick="switchC3dTab('cfg')" class="gtab gtab-on">👁 Configurateur</div>
       <div id="c3tab-m3d" onclick="switchC3dTab('m3d')" class="gtab">🧊 Modèles</div>
+      <div id="c3tab-cmp" onclick="switchC3dTab('cmp')" class="gtab">⛓ Composer</div>
       <div id="c3tab-ref" onclick="switchC3dTab('ref')" class="gtab">🔗 Références</div>
       <div id="c3tab-rup" onclick="switchC3dTab('rup')" class="gtab">📦 Ruptures</div>
     </div>
@@ -798,6 +799,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
     <iframe id="c3frame-cfg" title="Configurateur 3D" style="display:block;width:100%;height:calc(100vh - 100px);border:0"></iframe>
   </div>
   <div id="c3panel-m3d" style="display:none"><iframe id="c3frame-m3d" title="Modèles 3D" style="display:block;width:100%;height:calc(100vh - 56px);border:0"></iframe></div>
+  <div id="c3panel-cmp" style="display:none"><iframe id="c3frame-cmp" title="Composer une chaîne chainmail" style="display:block;width:100%;height:calc(100vh - 56px);border:0"></iframe></div>
   <div id="c3panel-ref" style="display:none"><iframe id="c3frame-ref" title="Références du configurateur" style="display:block;width:100%;height:calc(100vh - 56px);border:0"></iframe></div>
   <div id="c3panel-rup" style="display:none"><iframe id="c3frame-rup" title="Ruptures du configurateur" style="display:block;width:100%;height:calc(100vh - 56px);border:0"></iframe></div>
 </div>
@@ -4385,7 +4387,7 @@ function switchCreatTab(tab, numeroPerso) {
    avec le n° de personnalisation (perso) et la note atelier (perso_note, avec les références). */
 const ouvrirPerso = numero => switchCreatTab('perso', numero);
 /* ── Conception 3D : configurateur, modèles, références, ruptures (pages du dossier configurateur/) ── */
-const C3D_PAGES = { cfg: 'configurateur-3d.html?apercu=1', m3d: 'editeur-perles.html', ref: 'references-configurateur.html', rup: 'stock-configurateur.html' };
+const C3D_PAGES = { cfg: 'configurateur-3d.html?apercu=1', m3d: 'editeur-perles.html', cmp: 'compositeur-chainmail.html', ref: 'references-configurateur.html', rup: 'stock-configurateur.html' };
 // Breloques proposées aux clientes, séparément pour « breloque seule » et « bundle ».
 // Masquée dans un parcours = entrée « breloque:<slug> » / « bundle:<slug> » dans configurateur_ruptures (déjà lisible par le configurateur) ;
 // masquée partout = modèle non publié.
