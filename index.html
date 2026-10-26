@@ -777,9 +777,19 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
 </div>
 
 <!-- ════════════════ CONCEPTION 3D (configurateur des breloques) ════════════════ -->
+<style>
+/* Modèles et Composer : en plein écran (pas dans une petite fenêtre) ; la barre du haut ramène à l'app */
+#p-c3d.c3-plein.on { position:fixed; inset:0; z-index:2000; background:#fff; display:flex; flex-direction:column; max-width:none; padding:0; }
+#p-c3d.c3-plein > .c3-barre { position:static; flex:0 0 auto; }
+#p-c3d.c3-plein > div[id^=c3panel-] { flex:1; min-height:0; }
+#p-c3d.c3-plein iframe { height:100% !important; }
+#p-c3d .c3-quitter { display:none; }
+#p-c3d.c3-plein .c3-quitter { display:flex; }
+</style>
 <div id="p-c3d" class="page" style="padding:0">
-  <div style="position:sticky;top:0;z-index:50;background:#fff;box-shadow:0 2px 8px rgba(26,18,40,.08)">
-    <div style="display:flex;border-bottom:2px solid var(--border);overflow-x:auto">
+  <div class="c3-barre" style="position:sticky;top:0;z-index:50;background:#fff;box-shadow:0 2px 8px rgba(26,18,40,.08)">
+    <div style="display:flex;border-bottom:2px solid var(--border);overflow-x:auto;align-items:stretch">
+      <div class="gtab c3-quitter" onclick="switchC3dTab('cfg')" title="Revenir à l'app" style="align-items:center;gap:4px;font-weight:700;color:var(--purple)">← App</div>
       <div id="c3tab-cfg" onclick="switchC3dTab('cfg')" class="gtab gtab-on">👁 Configurateur</div>
       <div id="c3tab-m3d" onclick="switchC3dTab('m3d')" class="gtab">🧊 Modèles</div>
       <div id="c3tab-cmp" onclick="switchC3dTab('cmp')" class="gtab">⛓ Composer</div>
@@ -4617,6 +4627,8 @@ async function basculerModele(slug, parcours){
 }
 function switchC3dTab(tab, recharger) {
   if(tab==='cfg') renderModelesProposes();
+  // Modèles et Composer prennent tout l'écran ; « ← App » ou un autre onglet ramène à l'affichage normal
+  document.getElementById('p-c3d').classList.toggle('c3-plein', tab==='m3d' || tab==='cmp');
   Object.keys(C3D_PAGES).forEach(t => {
     document.getElementById('c3panel-'+t).style.display = t===tab ? 'block' : 'none';
     document.getElementById('c3tab-'+t).className = 'gtab'+(t===tab?' gtab-on':'');

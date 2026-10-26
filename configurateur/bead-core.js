@@ -2101,6 +2101,9 @@ export function nomElementChainmail(x) {
   if (e.k === 'fleur') return 'Fleur · double 8 mm + ' + (e.petales === 0 ? 'sans pétale' : e.petales === 'haut' || e.petales === 'bas' ? '1 pétale (' + e.petales + ')' : '2 pétales') + ' 10 mm';
   if (e.k === 'noeud') return 'Nœud 4×4 + connecteur du milieu · ' + t;
   if (e.k === 'conn') return (e.nb === 1 ? 'Anneau solo' : `Connecteur (${e.nb || 2})`) + ' · ' + ((e.taille || 8) === 10 ? '10 mm' : '8 mm');
+  if (e.k === 'pampille') return 'Pampille ' + (e.taille || 4) + ' mm';
+  if (e.k === 'petit') return 'Petit anneau 0,5 mm';
+  if (e.k === 'fermoir-10') return 'Fermoir 10 mm';
   return e.k || '?';
 }
 let _gabEl = null;
@@ -2127,23 +2130,62 @@ export function anneauxElement(x) {
   }
   return { anneaux: [], T: 0 };
 }
-export function assemblerComposition(c, { detail = false } = {}) {
-  const out = [], pose = (liste, dz) => liste.forEach(a => out.push({ ...a, p: [a.p[0], a.p[1], +(a.p[2] + dz).toFixed(3)], n: [...a.n] }));
-  let z = 0;
-  const motif = (c.motif || []).map(elementChainmail).filter(e => e.k);
+// une fiche bijou (composition ou produit) → l'élément 3D qu'elle représente, d'après son nom (ex. « Nœud 4x4 10mm », « Double 4x4 + connecteur (2) 8 mm »)
+export function elementDepuisNom(texte) {
+  const t = norm(texte), dix = /\b10 ?mm\b/.test(t), nbP = (/\((\d)\)/.exec(t) || /connecteur ?(\d)\b/.exec(t) || [])[1];
+  if (/mini|croix|chaine|chaîne|collier|choker|chocker|breloque|bracelet|porte/.test(t)) return null;          // un produit, pas un élément
+  if (/pampille/.test(t)) return { k: 'pampille', taille: /\b3 ?mm\b/.test(t) ? 3 : 4 };
+  if (/petit anneau|0[,.]5 ?mm/.test(t)) return { k: 'petit' };
+  if (/fermoir/.test(t) && dix) return { k: 'fermoir-10' };
+  if (/fleur|petale/.test(t)) return { k: 'fleur', petales: /sans petale/.test(t) ? 0 : /1 petale|un petale/.test(t) ? 'haut' : 2 };
+  if (/double/.test(t) && /4 ?x ?4|byzant|noeud/.test(t)) return { k: 'double', taille: dix ? 10 : 8, conn: dix ? 2 : (nbP === '3' ? 3 : nbP === '2' ? 2 : 3) };
+  if (/n(oe|œ)ud/.test(t) || /\b4 ?x ?4\b/.test(t)) return { k: 'noeud', taille: dix ? 10 : 8 };
+  if (/solo/.test(t)) return { k: 'conn', nb: 1, taille: /\b8 ?mm\b/.test(t) ? 8 : 10 };
+  if (/connecteur/.test(t)) return { k: 'conn', nb: nbP ? +nbP : 2, taille: dix ? 10 : 8 };
+  return null;
+}
+// connecteur qu'on met entre deux corps posés l'un après l'autre, d'après tes chaînes : fleur et 10 mm → (2) 10 mm,
+// double (2) 8 mm → anneau solo 10 mm (alternative), double (3) 8 mm → connecteur (3) 8 mm
+export function connecteurEntre(a, b) {
+  const x = elementChainmail(a), y = elementChainmail(b);
+  if ([x, y].some(e => e.k === 'fleur') || [x, y].every(e => (e.taille || 8) === 10)) return { k: 'conn', nb: 2, taille: 10 };
+  if ([x, y].some(e => e.k === 'double' && (e.conn || 3) === 2 && (e.taille || 8) === 8)) return { k: 'conn', nb: 1, taille: 10 };
+  return { k: 'conn', nb: 3, taille: 8 };
+}
+// suite réelle des éléments (début, répétitions du motif, demi-motif, fin) ; auto = connecteur ajouté entre deux corps
+export function sequenceComposition(c, { detail = false } = {}) {
+  const motif = (c.motif || []).map(elementChainmail).filter(e => e.k && !['pampille', 'petit', 'fermoir-10'].includes(e.k));
   const nb = detail ? Math.min(Math.max(1, c.nb | 0), motif.length > 2 ? 1 : 2) : Math.max(1, c.nb | 0);
   const demi = !detail && !!c.demi, fin = detail ? 'motif' : (c.fin || 'motif');
-  if (c.debut) pose(anneauxElement(c.debut).anneaux, 0);
-  for (let r = 0; r < nb; r++) motif.forEach((e, i) => {
-    const { anneaux, T } = anneauxElement(e), dernier = r === nb - 1 && i === motif.length - 1;
-    if (T) { pose(anneaux, z); z += T; }
-    else if (!(dernier && fin !== 'motif' && !demi)) pose(anneaux, z);         // la fin remplace le dernier connecteur du motif
+  const brut = [];
+  if (c.debut) brut.push(elementChainmail(c.debut));
+  for (let r = 0; r < nb; r++) motif.forEach((e, i) => { const dernier = r === nb - 1 && i === motif.length - 1;
+    if (!estCorpsChainmail(e) && dernier && fin !== 'motif' && !demi) return; brut.push({ ...e }); });
+  if (demi) { const e1 = motif.find(e => e.k === 'double' || e.k === 'fleur'); if (e1) brut.push({ k: 'noeud', taille: e1.k === 'fleur' ? 8 : e1.taille || 8, demi: true, fiche: null }); }
+  if (fin && fin !== 'motif' && fin !== 'aucune') brut.push(elementChainmail(fin));
+  const seq = [];
+  for (const e of brut) { const prec = seq[seq.length - 1];
+    if (prec && estCorpsChainmail(prec) && estCorpsChainmail(e) && !e.demi) seq.push({ ...connecteurEntre(prec, e), auto: true });
+    seq.push(e); }
+  return seq;
+}
+// distance du centre d'un corps au connecteur voisin, prise sur tes gabarits (8 mm ↔ 8 mm, 8 mm ↔ 10 mm, 10 mm ↔ 10 mm)
+function demiPas(corps, joint) {
+  const { G } = gabaritsElements(), j10 = (elementChainmail(joint || {}).taille || 8) === 10, e = elementChainmail(corps);
+  if ((e.taille || 8) === 10 && e.k !== 'fleur') return j10 ? G.c10.T / 2 : G.c10.T / 2 - (ANNEAU_10.R - ANNEAU_8.R);
+  return e.k === 'fleur' ? (j10 ? G.fl.T / 2 : G.fl.T / 2 - (ANNEAU_10.R - ANNEAU_8.R) * MINI_RECUL) : (j10 ? G.i8.T / 2 : G.c8.T / 2);
+}
+export function assemblerComposition(c, { detail = false } = {}) {
+  const out = [], pose = (liste, dz) => liste.forEach(a => out.push({ ...a, p: [a.p[0], a.p[1], +(a.p[2] + dz).toFixed(3)], n: [...a.n] }));
+  const seq = sequenceComposition(c, { detail });
+  let z = 0, dernierJ = null, dernierR = 0, premier = true;
+  seq.forEach((e, i) => {
+    if (!estCorpsChainmail(e)) { pose(anneauxElement(e).anneaux, z); dernierJ = e; dernierR = anneauxElement(e).anneaux[0]?.R || 0; premier = false; return; }
+    if (e.demi) { const n = anneauxElement(e); pose(n.anneaux, z); z += n.T; dernierR = 0; return; }
+    const suivant = seq.slice(i + 1).find(x => !estCorpsChainmail(x)) || null;
+    const { anneaux, T } = anneauxElement(e), dA = premier && !dernierJ ? T / 2 : demiPas(e, dernierJ || suivant), dB = demiPas(e, (seq[i + 1] && !estCorpsChainmail(seq[i + 1])) ? seq[i + 1] : dernierJ);
+    pose(anneaux, z + dA - T / 2); z += dA + dB; premier = false; dernierR = 0;
   });
-  if (demi) { const e1 = motif.find(e => e.k === 'double' || e.k === 'fleur');
-    if (e1) { const n = anneauxElement({ k: 'noeud', taille: e1.k === 'fleur' ? 8 : e1.taille }); pose(n.anneaux, z); z += n.T; } }
-  let dernierR = 0;
-  if (fin !== 'motif' && fin !== 'aucune') { const f = anneauxElement(fin); pose(f.anneaux, z); dernierR = f.anneaux[0]?.R || 0; }
-  else if (fin === 'motif') { const j = [...motif].reverse().find(e => e.k === 'conn'); dernierR = j ? anneauxElement(j).anneaux[0]?.R || 0 : 0; }
   if (c.pampille) out.push({ p: [0, 0, +(z + (dernierR || ANNEAU_8.R) + PETIT_ANNEAU.R * 0.45).toFixed(3)], n: [0, 1, 0], R: PETIT_ANNEAU.R, e: PETIT_ANNEAU.e });
   // bouts d'une chaîne en collier / choker : fermoir 10 mm (1 – 2 – 2 anneaux) d'un côté, rallonge de 6 anneaux de 10 mm de l'autre
   if (!detail && c.usage !== 'breloque' && c.bouts === 'fermoir-10' && out.length) {
@@ -2156,6 +2198,13 @@ export function assemblerComposition(c, { detail = false } = {}) {
   // breloque : le haut du premier anneau en z ≈ 0 (pris par le fermoir), comme les mini chains
   if (c.usage === 'breloque' && out.length) { const zMin = Math.min(...out.map(a => a.p[2] - a.R)); out.forEach(a => { a.p[2] = +(a.p[2] - zMin - 0.3).toFixed(3); }); }
   return out;
+}
+// ce qu'il faut pour fabriquer la composition : chaque élément (avec sa fiche si tu l'as reliée) et combien de fois
+export function piecesComposition(c) {
+  const seq = sequenceComposition(c), m = new Map();
+  for (const e of seq) { const k = JSON.stringify([e.k, e.taille || 8, e.conn || 0, e.nb || 0, e.petales ?? '', !!e.demi, e.fiche || '']);
+    const x = m.get(k) || { element: { ...e, auto: undefined }, nb: 0, auto: 0 }; x.nb++; if (e.auto) x.auto++; m.set(k, x); }
+  return [...m.values()];
 }
 export function decompteComposition(A) {
   const t = { '10 mm': 0, '8 mm': 0, '0,5 mm': 0 };
