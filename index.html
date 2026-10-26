@@ -823,8 +823,6 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
 <div id="p-c3d" class="page">
   <div class="c3-app">
     <nav class="c3-nav" aria-label="Conception 3D">
-      <div class="c3-nav-t">Aperçu</div>
-      <button type="button" data-c3="cfg" onclick="switchC3dTab('cfg')">👁 Configurateur</button>
       <div class="c3-nav-t">Créer</div>
       <button type="button" data-c3="m3d" onclick="switchC3dTab('m3d')">🧊 Modèles</button>
       <button type="button" data-c3="cmp" onclick="switchC3dTab('cmp')">⛓ Composer</button>
@@ -837,7 +835,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
       <button type="button" data-c3="ref" onclick="switchC3dTab('ref')">🔗 Références</button>
       <button type="button" data-c3="rup" onclick="switchC3dTab('rup')">📦 Ruptures</button>
       <div class="c3-nav-pied">
-        <a href="configurateur/configurateur-3d.html" target="_blank">↗ Ouvrir le configurateur</a>
+        <a href="configurateur/configurateur-3d.html" target="_blank">↗ Ouvrir le configurateur (page client)</a>
         <a href="configurateur/configurateur-3d.html?diag=1" target="_blank">🔎 Diagnostic</a>
       </div>
     </nav>
@@ -1590,7 +1588,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
 <div id="m-addcat" class="overlay" onclick="bgClose(event,this)">
  <div class="modal">
   <div class="drag"></div>
-  <div class="modal-title">⚙ Catégories & Fournisseurs</div>
+  <div class="modal-title" style="display:flex;align-items:center;gap:8px">⚙ Catégories & Fournisseurs<span style="flex:1"></span><button class="btn btn-xs btn-ghost" onclick="closeModal('m-addcat')" title="Fermer le panneau">✕ Fermer</button></div>
 
   <div class="mtabs" id="cfg-tabs">
    <div class="mtab" onclick="switchCatModalTab(this,'cfg-fams')">Familles</div>
@@ -3694,7 +3692,7 @@ function majBadgesOnglets(){
 }
 
 // Sur grand écran, les fiches matériau et bijou s'ouvrent sur le côté : la liste reste visible et cliquable
-const TIROIRS=['m-mat','m-bij'];
+const TIROIRS=['m-mat','m-bij','m-addcat'];   // fiches latérales : on continue à naviguer dans la page à côté
 const grandEcran=()=>window.matchMedia('(min-width:1100px)').matches;
 function openModal(id) {
   const el=document.getElementById(id);
@@ -4690,9 +4688,9 @@ async function basculerModele(slug, parcours){
 const C3_GEST = { breloques:['🧸 Breloques','Affiché / Masqué : l\'aperçu client à droite se recharge après chaque changement.'],
   idees:['💡 Idées de couleurs','L\'aperçu client à droite se recharge après chaque changement.'], bundles:['🎁 Bundles tout prêts','L\'aperçu client à droite se recharge après chaque changement.'],
   chaines:['⛓ Chaînes de sac','L\'aperçu client à droite se recharge après chaque changement.'], offres:['🏷 Offres et prix','Les offres du configurateur et le contrôle des prix (rentabilité de chaque fiche).'] };
-let C3_VUE = (()=>{ try{ return localStorage.getItem('c3_vue')||'cfg'; }catch(e){ return 'cfg'; } })();
+let C3_VUE = (()=>{ try{ return localStorage.getItem('c3_vue')||'g:breloques'; }catch(e){ return 'g:breloques'; } })();
 function switchC3dTab(tab, recharger) {
-  if(!C3D_PAGES[tab] && !String(tab).startsWith('g:')) tab='cfg';
+  if(tab==='cfg' || (!C3D_PAGES[tab] && !String(tab).startsWith('g:'))) tab='g:breloques';   // l'aperçu client est affiché à côté de la gestion
   if(tab==='m3d'||tab==='cmp'||tab==='ref'||tab==='rup'||tab==='cfg'||tab.startsWith('g:')) C3_VUE=tab;
   try{ localStorage.setItem('c3_vue', tab); }catch(e){}
   const gest = tab.startsWith('g:'), voir = gest ? ['gest','cfg'] : [tab];

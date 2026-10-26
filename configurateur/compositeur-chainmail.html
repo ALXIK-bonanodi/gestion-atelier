@@ -64,7 +64,15 @@ select, input[type=number] { font: 14px var(--f-body); padding: 6px 8px; border:
 .liste-c .seq-l .t b { font-size: 13px; }
 .toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--accent); color: var(--accent-fg); padding: 9px 16px; border-radius: 999px; font-weight: 700; opacity: 0; transition: opacity .2s; pointer-events: none; }
 .toast.on { opacity: 1; }
-.etape { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.pas { position: sticky; top: -14px; z-index: 5; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; background: var(--surface); padding: 6px 0 8px; margin-top: -4px; }
+.pas button { display: grid; justify-items: center; gap: 1px; border: 0; background: none; cursor: pointer; padding: 6px 2px; border-radius: 10px; font: 600 12.5px var(--f-body); color: var(--muted); }
+.pas button .n { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--line); color: var(--fg); font-size: 12px; }
+.pas button.on { color: var(--fg); background: var(--accent-soft); } .pas button.on .n { background: var(--accent); color: var(--accent-fg); }
+.pas button small { font-weight: 400; font-size: 10.5px; color: var(--muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.etape > summary { display: none !important; } .etape { border: 0; background: none; } .etape > .corps { padding: 0; }
+.pas-nav { display: flex; justify-content: space-between; gap: 8px; margin-top: 6px; }
+#commentCa { order: 9; }
+.etape-ancien { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
 .etape > summary { list-style: none; cursor: pointer; padding: 12px 14px; display: flex; gap: 10px; align-items: center; font: 700 15px var(--f-display); }
 .etape > summary::-webkit-details-marker { display: none; }
 .etape > summary .n { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: var(--accent-fg); font-size: 13px; flex: 0 0 auto; }
@@ -74,7 +82,7 @@ select, input[type=number] { font: 14px var(--f-body); padding: 6px 8px; border:
 .badge { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--accent-soft); }
 .badge.ok { background: #dff1e4; color: #24683a; } .badge.a { background: #fbe3e3; color: #9b2d2d; }
 table.p { width: 100%; border-collapse: collapse; font-size: 13px; } table.p td { padding: 4px 6px; border-top: 1px solid var(--line); vertical-align: top; }
-table.p td.n { text-align: right; font-weight: 700; white-space: nowrap; }
+table.p td.n { text-align: right; font-weight: 700; white-space: nowrap; width: 1%; }
 aside > *, .etape .corps > *, .seq-l, .seq-l .t { min-width: 0; }
 .etape select { max-width: 100%; }
 .seq-l .t small select { max-width: 100%; margin-top: 3px; }
@@ -110,7 +118,13 @@ aside > *, .etape .corps > *, .seq-l, .seq-l .t { min-width: 0; }
     <div class="compte" id="compte"></div>
   </div>
   <aside>
-    <details class="comment" id="commentCa"><summary><b>Comment ça marche ?</b></summary>
+    <nav class="pas" id="pas" aria-label="Étapes">
+      <button type="button" data-pas="1"><span class="n">1</span>La fiche<small id="pas1"></small></button>
+      <button type="button" data-pas="2"><span class="n">2</span>Compose<small id="pas2"></small></button>
+      <button type="button" data-pas="3"><span class="n">3</span>Vérifie<small id="pas3"></small></button>
+      <button type="button" data-pas="4"><span class="n">4</span>Enregistre</button>
+    </nav>
+    <details class="comment" id="commentCa"><summary><b>？ Comment ça marche</b></summary>
       <ol>
         <li><b>La fiche</b> : choisis la fiche produit à modéliser (celles sans visuel sont marquées ⚠), ou pars d'une composition vierge.</li>
         <li><b>Compose</b> : un début, un motif qui se répète, une fin. Les éléments sont <b>tes fiches composition</b> (nœud 4×4, double, connecteur…) : chacune a déjà son modèle 3D. Changer la fiche d'un élément change son modèle 3D.</li>
@@ -128,6 +142,7 @@ aside > *, .etape .corps > *, .seq-l, .seq-l .t { min-width: 0; }
         <select id="depuisCompo"><option value="">une de mes compositions…</option></select></div>
       <div class="sous">Tes fiches chainmail <label style="text-transform:none;font-weight:400;letter-spacing:0"><input type="checkbox" id="aModeliser" checked> seulement à modéliser</label></div>
       <div class="liste-c" id="fiches"><p class="aide">Chargement…</p></div>
+      <div class="pas-nav"><span></span><button class="btn prim" type="button" data-pas="2">2 Compose ›</button></div>
     </div></details>
 
     <details class="etape" id="e2" open><summary><span class="n">2</span>Compose<span class="etat" id="etat2"></span></summary><div class="corps">
@@ -152,6 +167,7 @@ aside > *, .etape .corps > *, .seq-l, .seq-l .t { min-width: 0; }
       <p class="aide" style="margin:-4px 0 0">Tes fiches composition (avec leur photo) — chacune a son modèle 3D :</p>
       <div class="palette" id="paletteFiches"></div>
       <details><summary class="aide" style="cursor:pointer">Éléments de base (sans fiche)</summary><div class="palette" id="palette" style="margin-top:8px"></div></details>
+      <div class="pas-nav"><button class="btn" type="button" data-pas="1">‹ 1 La fiche</button><button class="btn prim" type="button" data-pas="3">3 Vérifie ›</button></div>
     </div></details>
 
     <details class="etape" id="e3" open><summary><span class="n">3</span>Vérifie<span class="etat" id="etat3"></span></summary><div class="corps">
@@ -159,6 +175,7 @@ aside > *, .etape .corps > *, .seq-l, .seq-l .t { min-width: 0; }
       <table class="p" id="pieces"></table>
       <details><summary class="aide" style="cursor:pointer">⚙ Matériaux des anneaux et des bouts (pour les éléments sans fiche)</summary><div class="pile" id="reglages" style="display:grid;gap:6px;margin-top:8px"></div></details>
       <div class="ligne"><button class="btn" id="btCopier" type="button">📋 Copier la liste</button></div>
+      <div class="pas-nav"><button class="btn" type="button" data-pas="2">‹ 2 Compose</button><button class="btn prim" type="button" data-pas="4">4 Enregistre ›</button></div>
     </div></details>
 
     <details class="etape" id="e4" open><summary><span class="n">4</span>Enregistre<span class="etat" id="etat4"></span></summary><div class="corps">
@@ -176,13 +193,14 @@ aside > *, .etape .corps > *, .seq-l, .seq-l .t { min-width: 0; }
       <p class="aide" id="etatSb"></p>
       <div class="sous">Tes compositions</div>
       <div class="liste-c" id="mesCompos"></div>
+      <div class="pas-nav"><button class="btn" type="button" data-pas="3">‹ 3 Vérifie</button></div>
     </div></details>
   </aside>
 </main>
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { ScenePerles, assemblerComposition, decompteComposition, definirCompositions, elementChainmail, nomElementChainmail, estCorpsChainmail,
+import { ScenePerles, cleFixe, assemblerComposition, decompteComposition, definirCompositions, elementChainmail, nomElementChainmail, estCorpsChainmail,
   elementDepuisNom, piecesComposition, connecteurEntre, modeleChaineSacDemo, modeleChainmailDemo, catalogueChaineDepuisBijoux, catalogueChainmailDepuisBijoux,
   definirLiensFormes, NOMS_CHAINE, FORMES_CHAINMAIL, CATALOGUE_DEMO } from './bead-core.js?v=44ab0c9f';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure } from './perles-config.js?v=e5e86015';
@@ -273,6 +291,18 @@ function rendre(cadrer = false) {
 }
 
 /* ---------- étape 3 : ce qu'il faut (compositions de tes fiches, anneaux, bouts) = la composition de la fiche produit ---------- */
+/* matériau de chaque pièce sans fiche : ton choix (⚙), sinon le lien fait dans 🔗 Références, sinon le matériau reconnu d'après son nom */
+const txtMat = m => norm([m.designation, m.variante, m.sc].join(' '));
+const parNom = (...re) => mats.find(m => re.every(r => r.test(txtMat(m))));
+const REG_AUTO = {
+  pampille: () => liens['#PM-ex01'] ? [liens['#PM-ex01'], '🔗 Références'] : liens[cleFixe('ronde argentée 4 mm')] ? [liens[cleFixe('ronde argentée 4 mm')], '🔗 Références'] : [parNom(/ronde|boule/, /\b4 ?mm/)?.ref, 'd\'après le nom'],
+  petit: () => [parNom(/anneau/, /0[,.]5/)?.ref, 'd\'après le nom'],
+  anneau8: () => [parNom(/anneau/, /(^|[^0-9,.])8 ?mm/)?.ref, 'd\'après le nom'],
+  anneau10: () => [parNom(/anneau/, /10 ?mm/)?.ref, 'd\'après le nom'],
+  mousqueton: () => liens['#MP-ex01'] ? [liens['#MP-ex01'], '🔗 Références (mousqueton porte-clés)'] : [parNom(/mousqueton/, /porte|pivot|sac/)?.ref, 'd\'après le nom'],
+  fermoir10: () => [parNom(/fermoir/, /10 ?mm/)?.ref, 'd\'après le nom'],
+};
+const R = k => { if (REG[k]) return { ref: REG[k], src: 'ton choix' }; const [ref, src] = REG_AUTO[k]?.() || []; return ref && (mats.some(m => m.ref === ref) || bijoux.some(b => b.ref === ref)) ? { ref, src } : { ref: null, src: '' }; };
 const REGLAGES = [['anneau8', 'Anneau 8 mm', /anneau|8 ?mm/], ['anneau10', 'Anneau 10 mm', /anneau|10 ?mm/], ['petit', 'Petit anneau 0,5 mm', /0[,.]5|petit/], ['pampille', 'Perle de la pampille 4 mm', /ronde|4 ?mm|pampille/],
   ['mousqueton', 'Mousqueton de chaîne (×2)', /mousqueton/], ['fermoir10', 'Fermoir du collier (fermoir 10 mm)', /fermoir|mousqueton/]];
 function listeAFaire() {       // [{ ref, nom, qte, sc, detail }] — ce qui sera la composition de la fiche
@@ -285,13 +315,13 @@ function listeAFaire() {       // [{ ref, nom, qte, sc, detail }] — ce qui ser
       for (const a of A) anneaux[a.R > 4 ? 10 : 8] += p.nb; }
   }
   const fp = ELEMENTS_FICHES.find(x => x.e.k === 'pampille' && (x.e.taille || 4) === 4)?.b, fpetit = ELEMENTS_FICHES.find(x => x.e.k === 'petit')?.b;
-  if (compo.pampille) { if (fp) ajouter(fp.ref, nomFiche(fp), 1, 'Bijou (composition)'); else { anneaux.petit += 1; ajouter(REG.pampille, 'Perle de la pampille 4 mm', 1, ''); } }
+  if (compo.pampille) { if (fp) ajouter(fp.ref, nomFiche(fp), 1, 'Bijou (composition)'); else { anneaux.petit += 1; ajouter(R('pampille').ref, 'Perle de la pampille 4 mm', 1, ''); } }
   if (compo.usage !== 'breloque' && compo.bouts === 'fermoir-10') { const ff = ELEMENTS_FICHES.find(x => x.e.k === 'fermoir-10')?.b;
-    if (ff) ajouter(ff.ref, nomFiche(ff), 1, 'Bijou (composition)'); else { anneaux[10] += 11; ajouter(REG.fermoir10, 'Fermoir du collier', 1, ''); } }
-  if (compo.usage !== 'breloque' && compo.bouts === 'mousquetons') ajouter(REG.mousqueton, 'Mousqueton de chaîne', 2, '');
-  if (anneaux[8]) ajouter(REG.anneau8, 'Anneau 8 mm', anneaux[8], '');
-  if (anneaux[10]) ajouter(REG.anneau10, 'Anneau 10 mm', anneaux[10], '');
-  if (anneaux.petit) ajouter(fpetit?.ref || REG.petit, 'Petit anneau 0,5 mm', anneaux.petit, fpetit ? 'Bijou (composition)' : '');
+    if (ff) ajouter(ff.ref, nomFiche(ff), 1, 'Bijou (composition)'); else { anneaux[10] += 11; ajouter(R('fermoir10').ref, 'Fermoir du collier', 1, ''); } }
+  if (compo.usage !== 'breloque' && compo.bouts === 'mousquetons') ajouter(R('mousqueton').ref, 'Mousqueton de chaîne', 2, '');
+  if (anneaux[8]) ajouter(R('anneau8').ref, 'Anneau 8 mm', anneaux[8], '');
+  if (anneaux[10]) ajouter(R('anneau10').ref, 'Anneau 10 mm', anneaux[10], '');
+  if (anneaux.petit) ajouter(fpetit?.ref || R('petit').ref, 'Petit anneau 0,5 mm', anneaux.petit, fpetit ? 'Bijou (composition)' : '');
   return [...out.values()];
 }
 const nomMat = r => { const m = mats.find(x => x.ref === r); if (m) return [m.designation, m.variante].filter(Boolean).join(' · '); const b = ficheDe(r); return b ? nomFiche(b) : ''; };
@@ -303,11 +333,11 @@ function rendrePieces(d) {
   $('#etat2').textContent = `${compo.motif.length} élément(s) × ${compo.nb | 0}${compo.demi ? ',5' : ''}`;
 }
 function rendreReglages() {
-  const opt = (sel, re) => { const tri = [...mats].sort((a, b) => (re.test(norm([b.designation, b.variante, b.sc].join(' '))) - re.test(norm([a.designation, a.variante, a.sc].join(' '))))); 
-    return `<option value="">— choisir —</option>` + tri.map(m => `<option value="${esc(m.ref)}" ${m.ref === sel ? 'selected' : ''}>${esc(m.ref)} · ${esc([m.designation, m.variante].filter(Boolean).join(' · '))}</option>`).join('')
+  const opt = (sel, re, auto) => { const tri = [...mats].sort((a, b) => (re.test(norm([b.designation, b.variante, b.sc].join(' '))) - re.test(norm([a.designation, a.variante, a.sc].join(' '))))); 
+    return `<option value="">${auto.ref ? 'automatique : ' + esc(auto.ref) + ' · ' + esc(nomMat(auto.ref)) + ' (' + esc(auto.src) + ')' : '— choisir —'}</option>` + tri.map(m => `<option value="${esc(m.ref)}" ${m.ref === sel ? 'selected' : ''}>${esc(m.ref)} · ${esc([m.designation, m.variante].filter(Boolean).join(' · '))}</option>`).join('')
       + `<optgroup label="Compositions">${bijoux.filter(b => b.is_mat).map(b => `<option value="${esc(b.ref)}" ${b.ref === sel ? 'selected' : ''}>${esc(b.ref)} · ${esc(nomFiche(b))}</option>`).join('')}</optgroup>`; };
-  $('#reglages').innerHTML = REGLAGES.map(([k, l, re]) => `<label style="display:grid;grid-template-columns:150px 1fr;gap:8px;align-items:center;font-size:13px">${l}<select data-reg-mat="${k}">${opt(REG[k], re)}</select></label>`).join('')
-    + '<p class="aide">Servent seulement aux éléments qui n\'ont pas de fiche composition. Enregistrés pour toutes tes compositions.</p>';
+  $('#reglages').innerHTML = REGLAGES.map(([k, l, re]) => `<label style="display:grid;grid-template-columns:150px 1fr;gap:8px;align-items:center;font-size:13px">${l}<select data-reg-mat="${k}">${opt(REG[k], re, (() => { const g = REG[k]; REG[k] = undefined; const a = R(k); REG[k] = g; return a; })())}</select></label>`).join('')
+    + '<p class="aide">Pour les pièces sans fiche composition. « automatique » = le lien fait dans 🔗 Références (pampille, mousqueton…) ou le matériau reconnu d\'après son nom ; choisis-en un autre seulement s\'il est faux.</p>';
   $('#reglages').querySelectorAll('[data-reg-mat]').forEach(s => s.addEventListener('change', async () => { REG[s.dataset.regMat] = s.value || undefined;
     try { sb ? await ecrireCfg('chainmail_reglages', REG) : localStorage.setItem('bn-chainmail-reglages', JSON.stringify(REG)); } catch (x) { toast('Réglage non enregistré : ' + (x.message || x)); } rendre(); }));
 }
@@ -381,7 +411,7 @@ $('#btCopier').addEventListener('click', async () => {
 $('#depuisModele').innerHTML += Object.keys(RECETTES).map(n => `<option>${esc(n)}</option>`).join('');
 $('#depuisModele').addEventListener('change', e => { if (!e.target.value) return; const g = { id: compo.id, fiche: compo.fiche, nom: compo.fiche ? compo.nom : e.target.value };
   compo = { ...depuisRecette(e.target.value), ...g }; e.target.value = ''; rendreTout(true); });
-$('#btVierge').addEventListener('click', () => { const g = { id: compo.id, fiche: compo.fiche, nom: compo.fiche ? compo.nom : 'Nouvelle composition' }; compo = { ...VIERGE(), ...(compo.fiche ? g : {}) }; rendreTout(true); toast('Composition vierge : ajoute tes éléments à l\'étape 2'); });
+$('#btVierge').addEventListener('click', () => { setTimeout(() => allerPas(2)); const g = { id: compo.id, fiche: compo.fiche, nom: compo.fiche ? compo.nom : 'Nouvelle composition' }; compo = { ...VIERGE(), ...(compo.fiche ? g : {}) }; rendreTout(true); toast('Composition vierge : ajoute tes éléments à l\'étape 2'); });
 $('#depuisCompo').addEventListener('change', e => { const c = mes.find(x => x.id === e.target.value); if (c) { compo = clone(c); rendreTout(true); } e.target.value = ''; });
 $('#ficheCible').addEventListener('change', e => { compo.fiche = e.target.value || null; const b = ficheDe(compo.fiche); if (b && /^(ma chaine|nouvelle composition)$/i.test(norm(compo.nom))) compo.nom = nomFiche(b); rendreTout(); });
 $('#aModeliser').addEventListener('change', rendreFiches);
@@ -425,8 +455,8 @@ function rendreFiches() {
     const b = ficheDe(bt.dataset.composer), t = texteFiche(b), r = recetteDuNom(t);
     compo = { ...depuisRecette(r, nomFiche(b)), fiche: b.ref };
     if (/collier|choker|chocker|ras du cou/.test(norm(t))) compo.bouts = 'fermoir-10';
-    rendreTout(true); toast('Départ : « ' + r + ' ». Change ce qui diffère (étape 2), puis 💾 (étape 4).'); }));
-  $('#fiches').querySelectorAll('[data-ouvrir-c]').forEach(bt => bt.addEventListener('click', () => { compo = clone(mes.find(x => x.id === bt.dataset.ouvrirC)); rendreTout(true); }));
+    rendreTout(true); allerPas(2); toast('Départ : « ' + r + ' ». Change ce qui diffère, puis Vérifie et Enregistre.'); }));
+  $('#fiches').querySelectorAll('[data-ouvrir-c]').forEach(bt => bt.addEventListener('click', () => { compo = clone(mes.find(x => x.id === bt.dataset.ouvrirC)); rendreTout(true); allerPas(2); }));
 }
 
 /* ---------- étape 4 : enregistrer, relier, fiche produit, miniatures ---------- */
@@ -450,7 +480,7 @@ function rendreMes() {
   $('#mesCompos').innerHTML = mes.map((c, i) => { const b = ficheDe(c.fiche);
     return `<div class="seq-l">${b?.photo ? img(b.photo) : vignette((c.motif || []).find(estCorpsChainmail) || c.motif?.[0] || {})}<span class="t"><b>${esc(c.nom)}</b><small>${b ? 'fiche ' + esc(nomFiche(b)) + ' (' + esc(b.ref) + ')' : 'sans fiche'}</small></span>
       <button class="btn mini" type="button" data-ouvrir="${i}">Ouvrir</button><button class="btn mini" type="button" data-oublier="${i}" title="Supprimer">✕</button></div>`; }).join('') || '<p class="aide">Aucune pour l\'instant.</p>';
-  $('#mesCompos').querySelectorAll('[data-ouvrir]').forEach(b => b.addEventListener('click', () => { compo = clone(mes[+b.dataset.ouvrir]); rendreTout(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }));
+  $('#mesCompos').querySelectorAll('[data-ouvrir]').forEach(b => b.addEventListener('click', () => { compo = clone(mes[+b.dataset.ouvrir]); rendreTout(true); allerPas(2); }));
   $('#mesCompos').querySelectorAll('[data-oublier]').forEach(b => b.addEventListener('click', async () => { const c = mes[+b.dataset.oublier]; if (!confirm(`Supprimer « ${c.nom} » ?`)) return;
     mes.splice(+b.dataset.oublier, 1); try { await ecrireMes(mes); if (c.fiche) await relierFiche({ ...c, fiche: null }); } catch (x) { toast('Suppression impossible : ' + (x.message || x)); } rendreMes(); rendreFiches(); }));
 }
@@ -511,7 +541,15 @@ function remplirFiches() {
   $('#ficheCible').disabled = !sb;
 }
 $('#etatSb').textContent = sb ? 'Enregistré dans ta base : la composition reliée devient le visuel 3D de sa fiche dans le configurateur.' : 'Non connectée : compositions gardées sur cet appareil (ouvre le compositeur depuis l\'app pour tes fiches).';
-try { if (!localStorage.getItem('bn-compo-vu')) { $('#commentCa').open = true; localStorage.setItem('bn-compo-vu', '1'); } } catch {}
+/* une étape à la fois (les autres restent prêtes, rien n'est perdu en changeant d'étape) */
+let PAS = 1;
+function allerPas(n) { PAS = Math.max(1, Math.min(4, +n || 1)); [1, 2, 3, 4].forEach(i => { $('#e' + i).hidden = i !== PAS; $('#e' + i).open = true; });
+  document.querySelectorAll('#pas [data-pas]').forEach(b => b.classList.toggle('on', +b.dataset.pas === PAS)); document.querySelector('aside').scrollTop = 0; }
+document.addEventListener('click', e => { const b = e.target.closest('[data-pas]'); if (b) allerPas(b.dataset.pas); });
+const majPas = () => { const met = (id, t) => { if ($(id).textContent !== t) $(id).textContent = t; };
+  met('#pas1', $('#etat1').textContent.split(' · ')[0] || ''); met('#pas2', $('#etat2').textContent); met('#pas3', $('#etat3').textContent); };
+['#etat1', '#etat2', '#etat3'].forEach(id => new MutationObserver(majPas).observe($(id), { subtree: true, characterData: true, childList: true }));
+allerPas(1);
 remplirFiches(); rendreReglages();
 mes = await lireMes(); rendreMes(); rendreFiches();
 rendreTout(true);

@@ -210,7 +210,12 @@ const MINI_FERMOIR = f => !f ? '' : f.type === 'mousqueton' ? (f.taille >= 16 ? 
   : f.type === 'anneau-ressort' ? (f.taille <= 12 ? 'fermoir-mini-rond-11mm' : 'fermoir-rond-15mm') : f.type === 'mousqueton-pivot' ? 'mousqueton-porte-cles' : '';
 const miniDe = (ref, d) => { const f = FERMOIRS_DEMO.find(x => x.ref === ref); if (f) return MINI_FERMOIR(f);
   if (d && /ronde-3|3 ?mm/.test(norm([d.perle, d.nom].join(' '))) && /pampille|metal/.test(norm([d.nom, d.categorie].join(' ')))) return 'pampille-3mm';
-  if (d && /pampille|ronde-4/.test(norm([d.perle, d.nom].join(' ')))) return 'pampille-4mm'; return ''; };
+  if (d && /pampille|ronde-4/.test(norm([d.perle, d.nom].join(' ')))) return 'pampille-4mm';
+  const t = d ? norm([d.perle, d.nom, d.categorie, d.finition].join(' ')) : '';
+  if (/culture/.test(t)) return 'perle-de-culture-seule';
+  if (/etoile/.test(t)) return /nacre/.test(t) ? 'perle-etoile-nacre' : /petrole/.test(t) ? 'perle-etoile-petrole' : 'perle-etoile-argent';
+  return ''; };
+const miniFixe = kNom => miniDe('', { nom: kNom, perle: /\b3 ?mm/.test(norm(kNom)) ? 'ronde-3' : /\b4 ?mm/.test(norm(kNom)) ? 'ronde-4' : '' });
 const vis = (ref, d, lie) => { const ph = lie && photoRef(lie), mi = miniDe(ref, d);
   if (ph) return `<span class="vis"><img src="${esc(ph)}" alt=""></span>`;
   if (mi) return `<span class="vis"><img src="composants/${mi}.jpg" alt=""></span>`;
@@ -236,8 +241,16 @@ for (const m0 of modelesBruts.map(completerModeleChainmail)) {
 }
 // pièces des options à 2 pièces qui n'existent pas seules : une ligne chacune
 DOUBLES.forEach(x => x.pieces.forEach((r, i) => { if (!U.has(r)) usage(r, 'porte-cles', 'Porte-clés « ' + x.libelle + ' » · pièce ' + (i + 1)); }));
+// étoiles, perles de culture et autres perles en option (supplément) : chaque perle proposée
+for (const m0 of modelesBruts.map(completerModeleChainmail)) { const mo = resoudreDefauts(relierModele(m0, {}), catalogue, fermoirs), nomM = mo.nom || mo.slug;
+  const proposer = (x, role, prix) => { if (estExemple(x.ref)) usage(x.ref, 'options', role, { modele: nomM, prix, d: x });
+    else { const u = usage('lecture:' + x.ref, 'options', role, { modele: nomM, prix, d: x }); u.lecture = true; u.refFiche = x.ref; u.autoTxt = nomRef(x.ref) || x.nom || ''; } };
+  for (const o of mo.options || []) if (o.type === 'perle') catalogue.filter(x => !o.categorie || correspondCategorie(x, o.categorie)).forEach(x => proposer(x, 'Option « ' + (o.nom || 'perle') + ' »', o.supplement));
+  for (const z of mo.zones || []) if (/culture|etoile/.test(norm(z.categorie || ''))) couleursProposees(z, catalogue, parties).forEach(x => proposer(x, (z.nom || 'Perle') + ' de la breloque'));
+}
 // les autres références d'exemple (couleurs, perles, lettres…)
 for (const [ref, fa] of utilises) if (!U.has(ref)) usage(ref, 'couleurs', fa, { sous: fa });
+for (const x of U.values()) if (x.section === 'couleurs' && /etoile|culture/.test(norm([x.d?.categorie, x.d?.perle].join(' ')))) { x.section = 'options'; x.sous = ''; }
 // perles fixes : un lien par perle (même perle dans plusieurs modèles = un seul lien)
 for (const m0 of modelesBruts) { const mo = resoudreDefauts(m0, catalogue, fermoirs);
   for (const f of perlesFixesDe(mo, catalogue)) { const x = usage(cleFixe(f.kNom), 'fixes', f.role.replace(/^Perle fixe · /, ''), { modele: mo.nom || mo.slug }); x.kNom = f.kNom; x.auto = f.ref; } }
@@ -274,6 +287,7 @@ function statut(x) {      // { cls, txt, ok }
   if (lie === 'inclus') return { cls: 'ok', txt: '✓ comprise dans la composition', ok: true };
   if (lie) return existe(lie) ? { cls: 'ok', txt: '✓ ' + genreRef(lie), ok: true } : { cls: 'a', txt: '⚠ ' + lie + ' n\'existe plus', ok: false };
   if (x.section === 'fixes') return x.auto && !estExemple(x.auto) && existe(x.auto) ? { cls: 'au', txt: '✓ automatique', ok: true } : { cls: 'a', txt: '⚠ à relier', ok: false };
+  if (x.lecture && x.section !== 'produits') return { cls: 'ok', txt: '✓ référence de ta base', ok: true };
   if (x.lecture) return x.autoTxt ? { cls: 'ok', txt: '✓ c\'est sa fiche', ok: true } : { cls: 'a', txt: '⚠ ' + x.refFiche + ' introuvable', ok: false };
   if (x.section === 'produits') return x.autoTxt ? { cls: 'au', txt: '✓ automatique', ok: true } : { cls: 'a', txt: '⚠ à relier', ok: false };
   const pp = plusProche(x.cle);
@@ -314,6 +328,7 @@ const SECTIONS = [
   ['fermoirs', '🔩 Fermoirs des breloques', 'Chaque fermoir proposé à la cliente, et la pièce retirée du stock quand elle le choisit.'],
   ['porte-cles', '🗝 Porte-clés', 'Relie chaque porte-clés seul (une pièce). Les options à plusieurs pièces suivent automatiquement les pièces seules.'],
   ['supplements', '➕ Pampilles et autres pièces', 'Les pièces ajoutées par le configurateur (pampille des mini chains…).'],
+  ['options', '⭐ Étoiles, perles de culture et perles en option', 'Chaque perle que la cliente peut choisir en option (étoile…) ou sur la breloque perle de culture, et la référence retirée du stock.'],
   ['couleurs', '🎨 Couleurs et perles encore en exemple', 'Les couleurs proposées qui utilisent encore une référence d\'exemple (#…-ex…). Les variantes d\'une même référence (#AI001, #AI001b) sont un seul stock.'],
   ['fixes', '📌 Perles fixes des modèles', 'Les perles toujours présentes (intercalaires des lettres, petites plates des yeux, pampille…). Une même perle dans plusieurs modèles = un seul lien.'],
 ];
@@ -326,15 +341,16 @@ function ligneHTML(x) {
   const vide = estProd ? (x.autoTxt ? 'automatique : ' + x.autoTxt : '— choisir la fiche —') : x.section === 'fixes' ? (lie ? '— automatique —' : 'automatique : ' + (x.auto || '') + ' · ' + (nomRef(x.auto) || 'exemple')) : '— à relier —';
   const peutCreer = !estProd && x.section !== 'fixes' && d && !estBijou(d);
   const vignette = estProd ? ((lie && photoRef(lie)) || (x.refFiche && photoRef(x.refFiche)) ? `<span class="vis"><img src="${esc(photoRef(lie) || photoRef(x.refFiche))}" alt=""></span>` : x.d ? `<span class="vis" style="background:${fond(x.d)}"></span>` : x.mini ? `<span class="vis"><img src="composants/${x.mini}.jpg" alt=""></span>` : '<span class="vis">💎</span>')
-    : x.section === 'fixes' ? `<span class="vis" style="background:${allureFixe(x.kNom)?.hex || '#cfd0d4'}"></span>` : vis(x.cle, d, lie);
-  const mi = !estProd && miniDe(x.cle, d), photo3d = mi && lie && lie !== 'inclus' && existe(lie) && !photoRef(lie);
+    : x.section === 'fixes' ? (miniFixe(x.kNom) ? `<span class="vis"><img src="composants/${miniFixe(x.kNom)}.jpg" alt=""></span>` : `<span class="vis" style="background:${allureFixe(x.kNom)?.hex || '#cfd0d4'}"></span>`) : vis(x.cle, d, x.lecture ? x.refFiche : lie);
+  const cibleP = x.lecture ? x.refFiche : x.section === 'fixes' ? (lie && lie !== 'inclus' ? lie : x.auto) : lie;
+  const mi = !estProd && (x.section === 'fixes' ? miniFixe(x.kNom) : miniDe(x.cle, d)), photo3d = mi && cibleP && cibleP !== 'inclus' && existe(cibleP) && !photoRef(cibleP);
   const cible = lie && lie !== 'inclus' && existe(lie) ? `<br><span class="ref">${esc(lie)}</span> ${esc(nomRef(lie) || '')}` : '';
   const txt = norm([titre, sous, lie, nomRef(lie), x.cle].join(' '));
   return `<div class="l" data-ok="${st.ok ? 1 : 0}" data-txt="${esc(txt)}">${vignette}
     <span class="t"><b>${esc(titre)}</b> ${!estProd && x.section !== 'fixes' ? `<span class="ref">${esc(x.cle)}</span>` : ''}<small>${esc(sous)}</small></span>
-    ${x.lecture ? `<span><span class="ref">${esc(x.refFiche)}</span> ${esc(x.autoTxt.replace(/^\S+ · /, ''))}<br><span class="ref">le motif est directement sa fiche bijou</span></span>`
+    ${x.lecture ? `<span><span class="ref">${esc(x.refFiche)}</span> ${esc(x.autoTxt.replace(/^\S+ · /, ''))}<br><span class="ref">${estProd ? 'le motif est directement sa fiche bijou' : 'déjà une vraie référence de ta base'}</span></span>`
       : selAssoc(x.cle, { d, choisi: lie, vide, inclus: x.section === 'fixes', creer: peutCreer, bijouxSeuls: estProd, indices: estProd ? x.titre : x.section === 'fixes' ? x.kNom : [d?.nom, d?.categorie].join(' ') })}
-    <span class="st ${st.cls}">${esc(st.txt)}${st.plus ? `<br><small style="font-weight:400;color:var(--doux)">${esc(st.plus)}</small>` : ''}${cible}${photo3d ? `<br><button class="leger" data-photo3d="${esc(lie)}" data-mini="${mi}" title="La miniature 3D devient la photo de ${esc(lie)}">📸 miniature 3D en photo</button>` : ''}</span>
+    <span class="st ${st.cls}">${esc(st.txt)}${st.plus ? `<br><small style="font-weight:400;color:var(--doux)">${esc(st.plus)}</small>` : ''}${cible}${photo3d ? `<br><button class="leger" data-photo3d="${esc(cibleP)}" data-mini="${mi}" title="La miniature 3D devient la photo de ${esc(cibleP)}">📸 miniature 3D en photo</button>` : ''}</span>
     ${ouvert === x.cle ? formCreer(x) : ''}</div>`;
 }
 function formCreer(x) {
