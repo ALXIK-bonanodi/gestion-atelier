@@ -184,7 +184,7 @@ aside > *, .etape .corps > *, .seq-l, .seq-l .t { min-width: 0; }
 <script type="module">
 import { ScenePerles, assemblerComposition, decompteComposition, definirCompositions, elementChainmail, nomElementChainmail, estCorpsChainmail,
   elementDepuisNom, piecesComposition, connecteurEntre, modeleChaineSacDemo, modeleChainmailDemo, catalogueChaineDepuisBijoux, catalogueChainmailDepuisBijoux,
-  definirLiensFormes, NOMS_CHAINE, FORMES_CHAINMAIL, CATALOGUE_DEMO } from './bead-core.js?v=76cf3650';
+  definirLiensFormes, NOMS_CHAINE, FORMES_CHAINMAIL, CATALOGUE_DEMO } from './bead-core.js?v=44ab0c9f';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure } from './perles-config.js?v=e5e86015';
 
 const $ = s => document.querySelector(s);
@@ -231,7 +231,7 @@ let compo = depuisRecette('Double byzantine 8 mm', 'Ma chaîne'); compo.nb = 3;
 try { const b = JSON.parse(localStorage.getItem('bn-compo-brouillon')); if (b && Array.isArray(b.motif)) compo = b; } catch {}
 
 /* ---------- base ---------- */
-let sb = null, mes = [], bijoux = [], mats = [], liens = {}, REG = {};
+let sb = null, mes = [], bijoux = [], mats = [], liens = {}, REG = {}, FICHES_CFG = {};
 try { if (supabaseConfigure() && window.supabase) { const c = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); const { data } = await c.auth.getSession(); if (data?.session) sb = c; } } catch { sb = null; }
 const lireCfg = async cle => { const { data } = await sb.from('config').select('value').eq('key', cle).maybeSingle(); let v = data?.value; if (typeof v === 'string') { try { v = JSON.parse(v); } catch { v = null; } } return v; };
 const ecrireCfg = async (cle, v) => { const { error } = await sb.from('config').upsert({ key: cle, value: v }); if (error) throw error; };
@@ -240,6 +240,7 @@ if (sb) {
   try { const { data } = await sb.from('materiaux').select('id,ref,designation,variante,sc,mc,type').order('ref'); mats = data || []; } catch { mats = []; }
   try { liens = (await lireCfg('configurateur_liens')) || {}; } catch { liens = {}; }
   try { REG = (await lireCfg('chainmail_reglages')) || {}; } catch { REG = {}; }
+  try { const v = await lireCfg('configurateur_fiches'); FICHES_CFG = v?.fiches || {}; } catch { FICHES_CFG = {}; }
 } else { try { REG = JSON.parse(localStorage.getItem('bn-chainmail-reglages')) || {}; } catch { REG = {}; } }
 const ficheDe = ref => bijoux.find(b => b.ref === ref);
 const nomFiche = b => b ? [b.nom, b.variante].filter(Boolean).join(' · ') : '';
@@ -385,11 +386,28 @@ $('#depuisCompo').addEventListener('change', e => { const c = mes.find(x => x.id
 $('#ficheCible').addEventListener('change', e => { compo.fiche = e.target.value || null; const b = ficheDe(compo.fiche); if (b && /^(ma chaine|nouvelle composition)$/i.test(norm(compo.nom))) compo.nom = nomFiche(b); rendreTout(); });
 $('#aModeliser').addEventListener('change', rendreFiches);
 const chainmailish = b => /chain|byzant|maille|croix|collier|choker|chocker|mini|noeud|nœud|connecteur|anneau solo|pampille|fermoir 10/.test(norm(texteFiche(b)));
-function etatFiche(b, auto) {
+/* une fiche est « modélisée » si :
+   - c'est un élément connu (nœud 4x4, connecteur…) d'après son nom ;
+   - elle est reliée à un modèle / une forme / une de tes compositions (🔗 Références ou 💾 ici) ;
+   - c'est une composition qui a déjà sa photo (importée de la fiche produit) ;
+   - elle est faite de fiches déjà modélisées (ex. breloque chainmail = composition croix + fermoir, mix and match = breloques existantes). */
+const piecesFiche = b => { const ids = new Set((FICHES_CFG[b.id]?.pieces || []).map(p => p.bij_id));
+  for (const m of b.mats || []) { const c = bijoux.find(x => x.ref === m.ref); if (c) ids.add(c.id); }
+  return [...ids].map(id => bijoux.find(x => x.id === id)).filter(Boolean); };
+function etatFiche(b, auto, prof = 0) {
   const el = elementDepuisNom(texteFiche(b)); if (el) return { ok: true, txt: 'élément 3D : ' + nomElementChainmail(el), compo: false };
   const f = auto.get(b.ref), c = f?.startsWith('compo-') && mes.find(x => 'compo-' + x.id === f);
   if (c) return { ok: true, txt: 'ta composition « ' + c.nom + ' »', compo: c };
+  const lie = Object.entries(liens).find(([k, v]) => /^(forme|modele):/.test(k) && (v === b.ref || v === parent(b.parent_id)?.ref));
+  if (lie) { const k = lie[0].replace(/^(forme|modele):/, ''), cc = k.startsWith('compo-') && mes.find(x => 'compo-' + x.id === k);
+    return { ok: true, txt: cc ? 'ta composition « ' + cc.nom + ' »' : 'reliée dans 🔗 Références (' + (NOMS_CHAINE[k] || FORMES_CHAINMAIL[k]?.nom || k) + ')', compo: cc || false }; }
   if (f) return { ok: true, txt: 'forme ' + (NOMS_CHAINE[f] || FORMES_CHAINMAIL[f]?.nom || f) + ' (d\'après le nom)', compo: false };
+  if (b.is_mat && (b.photo || parent(b.parent_id)?.photo)) return { ok: true, txt: 'composition avec sa photo', compo: false };
+  const P = prof < 4 ? piecesFiche(b) : [];
+  if (P.length) { const ko = P.filter(p => chainmailish(p) && !etatFiche(p, auto, prof + 1).ok);
+    if (!ko.length) return { ok: true, txt: 'faite de fiches déjà modélisées (' + P.map(nomFiche).slice(0, 3).join(' + ') + (P.length > 3 ? '…' : '') + ')', compo: false };
+    return { ok: false, txt: 'à modéliser : ' + ko.map(nomFiche).join(', '), compo: false }; }
+  if (b.parent_id && parent(b.parent_id)) { const e = etatFiche(parent(b.parent_id), auto, prof + 1); if (e.ok) return { ...e, txt: e.txt + ' · variante' }; }
   return { ok: false, txt: 'à modéliser', compo: false };
 }
 function rendreFiches() {
@@ -439,9 +457,10 @@ function rendreMes() {
 $('#btSauver').addEventListener('click', async () => { try { await sauver(); toast(compo.fiche ? 'Enregistrée : c\'est le visuel 3D de la fiche ✓' : 'Composition enregistrée ✓'); } catch (x) { toast('Enregistrement impossible : ' + (x.message || x)); } });
 $('#btDupliquer').addEventListener('click', () => { compo = { ...clone(compo), id: null, fiche: null, nom: (compo.nom || 'Chaîne') + ' (copie)' }; rendreTout(); toast('Copie prête (sans fiche) : change-la, relie-la, puis 💾'); });
 const matsFiche = () => listeAFaire().filter(x => x.ref).map(x => ({ ref: x.ref, qty: x.qte, qty_unite: 'native', sc: x.sc || mats.find(m => m.ref === x.ref)?.sc || '' }));
-function prochaineRef() {
-  const pre = compo.usage === 'breloque' ? 'MC-' : 'CH-', nums = bijoux.map(b => String(b.ref || '')).filter(r => r.startsWith(pre)).map(r => +r.slice(pre.length) || 0);
-  return pre + String(Math.max(0, ...nums) + 1).padStart(3, '0');
+function prochaineRef() {        // même numérotation que l'app : BIJ-001… (le numéro suivant libre)
+  const nums = bijoux.map(b => (/^BIJ[-_ ]?0*(\d+)$/i.exec(String(b.ref || '').trim()) || [])[1]).filter(Boolean).map(Number);
+  let n = Math.max(0, ...nums) + 1; while (bijoux.some(b => String(b.ref || '').toUpperCase() === 'BIJ-' + String(n).padStart(3, '0'))) n++;
+  return 'BIJ-' + String(n).padStart(3, '0');
 }
 $('#btCreerFiche').addEventListener('click', async () => {
   if (!sb) return; const manque = listeAFaire().filter(x => !x.ref);

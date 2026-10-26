@@ -292,6 +292,7 @@ label.champ input:focus, label.champ textarea:focus { border-color: var(--prune)
 }
 @media (max-width: 480px) { .champs { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+.palier { margin: 6px 0 0; font-size: 13px; color: var(--prune-doux, #7e6a85); } .palier.ok { color: #2f7a46; font-weight: 600; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
@@ -462,8 +463,8 @@ import {
   modeleChainmailDemo, estChainmail, formeChainmail, motifArgile, modeleMiniChaineDemo, completerModeleChainmail, estMiniChaine, estMiniForme, pointsSurChaine, anneauxDeForme, COLLECTION_CHAINE, chargerBijouxBoutique, bijouBreloque, modelePerleCultureDemo, estPerleCulture, apercuChainmail,
   correspondCategorie, texteCatalogue, ordreModeles, chargerRuptures, appliquerRuptures,
   chargerLiens, appliquerLiens, relierModele, chargerMateriauxParRefs,
-  chargerFichesConfig, chargerOffres, definirLiensFormes, lienModele, composerCompos, definirFichesConfig, ficheCfg, refsCouleurFiche, famillesFiche,
-} from './bead-core.js?v=76cf3650';
+  chargerFichesConfig, chargerOffres, definirLiensFormes, lienModele, appliquerLienModele, composerCompos, definirFichesConfig, ficheCfg, refsCouleurFiche, famillesFiche,
+} from './bead-core.js?v=44ab0c9f';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER, PANIER_SHOPIFY } from './perles-config.js?v=e5e86015';
 
 const $ = s => document.querySelector(s);
@@ -541,7 +542,7 @@ if (!modeles.length) modeles = [modeleDemo(), modeleAreteDemo(), modeleLettresDe
 const CHAINE_ACTIVE = ruptures.includes('activer:chaine');
 if (CHAINE_ACTIVE && !modeles.some(estChaineSac)) modeles = [...modeles, modeleChaineSacDemo()];
 // mini chaîne (breloque chainmail) : proposée dès que tu as une fiche « mini chaîne … » (ou en aperçu sans base)
-modeles = modeles.map(completerModeleChainmail).map(m => lienModele(m.slug) ? { ...m, bij_ref: lienModele(m.slug) } : m);   // fiche produit reliée au modèle 3D            // modèles chainmail publiés : fermoir mousqueton, perle de culture en haut
+modeles = modeles.map(completerModeleChainmail).map(appliquerLienModele);   // fiche produit reliée au modèle 3D            // modèles chainmail publiés : fermoir mousqueton, perle de culture en haut
 // ruptures de stock cochées dans l'app de gestion : éléments épuisés, breloques retirées
 const breloqueDispo = appliquerRuptures(ruptures, catalogue, fermoirs);
 definirFichesConfig(fichesCfg, catalogue.map(c => ({ ref: c.ref, categorie: c.categorie })));      // reconnaître la fiche bijou d'après les couleurs choisies
@@ -662,7 +663,15 @@ const OFFRES = {
   // offre « breloques lettre » (anciennement enregistrée sous « perles », avec un libellé erroné : on le corrige)
   lettres: { active: true, min: 3, prixMin: 15, ...(offresCfg?.perles || {}), ...(offresCfg?.lettres || {}),
     libelle: (offresCfg?.lettres?.libelle && !/perle/i.test(offresCfg.lettres.libelle)) ? offresCfg.lettres.libelle : 'Breloque lettre offerte' },
+  // remise sur la commande par paliers (−5 % dès 55 €, −10 % dès 110 €…) : le plus haut atteint, un seul ; calculée au paiement sur toute la commande
+  paliers: (Array.isArray(offresCfg?.paliers) ? offresCfg.paliers : [{ seuil: 55, pct: 5, active: true }, { seuil: 110, pct: 10, active: true }])
+    .filter(x => x && x.active !== false && +x.seuil > 0 && +x.pct > 0).sort((a, b) => a.seuil - b.seuil),
 };
+const palierPour = montant => [...OFFRES.paliers].reverse().find(x => montant >= x.seuil - 0.001) || null;
+const palierSuivant = montant => OFFRES.paliers.find(x => montant < x.seuil - 0.001) || null;
+const remisePalier = montant => { const p = palierPour(montant); return p ? { ...p, montant: Math.round(montant * p.pct) / 100 } : null; };
+// montant de la commande : personnalisations déjà au panier + celle en cours (si elle n'y est pas encore)
+const montantCommande = totalIci => Math.round((panierLocal().filter(x => x.numero !== dansPanier && x.numero !== valide?.numero).reduce((t, x) => t + (+x.total || 0), 0) + (+totalIci || 0)) * 100) / 100;
 /* offre « breloques lettre offertes » : dès N breloques à X € ou plus (hors lettres et chaîne), les breloques lettre sont offertes */
 /* panier du configurateur : plusieurs personnalisations payées dans la même commande (une note par personnalisation).
    Une offre ne vaut qu'une fois par commande : celles déjà prises par une autre personnalisation du panier sont bloquées ici. */
@@ -1507,6 +1516,9 @@ function rendreRecap() {
   $('#recap').innerHTML = `
     <ul>${lignes.map(([a, b]) => `<li><span>${esc(a)}</span><span>${esc(b)}</span></li>`).join('')}</ul>
     ${det.length > 1 ? `<details class="detail-prix" open><summary>Détail des prix</summary><ul>${det.map(d => `<li><span>${esc(d.libelle.trim())}</span><span>${d.prix < 0 ? '−' + euros(-d.prix) : euros(d.prix)}</span></li>`).join('')}</ul></details>` : ''}
+    ${(() => { if (!PANIER_SHOPIFY || !shopifyPret) return ''; const mc = montantCommande(total), r = remisePalier(mc), suiv = palierSuivant(mc);
+      return (r ? `<p class="palier ok">−${r.pct} % sur ta commande dès ${euros(r.seuil)} : −${euros(r.montant)}${mc > total + 0.01 ? ' (avec ton panier)' : ''}, déduit au paiement</p>` : '')
+        + (suiv ? `<p class="palier">Encore ${euros(suiv.seuil - mc)} pour −${suiv.pct} % sur ta commande</p>` : ''); })()}
     <div class="total"><span>Total</span><b>${euros(total)}</b></div>`;
   $('#prixBouton').textContent = '· ' + euros(total);
   // toute modification après enregistrement repart sur une nouvelle personnalisation
@@ -1669,10 +1681,18 @@ function ecartsStock(b, i) {
     plus(r, 1); if (meme) plus(meme, -1);
   }
   for (const r of piecesProduction(i)) plus(r, 1);
-  // fermoir choisi (grand, mousqueton, rond…) différent de celui de la fiche : remplacé
+  // fermoir choisi (petit, grand, mousqueton, rond…) :
+  //  - la fiche (ou une composition qu'elle contient, ex. croix + fermoir) a déjà un fermoir : il est remplacé s'il est différent ;
+  //  - la fiche n'a aucun fermoir (ex. breloque faite d'une combinaison de fiches) : le fermoir choisi est ajouté.
   const optF = (m.options || []).find(o => o.type === 'fermoir'), rF = optF && opts[optF.id];
-  const ancienF = refsFiche.find(x => fermParRef[x]?.type && fermParRef[x].type !== 'anneau-ressort' || /^#FB/.test(x));
-  if (rF && ancienF && !refsFiche.some(x => x === rF || baseRef(x) === baseRef(rF))) { plus(rF, 1); plus(ancienF, -1); }
+  const refsTout = (() => { const vus = new Set(), out = [...refsFiche];
+    const desc = (id, n) => { if (!id || vus.has(id) || n > 4) return; vus.add(id); const f = ficheCfg(id); if (!f) return;
+      if (n) out.push(...(f.refs || [])); for (const p of f.pieces || []) desc(p.bij_id, n + 1); };
+    desc(fiche.id, 0); return out; })();
+  const estFermoirBreloque = x => (fermParRef[x]?.type && fermParRef[x].type !== 'anneau-ressort' && fermParRef[x].type !== 'mousqueton-pivot') || /^#FB/.test(x)
+    || (rF && fermParRef[rF] && fermParRef[x]?.type === fermParRef[rF].type);
+  const ancienF = refsTout.find(estFermoirBreloque);
+  if (rF && !refsTout.some(x => x === rF || baseRef(x) === baseRef(rF))) { plus(rF, 1); if (ancienF) plus(ancienF, -1); }
   const liste = o => Object.entries(o).filter(([, q]) => q).map(([ref, qty]) => ({ ref, qty, qty_unite: 'unite' }));
   return { ajout: liste(ajout), remplace: Object.entries(remplace).map(([ref, qty]) => ({ ref, qty, qty_unite: 'unite' })) };
 }
@@ -1726,9 +1746,10 @@ function rendrePanier() {
   const l = panierLocal(), el = $('#panierPerso'); if (!el) return;
   el.hidden = !l.length || !PANIER_SHOPIFY || !sb || !shopifyPret;
   if (el.hidden) return;
-  const tot = Math.round(l.reduce((t, x) => t + (+x.total || 0), 0) * 100) / 100;
+  const brut = Math.round(l.reduce((t, x) => t + (+x.total || 0), 0) * 100) / 100, rp = remisePalier(brut), tot = Math.round((brut - (rp?.montant || 0)) * 100) / 100;
   el.innerHTML = `<h3>Ton panier · ${l.length} personnalisation${l.length > 1 ? 's' : ''}</h3>
     ${l.map(x => `<div class="ligne-perso"><span>${esc(x.numero)} · ${esc(x.resume)} · ${euros(x.total)}</span><button class="btn-second" type="button" data-retirer-panier="${esc(x.numero)}">Retirer</button></div>`).join('')}
+    ${rp ? `<p class="palier ok">Remise sur la commande dès ${euros(rp.seuil)} : −${rp.pct} % (−${euros(rp.montant)})</p>` : ''}
     <p class="dim">Chaque personnalisation garde sa propre note. Les offres ne comptent qu'une fois par commande.</p>
     <div class="panier-actions"><button class="btn-envoi" type="button" id="btPayer">Payer · ${euros(tot)}</button>
       <button class="btn-second" type="button" id="btAutre">Créer une autre personnalisation</button></div>`;

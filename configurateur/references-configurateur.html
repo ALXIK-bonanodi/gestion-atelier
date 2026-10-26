@@ -83,8 +83,8 @@ import {
   listerModelesPublies, chargerCatalogueBoutique, chargerFermoirsBoutique, chargerPartiesConfigurateur, chargerBijouxBoutique,
   completerCatalogue, definirLiensFormes, catalogueChainmailDepuisBijoux, catalogueChaineDepuisBijoux, NOMS_CHAINE, completerModeleChainmail, modeleChaineSacDemo, estChaineSac, FORMES_CHAINMAIL, resoudreDefauts, couleursProposees, correspondCategorie, ordreModeles, estLettres, accrochesProposees,
   chargerLiens, enregistrerLiens, estExemple, exemplesParRef, apercuArgile, apercuChainmail, baseRef,
-  appliquerLiens, relierModele, definirLiensFixes, cleFixe, refFixe, catalogueDepuisMateriaux, perlesFixesDe, allureFixe, bijouBreloque, definirCompositions,
-} from './bead-core.js?v=76cf3650';
+  appliquerLiens, relierModele, appliquerLienModele, definirLiensFixes, cleFixe, refFixe, catalogueDepuisMateriaux, perlesFixesDe, allureFixe, bijouBreloque, definirCompositions,
+} from './bead-core.js?v=44ab0c9f';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './perles-config.js?v=e5e86015';
 
 const $ = s => document.querySelector(s);
@@ -274,6 +274,7 @@ function statut(x) {      // { cls, txt, ok }
   if (lie === 'inclus') return { cls: 'ok', txt: '✓ comprise dans la composition', ok: true };
   if (lie) return existe(lie) ? { cls: 'ok', txt: '✓ ' + genreRef(lie), ok: true } : { cls: 'a', txt: '⚠ ' + lie + ' n\'existe plus', ok: false };
   if (x.section === 'fixes') return x.auto && !estExemple(x.auto) && existe(x.auto) ? { cls: 'au', txt: '✓ automatique', ok: true } : { cls: 'a', txt: '⚠ à relier', ok: false };
+  if (x.lecture) return x.autoTxt ? { cls: 'ok', txt: '✓ c\'est sa fiche', ok: true } : { cls: 'a', txt: '⚠ ' + x.refFiche + ' introuvable', ok: false };
   if (x.section === 'produits') return x.autoTxt ? { cls: 'au', txt: '✓ automatique', ok: true } : { cls: 'a', txt: '⚠ à relier', ok: false };
   const pp = plusProche(x.cle);
   return { cls: 'a', txt: '⚠ à relier', plus: 'rien n\'est déduit du stock' + (pp ? ' · affiché en 3D : ' + (pp.nomClient || pp.nom) : ''), ok: false };
@@ -287,9 +288,17 @@ const PROD = [];
   const mm = Object.fromEntries(catalogueChainmailDepuisBijoux(bijoux).map(c => [c.forme, bijoux.find(b => b.ref === c.ref)]));
   const ch = {}; for (const c of catalogueChaineDepuisBijoux(bijoux)) (ch[c.forme] ||= []).push(bijoux.find(b => b.ref === c.ref));
   definirLiensFormes(garde);
+  const autoDe = (mo, mode) => { const r = bijouBreloque(mo, { couleurs: {}, texte: { mode }, bijoux }); return r.id ? nomB(bijoux.find(b => b.id === r.id)) : ''; };
   for (const m0 of modelesBruts.filter(m => !m.bijZone && !estChaineSac(m))) { const mo = resoudreDefauts(m0, catalogue, fermoirs);
-    const r = bijouBreloque({ ...mo, bij_ref: mo.bij_ref }, { couleurs: {}, texte: { mode: 1 }, bijoux });
-    PROD.push({ cle: 'modele:' + mo.slug, section: 'produits', sous: 'Breloques', titre: mo.nom || mo.slug, autoTxt: r.id ? nomB(bijoux.find(b => b.id === r.id)) : '' }); }
+    if (estLettres(mo)) [1, 2].forEach(mode => PROD.push({ cle: 'modele:' + mo.slug + ':' + mode, section: 'produits', sous: 'Breloques', titre: (mo.nom || mo.slug) + ' · ' + mode + ' mot' + (mode > 1 ? 's' : ''), autoTxt: autoDe(mo, mode) }));
+    else PROD.push({ cle: 'modele:' + mo.slug, section: 'produits', sous: 'Breloques', titre: mo.nom || mo.slug, autoTxt: autoDe(mo, 1) }); }
+  // breloques argile (et autres modèles « une fiche par motif ») : chaque motif proposé et sa fiche produit
+  for (const m0 of modelesBruts.map(completerModeleChainmail).filter(m => m.bijZone && !estChaineSac(m) && !(m.groupes || []).some(g => g.zoneForme))) { const mo = resoudreDefauts(m0, catalogue, fermoirs), z = (mo.zones || []).find(x => x.id === mo.bijZone);
+    if (!z) continue;
+    for (const x of couleursProposees(z, catalogue, parties)) {
+      const b = bijoux.find(y => y.ref === x.ref), sous = (mo.nom || mo.slug) + ' · une fiche par motif';
+      if (estExemple(x.ref)) PROD.push({ cle: x.ref, section: 'produits', sous, titre: x.nom, d: x, autoTxt: '', motif: true });
+      else PROD.push({ cle: 'motif:' + x.ref, section: 'produits', sous, titre: x.nom, d: x, autoTxt: b ? nomB(b) : '', lecture: true, refFiche: x.ref }); } }
   for (const [fo, t] of [['croix', 'Croix'], ['mini-fleur-4', 'Mini chain · Byzantine fleur'], ['mini-intercalaire-4', 'Mini chain · Byzantine alternative']])
     PROD.push({ cle: 'forme:' + fo, section: 'produits', sous: 'Breloques chainmail', titre: t, autoTxt: nomB(mm[fo]), mini: fo === 'croix' ? 'croix-pampille' : fo === 'mini-fleur-4' ? 'mini-chaine-byzantine-fleur-pampille' : 'mini-chaine-byzantine-alternative-pampille' });
   for (const [fo, F] of Object.entries(FORMES_CHAINMAIL).filter(([, F]) => F.compo))
@@ -298,6 +307,7 @@ const PROD = [];
     PROD.push({ cle: 'forme:' + fo, section: 'produits', sous: 'Chaînes de sac', titre: NOMS_CHAINE[fo], autoTxt: (ch[fo] || []).filter(Boolean).map(nomB).join(' / ') });
 }
 
+for (const x of PROD) U.delete(x.cle);
 /* ---------- affichage ---------- */
 const SECTIONS = [
   ['produits', '🧭 Fiches produits', 'La fiche produit sur laquelle chaque commande sur mesure est produite (prix, stock, fiche atelier). « automatique » = trouvée d\'après son nom.'],
@@ -315,14 +325,15 @@ function ligneHTML(x) {
   const sous = estProd ? '' : [...x.roles].join(' · ') + (x.prix.size ? ' · +' + [...x.prix].join(' / ') : '') + (x.modeles.size ? ' — ' + [...x.modeles].join(', ') : '');
   const vide = estProd ? (x.autoTxt ? 'automatique : ' + x.autoTxt : '— choisir la fiche —') : x.section === 'fixes' ? (lie ? '— automatique —' : 'automatique : ' + (x.auto || '') + ' · ' + (nomRef(x.auto) || 'exemple')) : '— à relier —';
   const peutCreer = !estProd && x.section !== 'fixes' && d && !estBijou(d);
-  const vignette = estProd ? (lie && photoRef(lie) ? `<span class="vis"><img src="${esc(photoRef(lie))}" alt=""></span>` : x.mini ? `<span class="vis"><img src="composants/${x.mini}.jpg" alt=""></span>` : '<span class="vis">💎</span>')
+  const vignette = estProd ? ((lie && photoRef(lie)) || (x.refFiche && photoRef(x.refFiche)) ? `<span class="vis"><img src="${esc(photoRef(lie) || photoRef(x.refFiche))}" alt=""></span>` : x.d ? `<span class="vis" style="background:${fond(x.d)}"></span>` : x.mini ? `<span class="vis"><img src="composants/${x.mini}.jpg" alt=""></span>` : '<span class="vis">💎</span>')
     : x.section === 'fixes' ? `<span class="vis" style="background:${allureFixe(x.kNom)?.hex || '#cfd0d4'}"></span>` : vis(x.cle, d, lie);
   const mi = !estProd && miniDe(x.cle, d), photo3d = mi && lie && lie !== 'inclus' && existe(lie) && !photoRef(lie);
   const cible = lie && lie !== 'inclus' && existe(lie) ? `<br><span class="ref">${esc(lie)}</span> ${esc(nomRef(lie) || '')}` : '';
   const txt = norm([titre, sous, lie, nomRef(lie), x.cle].join(' '));
   return `<div class="l" data-ok="${st.ok ? 1 : 0}" data-txt="${esc(txt)}">${vignette}
     <span class="t"><b>${esc(titre)}</b> ${!estProd && x.section !== 'fixes' ? `<span class="ref">${esc(x.cle)}</span>` : ''}<small>${esc(sous)}</small></span>
-    ${selAssoc(x.cle, { d, choisi: lie, vide, inclus: x.section === 'fixes', creer: peutCreer, bijouxSeuls: estProd, indices: estProd ? x.titre : x.section === 'fixes' ? x.kNom : [d?.nom, d?.categorie].join(' ') })}
+    ${x.lecture ? `<span><span class="ref">${esc(x.refFiche)}</span> ${esc(x.autoTxt.replace(/^\S+ · /, ''))}<br><span class="ref">le motif est directement sa fiche bijou</span></span>`
+      : selAssoc(x.cle, { d, choisi: lie, vide, inclus: x.section === 'fixes', creer: peutCreer, bijouxSeuls: estProd, indices: estProd ? x.titre : x.section === 'fixes' ? x.kNom : [d?.nom, d?.categorie].join(' ') })}
     <span class="st ${st.cls}">${esc(st.txt)}${st.plus ? `<br><small style="font-weight:400;color:var(--doux)">${esc(st.plus)}</small>` : ''}${cible}${photo3d ? `<br><button class="leger" data-photo3d="${esc(lie)}" data-mini="${mi}" title="La miniature 3D devient la photo de ${esc(lie)}">📸 miniature 3D en photo</button>` : ''}</span>
     ${ouvert === x.cle ? formCreer(x) : ''}</div>`;
 }
@@ -491,36 +502,40 @@ function rendreUtilises() {
       <span>${extra}</span></div>`;
   };
   const ouverts = new Set([...document.querySelectorAll('#utilises details[open]')].map(d => d.dataset.slug)), premier = !document.querySelector('#utilises details'), y = scrollY;
+  definirLiensFormes(liens);
   const blocs = modelesBruts.map(m0 => {
-    const mo = resoudreDefauts(relierModele(m0, liens), cat, fL), L = [];
+    const mo = appliquerLienModele(resoudreDefauts(relierModele(m0, liens), cat, fL)), brut = resoudreDefauts(m0, catalogue, fermoirs), L = [];
+    // modifier sur place : une référence d'exemple se relie ici ; une vraie référence écrite dans le modèle se change dans 🧊 Modèles
+    const edit = (rb, d) => !rb ? '' : estExemple(rb) ? selAssoc(rb, { d: d || EX.get(rb), choisi: liens[rb], vide: '— à relier —', indices: [EX.get(rb)?.nom, EX.get(rb)?.categorie].join(' ') })
+      : '<span class="ref">réf. écrite dans le modèle (🧊 Modèles)</span>';
     // la fiche bijou sur laquelle la commande est produite (et dont la composition est déduite du stock)
-    const ficheL = (nom, texte) => { const r = bijouBreloque(mo, { couleurs: {}, texte, bijoux }); const b = bijoux.find(x => x.id === r.id);
-      L.push(b ? `<div class="ligne liee"><span class="pastille" style="background:#3c114b"></span><span>${esc(nom)}</span><span><b class="ok">✓</b> <span class="ref">${esc(b.ref)}</span> ${esc([b.nom, b.variante].filter(Boolean).join(' · '))}</span><span class="ref">stock : sa composition</span></div>`
-        : `<div class="ligne"><span class="pastille" style="background:#eee"></span><span>${esc(nom)}</span><span><b class="alerte">⚠</b> aucune fiche bijou trouvée (lien du modèle : ${esc(mo.bij_ref || mo.bijNom || '—')})</span><span></span></div>`); };
-    if (mo.bijZone) L.push(`<div class="ligne liee"><span class="pastille" style="background:#3c114b"></span><span>Fiche bijou</span><span>celle du motif / de la forme choisi(e) par la cliente</span><span></span></div>`);
-    else if (estLettres(mo)) { ficheL('Fiche bijou · 1 mot', { mode: 1 }); ficheL('Fiche bijou · 2 mots', { mode: 2 }); }
-    else ficheL('Fiche bijou de la breloque');
-    for (const z of mo.zones || []) {
-      if (z.defaut) L.push(ligne('Couleur par défaut · ' + (z.nom || z.id), z.defaut, z.defautNom));
-    }
-    if (mo.lettres?.ref) L.push(ligne('Perle lettre', mo.lettres.ref, mo.lettres.refNom));
+    const ficheL = (nom, texte, cle) => { const r = bijouBreloque(mo, { couleurs: {}, texte, bijoux }); const b = bijoux.find(x => x.id === r.id);
+      const sel = selAssoc(cle, { choisi: liens[cle], vide: '— automatique (d\'après le nom) —', bijouxSeuls: true, indices: (mo.nom || '') + ' ' + nom });
+      L.push(b ? `<div class="ligne liee"><span class="pastille" style="background:#3c114b"></span><span>${esc(nom)}</span><span><b class="ok">✓</b> <span class="ref">${esc(b.ref)}</span> ${esc([b.nom, b.variante].filter(Boolean).join(' · '))}</span><span>${sel}</span></div>`
+        : `<div class="ligne"><span class="pastille" style="background:#eee"></span><span>${esc(nom)}</span><span><b class="alerte">⚠</b> aucune fiche bijou trouvée</span><span>${sel}</span></div>`); };
+    if (mo.bijZone) L.push(`<div class="ligne liee"><span class="pastille" style="background:#3c114b"></span><span>Fiche bijou</span><span>celle du motif / de la forme choisi(e) par la cliente (voir 🧭 Fiches produits)</span><span></span></div>`);
+    else if (estLettres(mo)) { ficheL('Fiche bijou · 1 mot', { mode: 1 }, 'modele:' + mo.slug + ':1'); ficheL('Fiche bijou · 2 mots', { mode: 2 }, 'modele:' + mo.slug + ':2'); }
+    else ficheL('Fiche bijou de la breloque', null, 'modele:' + mo.slug);
+    (mo.zones || []).forEach((z, i) => { if (z.defaut) L.push(ligne('Couleur par défaut · ' + (z.nom || z.id), z.defaut, z.defautNom, edit(brut.zones?.[i]?.defaut))); });
+    if (mo.lettres?.ref) L.push(ligne('Perle lettre', mo.lettres.ref, mo.lettres.refNom, edit(brut.lettres?.ref)));
     // perles fixes : la référence reliée (stock, fiche atelier) ; le rendu 3D reste celui du modèle
     for (const f of perlesFixesDe(mo, cat)) L.push(ligne(f.role, f.ref, f.kNom, selFixe(f.kNom, f.ref) + '<br><span class="ref">rendu 3D : celui du modèle</span>', true));
-    for (const o of mo.options || []) {
-      if (o.type === 'fermoir') (o.choix || []).forEach(ch => L.push(ligne('Fermoir · ' + (ch.nom || ch.id || ''), ch.ref)));
+    (mo.options || []).forEach((o, j) => { const ob = brut.options?.[j] || {};
+      if (o.type === 'fermoir') (o.choix || []).forEach((ch, k) => L.push(ligne('Fermoir · ' + (ch.libelle || ch.nom || ch.id || ''), ch.ref, null, edit(ob.choix?.[k]?.ref))));
       if (o.type === 'perle') cat.filter(x => !o.categorie || correspondCategorie(x, o.categorie)).forEach(x => L.push(ligne('Option « ' + (o.nom || 'perle') + ' » · choix', x.ref)));
-      if (o.type === 'accroche') (accrochesProposees(mo, fL)?.choix || []).forEach(ch => (ch.pieces || []).forEach((r, i) => L.push(ligne('Porte-clés « ' + (ch.nom || ch.id) + ' »' + (ch.pieces.length > 1 ? ' · pièce ' + (i + 1) : ''), r))));
-    }
-    for (const g of mo.groupes || []) for (const a of g.accessoires || []) L.push(ligne('Fermoir de la breloque', a.ref));
+      if (o.type === 'accroche') { const ac = accrochesProposees(mo, fL)?.choix || [];
+        (ob.choix || []).forEach(chb => { const ch = ac.find(c => c.id === chb.id) || chb; (chb.pieces || []).forEach((rb, i) => L.push(ligne('Porte-clés « ' + (chb.libelle || chb.id) + ' »' + (chb.pieces.length > 1 ? ' · pièce ' + (i + 1) : ''), ch.pieces?.[i] || rb, null, edit(rb)))); }); }
+    });
+    (mo.groupes || []).forEach((g, gi) => (g.accessoires || []).forEach((a, ai) => L.push(ligne(a.bout ? 'Mousqueton (bout de chaîne)' : 'Fermoir posé sur la breloque', a.ref, null, edit(brut.groupes?.[gi]?.accessoires?.[ai]?.ref)))));
     const nbA = L.filter(x => x.includes('class="alerte"')).length;
     const ouvert = premier ? false : ouverts.has(mo.slug);
     return { slug: mo.slug, nom: mo.nom || mo.slug, nbA, html: `<details class="groupe" id="u-${esc(mo.slug)}" data-slug="${esc(mo.slug)}" ${ouvert ? 'open' : ''}><summary><h2 style="display:inline">${esc(mo.nom || mo.slug)} ${nbA ? `<span class="alerte" style="padding:1px 6px">⚠ ${nbA}</span>` : '✓'}</h2></summary>${L.join('') || '<p class="aide" style="padding:0 14px">Aucun matériau fixe.</p>'}</details>` };
   });
   // navigation : une pastille par breloque (ouvre et amène à sa liste), « Tout replier »
-  $('#utilises').innerHTML = `<nav class="nav-u">${blocs.map(b => `<button type="button" data-aller="${esc(b.slug)}" class="${b.nbA ? 'a' : 'o'}">${esc(b.nom)} ${b.nbA ? '⚠ ' + b.nbA : '✓'}</button>`).join('')}<button type="button" data-replier="1" class="r">Tout replier</button></nav>` + blocs.map(b => b.html).join('');
+  $('#utilises').innerHTML = `<nav class="nav-u">${blocs.map(b => `<button type="button" data-aller-u="${esc(b.slug)}" class="${b.nbA ? 'a' : 'o'}">${esc(b.nom)} ${b.nbA ? '⚠ ' + b.nbA : '✓'}</button>`).join('')}<button type="button" data-replier="1" class="r">Tout replier</button></nav>` + blocs.map(b => b.html).join('');
   scrollTo(0, y);
-  $('#utilises').querySelectorAll('[data-aller]').forEach(bt => bt.addEventListener('click', () => {
-    const d = document.getElementById('u-' + bt.dataset.aller); d.open = true; d.scrollIntoView({ behavior: 'smooth', block: 'start' }); }));
+  $('#utilises').querySelectorAll('[data-aller-u]').forEach(bt => bt.addEventListener('click', () => {
+    const d = document.getElementById('u-' + bt.dataset.allerU); d.open = true; d.scrollIntoView({ behavior: 'smooth', block: 'start' }); }));
   $('#utilises').querySelector('[data-replier]').addEventListener('click', () => $('#utilises').querySelectorAll('details').forEach(d => d.open = false));
   $('#utilises').querySelectorAll('[data-fixe]').forEach(sel => sel.addEventListener('change', () => {
     sel.value ? liens[sel.dataset.fixe] = sel.value : delete liens[sel.dataset.fixe];

@@ -582,6 +582,15 @@ body.selection-active #gpanel-mat{padding-bottom:150px!important}
 .c3s.on{border-color:#2e7d4f;background:#e8f5ec;color:#2e7d4f}
 
 .c3p-tete{font-size:13px;margin-bottom:6px}
+.of-regles{font-size:12px;background:var(--purpleP);color:var(--purple);border-radius:12px;padding:8px 12px;margin-bottom:10px}
+.of-grille{display:grid;gap:10px}
+.of-carte{background:#fff;border-radius:var(--r);box-shadow:var(--sh);padding:10px 12px;display:grid;gap:8px}
+.of-carte.of-off,.of-palier.of-off{opacity:.6}
+.of-hd{display:flex;gap:8px;align-items:center;justify-content:space-between;color:var(--purple);font-size:14px}
+.of-phrase{font-size:13px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;line-height:2}
+.of-in{padding:4px 6px!important;font-size:13px!important;border-radius:8px}
+.of-lib{width:190px}
+.of-pied{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;font-size:12px}
 .c3p-tab{display:grid;gap:4px;margin-top:6px}
 .c3p-det summary{cursor:pointer;font-size:13px;list-style:none;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .c3p-det summary::-webkit-details-marker{display:none}
@@ -4502,7 +4511,7 @@ function rendreC3(){
       +`<p class="dim c3-aide">Chaque chaîne et ses variantes (les variantes collier / choker ne sont pas proposées). Le motif 3D vient du nom de la fiche ou du lien dans 🔗 Références.</p>
       <div class="c3-barre">${tout(idsCh,true)}${tout(idsCh,false)}${plier}</div>`
       +L.map(b=>c3Groupe('c:'+b.id,`${escA(nomFiche3(b))} <span class="dim">${escA(b.ref)}</span>`,[b,...D.varsCh(b)].map(x=>c3Ligne(x===b?'Fiche de base':'Variante · '+escA(x.variante||x.ref),c3Inter(c3Vu('idee:'+x.id),`basculerIdee('${escA(x.id)}')`),{sous:escA(x.ref),retrait:x!==b})).join(''))).join('');
-  } else corps=renderOffres().replace('<details class="c3p-det" style="margin-top:8px">','<details class="c3p-det" open>')+renderControlePrix();
+  } else corps=renderOffres()+`<details class="c3p-det" style="margin-top:14px"><summary><b>💶 Contrôle des prix</b> <span class="dim">· rentabilité de chaque fiche et des suppléments</span> <span class="c3p-gerer">Voir ▾</span></summary>${renderControlePrix()}</details>`;
   return `<div class="c3-onglets">${onglets.map(([k,t,n])=>`<button type="button" class="${C3_ONGLET===k?'on':''}" onclick="C3_ONGLET='${k}';renderModelesProposes()">${t}${n?` <span>${n}</span>`:''}</button>`).join('')}</div>
     ${['idees','bundles','chaines'].includes(C3_ONGLET)?`<input class="c3-filtre" placeholder="🔍 Filtrer…" value="${escA(C3_FILTRE)}" oninput="C3_FILTRE=this.value;clearTimeout(window.__c3f);window.__c3f=setTimeout(()=>{renderModelesProposes().then(()=>{const i=document.querySelector('.c3-filtre');i.focus();i.setSelectionRange(i.value.length,i.value.length);})},250)">`:''}
     <div class="c3-corps">${corps}</div>`;
@@ -4517,17 +4526,36 @@ const OFFRES_DEF={ rond:{active:true,libelle:'Fermoir rond offert',min:2,prixMin
 async function chargerOffresCfg(){ try{ const {data}=await SB.from('config').select('value').eq('key','configurateur_offres').maybeSingle(); let v=data?.value; if(typeof v==='string'){ try{v=JSON.parse(v);}catch(e){v=null;} } OFFRES_CFG=v&&typeof v==='object'?v:{};
   if(OFFRES_CFG.perles&&!OFFRES_CFG.lettres){ const {libelle,...r}=OFFRES_CFG.perles; OFFRES_CFG.lettres=r; }   // ancienne offre « perles » → breloques lettre
   }catch(e){ OFFRES_CFG={}; } }
+const PALIERS_DEF=[{id:'p55',seuil:55,pct:5,active:true},{id:'p110',seuil:110,pct:10,active:true}];
+const paliersOffre=()=>Array.isArray(OFFRES_CFG?.paliers)?OFFRES_CFG.paliers:PALIERS_DEF;
+/* 🏷 Offres : une carte par offre, une phrase avec les valeurs à changer ; remises sur la commande par paliers */
 function renderOffres(){
   if(OFFRES_CFG===null){ chargerOffresCfg().then(renderModelesProposes); return ''; }
   const o=k=>({...OFFRES_DEF[k],...(OFFRES_CFG[k]||{})});
-  const champ=(k,c,lab,type='number',w=70)=>`<label style="display:inline-flex;gap:4px;align-items:center;font-size:12px">${lab}<input type="${type}" step="0.5" value="${escA(o(k)[c]??'')}" style="width:${w}px" onchange="majOffre('${k}','${c}',this.value,'${type}')"></label>`;
-  const bt=k=>`<button type="button" class="c3p ${o(k).active!==false?'on':''}" onclick="majOffre('${k}','active',${o(k).active===false})">${o(k).active!==false?'👁 affichée':'🚫 masquée'}</button>`;
-  return `<details class="c3p-det" style="margin-top:8px"><summary><b>🎁 Offres du configurateur</b> <span class="dim">· rond et mousqueton : non cumulables (la cliente choisit), une fois par commande · breloque lettre : une seule offerte par commande, cumulable</span> <span class="c3p-gerer">Gérer ▾</span></summary><div class="c3p-tab">
-    <div class="c3p-l" style="flex-wrap:wrap;gap:6px"><span class="c3p-nom">Rond offert</span>${bt('rond')}${champ('rond','libelle','Libellé','text',160)}${champ('rond','min','dès')} breloques ${champ('rond','prixMin','à partir de (€)')}${champ('rond','remise','remise (€)')}</div>
-    <div class="c3p-l" style="flex-wrap:wrap;gap:6px"><span class="c3p-nom">Mousqueton offert</span>${bt('mousqueton')}${champ('mousqueton','libelle','Libellé','text',160)}${champ('mousqueton','minBundles','dès')} porte-clés montés sur le mousqueton, ${champ('mousqueton','minAchat','achat minimum (€)')} ${champ('mousqueton','remise','remise (€, vide = offert)')} <span class="dim" style="font-size:11px">(proposée seulement avec plusieurs porte-clés)</span></div>
-    <div class="c3p-l" style="flex-wrap:wrap;gap:6px"><span class="c3p-nom">Breloque lettre offerte</span>${bt('lettres')}${champ('lettres','libelle','Libellé','text',160)}${champ('lettres','min','dès')} breloques ${champ('lettres','prixMin','à partir de (€)')} <span class="dim" style="font-size:11px">(cumulable avec les offres porte-clés)</span></div>
-  </div></details>`;
+  const num=(k,c,w=56)=>`<input type="number" step="0.5" min="0" class="of-in" value="${escA(o(k)[c]??'')}" style="width:${w}px" onchange="majOffre('${k}','${c}',this.value)">`;
+  const txt=(k,c)=>`<input type="text" class="of-in of-lib" value="${escA(o(k)[c]??'')}" onchange="majOffre('${k}','${c}',this.value,'text')">`;
+  const inter=(on,clic)=>`<button type="button" class="c3s ${on?'on':''}" onclick="${clic}">${on?'👁 Active':'🚫 Coupée'}</button>`;
+  const carte=(k,titre,phrase,regle)=>`<div class="of-carte ${o(k).active!==false?'':'of-off'}"><div class="of-hd"><b>${titre}</b>${inter(o(k).active!==false,`majOffre('${k}','active',${o(k).active===false})`)}</div>
+    <div class="of-phrase">${phrase}</div><div class="of-pied"><span>Nom affiché : ${txt(k,'libelle')}</span><span class="dim">${regle}</span></div></div>`;
+  const P=paliersOffre().slice().sort((x,y)=>(+x.seuil||0)-(+y.seuil||0));
+  return `<div class="of-regles">🧾 <b>Règles :</b> rond <i>ou</i> mousqueton (la cliente choisit), une fois par commande · breloque lettre : une par commande, cumulable · remise sur la commande : le palier le plus haut atteint, <b>un seul</b>, cumulable avec les autres offres.</div>
+  <div class="of-grille">
+    ${carte('rond','🔘 Fermoir rond offert',`Offert dès ${num('rond','min',48)} breloques à ${num('rond','prixMin')} € ou plus · remise de ${num('rond','remise')} €`,'porte-clés')}
+    ${carte('mousqueton','🪝 Mousqueton offert',`Offert dès ${num('mousqueton','minBundles',48)} porte-clés montés dessus et ${num('mousqueton','minAchat')} € d'achat · remise ${num('mousqueton','remise')} € <span class="dim">(vide = offert)</span>`,'porte-clés, non cumulable avec le rond')}
+    ${carte('lettres','🔤 Breloque lettre offerte',`Une breloque lettre offerte dès ${num('lettres','min',48)} breloques à ${num('lettres','prixMin')} € ou plus`,'une par commande, cumulable')}
+    <div class="of-carte"><div class="of-hd"><b>💶 Remise sur la commande</b><button class="btn btn-xs btn-ghost" onclick="ajouterPalier()">＋ Palier</button></div>
+      ${P.map(x=>`<div class="of-phrase of-palier ${x.active===false?'of-off':''}">Dès <input type="number" step="1" min="0" class="of-in" style="width:64px" value="${escA(x.seuil)}" onchange="majPalier('${escA(x.id)}','seuil',this.value)"> € de commande : −<input type="number" step="1" min="0" max="90" class="of-in" style="width:48px" value="${escA(x.pct)}" onchange="majPalier('${escA(x.id)}','pct',this.value)"> %
+        ${inter(x.active!==false,`majPalier('${escA(x.id)}','active',${x.active===false})`)}<button class="btn btn-xs btn-ghost" title="Supprimer ce palier" onclick="majPalier('${escA(x.id)}','suppr')">✕</button></div>`).join('')||'<p class="dim">Aucun palier.</p>'}
+      <div class="of-pied"><span class="dim">Non cumulables entre eux (le plus haut atteint compte). Montant de la commande = toutes les personnalisations payées ensemble, après les autres offres. Appliquée au paiement Shopify.</span></div></div>
+  </div>`;
 }
+async function majPalier(id,c,v){
+  let L=paliersOffre().map(x=>({...x}));
+  if(c==='suppr') L=L.filter(x=>x.id!==id); else { const x=L.find(y=>y.id===id); if(!x) return; x[c]=c==='active'?!!v:parseFloat(String(v).replace(',','.'))||0; }
+  const cfg={...(OFFRES_CFG||{}),paliers:L}; await sbUpsertConfig('configurateur_offres',cfg); OFFRES_CFG=cfg; toast('Remise enregistrée ✓','ok'); renderModelesProposes(); rafraichirApercu();
+}
+function ajouterPalier(){ const L=paliersOffre(), haut=Math.max(0,...L.map(x=>+x.seuil||0)); const cfg={...(OFFRES_CFG||{}),paliers:[...L.map(x=>({...x})),{id:'p'+Date.now().toString(36),seuil:haut+50,pct:15,active:false}]};
+  sbUpsertConfig('configurateur_offres',cfg).then(()=>{ OFFRES_CFG=cfg; toast('Palier ajouté (coupé) : règle-le puis active-le','ok'); renderModelesProposes(); }); }
 // ── 💶 Contrôle des prix : fiches (prix ↔ coût de revient), suppléments du configurateur (prix ↔ coût de la pièce), offres (marge qui reste)
 let CTRL_PRIX=null, CTRL_TOUT=false;
 async function chargerControlePrix(){
@@ -5000,13 +5028,20 @@ function jumpToMC(mc){document.getElementById('anc-mc-'+esc(mc))?.scrollIntoView
 // ═══════════════════════════════════════════════════════
 // BIJOUX
 // ═══════════════════════════════════════════════════════
+// réf. automatique : BIJ-001… pour un bijou, COMP-001… pour une composition (utilisée comme composant), numéro suivant libre de ce préfixe
 function autoRefBij(editId=null, isComp=false) {
-  if(isComp) {
-    const compNums=BIJS.filter(b=>b.id!==editId&&b.ref?.startsWith('COMP-')).map(b=>{const m=b.ref?.match(/(\d+)$/);return m?parseInt(m[1]):0;}).filter(n=>n>0);
-    return 'COMP-'+(((compNums.length?Math.max(...compNums):0)+1).toString().padStart(3,'0'));
-  }
-  const nums=BIJS.filter(b=>b.id!==editId&&!b.ref?.startsWith('COMP-')).map(b=>{const m=b.ref?.match(/(\d+)$/);return m?parseInt(m[1]):0;}).filter(n=>n>0);
-  return 'BIJ-'+(((nums.length?Math.max(...nums):0)+1).toString().padStart(3,'0'));
+  const pre=isComp?'COMP':'BIJ', re=new RegExp('^'+pre+'[-_ ]?0*(\\d+)$','i');
+  const nums=BIJS.filter(b=>b.id!==editId).map(b=>{ const m=String(b.ref||'').trim().match(re); return m?parseInt(m[1]):0; });
+  let n=(nums.length?Math.max(0,...nums):0)+1;
+  while(BIJS.some(b=>b.id!==editId&&String(b.ref||'').toUpperCase()===pre+'-'+String(n).padStart(3,'0'))) n++;
+  return pre+'-'+String(n).padStart(3,'0');
+}
+// nouvelle fiche : la réf suit le type (composition ou bijou) tant qu'elle n'a pas été tapée à la main
+function majRefAuto(){
+  if(document.getElementById('bij-edit-id').value) return;
+  const el=document.getElementById('bij-ref'), v=el.value.trim();
+  if(v && !/^(BIJ|COMP)-\d+$/i.test(v)) return;
+  el.value=autoRefBij(null, document.getElementById('bij-is-mat').checked); checkBijRef(el.value,null);
 }
 
 function checkBijRef(ref, editId) {
@@ -5028,13 +5063,6 @@ function toggleNoSell() {
   const row=document.getElementById('no-sell-toggle');
   cb.checked=!cb.checked;
   row.className='toggle-row '+(cb.checked?'on':'off');
-  // Si nouveau bijou, regénérer la ref selon le type
-  const editId=document.getElementById('bij-edit-id').value;
-  if(!editId) {
-    const autoRef=autoRefBij(null,cb.checked);
-    document.getElementById('bij-ref').value=autoRef;
-    checkBijRef(autoRef,null);
-  }
 }
 
 async function diagSaveRef(input) {
@@ -5084,6 +5112,7 @@ function toggleIsMat() {
   const on = cb.checked;
   row.className = 'toggle-row ' + (on ? 'on' : 'off');
   if(lbl) { lbl.style.color = on ? 'var(--purple)' : '#fff'; lbl.style.fontWeight='700'; }
+  majRefAuto();
 }
 
 function openBijModal(editId=null) {
@@ -5392,7 +5421,7 @@ async function saveBij() {
   });
   const isMat=document.getElementById('bij-is-mat').checked;
   const avant=editId?getBij(editId):null;
-  const refBij=document.getElementById('bij-ref').value.trim()||autoRefBij();
+  const refBij=document.getElementById('bij-ref').value.trim()||autoRefBij(editId||null, isMat);
   // photo et description : envoyées seulement si renseignées (colonnes ajoutées par sql-ameliorations-app.sql)
   const extra={};
   if(BIJ_PHOTO.fichier){ const url=await envoyerPhoto(BIJ_PHOTO.fichier,'bijoux/'+refBij); if(!url) return; extra.photo=url; }

@@ -534,6 +534,14 @@ let LIENS_FORMES = {};
 export function definirLiensFormes(liens = {}) { LIENS_FORMES = Object.fromEntries(Object.entries(liens || {}).filter(([k]) => /^(forme|modele):/.test(k))); }
 export const lienForme = f => LIENS_FORMES['forme:' + f] || null;
 export const lienModele = slug => LIENS_FORMES['modele:' + slug] || null;
+/* breloque lettre : une fiche par nombre de mots (« modele:<slug>:1 », « modele:<slug>:2 » dans 🔗 Références) */
+export const lienModeleMode = (slug, mode) => LIENS_FORMES['modele:' + slug + ':' + mode] || null;
+/* fiche(s) reliée(s) dans 🔗 Références : elles passent avant la recherche par nom */
+export function appliquerLienModele(m) {
+  const l = lienModele(m.slug), l1 = lienModeleMode(m.slug, 1), l2 = lienModeleMode(m.slug, 2);
+  if (!l && !l1 && !l2) return m;
+  return { ...m, ...(l ? { bij_ref: l, bijLie: l } : {}), ...(l1 || l2 ? { bijRefParMode: { 1: l1 || l || null, 2: l2 || l || null } } : {}) };
+}
 export function catalogueChainmailDepuisBijoux(bijoux = []) {
   // une seule entrée par forme : la fiche reliée dans 🔗 Références, sinon la fiche produit « breloque … » plutôt qu'une
   // composition utilisée comme pièce (« croix pampille ») — la composition reste reconnue dans les lots
@@ -712,6 +720,8 @@ export function bijouBreloque(modele, { couleurs = {}, texte = null, bijoux = []
     row = parRef.get(ref) || null;
     if (!row) ref = '';                                       // motif d'exemple : pas encore de fiche
   }
+  if (!row && modele.bijRefParMode?.[mode]) row = refSouple(modele.bijRefParMode[mode]);   // relié dans 🔗 Références (1 mot / 2 mots)
+  if (!row && modele.bijLie) row = refSouple(modele.bijLie);
   if (!row && modele.bijParMode) row = trouverBijou(bijoux, modele.bijParMode[mode]);
   if (!row && modele.bij_ref) row = refSouple(modele.bij_ref);
   if (!row && modele.bijNom) row = trouverBijou(bijoux, modele.bijNom);

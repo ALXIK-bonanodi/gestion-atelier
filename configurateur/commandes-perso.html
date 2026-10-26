@@ -114,7 +114,7 @@ td.ref { font: 600 9.5pt var(--f-titre); white-space: nowrap; }
 
 <script type="module">
 import { lignesCommande, lignesCommandeBundle, construireLettres, estLettres, listerDemandes, majDemande, chargerModeleBoutique, chargerCatalogueBoutique,
-         chargerFermoirsBoutique, resoudreDefauts, modeleDemo, chargerBijouxBoutique, bijouBreloque, completerCatalogue } from './bead-core.js?v=76cf3650';
+         chargerFermoirsBoutique, resoudreDefauts, modeleDemo, chargerBijouxBoutique, bijouBreloque, completerCatalogue, chargerLiens, definirLiensFormes, appliquerLienModele } from './bead-core.js?v=44ab0c9f';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, INFOS_ATELIER } from './perles-config.js?v=e5e86015';
 const raisonConnexion = e => /invalid login/i.test(e.message) ? 'e-mail ou mot de passe incorrect'
   : /not confirmed/i.test(e.message) ? 'adresse e-mail pas encore confirmée (Supabase › Authentication › Users)'
@@ -127,7 +127,7 @@ const date = d => new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', mont
 const STATUTS = { nouvelle: 'Nouvelle', validee: 'Validée', en_creation: 'En création', envoyee: 'Envoyée', annulee: 'Annulée' };
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let demandes = [], filtre = 'tout', courante = null, catalogue = null, fermoirs = null, bijoux = [];
-let PHOTOS = {};   // réf. de fiche → photo (ta miniature 3D ou ta photo), en vignette sur le bon de commande / la facture
+let PHOTOS = {}, liensLus = false;   // réf. de fiche → photo (ta miniature 3D ou ta photo), en vignette sur le bon de commande / la facture
 
 async function demarrer() {
   const { data } = await sb.auth.getSession();
@@ -182,7 +182,8 @@ async function ouvrir(id) {
     const charger = async slug => {
       const m = await chargerModeleBoutique(sb, slug, { brouillon: true });
       if (!m) throw new Error('modèle ' + slug + ' introuvable');
-      const r = resoudreDefauts(m, catalogue || [], fermoirs || []);
+      if (!liensLus) { liensLus = true; try { definirLiensFormes(await chargerLiens(sb)); } catch { /* sans liens */ } }
+      const r = appliquerLienModele(resoudreDefauts(m, catalogue || [], fermoirs || []));
       return { modele: r };
     };
     const fiche = (x, couleurs, texte) => { const bj = bijouBreloque(x.modele, { couleurs, texte, bijoux }); return { prixBase: bj.prix, bijRef: bj.ref }; };
