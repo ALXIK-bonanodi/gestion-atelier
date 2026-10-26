@@ -752,14 +752,17 @@ export const estAccroche = f => f && (f.type === 'anneau-ressort' || f.type === 
 /* Tailles mesurées sur tes photos quand le libellé ne donne pas les mm */
 const TAILLES_CONNUES = { '#FB001': 12, '#FB002': 18 };
 
-const tailleDefaut = (type, t) => type === 'anneau-ressort' ? (/petit|mini/.test(t) ? 11 : 15)
+const tailleDefaut = (type, t) => type === 'creole' ? 25 : type === 'creole-charniere' ? 12 : type === 'anneau-ressort' ? (/petit|mini/.test(t) ? 11 : 15)
   : type === 'mousqueton-pivot' ? 34 : type === 'anneau' ? 25 : (/grand/.test(t) ? 18 : 12);
 /* Une ligne `materiaux` de fermoir -> { ref, nom, type, taille (mm), metal } (lu dans le libellé) */
 export function fermoirDepuisMateriau(l) {
   const t = [l.designation, l.variante, l.sc].filter(Boolean).join(' ').toLowerCase();
   const mm = t.match(/(\d+(?:[.,]\d+)?)\s*mm/);
   const metal = /dor|\bor\b|gold/.test(t) ? 'or' : /bronze/.test(t) ? 'bronze' : /cuivr/.test(t) ? 'cuivre' : /noir/.test(t) ? 'noir' : 'argent';
-  const type = /creole|huggie|charniere|dormeuse/.test(t.normalize('NFD').replace(/[\u0300-\u036f]/g, '')) ? (/charni|huggie|clic/.test(t.normalize('NFD').replace(/[\u0300-\u036f]/g, '')) ? 'creole-charniere' : 'creole')
+  const tn = t.normalize('NFD').replace(/[\u0300-\u036f]/g, ''), td = [l.designation, l.variante].filter(Boolean).join(' ').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const bo = /creole|huggie|charniere|oreille/.test(tn) && !/crochet|clou|puce|dormeuse/.test(tn);
+  // « boucle d'oreille créole 25 mm » = créole à tige et boule ; « boucle d'oreille 12 mm » = anneau fermé (la sous-catégorie « Tiges & Boucles » ne compte pas)
+  const type = bo ? (/creole|boule/.test(td) && !/charni|huggie|clic/.test(td) ? 'creole' : 'creole-charniere')
     : /breloque/.test(t) ? 'mousqueton'
     : /rond|ressort|marin|spring/.test(t) ? 'anneau-ressort'
     : /pivot|porte.?cl|snap/.test(t) && /mousq/.test(t) ? 'mousqueton-pivot'
@@ -837,7 +840,15 @@ export function catalogueDepuisMateriaux(lignes, perlesImages = {}) {
       stock: l.qty ?? null,
       enStock: l.qty == null ? true : l.qty > 0,
     };
-  }).filter(c => c.visible).map(c => c.finition === 'argile' ? c : ({ ...c, hexManuel: !!c.hex, hex: c.hex || c.hexNom, teinteFixe: !!c.hex || c.planche }))
+  }).filter(c => c.visible).map(c => {
+    if (c.finition === 'argile') return c;
+    // perles étoile métal / nacre / pétrole : la teinte et le reflet viennent de la finition (pastille chromée), jamais d'une photo
+    if (/etoile/.test(c.perle || '') && ['hematite', 'nacre', 'petrole'].includes(c.finition)) {
+      const hex = c.hex || ({ hematite: '#6e6c6e', nacre: '#ece7da', petrole: '#d9a088' })[c.finition];
+      return { ...c, hex, hexManuel: true, teinteFixe: true, swatch: null };
+    }
+    return { ...c, hexManuel: !!c.hex, hex: c.hex || c.hexNom, teinteFixe: !!c.hex || c.planche };
+  })
     .sort((a, b) => a.ordre - b.ordre || String(a.nom).localeCompare(String(b.nom), 'fr'));
 }
 
@@ -1555,8 +1566,8 @@ const RAYON_FIL = 0.16;
    Dans le plan YZ, centre en z = -R : le bas de l'anneau en z = 0, là où pend la breloque. */
 function geosCreole(type, D) {
   const geos = [], charniere = type === 'creole-charniere';
-  D = D || (charniere ? 20 : 40);
-  const r = charniere ? 1.0 : 0.4, R = D / 2 - r;
+  D = D || (charniere ? 12 : 25);
+  const r = charniere ? 0.75 : 0.35, R = D / 2 - r;
   const pt = phi => new THREE.Vector3(0, R * Math.sin(phi), -R + R * Math.cos(phi));     // phi = 0 en bas
   if (charniere) {
     const t = new THREE.TorusGeometry(R, r, 20, 72); t.rotateY(Math.PI / 2); t.translate(0, 0, -R); geos.push(t);
@@ -1565,15 +1576,18 @@ function geosCreole(type, D) {
     const b = new THREE.SphereGeometry(r * 0.5, 12, 10); b.translate(...pt(Math.PI * 0.86).add(new THREE.Vector3(r * 1.1, 0, 0)).toArray()); geos.push(b);
     return geos;
   }
-  const a0 = Math.PI * 1.12, a1 = Math.PI * 2.88;        // ouverte en haut
+  const a0 = Math.PI * 1.30, a1 = Math.PI * 2.78;        // ouverte en haut (≈ 95°, comme ta photo) : boule d'un côté, tige de l'autre
   const courbe = new THREE.Curve(); courbe.getPoint = u => pt(a0 + (a1 - a0) * u);
   geos.push(new THREE.TubeGeometry(courbe, 96, r, 12, false));
-  const boule = new THREE.SphereGeometry(1.5, 20, 16); boule.translate(...pt(a1).toArray()); geos.push(boule);
-  const pTige = pt(a0), tige = new THREE.CylinderGeometry(0.4, 0.4, 10, 12); tige.rotateZ(Math.PI / 2); tige.translate(pTige.x + 5, pTige.y, pTige.z); geos.push(tige);
-  const bout = new THREE.SphereGeometry(r * 1.1, 12, 10); bout.translate(...pTige.toArray()); geos.push(bout);
-  for (const s of [-1, 1]) {                               // poussoir papillon
-    const g = new THREE.TorusGeometry(1.6, 0.35, 10, 24); g.rotateY(Math.PI / 2); g.translate(pTige.x + 6.5, pTige.y + s * 1.6, pTige.z); geos.push(g); }
-  const disque = new THREE.CylinderGeometry(1.2, 1.2, 0.5, 18); disque.rotateZ(Math.PI / 2); disque.translate(pTige.x + 6.5, pTige.y, pTige.z); geos.push(disque);
+  const boule = new THREE.SphereGeometry(1.0, 20, 16); boule.translate(...pt(a1).toArray()); geos.push(boule);
+  // tige : elle prolonge l'arc vers l'extérieur (dans le plan de la créole), poussoir papillon à mi-longueur
+  const pT = pt(a0), dir = new THREE.Vector3(0, Math.cos(a0), -Math.sin(a0)).multiplyScalar(-1).add(pT.clone().sub(new THREE.Vector3(0, 0, -R)).normalize().multiplyScalar(2.6)).normalize();
+  const L = 8, tige = new THREE.CylinderGeometry(r, r, L, 12); tige.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir));
+  tige.translate(...pT.clone().add(dir.clone().multiplyScalar(L / 2)).toArray()); geos.push(tige);
+  const pP = pT.clone().add(dir.clone().multiplyScalar(L * 0.45)), q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+  const disque = new THREE.CylinderGeometry(1.1, 1.1, 0.4, 18); disque.applyQuaternion(q); disque.translate(...pP.toArray()); geos.push(disque);
+  for (const s of [-1, 1]) {                               // poussoir papillon : deux boucles de part et d'autre de la tige
+    const g = new THREE.TorusGeometry(1.2, 0.3, 10, 24); g.applyQuaternion(q); g.translate(...pP.clone().add(new THREE.Vector3(0, 0, 0)).add(new THREE.Vector3(0, -dir.z, dir.y).multiplyScalar(s * 1.25)).toArray()); geos.push(g); }
   return geos;
 }
 function geosAccessoire(type, taille = 12) {

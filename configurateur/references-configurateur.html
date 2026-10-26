@@ -84,7 +84,7 @@ import {
   completerCatalogue, definirLiensFormes, catalogueChainmailDepuisBijoux, catalogueChaineDepuisBijoux, NOMS_CHAINE, completerModeleChainmail, modeleChaineSacDemo, estChaineSac, FORMES_CHAINMAIL, resoudreDefauts, couleursProposees, correspondCategorie, ordreModeles, estLettres, accrochesProposees,
   chargerLiens, enregistrerLiens, estExemple, exemplesParRef, apercuArgile, apercuChainmail, baseRef,
   appliquerLiens, relierModele, appliquerLienModele, definirLiensFixes, cleFixe, refFixe, catalogueDepuisMateriaux, perlesFixesDe, allureFixe, bijouBreloque, definirCompositions,
-} from './bead-core.js?v=411eba89';
+} from './bead-core.js?v=935d16b7';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './perles-config.js?v=e5e86015';
 
 const $ = s => document.querySelector(s);
@@ -431,7 +431,7 @@ document.addEventListener('click', async e => { const b = e.target.closest('butt
 async function remettrePhoto(ref) {
   const m = mats.find(x => x.ref === ref); if (!m) return;
   let avant = m.meta?.image_avant || null;
-  if (!avant) { try { const dos = String(ref).replace(/[^A-Za-z0-9_-]/g, ''), { data } = await sb.storage.from('materiaux-images').list(dos, { limit: 100 });
+  if (!avant && !/perle|etoile|rocaille|heishi/.test(norm([m.sc, m.designation].join(' ')))) { try { const dos = String(ref).replace(/[^A-Za-z0-9_-]/g, ''), { data } = await sb.storage.from('materiaux-images').list(dos, { limit: 100 });
     const f = (data || []).filter(x => x.name && !/^mini3d-/.test(x.name)).sort((a, b) => String(b.created_at || b.name).localeCompare(String(a.created_at || a.name)))[0];
     if (f) avant = sb.storage.from('materiaux-images').getPublicUrl(dos + '/' + f.name).data.publicUrl; } catch { /* liste indisponible */ } }
   const meta = { ...(m.meta || {}) }; delete meta.image_avant; if (avant) meta.image = avant; else delete meta.image;
