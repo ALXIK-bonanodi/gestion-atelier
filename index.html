@@ -525,8 +525,41 @@ body.selection-active #gpanel-mat{padding-bottom:150px!important}
 .drop-choix{max-height:280px;overflow-y:auto;border:1px solid var(--border);border-radius:12px;padding:4px 8px}
 .drop-l{display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px dashed var(--border);font-size:13px}
 .drop-l:last-child{border-bottom:0}
-.c3-proposes{padding:8px 12px 0}
-.c3-onglets{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.c3-proposes{padding:0}
+/* Conception 3D : pleine largeur, menu vertical aux couleurs de l'app */
+#p-c3d{padding:0;max-width:none}
+#p-c3d.on{display:block;height:100%}
+.c3-app{display:grid;grid-template-columns:200px minmax(0,1fr);height:100%;min-height:0}
+.c3-nav{background:var(--purple);overflow-y:auto;padding:8px 8px 14px;display:flex;flex-direction:column;gap:2px;border-right:2px solid rgba(255,247,198,.22)}
+.c3-nav-t{font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:rgba(255,247,198,.45);padding:12px 10px 4px}
+.c3-nav button{display:flex;gap:6px;align-items:center;width:100%;text-align:left;background:none;border:0;cursor:pointer;padding:8px 10px;border-radius:10px;color:rgba(255,247,198,.78);font:inherit;font-size:13px;font-weight:600}
+.c3-nav button:hover{background:rgba(255,247,198,.09);color:var(--gold)}
+.c3-nav button.on{background:var(--gold);color:var(--purple)}
+.c3-nav button .n{margin-left:auto;font-size:11px;font-weight:500;opacity:.75}
+.c3-nav-pied{margin-top:auto;padding:14px 10px 0;display:grid;gap:6px}
+.c3-nav-pied a{color:rgba(255,247,198,.6);font-size:12px;text-decoration:none}
+.c3-nav-pied a:hover{color:var(--gold)}
+.c3-zone{display:grid;grid-template-columns:minmax(0,1fr);min-height:0;min-width:0;height:100%}
+.c3-zone.avec-sim{grid-template-columns:minmax(340px,1fr) minmax(360px,1.05fr)}
+.c3-zone>div{display:none;min-height:0;min-width:0;height:100%}
+.c3-zone>div.vu{display:flex;flex-direction:column}
+.c3-zone iframe{flex:1;width:100%;min-height:0;border:0;display:block;background:#fff}
+.c3-gest{overflow-y:auto;padding:14px 16px 30px;background:var(--bg)}
+.c3-gest-hd h2{font-family:var(--serif);font-weight:500;font-size:20px;color:var(--purple);margin:0 0 2px}
+.c3-gest-hd p{font-size:12px;color:var(--muted);margin:0 0 10px}
+.c3-sim{border-left:1px solid var(--border);background:#fff}
+.c3-sim-hd{display:flex;gap:8px;align-items:center;padding:6px 10px;font-size:12px;font-weight:700;color:var(--purple);border-bottom:1px solid var(--border)}
+@media (max-width:900px){ .c3-zone.avec-sim{grid-template-columns:minmax(0,1fr)} .c3-zone.avec-sim #c3panel-cfg{display:none} }
+@media (max-width:700px){
+  #p-c3d.on{height:auto}
+  .c3-app{grid-template-columns:minmax(0,1fr);height:auto}
+  .c3-nav{flex-direction:row;overflow-x:auto;padding:6px;border-right:0;position:sticky;top:0;z-index:5}
+  .c3-nav-t,.c3-nav-pied{display:none}
+  .c3-nav button{width:auto;white-space:nowrap;flex:0 0 auto}
+  .c3-zone>div.vu{height:calc(100dvh - 200px)}
+  .c3-gest{height:auto!important}
+}
+.c3-onglets{display:none}
 .c3-onglets button{border:1.5px solid var(--purpleP);background:#fff;color:var(--purple);border-radius:999px;padding:5px 12px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
 .c3-onglets button.on{background:var(--purple);border-color:var(--purple);color:#fff}
 .c3-onglets button span{font-weight:500;opacity:.75;font-size:11px}
@@ -777,41 +810,41 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
 </div>
 
 <!-- ════════════════ CONCEPTION 3D (configurateur des breloques) ════════════════ -->
-<style>
-/* Modèles et Composer : en plein écran (pas dans une petite fenêtre) ; la barre du haut ramène à l'app */
-#p-c3d.c3-plein.on { position:fixed; inset:0; z-index:2000; background:#fff; display:flex; flex-direction:column; max-width:none; padding:0; }
-#p-c3d.c3-plein > .c3-barre { position:static; flex:0 0 auto; }
-#p-c3d.c3-plein > div[id^=c3panel-] { flex:1; min-height:0; }
-#p-c3d.c3-plein iframe { height:100% !important; }
-#p-c3d .c3-quitter { display:none; }
-#p-c3d.c3-plein .c3-quitter { display:flex; }
-</style>
-<div id="p-c3d" class="page" style="padding:0">
-  <div class="c3-barre" style="position:sticky;top:0;z-index:50;background:#fff;box-shadow:0 2px 8px rgba(26,18,40,.08)">
-    <div style="display:flex;border-bottom:2px solid var(--border);overflow-x:auto;align-items:stretch">
-      <div class="gtab c3-quitter" onclick="switchC3dTab('cfg')" title="Revenir à l'app" style="align-items:center;gap:4px;font-weight:700;color:var(--purple)">← App</div>
-      <div id="c3tab-cfg" onclick="switchC3dTab('cfg')" class="gtab gtab-on">👁 Configurateur</div>
-      <div id="c3tab-m3d" onclick="switchC3dTab('m3d')" class="gtab">🧊 Modèles</div>
-      <div id="c3tab-cmp" onclick="switchC3dTab('cmp')" class="gtab">⛓ Composer</div>
-      <div id="c3tab-ref" onclick="switchC3dTab('ref')" class="gtab">🔗 Références</div>
-      <div id="c3tab-rup" onclick="switchC3dTab('rup')" class="gtab">📦 Ruptures</div>
-    </div>
+<!-- Pleine largeur de l'app : menu vertical à gauche (Aperçu · Créer · Gestion), l'aperçu client reste à droite pendant la gestion -->
+<div id="p-c3d" class="page">
+  <div class="c3-app">
+    <nav class="c3-nav" aria-label="Conception 3D">
+      <div class="c3-nav-t">Aperçu</div>
+      <button type="button" data-c3="cfg" onclick="switchC3dTab('cfg')">👁 Configurateur</button>
+      <div class="c3-nav-t">Créer</div>
+      <button type="button" data-c3="m3d" onclick="switchC3dTab('m3d')">🧊 Modèles</button>
+      <button type="button" data-c3="cmp" onclick="switchC3dTab('cmp')">⛓ Composer</button>
+      <div class="c3-nav-t">Gestion</div>
+      <button type="button" data-c3="g:breloques" onclick="switchC3dTab('g:breloques')">🧸 Breloques <span class="n"></span></button>
+      <button type="button" data-c3="g:idees" onclick="switchC3dTab('g:idees')">💡 Idées de couleurs <span class="n"></span></button>
+      <button type="button" data-c3="g:bundles" onclick="switchC3dTab('g:bundles')">🎁 Bundles <span class="n"></span></button>
+      <button type="button" data-c3="g:chaines" onclick="switchC3dTab('g:chaines')">⛓ Chaînes de sac <span class="n"></span></button>
+      <button type="button" data-c3="g:offres" onclick="switchC3dTab('g:offres')">🏷 Offres et prix</button>
+      <button type="button" data-c3="ref" onclick="switchC3dTab('ref')">🔗 Références</button>
+      <button type="button" data-c3="rup" onclick="switchC3dTab('rup')">📦 Ruptures</button>
+      <div class="c3-nav-pied">
+        <a href="configurateur/configurateur-3d.html" target="_blank">↗ Ouvrir le configurateur</a>
+        <a href="configurateur/configurateur-3d.html?diag=1" target="_blank">🔎 Diagnostic</a>
+      </div>
+    </nav>
+    <section class="c3-zone" id="c3-zone">
+      <div id="c3panel-gest" class="c3-gest"><div class="c3-gest-hd" id="c3-gest-hd"></div><div id="c3-proposes" class="c3-proposes"></div></div>
+      <div id="c3panel-cfg" class="c3-sim">
+        <div class="c3-sim-hd"><span>👁 Aperçu client <span class="dim">(comme sur le site)</span></span><span style="flex:1"></span>
+          <button class="btn btn-xs btn-ghost" onclick="rafraichirApercu(true)">↻ Recharger</button></div>
+        <iframe id="c3frame-cfg" title="Configurateur 3D"></iframe>
+      </div>
+      <div id="c3panel-m3d"><iframe id="c3frame-m3d" title="Modèles 3D"></iframe></div>
+      <div id="c3panel-cmp"><iframe id="c3frame-cmp" title="Composer une chaîne chainmail"></iframe></div>
+      <div id="c3panel-ref"><iframe id="c3frame-ref" title="Références du configurateur"></iframe></div>
+      <div id="c3panel-rup"><iframe id="c3frame-rup" title="Ruptures du configurateur"></iframe></div>
+    </section>
   </div>
-  <div id="c3panel-cfg">
-    <div id="c3-proposes" class="c3-proposes"></div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:8px 12px;font-size:12px">
-      <span style="color:var(--muted)">Aperçu de la page client (comme dans Wix)</span>
-      <span style="flex:1"></span>
-      <a class="btn btn-xs btn-ghost" href="configurateur/configurateur-3d.html" target="_blank">↗ Ouvrir dans un onglet</a>
-      <a class="btn btn-xs btn-ghost" href="configurateur/configurateur-3d.html?diag=1" target="_blank">🔎 Diagnostic</a>
-      <button class="btn btn-xs btn-ghost" onclick="switchC3dTab('cfg', true)">↻ Recharger</button>
-    </div>
-    <iframe id="c3frame-cfg" title="Configurateur 3D" style="display:block;width:100%;height:calc(100vh - 100px);border:0"></iframe>
-  </div>
-  <div id="c3panel-m3d" style="display:none"><iframe id="c3frame-m3d" title="Modèles 3D" style="display:block;width:100%;height:calc(100vh - 56px);border:0"></iframe></div>
-  <div id="c3panel-cmp" style="display:none"><iframe id="c3frame-cmp" title="Composer une chaîne chainmail" style="display:block;width:100%;height:calc(100vh - 56px);border:0"></iframe></div>
-  <div id="c3panel-ref" style="display:none"><iframe id="c3frame-ref" title="Références du configurateur" style="display:block;width:100%;height:calc(100vh - 56px);border:0"></iframe></div>
-  <div id="c3panel-rup" style="display:none"><iframe id="c3frame-rup" title="Ruptures du configurateur" style="display:block;width:100%;height:calc(100vh - 56px);border:0"></iframe></div>
 </div>
 
 <div id="p-bij" class="page" style="padding:0">
@@ -2635,7 +2668,7 @@ function updateMatMCSelect() {
 // ═══════════════════════════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════════════════════════
-const RENDERS = {res:()=>switchResTab(lireOnglet('reseaux')||'idees'),home:renderAccueil,mat:renderMat,bij:renderBij,compta:renderCompta,cfg:renderCfg,c3d:()=>{ if(!document.getElementById('c3frame-cfg').getAttribute('src')) switchC3dTab('cfg'); }};
+const RENDERS = {res:()=>switchResTab(lireOnglet('reseaux')||'idees'),home:renderAccueil,mat:renderMat,bij:renderBij,compta:renderCompta,cfg:renderCfg,c3d:()=>switchC3dTab(C3_VUE)};
 
 function goTab(el) {
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
@@ -3409,7 +3442,7 @@ function etapesLancement(){
     ['📸 Catalogue prêt',[
       ['photos','Chaque création a sa photo', A(!sansPhoto, sansPhoto?sansPhoto+' sans photo':'✓'), "goTabNom('bij');switchCreatTab('bij')"],
       ['temps','Temps de fabrication noté (⏱) sur les fiches', A(!sansTemps, sansTemps?sansTemps+' sans temps':'✓'), "goTabNom('bij');switchCreatTab('bij')"],
-      ['prix','Prix au moins au prix conseillé', A(!sousPrix, sousPrix?sousPrix+' sous le conseillé':'✓'), "goTabNom('c3d');switchC3dTab('cfg');C3_ONGLET='offres';renderModelesProposes()"],
+      ['prix','Prix au moins au prix conseillé', A(!sousPrix, sousPrix?sousPrix+' sous le conseillé':'✓'), "goTabNom('c3d');switchC3dTab('g:offres')"],
       ['poids','Poids et kit d\'emballage de chaque article', A(!sansPoids&&!sansKit, [sansPoids?sansPoids+' sans poids':'',sansKit?sansKit+' kit à tester':''].filter(Boolean).join(' · ')||'✓'), "switchCfgTab('emballages')"],
       ['livraison','Modes de livraison et leurs tarifs', A(EMB.modes.length, EMB.modes.length?EMB.modes.length+' mode(s)':'aucun'), "switchCfgTab('emballages')"],
     ]],
@@ -4441,6 +4474,7 @@ function rendreC3(){
   const compte=(ids)=>`${ids.filter(id=>c3Vu('idee:'+id)).length}/${ids.length}`;
   const onglets=[['breloques','🧸 Breloques',`${MODELES_3D.filter(m=>vuM(m,'breloque')||vuM(m,'bundle')).length}/${MODELES_3D.length}`],['idees','💡 Idées de couleurs',compte([...idsIdees,...altI.map(a=>'alt:'+a.id)])],
     ['bundles','🎁 Bundles tout prêts',compte([...idsLots,...altB.map(a=>'alt:'+a.id)])],['chaines','⛓ Chaînes de sac',RUPTURES_3D.includes('activer:chaine')?'parcours affiché':'parcours masqué'],['offres','🏷 Offres','']];
+  onglets.forEach(([k,,n])=>{ const e=document.querySelector(`.c3-nav [data-c3="g:${k}"] .n`); if(e) e.textContent=k==='chaines'?(RUPTURES_3D.includes('activer:chaine')?'👁':'🚫'):(n||''); });
   const plier=`<button class="btn btn-xs btn-ghost" onclick="c3ToutPlier(false)">Tout replier</button><button class="btn btn-xs btn-ghost" onclick="c3ToutPlier(true)">Tout déplier</button>`;
   const tout=(ids,on)=>`<button class="btn btn-xs btn-ghost" onclick="c3Tous(${escA(JSON.stringify(ids)).replace(/"/g,'&quot;')},${on})">${on?'Tout afficher':'Tout masquer'}</button>`;
   let corps='';
@@ -4475,7 +4509,7 @@ function rendreC3(){
 }
 async function c3Tous(ids,on){
   const cles=ids.map(id=>'idee:'+id); let rup=RUPTURES_3D.filter(k=>!cles.includes(k)); if(!on) rup=[...rup,...cles];
-  await sbUpsertConfig('configurateur_ruptures', rup); RUPTURES_3D=rup; toast(on?'Tout affiché':'Tout masqué','ok'); renderModelesProposes();
+  await sbUpsertConfig('configurateur_ruptures', rup); RUPTURES_3D=rup; toast(on?'Tout affiché':'Tout masqué','ok'); renderModelesProposes(); rafraichirApercu();
 }
 // 🎁 offres du configurateur (non cumulables : la cliente choisit si elle a droit aux deux)
 let OFFRES_CFG=null;
@@ -4554,7 +4588,7 @@ function renderControlePrix(){
 async function majOffre(k,c,v,type){
   const cfg={...(OFFRES_CFG||{})}; cfg[k]={...(cfg[k]||{})};
   cfg[k][c]= c==='active' ? !!v : type==='text' ? String(v) : (v===''?null:parseFloat(String(v).replace(',','.')));
-  await sbUpsertConfig('configurateur_offres', cfg); OFFRES_CFG=cfg; toast('Offres enregistrées ✓','ok'); renderModelesProposes();
+  await sbUpsertConfig('configurateur_offres', cfg); OFFRES_CFG=cfg; toast('Offres enregistrées ✓','ok'); renderModelesProposes(); rafraichirApercu();
 }
 // formes de la breloque chainmail (croix, mini chaînes) : affichées / masquées une par une
 const FORMES_3D=[['croix','Croix'],['mini-fleur-4','Mini chain · Byzantine fleur'],['mini-intercalaire-4','Mini chain · Byzantine alternative']];
@@ -4564,12 +4598,12 @@ function renderFormesProposees(){
 }
 async function basculerForme(f){
   const k='forme:'+f, rup=RUPTURES_3D.includes(k)?RUPTURES_3D.filter(x=>x!==k):[...RUPTURES_3D,k];
-  await sbUpsertConfig('configurateur_ruptures', rup); RUPTURES_3D=rup; renderModelesProposes();
+  await sbUpsertConfig('configurateur_ruptures', rup); RUPTURES_3D=rup; renderModelesProposes(); rafraichirApercu();
 }
 async function basculerChaine(){
   const k='activer:chaine', rup=RUPTURES_3D.includes(k)?RUPTURES_3D.filter(x=>x!==k):[...RUPTURES_3D,k];
   await sbUpsertConfig('configurateur_ruptures', rup); RUPTURES_3D=rup;
-  toast('Chaîne de sac : '+(rup.includes(k)?'affichée dans le configurateur':'masquée'),'ok'); renderModelesProposes();
+  toast('Chaîne de sac : '+(rup.includes(k)?'affichée dans le configurateur':'masquée'),'ok'); renderModelesProposes(); rafraichirApercu();
 }
 // 💡 Idées du configurateur : variantes de couleurs d'une fiche + lots (porte-clés…) → afficher / masquer
 // fiches « chaîne de sac » (nom avec chaîne / byzantine, sauf la croix) : listées dans le 3e parcours, pas dans les idées de breloques
@@ -4611,7 +4645,7 @@ async function basculerIdee(id){
   const k='idee:'+id, rup=RUPTURES_3D.includes(k)?RUPTURES_3D.filter(x=>x!==k):[...RUPTURES_3D,k];
   await sbUpsertConfig('configurateur_ruptures', rup); RUPTURES_3D=rup;
   const b=BIJS.find(x=>x.id===id); toast(`💡 ${[b?.nom,b?.variante].filter(Boolean).join(' · ')} : ${rup.includes(k)?'masquée':'affichée'}`,'ok');
-  await renderModelesProposes();
+  await renderModelesProposes(); rafraichirApercu();
 }
 async function basculerModele(slug, parcours){
   const m=MODELES_3D.find(x=>x.slug===slug); if(!m) return;
@@ -4623,21 +4657,29 @@ async function basculerModele(slug, parcours){
   if(publie!==!!m.publie){ const {error}=await SB.from('modeles_3d').update({publie, updated_at:new Date().toISOString()}).eq('slug',slug); if(error) return toast('Modèles : '+error.message,'err'); }
   await sbUpsertConfig('configurateur_ruptures', rup);
   toast(`${m.nom||slug} : ${etat.breloque?'👁':'🚫'} breloque seule · ${etat.bundle?'👁':'🚫'} bundle`,'ok');
-  await renderModelesProposes(); switchC3dTab('cfg', true);
+  await renderModelesProposes(); rafraichirApercu();
 }
+const C3_GEST = { breloques:['🧸 Breloques','Affiché / Masqué : l\'aperçu client à droite se recharge après chaque changement.'],
+  idees:['💡 Idées de couleurs','L\'aperçu client à droite se recharge après chaque changement.'], bundles:['🎁 Bundles tout prêts','L\'aperçu client à droite se recharge après chaque changement.'],
+  chaines:['⛓ Chaînes de sac','L\'aperçu client à droite se recharge après chaque changement.'], offres:['🏷 Offres et prix','Les offres du configurateur et le contrôle des prix (rentabilité de chaque fiche).'] };
+let C3_VUE = (()=>{ try{ return localStorage.getItem('c3_vue')||'cfg'; }catch(e){ return 'cfg'; } })();
 function switchC3dTab(tab, recharger) {
-  if(tab==='cfg') renderModelesProposes();
-  // Modèles et Composer prennent tout l'écran ; « ← App » ou un autre onglet ramène à l'affichage normal
-  document.getElementById('p-c3d').classList.toggle('c3-plein', tab==='m3d' || tab==='cmp');
-  Object.keys(C3D_PAGES).forEach(t => {
-    document.getElementById('c3panel-'+t).style.display = t===tab ? 'block' : 'none';
-    document.getElementById('c3tab-'+t).className = 'gtab'+(t===tab?' gtab-on':'');
-  });
-  const f = document.getElementById('c3frame-'+tab);
+  if(!C3D_PAGES[tab] && !String(tab).startsWith('g:')) tab='cfg';
+  if(tab==='m3d'||tab==='cmp'||tab==='ref'||tab==='rup'||tab==='cfg'||tab.startsWith('g:')) C3_VUE=tab;
+  try{ localStorage.setItem('c3_vue', tab); }catch(e){}
+  const gest = tab.startsWith('g:'), voir = gest ? ['gest','cfg'] : [tab];
+  if(gest){ C3_ONGLET=tab.slice(2); const [t,a]=C3_GEST[C3_ONGLET]||['','']; document.getElementById('c3-gest-hd').innerHTML=`<h2>${t}</h2><p>${a}</p>`; renderModelesProposes(); }
+  document.getElementById('c3-zone').classList.toggle('avec-sim', gest);
+  ['gest',...Object.keys(C3D_PAGES)].forEach(t => document.getElementById('c3panel-'+t).classList.toggle('vu', voir.includes(t)));
+  document.querySelectorAll('.c3-nav [data-c3]').forEach(b => b.classList.toggle('on', b.dataset.c3===tab));
+  const cle = gest ? 'cfg' : tab, f = document.getElementById('c3frame-'+cle);
   // références et ruptures : toujours rechargées (données à jour) ; les autres au premier affichage
-  if (recharger || tab==='rup' || !f.getAttribute('src'))   // références : la page garde sa position (bouton ↻ Actualiser dedans)
-    f.setAttribute('src', 'configurateur/' + C3D_PAGES[tab] + (C3D_PAGES[tab].includes('?') ? '&' : '?') + 't=' + Date.now());
-}   // fiche atelier dans l'onglet « Sur mesure »
+  if (recharger || cle==='rup' || !f.getAttribute('src'))
+    f.setAttribute('src', 'configurateur/' + C3D_PAGES[cle] + (C3D_PAGES[cle].includes('?') ? '&' : '?') + 't=' + Date.now());
+}
+// l'aperçu client se recharge (une fois) après un changement de gestion
+function rafraichirApercu(tout){ clearTimeout(window.__c3ap); window.__c3ap=setTimeout(()=>{ const f=document.getElementById('c3frame-cfg'); if(tout||f.getAttribute('src')) f.setAttribute('src','configurateur/'+C3D_PAGES.cfg+'&t='+Date.now()); }, tout?0:700); }
+// fiche atelier dans l'onglet « Sur mesure »
 const escPerso = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 function renderPersoAFaire() {
   const aFaire = PRODS.filter(p => p.perso && p.statut === 'en_cours').sort((a, b) => String(a.date).localeCompare(String(b.date)));

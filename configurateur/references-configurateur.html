@@ -6,38 +6,55 @@
 <title>Bona Nodi · Références du configurateur</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Figtree:wght@400;600;700&display=swap">
 <style>
-:root { --bg: #f7f2f7; --carte: #fff; --texte: #2a0f33; --doux: #7e6a85; --ligne: #e6dbe8; --prune: #3c114b; --rouge: #a1272d; --vert: #2f7a46; }
+:root { --bg: #f7f2f7; --carte: #fff; --texte: #2a0f33; --doux: #7e6a85; --ligne: #e6dbe8; --prune: #3c114b; --or: #fff7c6; --rouge: #a1272d; --vert: #2f7a46; --orange: #b4600c; }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--texte); font: 14px/1.45 "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif; }
-main { max-width: 980px; margin: 0 auto; padding: 14px 16px 90px; }
-h1 { font-size: 18px; font-family: "Fredoka", sans-serif; font-weight: 500; color: var(--prune); margin: 4px 0 2px; }
-.aide { color: var(--doux); margin: 0 0 14px; }
-.groupe { background: var(--carte); border: 1px solid var(--ligne); border-radius: 12px; margin-bottom: 12px; overflow: hidden; }
-.groupe h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--prune); margin: 0; padding: 10px 14px; border-bottom: 1px solid var(--ligne); }
-.ligne { display: grid; grid-template-columns: 26px minmax(150px, 1fr) minmax(220px, 1.4fr) auto; gap: 10px; align-items: center; padding: 9px 14px; border-bottom: 1px solid var(--ligne); }
-.ligne:last-child { border-bottom: 0; }
-.ligne.liee { background: #f1f8f3; }
-.nav-u { position: sticky; top: 0; z-index: 5; display: flex; gap: 6px; flex-wrap: wrap; padding: 8px 14px; background: var(--carte); border-bottom: 1px solid var(--ligne); }
-.nav-u button { border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1.5px solid var(--ligne); background: #fff; color: var(--prune); }
-.nav-u button.a { border-color: #c0392b; color: #c0392b; } .nav-u button.o { border-color: #2e7d4f; color: #2e7d4f; } .nav-u button.r { border-style: dashed; }
-details.groupe > summary { cursor: pointer; list-style: none; } details.groupe > summary::-webkit-details-marker { display: none; }
-details.groupe > summary h2::before { content: '▸ '; } details.groupe[open] > summary h2::before { content: '▾ '; }
-details.groupe { scroll-margin-top: 110px; } .groupe.utilises { overflow: visible; }
-.pastille { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--ligne); }
+main { max-width: 1060px; margin: 0 auto; padding: 0 16px 90px; }
+.entete { position: sticky; top: 0; z-index: 10; background: var(--bg); padding: 12px 0 8px; border-bottom: 1px solid var(--ligne); margin-bottom: 12px; }
+h1 { font-size: 18px; font-family: "Fredoka", sans-serif; font-weight: 500; color: var(--prune); margin: 0 0 2px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.aide { color: var(--doux); margin: 0 0 8px; font-size: 13px; }
+.outils { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.puce { border-radius: 999px; padding: 5px 11px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1.5px solid var(--ligne); background: #fff; color: var(--prune); }
+.puce.on { background: var(--prune); color: var(--or); border-color: var(--prune); }
+.puce.a { border-color: #e3b1b1; } .puce b { font-weight: 700; }
+#rech { width: 200px; border-radius: 999px; padding: 5px 12px; }
+.section { background: var(--carte); border: 1px solid var(--ligne); border-radius: 12px; margin-bottom: 12px; overflow: hidden; scroll-margin-top: 120px; }
+.section > summary { cursor: pointer; list-style: none; display: flex; gap: 10px; align-items: center; padding: 11px 14px; background: var(--prune); color: var(--or); }
+.section > summary::-webkit-details-marker { display: none; }
+.section > summary h2 { font: 500 15px "Fredoka", sans-serif; margin: 0; }
+.section > summary .cpt { margin-left: auto; font-size: 12px; opacity: .9; } .section > summary::after { content: '▾'; } .section:not([open]) > summary::after { content: '▸'; }
+.section > .expl { margin: 0; padding: 8px 14px; font-size: 12.5px; color: var(--doux); border-bottom: 1px solid var(--ligne); background: #fbf8fc; }
+.sous-t { padding: 7px 14px 3px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--prune); border-bottom: 1px solid var(--ligne); background: #fdfbfd; }
+.l { display: grid; grid-template-columns: 44px minmax(170px, 1fr) minmax(240px, 1.2fr) 150px; gap: 10px; align-items: center; padding: 8px 14px; border-bottom: 1px solid var(--ligne); }
+.l:last-child { border-bottom: 0; } .l[hidden], .sous-t[hidden] { display: none; }
+.vis { width: 40px; height: 40px; border-radius: 9px; border: 1px solid var(--ligne); background: #fff center/cover no-repeat; display: grid; place-items: center; font-size: 18px; overflow: hidden; }
+.vis img { width: 100%; height: 100%; object-fit: contain; }
+.t b { font-weight: 600; } .t small { display: block; color: var(--doux); font-size: 11.5px; }
+.st { font-size: 12px; } .st.ok { color: var(--vert); } .st.a { color: var(--rouge); font-weight: 600; } .st.au { color: var(--orange); }
+.derive { grid-column: 3 / -1; font-size: 12.5px; color: var(--texte); } .derive .p { display: inline-block; background: #f3edf5; border-radius: 8px; padding: 2px 8px; margin: 2px 4px 2px 0; }
 .ref { font: 11px ui-monospace, monospace; color: var(--doux); }
 select, input { font: inherit; font-size: 13px; padding: 6px 8px; border: 1px solid var(--ligne); border-radius: 8px; background: #fff; width: 100%; min-width: 0; }
-button { font: inherit; border: 0; border-radius: 10px; padding: 8px 14px; background: var(--prune); color: #fff7c6; cursor: pointer; font-weight: 600; white-space: nowrap; }
-button.leger { background: #f2eaf3; color: var(--prune); padding: 6px 10px; font-size: 12px; }
+button { font: inherit; border: 0; border-radius: 10px; padding: 8px 14px; background: var(--prune); color: var(--or); cursor: pointer; font-weight: 600; white-space: nowrap; }
+button.leger { background: #f2eaf3; color: var(--prune); padding: 4px 9px; font-size: 12px; }
 button:disabled { opacity: .5; cursor: default; }
 .creer { grid-column: 2 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) auto; gap: 8px; align-items: end; background: #faf8fc; border: 1px dashed var(--ligne); border-radius: 10px; padding: 10px; }
 .creer label { font-size: 11px; color: var(--doux); display: grid; gap: 3px; }
-.barre { position: fixed; left: 0; right: 0; bottom: 0; background: #fff; border-top: 1px solid var(--ligne); padding: 10px 16px; display: flex; gap: 12px; align-items: center; }
+.barre { position: fixed; left: 0; right: 0; bottom: 0; background: #fff; border-top: 1px solid var(--ligne); padding: 10px 16px; display: flex; gap: 12px; align-items: center; z-index: 20; }
 .barre span { color: var(--doux); flex: 1; }
 .alerte { background: #fbf0f0; color: var(--rouge); border-radius: 10px; padding: 10px 14px; }
 .ok { color: var(--vert); font-weight: 600; }
 .doublon { grid-column: 1 / -1; background: #fff6e6; border: 1px solid #f0d49b; border-radius: 8px; padding: 8px 10px; font-size: 12px; }
 .doublon button { margin: 6px 6px 0 0; }
-@media (max-width: 700px) { .ligne { grid-template-columns: 26px 1fr; } .ligne > :nth-child(3), .ligne > :nth-child(4) { grid-column: 2; } .creer { grid-template-columns: 1fr 1fr; } }
+/* contrôle par modèle (ancienne vue détaillée) */
+.groupe { background: var(--carte); border-top: 1px solid var(--ligne); }
+.groupe h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--prune); margin: 0; padding: 10px 14px; }
+details.groupe > summary { cursor: pointer; list-style: none; } details.groupe > summary::-webkit-details-marker { display: none; }
+.ligne { display: grid; grid-template-columns: 26px minmax(150px, 1fr) minmax(220px, 1.4fr) auto; gap: 10px; align-items: center; padding: 8px 14px; border-top: 1px solid var(--ligne); }
+.ligne.liee { background: #f1f8f3; } .pastille { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--ligne); }
+.nav-u { display: flex; gap: 6px; flex-wrap: wrap; padding: 8px 14px; }
+.nav-u button { border-radius: 999px; padding: 4px 10px; font-size: 12px; border: 1.5px solid var(--ligne); background: #fff; color: var(--prune); }
+.nav-u button.a { border-color: #c0392b; color: #c0392b; } .nav-u button.o { border-color: #2e7d4f; color: #2e7d4f; }
+@media (max-width: 760px) { .l { grid-template-columns: 44px 1fr; } .l > :nth-child(n+3) { grid-column: 2; } .derive { grid-column: 2; } .creer { grid-template-columns: 1fr 1fr; } #rech { width: 100%; } }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script type="importmap">
@@ -49,27 +66,17 @@ button:disabled { opacity: .5; cursor: default; }
 </head>
 <body>
 <main>
-  <h1>🔗 Références du configurateur <button type="button" onclick="location.reload()" style="font-size:12px;vertical-align:middle;border-radius:999px;padding:3px 10px;border:1.5px solid currentColor;background:none;cursor:pointer">↻ Actualiser</button></h1>
-  <p class="aide">Les éléments ci-dessous utilisent encore une <b>référence d'exemple</b> (#…-ex…). Pour chacun, choisis la vraie référence de ta base
-    (un matériau ou une <b>composition</b> de tes fiches bijoux), ou crée-la. La vraie référence prend alors sa place partout : choix proposés au client, note atelier, fiche de fabrication.<br>
-    Les variantes d'une même référence (ex. <b>#AI001</b> moyen A et <b>#AI001b</b> moyen B) ne sont qu'<b>un seul stock</b> : elles apparaissent sur une seule ligne.</p>
-  <details class="groupe" id="supplementsBloc" open><summary><h2 style="display:inline">💶 Suppléments du configurateur → stock</h2></summary>
-    <p class="aide" style="padding:8px 14px;margin:0">Chaque supplément payant (fermoirs, porte-clés, mousqueton, perle en option, pampille) et le matériau (ou la composition) qu'il retire de ton stock à chaque commande.
-    <b>⚠ non relié</b> = la cliente paie le supplément mais <b>rien n'est déduit</b> : choisis le matériau dans le menu, puis « Enregistrer les liens ».</p>
-    <div id="supplements"></div></details>
-  <details class="groupe utilises" id="utilisesBloc" open><summary><h2 style="display:inline">🧩 Matériaux utilisés par le configurateur (vérification)</h2></summary>
-    <p class="aide" style="padding:8px 14px;margin:0">Pour chaque breloque : la référence réellement utilisée pour chaque couleur par défaut, chaque perle fixe (petites perles argent des lettres, de la pampille chainmail, de la perle de culture…), chaque fermoir et chaque porte-clés du bundle.
-    ✓ = vraie référence de ta base · ⚠ = référence d'exemple ou mauvaise teinte. Une <b>perle fixe</b> se relie directement ici (menu à droite).</p>
-    <div id="utilises"><p class="aide" style="padding:0 14px">Chargement…</p></div></details>
-  <details class="groupe" id="produitsBloc" open><summary><h2 style="display:inline">🧭 Produits ↔ modèles 3D</h2></summary>
-    <p class="aide" style="padding:8px 14px;margin:0">Chaque modèle ou forme 3D du configurateur et <b>la fiche produit</b> sur laquelle la commande sur mesure est produite (prix, stock, fiche atelier).
-    « automatique » = trouvée d'après le nom de la fiche ; choisis une fiche pour la fixer.</p>
-    <div id="produits"></div></details>
-  <h2 style="font-size:14px;color:var(--prune);margin:18px 0 8px">Références d'exemple à relier</h2>
-  <div id="contenu"><p class="aide">Chargement…</p></div>
+  <div class="entete">
+    <h1>🔗 Références du configurateur <button type="button" class="leger" onclick="location.reload()">↻ Actualiser</button></h1>
+    <p class="aide">Chaque élément que le configurateur propose ou ajoute, et <b>ce qu'il retire de ton stock</b> : un matériau, une fiche bijou ou une composition. Choisis-le dans le menu de la ligne, puis « Enregistrer ».</p>
+    <div class="outils" id="outils"></div>
+  </div>
+  <div id="sections"><p class="aide">Chargement…</p></div>
+  <details class="section" id="sec-controle"><summary><h2>🔎 Contrôle par modèle</h2><span class="cpt">tout ce que chaque breloque utilise, teintes vérifiées</span></summary>
+    <p class="expl">Vue de contrôle : pour chaque modèle, la fiche produite, chaque couleur par défaut, chaque perle fixe, fermoir et porte-clés, avec la référence réellement utilisée. Les liens se font plus haut.</p>
+    <div id="utilises"></div></details>
 </main>
 <div class="barre"><span id="etat"></span><button id="btEnregistrer" disabled>Enregistrer les liens</button></div>
-
 <script type="module">
 import {
   CATALOGUE_DEMO, FERMOIRS_DEMO, modeleDemo, modeleAreteDemo, modeleLettresDemo, modeleArgileDemo, modeleChainmailDemo, modelePerleCultureDemo,
@@ -87,7 +94,7 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);    // 
 
 const { data: sess } = await sb.auth.getSession();
 if (!sess.session) {
-  $('#contenu').innerHTML = '<p class="alerte">Connecte-toi d\'abord dans ton app de gestion (e-mail + mot de passe), puis recharge cet onglet.</p>';
+  $('#sections').innerHTML = '<p class="alerte">Connecte-toi d\'abord dans ton app de gestion (e-mail + mot de passe), puis recharge cet onglet.</p>';
   throw new Error('non connectée');
 }
 
@@ -190,46 +197,212 @@ function ressemblantes(sc, designation, variante) {
 }
 let doublons = null;                                 // { refEx, liste } : proposition affichée avant de créer
 
-const existe = ref => mats.some(x => x.ref === ref) || bijoux.some(x => x.ref === ref);   // lien vers une réf supprimée ?
-let ouvert = null;                                   // exemple dont le formulaire « créer » est ouvert
-let rendre = function () {
-  const parFamille = new Map();
-  for (const [ref, fa] of utilises) { if (!parFamille.has(fa)) parFamille.set(fa, []); parFamille.get(fa).push(EX.get(ref)); }
-  if (!parFamille.size) { $('#contenu').innerHTML = '<p class="aide ok">✓ Le configurateur n\'utilise plus aucune référence d\'exemple.</p>'; return; }
-  const scs = [...new Set([...Object.keys(SC_PREFIX), ...mats.map(x => x.sc).filter(Boolean)])].sort((a, b) => a.localeCompare(b, 'fr'));
-  const mcs = [...new Set(mats.map(x => x.mc).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
-  $('#contenu').innerHTML = [...parFamille].map(([fa, ds]) => `<section class="groupe"><h2>${esc(fa)}</h2>${ds.map(d => {
-    const lie = liens[d.ref];
-    const sc = scPropose(d);
-    const mcProbable = (() => { const n = {}; mats.filter(x => x.sc === sc).forEach(x => n[x.mc] = (n[x.mc] || 0) + 1); return Object.entries(n).sort((a, b) => b[1] - a[1])[0]?.[0] || mcs[0] || ''; })();
-    return `<div class="ligne ${lie ? 'liee' : ''}">
-      <span class="pastille" style="background:${fond(d)}"></span>
-      <span>${esc(d.nom)} <span class="ref">${esc(d.ref)}</span>${lie ? (existe(lie) ? `<br><span class="ok">→ ${esc(lie)}</span>`
-        : `<br><span class="alerte" style="display:inline-block;padding:2px 6px">⚠ lié à ${esc(lie)}, qui n'existe plus : choisis la bonne référence</span>`) : ''}</span>
-      <select data-lien="${esc(d.ref)}">${options(d, lie)}</select>
-      ${estBijou(d) ? '<span class="ref">fiche bijou</span>' : `<button class="leger" data-creer="${esc(d.ref)}">＋ Créer</button>`}
-      ${ouvert === d.ref ? `<div class="creer" data-form="${esc(d.ref)}">
-        <label>Catégorie<select name="mc">${mcs.map(x => `<option ${x === mcProbable ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
-        <label>Sous-catégorie<select name="sc">${scs.map(x => `<option ${x === sc ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
-        <label>Désignation<input name="designation" value="${esc(estFermoir(d) ? d.nom + (d.taille ? ' ' + d.taille + ' mm' : '') : d.nom)}"></label>
-        <label>Variante<input name="variante" value=""></label>
-        <button data-valider="${esc(d.ref)}">Créer et lier</button>
-        ${doublons?.refEx === d.ref ? `<div class="doublon">⚠ Ces références existent déjà et lui ressemblent. Si c'est <b>le même stock</b>, lie l'exemple à l'une d'elles au lieu de créer une nouvelle référence :<br>
-          ${doublons.liste.map(g => `<button class="leger" data-lier="${esc(d.ref)}" data-vers="${esc(g.ref)}">${esc(g.ref)} · ${esc([g.designation, g.variante].filter(Boolean).join(' · '))}</button>`).join('')}
-          <br><button data-valider="${esc(d.ref)}" data-forcer="1">Non, c'est une autre référence : créer quand même</button></div>` : ''}
-      </div>` : ''}
-    </div>`;
-  }).join('')}</section>`).join('');
 
-  $('#contenu').querySelectorAll('[data-lien]').forEach(sel => sel.addEventListener('change', () => {
-    sel.value ? liens[sel.dataset.lien] = sel.value : delete liens[sel.dataset.lien];
-    modifie(); rendre();
-  }));
-  $('#contenu').querySelectorAll('[data-creer]').forEach(b => b.addEventListener('click', () => { ouvert = ouvert === b.dataset.creer ? null : b.dataset.creer; rendre(); }));
-  $('#contenu').querySelectorAll('[data-valider]').forEach(b => b.addEventListener('click', () => creer(b.dataset.valider, !!b.dataset.forcer)));
-  $('#contenu').querySelectorAll('[data-lier]').forEach(b => b.addEventListener('click', () => {
-    liens[b.dataset.lier] = b.dataset.vers; ouvert = null; doublons = null; modifie(); rendre();
-  }));
+const nomRef = r => { const l = mats.find(y => y.ref === r); if (l) return [l.designation, l.variante].filter(Boolean).join(' · ');
+  const b = bijoux.find(y => y.ref === r); return b ? [b.nom, b.variante].filter(Boolean).join(' · ') : null; };
+const genreRef = r => mats.some(y => y.ref === r) ? 'matériau' : bijoux.find(y => y.ref === r)?.is_mat ? 'composition' : bijoux.some(y => y.ref === r) ? 'fiche bijou' : '';
+const photoRef = r => mats.find(y => y.ref === r)?.meta?.image || bijoux.find(y => y.ref === r)?.photo || '';
+const existe = ref => mats.some(x => x.ref === ref) || bijoux.some(x => x.ref === ref);
+const eur = v => (+v || 0).toFixed(2).replace('.', ',') + ' €';
+
+/* miniature 3D d'un élément (dossier composants/) : fermoirs, porte-clés, pampilles */
+const MINI_FERMOIR = f => !f ? '' : f.type === 'mousqueton' ? (f.taille >= 16 ? 'fermoir-breloque-grand-18mm' : 'fermoir-breloque-petit-12mm')
+  : f.type === 'anneau-ressort' ? (f.taille <= 12 ? 'fermoir-mini-rond-11mm' : 'fermoir-rond-15mm') : f.type === 'mousqueton-pivot' ? 'mousqueton-porte-cles' : '';
+const miniDe = (ref, d) => { const f = FERMOIRS_DEMO.find(x => x.ref === ref); if (f) return MINI_FERMOIR(f);
+  if (d && /ronde-3|3 ?mm/.test(norm([d.perle, d.nom].join(' '))) && /pampille|metal/.test(norm([d.nom, d.categorie].join(' ')))) return 'pampille-3mm';
+  if (d && /pampille|ronde-4/.test(norm([d.perle, d.nom].join(' ')))) return 'pampille-4mm'; return ''; };
+const vis = (ref, d, lie) => { const ph = lie && photoRef(lie), mi = miniDe(ref, d);
+  if (ph) return `<span class="vis"><img src="${esc(ph)}" alt=""></span>`;
+  if (mi) return `<span class="vis"><img src="composants/${mi}.jpg" alt=""></span>`;
+  return d ? `<span class="vis" style="background:${fond(d)}"></span>` : '<span class="vis">⛓</span>'; };
+
+/* ---------- inventaire : chaque référence du configurateur, ses usages ---------- */
+const U = new Map();          // cle -> { cle, section, sous, d, roles:Set, modeles:Set, prix:Set }
+const usage = (cle, section, role, { modele, prix, sous, d } = {}) => { if (!cle) return; const x = U.get(cle) || { cle, section, sous: sous || '', d: d || EX.get(cle), roles: new Set(), modeles: new Set(), prix: new Set() };
+  x.roles.add(role); if (modele) x.modeles.add(modele); if (+prix) x.prix.add(eur(prix)); U.set(cle, x); return x; };
+const DOUBLES = [];           // options porte-clés à plusieurs pièces : elles suivent les pièces seules
+for (const m0 of modelesBruts.map(completerModeleChainmail)) {
+  const nomM = m0.nom || m0.slug;
+  for (const o of m0.options || []) {
+    if (o.type === 'fermoir') (o.choix || []).forEach(ch => usage(ch.ref, 'fermoirs', 'Fermoir « ' + (ch.libelle || ch.nom || ch.ref) + ' »', { modele: nomM, prix: ch.supplement }));
+    if (o.type === 'accroche') (o.choix || []).forEach(ch => { const P = ch.pieces || [];
+      if (P.length === 1) usage(P[0], 'porte-cles', 'Porte-clés « ' + (ch.libelle || ch.id) + ' »', { modele: nomM, prix: ch.supplement });
+      else if (P.length > 1 && !DOUBLES.some(x => x.id === ch.id)) DOUBLES.push({ id: ch.id, libelle: ch.libelle || ch.id, pieces: P, prix: ch.supplement }); });
+  }
+  for (const g of m0.groupes || []) {
+    for (const a of g.accessoires || []) if (a.ref) usage(a.ref, a.bout ? 'porte-cles' : 'fermoirs', a.bout ? 'Mousquetons des bouts de la chaîne de sac' : 'Fermoir posé sur la breloque', { modele: nomM });
+    if (g.zoneForme) Object.values(FORMES_CHAINMAIL).forEach(F => F.pampilleK && usage(F.pampilleK[0], 'supplements', 'Pampille des mini chains', { modele: nomM }));
+  }
+}
+// pièces des options à 2 pièces qui n'existent pas seules : une ligne chacune
+DOUBLES.forEach(x => x.pieces.forEach((r, i) => { if (!U.has(r)) usage(r, 'porte-cles', 'Porte-clés « ' + x.libelle + ' » · pièce ' + (i + 1)); }));
+// les autres références d'exemple (couleurs, perles, lettres…)
+for (const [ref, fa] of utilises) if (!U.has(ref)) usage(ref, 'couleurs', fa, { sous: fa });
+// perles fixes : un lien par perle (même perle dans plusieurs modèles = un seul lien)
+for (const m0 of modelesBruts) { const mo = resoudreDefauts(m0, catalogue, fermoirs);
+  for (const f of perlesFixesDe(mo, catalogue)) { const x = usage(cleFixe(f.kNom), 'fixes', f.role.replace(/^Perle fixe · /, ''), { modele: mo.nom || mo.slug }); x.kNom = f.kNom; x.auto = f.ref; } }
+
+/* ---------- menu d'association : matériau, composition ou fiche bijou ---------- */
+const motsDe = (t) => norm(t).split(/[^a-z0-9]+/).filter(w => w.length > 2 && !/^(mm|perle|perles|des|les|pour|avec)$/.test(w));
+function selAssoc(cle, { d, choisi, vide, inclus, creer, bijouxSeuls, indices = '' }) {
+  const choix = choisi && (groupesMats().find(g => g.refs.includes(choisi))?.ref || choisi);
+  const o = (v, t) => `<option value="${esc(v)}" ${v === choix ? 'selected' : ''}>${esc(t)}</option>`;
+  const ob = b => o(b.ref, b.ref + ' · ' + [b.nom, b.variante].filter(Boolean).join(' · '));
+  const mc = [...new Set([...(d ? motsCles(d) : []), ...motsDe(indices)])], txt = x => norm([x.sc, x.designation, x.variante, x.nom].join(' '));
+  const score = x => mc.filter(w => txt(x).includes(w)).length;
+  const G = groupesMats(), compos = bijoux.filter(b => b.is_mat), fiches = bijoux.filter(b => !b.is_mat);
+  const tri = L => [...L].sort((a, b) => String(a.nom || '').localeCompare(String(b.nom || ''), 'fr') || String(a.variante || '').localeCompare(String(b.variante || ''), 'fr'));
+  let h = `<select data-assoc="${esc(cle)}"><option value="">${esc(vide)}</option>` + (inclus ? `<option value="inclus" ${choix === 'inclus' ? 'selected' : ''}>✓ Déjà comprise dans la composition (pas comptée à part)</option>` : '')
+    + (creer ? '<option value="__creer">＋ Créer un nouveau matériau…</option>' : '');
+  if (bijouxSeuls) {
+    const sg = [...bijoux].filter(score).sort((a, b) => score(b) - score(a)).slice(0, 8);
+    return h + (sg.length ? `<optgroup label="Suggestions">${sg.map(ob).join('')}</optgroup>` : '') + `<optgroup label="Fiches bijoux">${tri(fiches).map(ob).join('')}</optgroup>`
+      + (compos.length ? `<optgroup label="Compositions">${tri(compos).map(ob).join('')}</optgroup>` : '') + '</select>';
+  }
+  const sg = [...G, ...bijoux].filter(score).sort((a, b) => score(b) - score(a)).slice(0, 8);
+  const om = g => o(g.ref, g.ref + ' · ' + [g.designation, g.variante].filter(Boolean).join(' · '));
+  const parSc = new Map(); for (const g of G) { const k = g.sc || 'Autre'; if (!parSc.has(k)) parSc.set(k, []); parSc.get(k).push(g); }
+  return h + (sg.length ? `<optgroup label="Suggestions">${sg.map(x => x.designation !== undefined && !x.nom ? om(x) : (x.mats !== undefined || x.is_mat !== undefined ? ob(x) : om(x))).join('')}</optgroup>` : '')
+    + (compos.length ? `<optgroup label="Compositions (fiches bijoux utilisées comme composant)">${tri(compos).map(ob).join('')}</optgroup>` : '')
+    + [...parSc].sort((a, b) => a[0].localeCompare(b[0], 'fr')).map(([sc, gs]) => `<optgroup label="Matériaux · ${esc(sc)}">${gs.map(om).join('')}</optgroup>`).join('')
+    + (fiches.length ? `<optgroup label="Fiches bijoux">${tri(fiches).map(ob).join('')}</optgroup>` : '') + '</select>';
+}
+const plusProche = ref => { const ex = FERMOIRS_DEMO.find(f => f.ref === ref); if (!ex || !(f.value?.length)) return null;
+  return fermoirs.filter(x => x.type === ex.type && !estExemple(x.ref)).sort((a, b) => Math.abs(a.taille - ex.taille) - Math.abs(b.taille - ex.taille))[0] || null; };
+function statut(x) {      // { cls, txt, ok }
+  const lie = liens[x.cle];
+  if (lie === 'inclus') return { cls: 'ok', txt: '✓ comprise dans la composition', ok: true };
+  if (lie) return existe(lie) ? { cls: 'ok', txt: '✓ ' + genreRef(lie), ok: true } : { cls: 'a', txt: '⚠ ' + lie + ' n\'existe plus', ok: false };
+  if (x.section === 'fixes') return x.auto && !estExemple(x.auto) && existe(x.auto) ? { cls: 'au', txt: '✓ automatique', ok: true } : { cls: 'a', txt: '⚠ à relier', ok: false };
+  if (x.section === 'produits') return x.autoTxt ? { cls: 'au', txt: '✓ automatique', ok: true } : { cls: 'a', txt: '⚠ à relier', ok: false };
+  const pp = plusProche(x.cle);
+  return { cls: 'a', txt: '⚠ à relier', plus: 'rien n\'est déduit du stock' + (pp ? ' · affiché en 3D : ' + (pp.nomClient || pp.nom) : ''), ok: false };
+}
+
+/* ---------- 🧭 fiches produits de chaque modèle / forme ---------- */
+const PROD = [];
+{
+  const nomB = b => b ? b.ref + ' · ' + [b.nom, b.variante].filter(Boolean).join(' · ') : '';
+  const garde = { ...liens }; definirLiensFormes({});
+  const mm = Object.fromEntries(catalogueChainmailDepuisBijoux(bijoux).map(c => [c.forme, bijoux.find(b => b.ref === c.ref)]));
+  const ch = {}; for (const c of catalogueChaineDepuisBijoux(bijoux)) (ch[c.forme] ||= []).push(bijoux.find(b => b.ref === c.ref));
+  definirLiensFormes(garde);
+  for (const m0 of modelesBruts.filter(m => !m.bijZone && !estChaineSac(m))) { const mo = resoudreDefauts(m0, catalogue, fermoirs);
+    const r = bijouBreloque({ ...mo, bij_ref: mo.bij_ref }, { couleurs: {}, texte: { mode: 1 }, bijoux });
+    PROD.push({ cle: 'modele:' + mo.slug, section: 'produits', sous: 'Breloques', titre: mo.nom || mo.slug, autoTxt: r.id ? nomB(bijoux.find(b => b.id === r.id)) : '' }); }
+  for (const [fo, t] of [['croix', 'Croix'], ['mini-fleur-4', 'Mini chain · Byzantine fleur'], ['mini-intercalaire-4', 'Mini chain · Byzantine alternative']])
+    PROD.push({ cle: 'forme:' + fo, section: 'produits', sous: 'Breloques chainmail', titre: t, autoTxt: nomB(mm[fo]), mini: fo === 'croix' ? 'croix-pampille' : fo === 'mini-fleur-4' ? 'mini-chaine-byzantine-fleur-pampille' : 'mini-chaine-byzantine-alternative-pampille' });
+  for (const [fo, F] of Object.entries(FORMES_CHAINMAIL).filter(([, F]) => F.compo))
+    PROD.push({ cle: 'forme:' + fo, section: 'produits', sous: 'Tes compositions (⛓ Composer)', titre: F.nom + (F.chaine ? ' · chaîne' : ' · breloque'), autoTxt: '' });
+  for (const fo of ['chaine-8', 'chaine-10', 'chaine-fleur', 'chaine-intercalaire'])
+    PROD.push({ cle: 'forme:' + fo, section: 'produits', sous: 'Chaînes de sac', titre: NOMS_CHAINE[fo], autoTxt: (ch[fo] || []).filter(Boolean).map(nomB).join(' / ') });
+}
+
+/* ---------- affichage ---------- */
+const SECTIONS = [
+  ['produits', '🧭 Fiches produits', 'La fiche produit sur laquelle chaque commande sur mesure est produite (prix, stock, fiche atelier). « automatique » = trouvée d\'après son nom.'],
+  ['fermoirs', '🔩 Fermoirs des breloques', 'Chaque fermoir proposé à la cliente, et la pièce retirée du stock quand elle le choisit.'],
+  ['porte-cles', '🗝 Porte-clés', 'Relie chaque porte-clés seul (une pièce). Les options à plusieurs pièces suivent automatiquement les pièces seules.'],
+  ['supplements', '➕ Pampilles et autres pièces', 'Les pièces ajoutées par le configurateur (pampille des mini chains…).'],
+  ['couleurs', '🎨 Couleurs et perles encore en exemple', 'Les couleurs proposées qui utilisent encore une référence d\'exemple (#…-ex…). Les variantes d\'une même référence (#AI001, #AI001b) sont un seul stock.'],
+  ['fixes', '📌 Perles fixes des modèles', 'Les perles toujours présentes (intercalaires des lettres, petites plates des yeux, pampille…). Une même perle dans plusieurs modèles = un seul lien.'],
+];
+let FILTRE = 'a', RECH = '', ouvert = null;
+const ouverts = (() => { try { return new Set(JSON.parse(localStorage.getItem('ref-fermes') || '[]')); } catch { return new Set(); } })();
+function ligneHTML(x) {
+  const lie = liens[x.cle], st = statut(x), estProd = x.section === 'produits', d = x.d;
+  const titre = estProd ? x.titre : x.section === 'fixes' ? '« ' + x.kNom + ' »' : (d?.nom || x.cle);
+  const sous = estProd ? '' : [...x.roles].join(' · ') + (x.prix.size ? ' · +' + [...x.prix].join(' / ') : '') + (x.modeles.size ? ' — ' + [...x.modeles].join(', ') : '');
+  const vide = estProd ? (x.autoTxt ? 'automatique : ' + x.autoTxt : '— choisir la fiche —') : x.section === 'fixes' ? (lie ? '— automatique —' : 'automatique : ' + (x.auto || '') + ' · ' + (nomRef(x.auto) || 'exemple')) : '— à relier —';
+  const peutCreer = !estProd && x.section !== 'fixes' && d && !estBijou(d);
+  const vignette = estProd ? (lie && photoRef(lie) ? `<span class="vis"><img src="${esc(photoRef(lie))}" alt=""></span>` : x.mini ? `<span class="vis"><img src="composants/${x.mini}.jpg" alt=""></span>` : '<span class="vis">💎</span>')
+    : x.section === 'fixes' ? `<span class="vis" style="background:${allureFixe(x.kNom)?.hex || '#cfd0d4'}"></span>` : vis(x.cle, d, lie);
+  const mi = !estProd && miniDe(x.cle, d), photo3d = mi && lie && lie !== 'inclus' && existe(lie) && !photoRef(lie);
+  const cible = lie && lie !== 'inclus' && existe(lie) ? `<br><span class="ref">${esc(lie)}</span> ${esc(nomRef(lie) || '')}` : '';
+  const txt = norm([titre, sous, lie, nomRef(lie), x.cle].join(' '));
+  return `<div class="l" data-ok="${st.ok ? 1 : 0}" data-txt="${esc(txt)}">${vignette}
+    <span class="t"><b>${esc(titre)}</b> ${!estProd && x.section !== 'fixes' ? `<span class="ref">${esc(x.cle)}</span>` : ''}<small>${esc(sous)}</small></span>
+    ${selAssoc(x.cle, { d, choisi: lie, vide, inclus: x.section === 'fixes', creer: peutCreer, bijouxSeuls: estProd, indices: estProd ? x.titre : x.section === 'fixes' ? x.kNom : [d?.nom, d?.categorie].join(' ') })}
+    <span class="st ${st.cls}">${esc(st.txt)}${st.plus ? `<br><small style="font-weight:400;color:var(--doux)">${esc(st.plus)}</small>` : ''}${cible}${photo3d ? `<br><button class="leger" data-photo3d="${esc(lie)}" data-mini="${mi}" title="La miniature 3D devient la photo de ${esc(lie)}">📸 miniature 3D en photo</button>` : ''}</span>
+    ${ouvert === x.cle ? formCreer(x) : ''}</div>`;
+}
+function formCreer(x) {
+  const d = x.d, sc = scPropose(d);
+  const scs = [...new Set([...Object.keys(SC_PREFIX), ...mats.map(y => y.sc).filter(Boolean)])].sort((a, b) => a.localeCompare(b, 'fr'));
+  const mcs = [...new Set(mats.map(y => y.mc).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
+  const mcProbable = (() => { const n = {}; mats.filter(y => y.sc === sc).forEach(y => n[y.mc] = (n[y.mc] || 0) + 1); return Object.entries(n).sort((a, b) => b[1] - a[1])[0]?.[0] || mcs[0] || ''; })();
+  return `<div class="creer" data-form="${esc(d.ref)}">
+    <label>Catégorie<select name="mc">${mcs.map(y => `<option ${y === mcProbable ? 'selected' : ''}>${esc(y)}</option>`).join('')}</select></label>
+    <label>Sous-catégorie<select name="sc">${scs.map(y => `<option ${y === sc ? 'selected' : ''}>${esc(y)}</option>`).join('')}</select></label>
+    <label>Désignation<input name="designation" value="${esc(estFermoir(d) ? d.nom + (d.taille ? ' ' + d.taille + ' mm' : '') : d.nom)}"></label>
+    <label>Variante<input name="variante" value=""></label>
+    <span style="display:flex;gap:6px"><button data-valider="${esc(d.ref)}">Créer et relier</button><button class="leger" data-annuler="1">Annuler</button></span>
+    ${doublons?.refEx === d.ref ? `<div class="doublon">⚠ Ces références existent déjà et lui ressemblent. Si c'est <b>le même stock</b>, relie l'élément à l'une d'elles :<br>
+      ${doublons.liste.map(g => `<button class="leger" data-lier="${esc(d.ref)}" data-vers="${esc(g.ref)}">${esc(g.ref)} · ${esc([g.designation, g.variante].filter(Boolean).join(' · '))}</button>`).join('')}
+      <br><button data-valider="${esc(d.ref)}" data-forcer="1">Non, c'est une autre référence : créer quand même</button></div>` : ''}</div>`;
+}
+function doublesHTML() {      // « Mousqueton + rond » = les pièces seules
+  return DOUBLES.map(x => `<div class="l" data-ok="1" data-txt="${esc(norm(x.libelle + ' ' + x.pieces.join(' ')))}"><span class="vis"><img src="composants/porte-cles-mousqueton-rond.jpg" alt=""></span>
+    <span class="t"><b>${esc(x.libelle)}</b><small>option à ${x.pieces.length} pièces${+x.prix ? ' · +' + eur(x.prix) : ''}</small></span>
+    <span class="derive">= ${x.pieces.map(r => { const u = U.get(r), lie = liens[r], n = lie && nomRef(lie);
+      return `<span class="p">${esc([...(u?.roles || [])][0]?.replace(/^Porte-clés /, '') || r)} → ${n ? '<b>' + esc(lie) + '</b> ' + esc(n) : '<span class="st a">à relier</span>'}</span>`; }).join(' + ')}
+      <br><span class="ref">suit automatiquement les lignes ci-dessus : rien à régler ici</span></span></div>`).join('');
+}
+let rendre = function () {
+  const L = [...PROD, ...U.values()];
+  const html = SECTIONS.map(([id, titre, expl]) => {
+    const xs = L.filter(x => x.section === id); if (!xs.length && !(id === 'porte-cles' && DOUBLES.length)) return '';
+    let corps = '', sousPrec = null;
+    for (const x of xs.sort((a, b) => String(a.sous).localeCompare(String(b.sous), 'fr'))) { if (x.sous && x.sous !== sousPrec) { corps += `<div class="sous-t">${esc(x.sous)}</div>`; sousPrec = x.sous; } corps += ligneHTML(x); }
+    if (id === 'porte-cles' && DOUBLES.length) corps += '<div class="sous-t">Options à plusieurs pièces</div>' + doublesHTML();
+    const nbA = xs.filter(x => !statut(x).ok).length;
+    return `<details class="section" id="sec-${id}" ${ouverts.has(id) ? '' : 'open'} data-sec="${id}"><summary><h2>${titre}</h2><span class="cpt">${nbA ? '⚠ ' + nbA + ' à relier · ' : ''}${xs.length} élément(s)</span></summary><p class="expl">${expl}</p>${corps}</details>`;
+  }).join('');
+  $('#sections').innerHTML = html;
+  const nbA = L.filter(x => !statut(x).ok).length;
+  $('#outils').innerHTML = `<button class="puce ${FILTRE === 'a' ? 'on' : ''}" data-f="a">⚠ À relier <b>${nbA}</b></button><button class="puce ${FILTRE === 't' ? 'on' : ''}" data-f="t">Tout <b>${L.length}</b></button>
+    <input id="rech" type="search" placeholder="🔍 Chercher (nom, réf.)" value="${esc(RECH)}">
+    ${SECTIONS.filter(([id]) => L.some(x => x.section === id)).map(([id, t]) => { const n = L.filter(x => x.section === id && !statut(x).ok).length; return `<button class="puce ${n ? 'a' : ''}" data-aller="${id}">${t.split(' ')[0]} ${esc(t.replace(/^\S+ /, ''))}${n ? ' · ⚠' + n : ' ✓'}</button>`; }).join('')}`;
+  filtrer();
+  rendreUtilises();
+};
+function filtrer() {
+  const q = norm(RECH);
+  document.querySelectorAll('#sections .section').forEach(sec => { let vus = 0;
+    sec.querySelectorAll('.l').forEach(l => { const v = (FILTRE === 't' || l.dataset.ok === '0' || l.querySelector('.creer')) && (!q || l.dataset.txt.includes(q)); l.hidden = !v; if (v) vus++; });
+    sec.querySelectorAll('.sous-t').forEach(t => { let n = t.nextElementSibling, v = false; while (n && !n.classList.contains('sous-t')) { if (!n.hidden) v = true; n = n.nextElementSibling; } t.hidden = !v; });
+    sec.hidden = !vus && FILTRE === 'a'; });
+  if (FILTRE === 'a' && ![...document.querySelectorAll('#sections .section')].some(s => !s.hidden)) $('#sections').insertAdjacentHTML('beforeend', '<p class="aide ok" id="toutOk">✓ Tout est relié. « Tout » pour revoir ou changer un lien.</p>');
+  else document.getElementById('toutOk')?.remove();
+}
+document.addEventListener('change', e => { const s = e.target.closest('[data-assoc]'); if (!s) return;
+  const cle = s.dataset.assoc;
+  if (s.value === '__creer') { ouvert = cle; doublons = null; rendre(); document.querySelector(`[data-form="${CSS.escape(cle)}"] input[name=designation]`)?.focus(); return; }
+  s.value ? liens[cle] = s.value : delete liens[cle]; modifie(); rendre(); });
+document.addEventListener('input', e => { if (e.target.id === 'rech') { RECH = e.target.value; filtrer(); } });
+document.addEventListener('toggle', e => { const d = e.target; if (!d.dataset?.sec) return; d.open ? ouverts.delete(d.dataset.sec) : ouverts.add(d.dataset.sec); try { localStorage.setItem('ref-fermes', JSON.stringify([...ouverts])); } catch {} }, true);
+document.addEventListener('click', async e => { const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.f) { FILTRE = b.dataset.f; rendre(); }
+  else if (b.dataset.aller) { const d = document.getElementById('sec-' + b.dataset.aller); d.open = true; d.hidden = false; d.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+  else if (b.dataset.valider) creer(b.dataset.valider, !!b.dataset.forcer);
+  else if (b.dataset.annuler) { ouvert = null; doublons = null; rendre(); }
+  else if (b.dataset.lier) { liens[b.dataset.lier] = b.dataset.vers; ouvert = null; doublons = null; modifie(); rendre(); }
+  else if (b.dataset.photo3d) photo3D(b.dataset.photo3d, b.dataset.mini, b);
+});
+/* 📸 la miniature 3D devient la photo du matériau (ou de la fiche) relié */
+async function photo3D(ref, mini, bt) {
+  bt.disabled = true; bt.textContent = 'Envoi…';
+  try {
+    const blob = await (await fetch(`composants/${mini}.jpg`)).blob();
+    const path = `${String(ref).replace(/[^A-Za-z0-9_-]/g, '')}/mini3d-${Date.now()}.jpg`;
+    const up = await sb.storage.from('materiaux-images').upload(path, blob, { upsert: false, contentType: 'image/jpeg' }); if (up.error) throw up.error;
+    const url = sb.storage.from('materiaux-images').getPublicUrl(path).data.publicUrl;
+    const m = mats.find(x => x.ref === ref), bj = bijoux.find(x => x.ref === ref);
+    const r = m ? await sb.from('materiaux').update({ meta: { ...(m.meta || {}), image: url } }).eq('id', m.id) : await sb.from('bijoux').update({ photo: url }).eq('id', bj.id);
+    if (r.error) throw r.error;
+    if (m) m.meta = { ...(m.meta || {}), image: url }; else bj.photo = url;
+    $('#etat').textContent = 'Photo de ' + ref + ' enregistrée ✓'; rendre();
+  } catch (x) { $('#etat').textContent = 'Photo non enregistrée : ' + (x.message || x); bt.disabled = false; bt.textContent = '📸 miniature 3D en photo'; }
 }
 function modifie() { $('#btEnregistrer').disabled = false; $('#etat').textContent = 'Modifications non enregistrées'; }
 
@@ -243,7 +416,7 @@ async function creer(refEx, forcer = false) {
     const liste = ressemblantes(sc, designation, variante);
     if (liste.length) {
       // garder ce qui a été tapé pendant le nouveau rendu
-      doublons = { refEx, liste }; rendre();
+      doublons = { refEx, liste }; ouvert = refEx; rendre();
       const f2 = document.querySelector(`[data-form="${CSS.escape(refEx)}"]`);
       Object.entries({ sc, mc, designation, variante }).forEach(([k, v]) => { const el = f2.querySelector(`[name="${k}"]`); if (el) el.value = v; });
       return;
@@ -351,66 +524,10 @@ function rendreUtilises() {
   $('#utilises').querySelector('[data-replier]').addEventListener('click', () => $('#utilises').querySelectorAll('details').forEach(d => d.open = false));
   $('#utilises').querySelectorAll('[data-fixe]').forEach(sel => sel.addEventListener('change', () => {
     sel.value ? liens[sel.dataset.fixe] = sel.value : delete liens[sel.dataset.fixe];
-    modifie(); rendreUtilises();
+    modifie(); rendre();
   }));
 }
-/* 🧭 Produits ↔ modèles 3D : une ligne par modèle / forme, la fiche produit reliée (lien explicite ou automatique) */
-function rendreProduits() {
-  const nomB = b => b ? b.ref + ' · ' + [b.nom, b.variante].filter(Boolean).join(' · ') : '';
-  const auto = (() => { const garde = { ...liens }; definirLiensFormes({});
-    const mm = Object.fromEntries(catalogueChainmailDepuisBijoux(bijoux).map(c => [c.forme, bijoux.find(b => b.ref === c.ref)]));
-    const ch = {}; for (const c of catalogueChaineDepuisBijoux(bijoux)) (ch[c.forme] ||= []).push(bijoux.find(b => b.ref === c.ref));
-    definirLiensFormes(garde); return { mm, ch }; })();
-  const tri = [...bijoux].sort((a, b) => String(a.nom || '').localeCompare(String(b.nom || ''), 'fr') || String(a.variante || '').localeCompare(String(b.variante || ''), 'fr'));
-  const sel = (cle, autoTxt) => `<select data-prod="${esc(cle)}"><option value="">automatique${autoTxt ? ' : ' + esc(autoTxt) : ' : aucune fiche trouvée'}</option>${tri.map(b => `<option value="${esc(b.ref)}" ${liens[cle] === b.ref ? 'selected' : ''}>${esc(nomB(b))}</option>`).join('')}</select>`;
-  const ligneP = (titre, cle, autoTxt) => { const lie = liens[cle], b = lie && bijoux.find(x => x.ref === lie);
-    return `<div class="ligne ${lie || autoTxt ? 'liee' : ''}"><span class="pastille" style="background:${lie ? '#2f7a46' : autoTxt ? '#9fc7ab' : '#eee'}"></span><span>${esc(titre)}</span>${sel(cle, autoTxt)}<span class="ref">${lie ? (b ? '✓ fixée' : '⚠ fiche introuvable') : autoTxt ? 'auto' : '⚠ à relier'}</span></div>`; };
-  const L = [];
-  L.push('<div class="ligne"><b style="grid-column:1/-1;font-size:12px;color:var(--prune)">BRELOQUES</b></div>');
-  for (const m0 of modelesBruts.filter(m => !m.bijZone && !estChaineSac(m))) { const mo = resoudreDefauts(m0, catalogue, fermoirs); const r = bijouBreloque({ ...mo, bij_ref: mo.bij_ref }, { couleurs: {}, texte: { mode: 1 }, bijoux });
-    L.push(ligneP(mo.nom || mo.slug, 'modele:' + mo.slug, r.id ? nomB(bijoux.find(b => b.id === r.id)) : '')); }
-  L.push('<div class="ligne"><b style="grid-column:1/-1;font-size:12px;color:var(--prune)">BRELOQUE CHAINMAIL · FORMES</b></div>');
-  for (const [f, t] of [['croix', 'Croix'], ['mini-fleur-4', 'Mini chain · Byzantine fleur'], ['mini-intercalaire-4', 'Mini chain · Byzantine alternative']]) L.push(ligneP(t, 'forme:' + f, nomB(auto.mm[f])));
-  const compos = Object.entries(FORMES_CHAINMAIL).filter(([, F]) => F.compo);
-  if (compos.length) { L.push('<div class="ligne"><b style="grid-column:1/-1;font-size:12px;color:var(--prune)">TES COMPOSITIONS (⛓ COMPOSER)</b></div>');
-    for (const [f, F] of compos) L.push(ligneP(F.nom + (F.chaine ? ' · chaîne' : ' · breloque'), 'forme:' + f, '')); }
-  L.push('<div class="ligne"><b style="grid-column:1/-1;font-size:12px;color:var(--prune)">CHAÎNES DE SAC</b></div>');
-  for (const f of ['chaine-8', 'chaine-10', 'chaine-fleur', 'chaine-intercalaire']) L.push(ligneP(NOMS_CHAINE[f], 'forme:' + f, (auto.ch[f] || []).filter(Boolean).map(nomB).join(' / ')));
-  $('#produits').innerHTML = L.join('');
-  $('#produits').querySelectorAll('[data-prod]').forEach(x => x.addEventListener('change', () => { x.value ? liens[x.dataset.prod] = x.value : delete liens[x.dataset.prod]; modifie(); rendreProduits(); }));
-}
-/* 💶 Suppléments → stock : une ligne par pièce payante, son lien vers ta base (même lien que « Références d'exemple à relier ») */
-function rendreSupplements() {
-  const sup = new Map(), eur = v => (+v || 0).toFixed(2).replace('.', ',') + ' €';
-  const noterS = (ref, role, prix, modele) => { if (!ref) return; const x = sup.get(ref) || { ref, roles: new Set(), prix: new Set(), modeles: new Set() };
-    x.roles.add(role); if (+prix) x.prix.add(eur(prix)); if (modele) x.modeles.add(modele); sup.set(ref, x); };
-  for (const m0 of modelesBruts.map(completerModeleChainmail)) {
-    const nomM = m0.nom || m0.slug;
-    for (const o of m0.options || []) {
-      if (o.type === 'fermoir') (o.choix || []).forEach(ch => +ch.supplement && noterS(ch.ref, 'Fermoir « ' + (ch.libelle || ch.nom || ch.ref) + ' »', ch.supplement, nomM));
-      if (o.type === 'accroche') (o.choix || []).forEach(ch => (ch.pieces || []).forEach((r, i) => noterS(r, 'Porte-clés « ' + (ch.libelle || ch.id) + ' »' + ((ch.pieces || []).length > 1 ? ' · pièce ' + (i + 1) : ''), i === 0 ? ch.supplement : 0, nomM)));
-      if (o.type === 'perle' && +o.supplement) noterS('option:' + (o.nom || o.id), 'Option « ' + (o.nom || 'perle') + ' » (la perle choisie par la cliente)', o.supplement, nomM);
-    }
-    for (const g of m0.groupes || []) if (g.zoneForme) Object.values(FORMES_CHAINMAIL).forEach(F => F.pampilleK && noterS(F.pampilleK[0], 'Pampille des mini chains (' + F.pampilleK[1] + ')', 0, nomM));
-  }
-  const nomRef = r => { const l = mats.find(y => y.ref === r); if (l) return [l.designation, l.variante].filter(Boolean).join(' · ');
-    const b = bijoux.find(y => y.ref === r); if (b) return 'composition ' + [b.nom, b.variante].filter(Boolean).join(' · '); return null; };
-  const L = [...sup.values()].map(x => {
-    if (x.ref.startsWith('option:')) return `<div class="ligne liee"><span class="pastille" style="background:#9fc7ab"></span><span>${esc([...x.roles].join(' · '))} ${x.prix.size ? '<b>+' + esc([...x.prix].join(' / ')) + '</b>' : ''}<br><span class="ref">${esc([...x.modeles].join(', '))}</span></span>
-      <span><b class="ok">✓</b> la perle choisie est ajoutée à la production (couleurs reliées ci-dessous, « Matériaux utilisés »)</span><span></span></div>`;
-    const ex = estExemple(x.ref), lie = ex ? liens[x.ref] : x.ref, n = lie && nomRef(lie), d = EX.get(x.ref);
-    const ok = !!(lie && n);
-    return `<div class="ligne ${ok ? 'liee' : ''}"><span class="pastille" style="background:${ok ? '#2f7a46' : '#e8a0a0'}"></span>
-      <span>${esc([...x.roles].join(' · '))} ${x.prix.size ? '<b>+' + esc([...x.prix].join(' / ')) + '</b>' : ''}<br><span class="ref">${esc(x.ref)} · ${esc([...x.modeles].join(', '))}</span></span>
-      <span>${ok ? `<b class="ok">✓</b> déduit à chaque commande : <span class="ref">${esc(lie)}</span> ${esc(n)}` : `<b class="alerte">⚠ non relié</b> : rien n'est déduit du stock`}</span>
-      <span>${ex && d ? `<select data-sup="${esc(x.ref)}">${options(d, liens[x.ref])}</select>` : ''}</span></div>`;
-  });
-  const nbA = L.filter(h => h.includes('class="alerte"')).length;
-  $('#supplements').innerHTML = (nbA ? `<p class="alerte" style="margin:0 14px 8px;padding:6px 10px">⚠ ${nbA} supplément(s) non relié(s)</p>` : '<p class="ok" style="margin:0 14px 8px">✓ Tous les suppléments retirent bien leur pièce du stock.</p>') + L.join('');
-  $('#supplements').querySelectorAll('[data-sup]').forEach(sel => sel.addEventListener('change', () => { sel.value ? liens[sel.dataset.sup] = sel.value : delete liens[sel.dataset.sup]; modifie(); rendre(); }));
-}
-const rendreSansUtilises = rendre;
-rendre = () => { rendreSansUtilises(); rendreSupplements(); rendreUtilises(); rendreProduits(); };
+
 rendre();
 $('#etat').textContent = Object.keys(liens).length ? Object.keys(liens).length + ' lien(s) enregistré(s)' : '';
 $('#btEnregistrer').addEventListener('click', async () => {
