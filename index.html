@@ -5047,8 +5047,11 @@ function majRefAuto(){
   if(document.getElementById('bij-edit-id').value) return;
   const el=document.getElementById('bij-ref'), v=el.value.trim();
   if(v && !/^(BIJ|COMP)-\d+$/i.test(v)) return;
-  el.value=autoRefBij(null, document.getElementById('bij-is-mat').checked); checkBijRef(el.value,null);
+  // composition (case « composant ») ou catégorie de compositions (ex. « Chainmail compo ») → COMP-… ; le reste → BIJ-…
+  el.value=autoRefBij(null, document.getElementById('bij-is-mat').checked || /compo/i.test(document.getElementById('bij-coll')?.value||'')); checkBijRef(el.value,null);
 }
+document.addEventListener('input',e=>{ if(e.target?.id==='bij-coll') majRefAuto(); });
+document.addEventListener('change',e=>{ if(e.target?.id==='bij-coll') majRefAuto(); });
 
 function checkBijRef(ref, editId) {
   const exists = BIJS.some(b=>b.ref===ref && b.id!==editId);
@@ -5427,7 +5430,7 @@ async function saveBij() {
   });
   const isMat=document.getElementById('bij-is-mat').checked;
   const avant=editId?getBij(editId):null;
-  const refBij=document.getElementById('bij-ref').value.trim()||autoRefBij(editId||null, isMat);
+  const refBij=document.getElementById('bij-ref').value.trim()||autoRefBij(editId||null, isMat || /compo/i.test(document.getElementById('bij-coll')?.value||''));
   // photo et description : envoyées seulement si renseignées (colonnes ajoutées par sql-ameliorations-app.sql)
   const extra={};
   if(BIJ_PHOTO.fichier){ const url=await envoyerPhoto(BIJ_PHOTO.fichier,'bijoux/'+refBij); if(!url) return; extra.photo=url; }

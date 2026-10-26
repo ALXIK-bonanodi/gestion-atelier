@@ -84,7 +84,7 @@ import {
   completerCatalogue, definirLiensFormes, catalogueChainmailDepuisBijoux, catalogueChaineDepuisBijoux, NOMS_CHAINE, completerModeleChainmail, modeleChaineSacDemo, estChaineSac, FORMES_CHAINMAIL, resoudreDefauts, couleursProposees, correspondCategorie, ordreModeles, estLettres, accrochesProposees,
   chargerLiens, enregistrerLiens, estExemple, exemplesParRef, apercuArgile, apercuChainmail, baseRef,
   appliquerLiens, relierModele, appliquerLienModele, definirLiensFixes, cleFixe, refFixe, catalogueDepuisMateriaux, perlesFixesDe, allureFixe, bijouBreloque, definirCompositions,
-} from './bead-core.js?v=cec30b10';
+} from './bead-core.js?v=411eba89';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './perles-config.js?v=e5e86015';
 
 const $ = s => document.querySelector(s);
@@ -348,7 +348,9 @@ function ligneHTML(x) {
   const vignette = estProd ? (x.mini ? `<span class="vis" title="Visuel 3D"><img src="composants/${x.mini}.jpg" alt=""></span>` : x.d ? `<span class="vis" style="background:${fond(x.d)}"></span>` : '<span class="vis">💎</span>')
     : x.section === 'fixes' ? (miniFixe(x.kNom) ? `<span class="vis"><img src="composants/${miniFixe(x.kNom)}.jpg" alt=""></span>` : `<span class="vis" style="background:${allureFixe(x.kNom)?.hex || '#cfd0d4'}"></span>`) : vis(x.cle, d, x.lecture ? x.refFiche : lie);
   const cibleP = x.lecture ? x.refFiche : x.section === 'fixes' ? (lie && lie !== 'inclus' ? lie : x.auto) : lie;
-  const mi = !estProd && (x.section === 'fixes' ? miniFixe(x.kNom) : miniDe(x.cle, d)), photo3d = mi && cibleP && cibleP !== 'inclus' && existe(cibleP) && !photoRef(cibleP);
+  // 📸 seulement pour les pièces (fermoirs, porte-clés, anneaux) : la photo d'une perle sert de pastille de couleur au configurateur, on n'y touche pas
+  const mi = !estProd && (x.section === 'fixes' ? miniFixe(x.kNom) : miniDe(x.cle, d)), photo3d = mi && /^(fermoir|mousqueton|porte-cles|anneau|bo-)/.test(mi) && cibleP && cibleP !== 'inclus' && existe(cibleP) && !photoRef(cibleP);
+  const remettre = cibleP && /\/mini3d-/.test(photoRef(cibleP) || '');
   const fichePh = estProd && (photoRef(lie) || (x.refFiche && photoRef(x.refFiche)));
   const cible = (lie && lie !== 'inclus' && existe(lie) ? `<br><span class="ref">${esc(lie)}</span> ${esc(nomRef(lie) || '')}` : '') + (fichePh ? `<br><img src="${esc(fichePh)}" alt="" style="width:34px;height:34px;object-fit:cover;border-radius:6px;margin-top:3px" title="Photo de la fiche">` : '');
   const txt = norm([titre, sous, lie, nomRef(lie), x.cle].join(' '));
@@ -356,7 +358,7 @@ function ligneHTML(x) {
     <span class="t"><b>${esc(titre)}</b> ${!estProd && x.section !== 'fixes' ? `<span class="ref">${esc(x.cle)}</span>` : ''}<small>${esc(sous)}</small></span>
     ${x.lecture ? `<span><span class="ref">${esc(x.refFiche)}</span> ${esc(x.autoTxt.replace(/^\S+ · /, ''))}<br><span class="ref">${estProd ? 'le motif est directement sa fiche bijou' : 'déjà une vraie référence de ta base'}</span></span>`
       : selAssoc(x.cle, { d, choisi: lie, vide, inclus: x.section === 'fixes', creer: peutCreer, bijouxSeuls: estProd, indices: estProd ? x.titre : x.section === 'fixes' ? x.kNom : [d?.nom, d?.categorie].join(' ') })}
-    <span class="st ${st.cls}">${esc(st.txt)}${st.plus ? `<br><small style="font-weight:400;color:var(--doux)">${esc(st.plus)}</small>` : ''}${cible}${photo3d ? `<br><button class="leger" data-photo3d="${esc(cibleP)}" data-mini="${mi}" title="La miniature 3D devient la photo de ${esc(cibleP)}">📸 miniature 3D en photo</button>` : ''}</span>
+    <span class="st ${st.cls}">${esc(st.txt)}${st.plus ? `<br><small style="font-weight:400;color:var(--doux)">${esc(st.plus)}</small>` : ''}${cible}${photo3d ? `<br><button class="leger" data-photo3d="${esc(cibleP)}" data-mini="${mi}" title="La miniature 3D devient la photo de ${esc(cibleP)}">📸 miniature 3D en photo</button>` : ''}${remettre ? `<br><button class="leger" data-remettre="${esc(cibleP)}" title="Remet la photo que tu avais avant la miniature 3D">↩ Remettre ta photo</button>` : ''}</span>
     ${ouvert === x.cle ? formCreer(x) : ''}</div>`;
 }
 function formCreer(x) {
@@ -393,7 +395,8 @@ let rendre = function () {
   }).join('');
   $('#sections').innerHTML = html;
   const nbA = L.filter(x => !statut(x).ok).length;
-  $('#outils').innerHTML = `<button class="puce ${FILTRE === 'a' ? 'on' : ''}" data-f="a">⚠ À relier <b>${nbA}</b></button><button class="puce ${FILTRE === 't' ? 'on' : ''}" data-f="t">Tout <b>${L.length}</b></button>
+  const remplacees = mats.filter(m => /\/mini3d-/.test(m.meta?.image || ''));
+  $('#outils').innerHTML = (remplacees.length ? `<p class="alerte" style="flex-basis:100%;margin:0 0 6px;padding:6px 10px">${remplacees.length} photo(s) de matériau remplacée(s) par une miniature 3D (${esc(remplacees.map(m => m.ref).join(', '))}) : la pastille et la couleur du configurateur en dépendent. <button class="leger" data-tout-remettre="1">↩ Remettre tes photos</button></p>` : '') + `<button class="puce ${FILTRE === 'a' ? 'on' : ''}" data-f="a">⚠ À relier <b>${nbA}</b></button><button class="puce ${FILTRE === 't' ? 'on' : ''}" data-f="t">Tout <b>${L.length}</b></button>
     <input id="rech" type="search" placeholder="🔍 Chercher (nom, réf.)" value="${esc(RECH)}">
     ${SECTIONS.filter(([id]) => L.some(x => x.section === id)).map(([id, t]) => { const n = L.filter(x => x.section === id && !statut(x).ok).length; return `<button class="puce ${n ? 'a' : ''}" data-aller="${id}">${t.split(' ')[0]} ${esc(t.replace(/^\S+ /, ''))}${n ? ' · ⚠' + n : ' ✓'}</button>`; }).join('')}`;
   filtrer();
@@ -421,7 +424,21 @@ document.addEventListener('click', async e => { const b = e.target.closest('butt
   else if (b.dataset.annuler) { ouvert = null; doublons = null; rendre(); }
   else if (b.dataset.lier) { liens[b.dataset.lier] = b.dataset.vers; ouvert = null; doublons = null; modifie(); rendre(); }
   else if (b.dataset.photo3d) photo3D(b.dataset.photo3d, b.dataset.mini, b);
+  else if (b.dataset.remettre) { b.disabled = true; await remettrePhoto(b.dataset.remettre); rendre(); }
+  else if (b.dataset.toutRemettre) { b.disabled = true; for (const m of mats.filter(m => /\/mini3d-/.test(m.meta?.image || ''))) await remettrePhoto(m.ref); rendre(); }
 });
+/* ↩ la photo d'avant la miniature 3D : celle gardée, sinon la plus récente de ses photos envoyées (même dossier), sinon aucune (la couleur revient de la fiche) */
+async function remettrePhoto(ref) {
+  const m = mats.find(x => x.ref === ref); if (!m) return;
+  let avant = m.meta?.image_avant || null;
+  if (!avant) { try { const dos = String(ref).replace(/[^A-Za-z0-9_-]/g, ''), { data } = await sb.storage.from('materiaux-images').list(dos, { limit: 100 });
+    const f = (data || []).filter(x => x.name && !/^mini3d-/.test(x.name)).sort((a, b) => String(b.created_at || b.name).localeCompare(String(a.created_at || a.name)))[0];
+    if (f) avant = sb.storage.from('materiaux-images').getPublicUrl(dos + '/' + f.name).data.publicUrl; } catch { /* liste indisponible */ } }
+  const meta = { ...(m.meta || {}) }; delete meta.image_avant; if (avant) meta.image = avant; else delete meta.image;
+  const { error } = await sb.from('materiaux').update({ meta }).eq('id', m.id);
+  if (error) { $('#etat').textContent = 'Photo non remise : ' + error.message; return; }
+  m.meta = meta; $('#etat').textContent = avant ? 'Photo d\'origine remise pour ' + ref + ' ✓' : ref + ' : plus de miniature 3D (aucune ancienne photo trouvée, la couleur revient de sa fiche)';
+}
 /* 📸 la miniature 3D devient la photo du matériau (ou de la fiche) relié */
 async function photo3D(ref, mini, bt) {
   bt.disabled = true; bt.textContent = 'Envoi…';
@@ -431,7 +448,7 @@ async function photo3D(ref, mini, bt) {
     const up = await sb.storage.from('materiaux-images').upload(path, blob, { upsert: false, contentType: 'image/jpeg' }); if (up.error) throw up.error;
     const url = sb.storage.from('materiaux-images').getPublicUrl(path).data.publicUrl;
     const m = mats.find(x => x.ref === ref), bj = bijoux.find(x => x.ref === ref);
-    const r = m ? await sb.from('materiaux').update({ meta: { ...(m.meta || {}), image: url } }).eq('id', m.id) : await sb.from('bijoux').update({ photo: url }).eq('id', bj.id);
+    const r = m ? await sb.from('materiaux').update({ meta: { ...(m.meta || {}), image: url, image_avant: m.meta?.image || null } }).eq('id', m.id) : await sb.from('bijoux').update({ photo: url }).eq('id', bj.id);
     if (r.error) throw r.error;
     if (m) m.meta = { ...(m.meta || {}), image: url }; else bj.photo = url;
     $('#etat').textContent = 'Photo de ' + ref + ' enregistrée ✓'; rendre();

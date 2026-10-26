@@ -536,6 +536,8 @@ let LIENS_FORMES = {};
 export function definirLiensFormes(liens = {}) { LIENS_FORMES = Object.fromEntries(Object.entries(liens || {}).filter(([k]) => /^(forme|modele):/.test(k))); }
 export const lienForme = f => LIENS_FORMES['forme:' + f] || null;
 export const lienModele = slug => LIENS_FORMES['modele:' + slug] || null;
+/* forme 3D reliée à une fiche dans 🔗 Références (ou par 💾 dans Composer) */
+export const formeLiee = ref => { if (!ref) return null; const k = Object.keys(LIENS_FORMES).find(k => k.startsWith('forme:') && LIENS_FORMES[k] === ref); return k ? k.slice(6) : null; };
 /* breloque lettre : une fiche par nombre de mots (« modele:<slug>:1 », « modele:<slug>:2 » dans 🔗 Références) */
 export const lienModeleMode = (slug, mode) => LIENS_FORMES['modele:' + slug + ':' + mode] || null;
 /* fiche(s) reliée(s) dans 🔗 Références : elles passent avant la recherche par nom */
@@ -757,7 +759,8 @@ export function fermoirDepuisMateriau(l) {
   const t = [l.designation, l.variante, l.sc].filter(Boolean).join(' ').toLowerCase();
   const mm = t.match(/(\d+(?:[.,]\d+)?)\s*mm/);
   const metal = /dor|\bor\b|gold/.test(t) ? 'or' : /bronze/.test(t) ? 'bronze' : /cuivr/.test(t) ? 'cuivre' : /noir/.test(t) ? 'noir' : 'argent';
-  const type = /breloque/.test(t) ? 'mousqueton'
+  const type = /creole|huggie|charniere|dormeuse/.test(t.normalize('NFD').replace(/[\u0300-\u036f]/g, '')) ? (/charni|huggie|clic/.test(t.normalize('NFD').replace(/[\u0300-\u036f]/g, '')) ? 'creole-charniere' : 'creole')
+    : /breloque/.test(t) ? 'mousqueton'
     : /rond|ressort|marin|spring/.test(t) ? 'anneau-ressort'
     : /pivot|porte.?cl|snap/.test(t) && /mousq/.test(t) ? 'mousqueton-pivot'
     : /anneau|porte.?cl/.test(t) && !/mousq/.test(t) ? 'anneau' : 'mousqueton';
@@ -1546,6 +1549,33 @@ function geosMousqueton(taille) {
 }
 
 const RAYON_FIL = 0.16;
+/* Créoles de boucles d'oreilles (d'après ta photo, à l'échelle des anneaux de 10 mm) :
+   - « creole » : créole ouverte Ø ≈ 40 mm, fil 0,8 mm, boule de 3 mm d'un côté, tige de 10 mm et poussoir de l'autre ;
+   - « creole-charniere » : petite créole à charnière Ø ≈ 20 mm, tube de 2 mm, charnière en haut.
+   Dans le plan YZ, centre en z = -R : le bas de l'anneau en z = 0, là où pend la breloque. */
+function geosCreole(type, D) {
+  const geos = [], charniere = type === 'creole-charniere';
+  D = D || (charniere ? 20 : 40);
+  const r = charniere ? 1.0 : 0.4, R = D / 2 - r;
+  const pt = phi => new THREE.Vector3(0, R * Math.sin(phi), -R + R * Math.cos(phi));     // phi = 0 en bas
+  if (charniere) {
+    const t = new THREE.TorusGeometry(R, r, 20, 72); t.rotateY(Math.PI / 2); t.translate(0, 0, -R); geos.push(t);
+    const c = new THREE.CylinderGeometry(r * 1.08, r * 1.08, r * 1.6, 20); c.rotateZ(Math.PI / 2); c.rotateY(Math.PI / 2);   // charnière : petit manchon en haut
+    c.translate(...pt(Math.PI * 0.86).toArray()); geos.push(c);
+    const b = new THREE.SphereGeometry(r * 0.5, 12, 10); b.translate(...pt(Math.PI * 0.86).add(new THREE.Vector3(r * 1.1, 0, 0)).toArray()); geos.push(b);
+    return geos;
+  }
+  const a0 = Math.PI * 1.12, a1 = Math.PI * 2.88;        // ouverte en haut
+  const courbe = new THREE.Curve(); courbe.getPoint = u => pt(a0 + (a1 - a0) * u);
+  geos.push(new THREE.TubeGeometry(courbe, 96, r, 12, false));
+  const boule = new THREE.SphereGeometry(1.5, 20, 16); boule.translate(...pt(a1).toArray()); geos.push(boule);
+  const pTige = pt(a0), tige = new THREE.CylinderGeometry(0.4, 0.4, 10, 12); tige.rotateZ(Math.PI / 2); tige.translate(pTige.x + 5, pTige.y, pTige.z); geos.push(tige);
+  const bout = new THREE.SphereGeometry(r * 1.1, 12, 10); bout.translate(...pTige.toArray()); geos.push(bout);
+  for (const s of [-1, 1]) {                               // poussoir papillon
+    const g = new THREE.TorusGeometry(1.6, 0.35, 10, 24); g.rotateY(Math.PI / 2); g.translate(pTige.x + 6.5, pTige.y + s * 1.6, pTige.z); geos.push(g); }
+  const disque = new THREE.CylinderGeometry(1.2, 1.2, 0.5, 18); disque.rotateZ(Math.PI / 2); disque.translate(pTige.x + 6.5, pTige.y, pTige.z); geos.push(disque);
+  return geos;
+}
 function geosAccessoire(type, taille = 12) {
   const cle = type + '@' + taille;
   if (cacheAcc.has(cle)) return cacheAcc.get(cle);
@@ -1562,6 +1592,8 @@ function geosAccessoire(type, taille = 12) {
       g.computeVertexNormals();
       geos.push(g);
     }
+  } else if (type === 'creole' || type === 'creole-charniere') {   // boucles d'oreilles : la breloque pend au bas de la créole (z = 0)
+    geos.push(...geosCreole(type, taille));
   } else if (type === 'mousqueton-pivot') {                // chaîne de sac : mousqueton porte-clés à chaque bout
     const r = geosMousquetonPivot(taille || 34); geos.push(...(r.geos || r));
   } else if (type === 'anneau-ressort') {                 // fermoir rond (comme pour le bundle) : la breloque pend à son œillet du bas
@@ -2106,7 +2138,7 @@ const ANCIENS_ELEMENTS = { 'double-8-3': { k: 'double', taille: 8, conn: 3 }, 'd
   'fleur': { k: 'fleur', petales: 2 }, 'noeud-8': { k: 'noeud', taille: 8 }, 'noeud-10': { k: 'noeud', taille: 10 },
   'conn-8-3': { k: 'conn', nb: 3, taille: 8 }, 'conn-8-2': { k: 'conn', nb: 2, taille: 8 }, 'conn-10-2': { k: 'conn', nb: 2, taille: 10 }, 'solo-10': { k: 'conn', nb: 1, taille: 10 } };
 export const elementChainmail = x => typeof x === 'string' ? { ...(ANCIENS_ELEMENTS[x] || { k: x }) } : { ...(x || {}) };
-export const estCorpsChainmail = x => ['double', 'fleur', 'noeud'].includes(elementChainmail(x).k);
+export const estCorpsChainmail = x => ['double', 'fleur', 'noeud', 'forme'].includes(elementChainmail(x).k);
 export function nomElementChainmail(x) {
   const e = elementChainmail(x), t = (e.taille || 8) + ' mm';
   if (e.k === 'double') return `Double 4×4 + connecteur (${e.conn || 3}) · ${t}`;
@@ -2117,6 +2149,7 @@ export function nomElementChainmail(x) {
   if (e.k === 'pampille') return 'Pampille ' + (e.taille || 4) + ' mm';
   if (e.k === 'petit') return 'Petit anneau 0,5 mm';
   if (e.k === 'fermoir-10') return 'Fermoir 10 mm';
+  if (e.k === 'forme') return 'Forme · ' + (FORMES_CHAINMAIL[e.f]?.nom || e.f);
   return e.k || '?';
 }
 let _gabEl = null;
@@ -2145,6 +2178,11 @@ export function anneauxElement(x) {
     return { anneaux: [...coeur, ...P], T };
   }
   if (e.k === 'noeud') { const g = dix ? G.c10 : G.c8; return { anneaux: demi(g), T: g.T / 2 }; }
+  if (e.k === 'forme') {                                   // une forme déjà modélisée (croix, mini chain…) posée comme un élément
+    const F = FORMES_CHAINMAIL[e.f]; if (!F?.gen) return { anneaux: [], T: 0 };
+    const A = F.gen(), z0 = Math.min(...A.map(a => a.p[2] - a.R)), z1 = Math.max(...A.map(a => a.p[2] + a.R));
+    return { anneaux: A.map(a => ({ ...a, p: [a.p[0], a.p[1], +(a.p[2] - z0).toFixed(3)] })), T: z1 - z0 };
+  }
   if (e.k === 'conn') {
     const nb = e.nb || 2, base = dix ? (nb === 2 ? jointDe(G.c10) : nb === 1 ? jointDe(G.i8) : null) : (nb === 3 ? jointDe(G.c8) : null);
     if (base) return { anneaux: base, T: 0 };
@@ -2157,11 +2195,12 @@ export function anneauxElement(x) {
 export function elementDepuisNom(texte) {
   const t = norm(texte), dix = /\b10 ?mm\b/.test(t), nbP = (/\((\d)\)/.exec(t) || /connecteur ?(\d)\b/.exec(t) || [])[1];
   if (/mini[ -]?cha|croix|chaine|chaîne|collier|choker|chocker|breloque|bracelet|porte|boucle|\bbo\b|sac/.test(t)) return null;          // un produit, pas un élément
-  if (/pampille/.test(t)) return { k: 'pampille', taille: /\b3 ?mm\b/.test(t) ? 3 : 4 };
+  if (/pampille/.test(t) && !/fleur|petale|noeud|double|4 ?x ?4|connecteur/.test(t)) return { k: 'pampille', taille: /\b3 ?mm\b/.test(t) ? 3 : 4 };
   if (/petit anneau|0[,.]5 ?mm/.test(t)) return { k: 'petit' };
   if (/fermoir/.test(t) && dix) return { k: 'fermoir-10' };
   if (/fleur|petale/.test(t)) return { k: 'fleur', petales: /sans petale/.test(t) ? 0 : /1 petale|un petale/.test(t) ? 'haut' : 2, ...(/mini/.test(t) ? { coeur: 10, petale: '8x2' } : {}) };
-  if (/double/.test(t) && /4 ?x ?4|byzant|noeud/.test(t)) return { k: 'double', taille: dix ? 10 : 8, conn: dix ? 2 : (nbP === '3' ? 3 : nbP === '2' ? 2 : 3) };
+  if (/byzant/.test(t) && !/4 ?x ?4|noeud/.test(t)) return null;                                     // « double byzantine … » = une chaîne, pas un élément
+  if (/double/.test(t) && /4 ?x ?4|noeud/.test(t)) return { k: 'double', taille: dix ? 10 : 8, conn: dix ? 2 : (nbP === '3' ? 3 : nbP === '2' ? 2 : 3) };
   if (/n(oe|œ)ud/.test(t) || /\b4 ?x ?4\b/.test(t)) return { k: 'noeud', taille: dix ? 10 : 8 };
   if (/solo/.test(t)) return { k: 'conn', nb: 1, taille: /\b8 ?mm\b/.test(t) ? 8 : 10 };
   if (/connecteur/.test(t)) return { k: 'conn', nb: nbP ? +nbP : 2, taille: dix ? 10 : 8 };
@@ -2195,6 +2234,7 @@ export function sequenceComposition(c, { detail = false } = {}) {
 // distance du centre d'un corps au connecteur voisin, prise sur tes gabarits (8 mm ↔ 8 mm, 8 mm ↔ 10 mm, 10 mm ↔ 10 mm)
 function demiPas(corps, joint) {
   const { G } = gabaritsElements(), j10 = (elementChainmail(joint || {}).taille || 8) === 10, e = elementChainmail(corps);
+  if (e.k === 'forme') return anneauxElement(e).T / 2;
   if (((e.taille || 8) === 10 && e.k !== 'fleur') || (e.k === 'fleur' && (e.coeur || 8) === 10)) return j10 ? G.c10.T / 2 : G.c10.T / 2 - (ANNEAU_10.R - ANNEAU_8.R);
   return e.k === 'fleur' ? (j10 ? G.fl.T / 2 : G.fl.T / 2 - (ANNEAU_10.R - ANNEAU_8.R) * MINI_RECUL) : (j10 ? G.i8.T / 2 : G.c8.T / 2);
 }
@@ -2240,7 +2280,7 @@ export function decompteComposition(A) {
 export function definirCompositions(liste = []) {
   for (const k of Object.keys(FORMES_CHAINMAIL)) if (FORMES_CHAINMAIL[k].compo) delete FORMES_CHAINMAIL[k];
   for (const c of liste || []) { if (!c?.id || !(c.motif || []).length) continue;
-    const breloque = c.usage === 'breloque';
+    const breloque = c.usage === 'breloque' || c.usage === 'bo';
     FORMES_CHAINMAIL['compo-' + c.id] = { nom: c.nom || 'Composition', compo: true, chaine: !breloque, mini: breloque, bouts: c.bouts || 'mousquetons', boutsF: c.boutsF || null,
       ...(breloque && c.pampille ? { pampille: 'ronde-4', pampilleK: ['#PM-ex01', 'ronde argentée 4 mm'] } : {}),
       gen: L => assemblerComposition(c, { detail: L === 'detail' || typeof L === 'number' }) };   // un nombre = un tronçon (vignette)

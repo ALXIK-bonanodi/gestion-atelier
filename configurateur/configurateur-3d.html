@@ -463,8 +463,8 @@ import {
   modeleChainmailDemo, estChainmail, formeChainmail, motifArgile, modeleMiniChaineDemo, completerModeleChainmail, estMiniChaine, estMiniForme, pointsSurChaine, anneauxDeForme, COLLECTION_CHAINE, chargerBijouxBoutique, bijouBreloque, modelePerleCultureDemo, estPerleCulture, apercuChainmail,
   correspondCategorie, texteCatalogue, ordreModeles, chargerRuptures, appliquerRuptures,
   chargerLiens, appliquerLiens, relierModele, chargerMateriauxParRefs,
-  chargerFichesConfig, chargerOffres, definirLiensFormes, lienModele, appliquerLienModele, composerCompos, definirFichesConfig, ficheCfg, refsCouleurFiche, famillesFiche,
-} from './bead-core.js?v=cec30b10';
+  chargerFichesConfig, chargerOffres, definirLiensFormes, lienModele, appliquerLienModele, formeLiee, composerCompos, definirFichesConfig, ficheCfg, refsCouleurFiche, famillesFiche,
+} from './bead-core.js?v=411eba89';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER, PANIER_SHOPIFY } from './perles-config.js?v=e5e86015';
 
 const $ = s => document.querySelector(s);
@@ -1194,7 +1194,8 @@ function alternativesDe(m, row) {
 function entreeBijZone(m, piece) {
   const z = (m.zones || []).find(x => x.id === m.bijZone), l = z ? couleursProposees(z, catalogue, parties) : [];
   const nom = [piece.nom, piece.variante].filter(Boolean).join(' '), par = piece.parent_id && bijoux.find(b => b.id === piece.parent_id);
-  const f = formeChainmail(nom) || (par && formeChainmail([par.nom, par.variante, piece.variante].filter(Boolean).join(' '))), mo = motifArgile(nom);
+  // forme reliée à la fiche (🔗 Références, ⛓ Composer) d'abord, puis d'après le nom
+  const f = formeLiee(piece.ref) || (par && formeLiee(par.ref)) || formeChainmail(nom) || (par && formeChainmail([par.nom, par.variante, piece.variante].filter(Boolean).join(' '))), mo = motifArgile(nom);
   return l.find(c => c.ref === piece.ref) || (f && l.find(c => c.forme === f)) || (mo && l.find(c => c.motif === mo)) || null;
 }
 function modeleDeFiche(piece, liste) {
