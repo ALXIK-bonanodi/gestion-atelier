@@ -206,7 +206,7 @@ aside > *, .etape .corps > *, .seq-l, .seq-l .t { min-width: 0; }
 <script type="module">
 import { ScenePerles, cleFixe, fermoirDepuisMateriau, assemblerComposition, decompteComposition, definirCompositions, elementChainmail, nomElementChainmail, estCorpsChainmail,
   elementDepuisNom, piecesComposition, connecteurEntre, modeleChaineSacDemo, modeleChainmailDemo, catalogueChaineDepuisBijoux, catalogueChainmailDepuisBijoux,
-  definirLiensFormes, NOMS_CHAINE, FORMES_CHAINMAIL, CATALOGUE_DEMO } from './bead-core.js?v=17d62b5a';
+  definirLiensFormes, NOMS_CHAINE, FORMES_CHAINMAIL, CATALOGUE_DEMO } from './bead-core.js?v=cec30b10';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure } from './perles-config.js?v=e5e86015';
 
 const $ = s => document.querySelector(s);
@@ -220,7 +220,7 @@ const C = (nb, taille) => ({ k: 'conn', nb, taille }), D = (taille, conn) => ({ 
 const BASE = [D(8, 3), D(8, 2), D(10, 2), { k: 'fleur', petales: 2 }, { k: 'fleur', petales: 2, coeur: 10, petale: '8x2' }, { k: 'noeud', taille: 8 }, { k: 'noeud', taille: 10 }, C(3, 8), C(2, 8), C(2, 10), C(1, 10)];
 const imgDe = x => { const e = elementChainmail(x);
   if (e.k === 'double') return e.taille === 10 ? 'double-4x4-connecteur-2-10mm' : e.conn === 2 ? 'double-4x4-connecteur-2-8mm' : 'double-4x4-connecteur-3-8mm';
-  if (e.k === 'fleur') return 'fleur-double-petales'; if (e.k === 'noeud') return e.taille === 10 ? 'noeud-4x4-10mm' : 'noeud-4x4-8mm';
+  if (e.k === 'fleur') return (e.coeur || 8) === 10 ? 'mini-fleur' : 'fleur-double-petales'; if (e.k === 'noeud') return e.taille === 10 ? 'noeud-4x4-10mm' : 'noeud-4x4-8mm';
   if (e.k === 'conn') return e.nb === 1 ? 'anneau-solo-10mm' : e.nb === 3 ? 'connecteur-3-8mm' : e.taille === 10 ? 'connecteur-2-10mm' : 'connecteur-2-8mm';
   if (e.k === 'pampille') return 'pampille-' + (e.taille || 4) + 'mm'; if (e.k === 'petit') return 'petit-anneau-0-5mm'; if (e.k === 'fermoir-10') return 'fermoir-10mm'; return ''; };
 const img = (src, cls = '') => `<img class="${cls}" src="${esc(src)}" alt="" onerror="this.outerHTML='<span class=&quot;ic&quot;>⛓</span>'">`;
@@ -436,26 +436,31 @@ function rendreCompoFiche(b) {
   if (!b) { $('#compoFiche').innerHTML = ''; return; }
   const L = lignesFiche(b);
   $('#compoFiche').innerHTML = `<div class="sous" style="margin-top:4px">Composition de la fiche</div>` + (L.length ? `<table class="p">${L.map(x => `<tr><td class="n">${x.qte} ×</td><td>${esc(x.nom)} <span class="badge">${esc(x.ref)}</span><br><span class="badge ${x.etat[0]}">${esc(x.etat[1])}</span></td></tr>`).join('')}</table>
-    ${L.some(x => x.el && estCorpsChainmail(x.el)) ? '<button class="btn mini prim" type="button" id="btDepuisFiche">⛓ Construire avec les éléments de la fiche, dans l\'ordre</button>' : ''}`
+    ${L.some(x => x.el && estCorpsChainmail(x.el)) ? '<button class="btn mini prim" type="button" id="btDepuisFiche">⛓ Proposer le motif d\'après la fiche</button> <span class="aide">(à vérifier : ta fiche ne dit pas l\'ordre)</span>' : ''}`
     : '<p class="aide">Fiche sans composition : pars d\'un modèle ou de « Vierge ».</p>');
   $('#btDepuisFiche')?.addEventListener('click', () => { construireDepuisFiche(b); });
 }
 /* les éléments chainmail de la fiche, dans l'ordre de sa composition : le nombre de corps donne les répétitions,
    un connecteur en plus (n + 1) devient le début de la chaîne */
 function construireDepuisFiche(b) {
+  // l'ordre des lignes de ta fiche ne compte pas : chaque corps (double, fleur, nœud) est suivi du connecteur de ta fiche qui lui va
+  // (celui de tes chaînes, sinon le plus utilisé) ; un connecteur en plus (n + 1, ou moins que de motifs) devient celui du début
   const E = lignesFiche(b).filter(x => x.el && !['pampille', 'petit', 'fermoir-10'].includes(x.el.k) && x.qte > 0);
-  const corps = E.filter(x => estCorpsChainmail(x.el)); if (!corps.length) return;
+  const corps = E.filter(x => estCorpsChainmail(x.el)).sort((p, q) => q.qte - p.qte), conns = E.filter(x => !estCorpsChainmail(x.el)).map(x => ({ ...x, reste: x.qte }));
+  if (!corps.length) return;
   const nb = Math.max(1, Math.min(...corps.map(x => x.qte)));
-  const motif = [], debut = [];
-  for (const x of E) { const k = Math.floor(x.qte / nb), reste = x.qte - k * nb;
-    if (!k && !estCorpsChainmail(x.el)) { debut.push(clone(x.el)); continue; }          // moins que de motifs : c'est le connecteur du début
-    for (let i = 0; i < Math.max(1, k); i++) motif.push(clone(x.el));
-    if (reste === 1 && !estCorpsChainmail(x.el)) debut.push(clone(x.el)); }
+  const motif = [];
+  for (const x of corps) for (let i = 0; i < Math.max(1, Math.floor(x.qte / nb)); i++) {
+    motif.push(clone(x.el));
+    const ideal = connecteurEntre(x.el, x.el), c = conns.find(y => y.reste >= nb && memeElement(y.el, ideal)) || conns.filter(y => y.reste >= nb).sort((p, q) => q.reste - p.reste)[0];
+    if (c) { motif.push(clone(c.el)); c.reste -= nb; }
+  }
+  const debut = conns.find(y => y.reste >= 1);
   const t = norm(texteFiche(b)), breloque = /mini|breloque/.test(t);
   compo = { ...VIERGE(), id: compo.fiche === b.ref ? compo.id : null, nom: nomFiche(b), fiche: b.ref, usage: breloque ? 'breloque' : 'chaine',
-    bouts: /collier|choker|chocker|ras du cou/.test(t) ? 'fermoir-10' : 'mousquetons', debut: debut[0] || null, motif, nb,
+    bouts: /collier|choker|chocker|ras du cou/.test(t) ? 'fermoir-10' : 'mousquetons', debut: debut ? clone(debut.el) : null, motif, nb,
     pampille: breloque && lignesFiche(b).some(x => x.el?.k === 'pampille' || /pampille/.test(norm(x.nom)) || (/ronde|boule/.test(norm(x.nom)) && /\b4 ?mm/.test(norm(x.nom)))), fin: 'motif' };
-  rendreTout(true); allerPas(2); toast(`Construit depuis la fiche : ${motif.length} élément(s) × ${nb}. Vérifie l'ordre et les bouts.`);
+  rendreTout(true); allerPas(2); toast(`Proposition d'après ta fiche : ${motif.length} élément(s) × ${nb}. L'ordre n'étant pas dans ta fiche, vérifie-le (↑ ↓).`);
 }
 
 /* ---------- étape 1 : départ, fiches ---------- */
@@ -478,7 +483,9 @@ const piecesFiche = b => { const ids = new Set((FICHES_CFG[b.id]?.pieces || []).
 /* une pièce de la fiche est-elle connue du modèle 3D ?
    matériau : anneaux (chainmail), fermoirs / mousquetons / ronds, perles → oui ; crochets de BO, sac, cuir, chaîne… → non ; emballage, fil → ignoré */
 const ignoreMat = m => /emballage|consommable|outil|\bfil\b|etiquette|sachet|pochette|boite/.test(txtMat(m));
-const matModelise = m => Object.values(liens).includes(m.ref) || /anneau|fermoir|mousqueton|ressort|\brond\b|perle|rocaille|heishi|etoile|culture|lettre|pampille|ronde/.test(txtMat(m));
+// pas (encore) de modèle 3D : crochets / tiges de boucles d'oreilles, sacs, cuir, cordons, chaînes métal…
+const PAS_3D = /boucle|oreille|crochet|dormeuse|creole|\bclous?\b|\bpuces?\b|\bbo\b|\bsacs?\b|cuir|cordon|chaine|chainette|bracelet|bague|tige/;
+const matModelise = m => !PAS_3D.test(txtMat(m)) && (Object.values(liens).includes(m.ref) || /anneau|fermoir|mousqueton|ressort|\brond\b|perle|rocaille|heishi|etoile|culture|lettre|pampille|ronde/.test(txtMat(m)));
 function piecesNonModelisees(b, auto, prof) {          // [noms] des pièces de la fiche que le 3D ne connaît pas
   const out = [];
   for (const l of (b.parent_id && !(b.mats || []).length ? parent(b.parent_id)?.mats : b.mats) || []) {
@@ -539,6 +546,7 @@ async function sauver() {
   const i = mes.findIndex(c => c.id === compo.id), copie = { ...clone(compo), maj: new Date().toISOString() };
   if (i >= 0) mes[i] = copie; else mes.unshift(copie);
   await ecrireMes(mes); await relierFiche(copie); rendreMes(); rendreFiches();
+  try { window.parent?.postMessage({ type: 'bona-nodi:liens-maj' }, '*'); } catch {}
 }
 function rendreMes() {
   $('#depuisCompo').innerHTML = '<option value="">une de mes compositions…</option>' + mes.map(c => `<option value="${esc(c.id)}">${esc(c.nom)}</option>`).join('');

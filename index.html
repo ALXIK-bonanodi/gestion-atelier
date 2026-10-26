@@ -3337,6 +3337,8 @@ function succesAtelier() {
   ];
 }
 // 📸 photo de fiche prise depuis la vue 3D du configurateur (Conception 3D › aperçu) : la fiche est mise à jour tout de suite
+// 🔗 Références enregistrées : l'aperçu client et la gestion relisent les liens
+window.addEventListener('message',e=>{ const d=e.data; if(d&&d.type==='bona-nodi:liens-maj'){ CTRL_PRIX=null; const f=document.getElementById('c3frame-cfg'); if(f?.getAttribute('src')) rafraichirApercu(true); toast('Liens enregistrés : aperçu client rechargé ✓','ok'); } });
 window.addEventListener('message',e=>{ const d=e.data; if(d&&d.type==='bona-nodi:photo-fiche'&&d.id){ const b=getBij(d.id); if(b){ b.photo=d.url; renderBij(); toast('📸 Photo 3D enregistrée sur la fiche ✓','ok'); } } });
 // Molette / pavé tactile : ne jamais changer une quantité en faisant défiler la page (un champ nombre qui a le focus perd le focus au défilement)
 document.addEventListener('wheel',e=>{ const a=document.activeElement; if(a&&((a.tagName==='INPUT'&&a.type==='number')||a.tagName==='SELECT')&&(e.target===a||a.contains(e.target))) a.blur(); },{passive:true,capture:true});

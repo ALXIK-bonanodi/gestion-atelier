@@ -489,9 +489,11 @@ export const FORMES_CHAINMAIL = {
   'mini-fleur-4': { nom: 'Byzantine fleur', mini: true, pampille: 'ronde-4', pampilleK: ['#PM-ex01', 'ronde argentée 4 mm'], gen: () => genMiniChaine('fleur', 4) },
   'mini-intercalaire-4': { nom: 'Byzantine alternative', mini: true, pampille: 'ronde-4', pampilleK: ['#PM-ex01', 'ronde argentée 4 mm'], gen: () => genMiniChaine('intercalaire', 4) },
 };
+/* produits qui contiennent une forme sans être cette forme (boucles d'oreilles, sac, bracelet…) : jamais reliés à un visuel d'après leur nom */
+export const autreProduit = texte => /boucles?\b|oreille|\bbo\b|\bsacs?\b(?! ?a ?main)|bracelet|bague|porte.?cl|pendentif|broche/.test(norm(texte)) && !/chaine de sac|chaine pour sac|chaine sac/.test(norm(texte));
 /* fiche bijou « chaîne … byzantine … » → son motif */
 export function formeChaine(texte) {
-  const t = norm(texte); if (/croix/.test(t) || /\bmini/.test(t) || !(/chaine/.test(t) || /byzantin/.test(t))) return null;   // « chaîne … » ou « … byzantine … » (catégorie chainmail)
+  const t = norm(texte); if (/croix/.test(t) || /\bmini/.test(t) || !(/chaine/.test(t) || /byzantin/.test(t)) || autreProduit(t)) return null;   // « chaîne … » ou « … byzantine … » (catégorie chainmail)
   if (/fleur/.test(t)) return 'chaine-fleur';
   if (/intercal|altern/.test(t)) return 'chaine-intercalaire';
   if (/\b10\s*mm|\b10\b|chunky/.test(t)) return 'chaine-10';
@@ -520,9 +522,9 @@ export function catalogueChaineDepuisBijoux(bijoux = []) {
       nomFiche: [b.nom, b.variante].filter(Boolean).join(' · '),
       hex: '#b4b6ba', finition: 'chainmail', forme: f, categorie: 'Chaînes de sac', bijou: true, pv, enStock: true, ordre: 1e6 + 2 }));
 }
-export const formeMini = texte => { const t = norm(texte); if (!/\bmini/.test(t) || /\b3\b|\btrois|croix/.test(t)) return null;   // mini chaîne : 4 nœuds (les fiches « 3 nœuds » sont ignorées)
+export const formeMini = texte => { const t = norm(texte); if (!/\bmini/.test(t) || /\b3\b|\btrois|croix/.test(t) || autreProduit(t)) return null;   // mini chaîne : 4 nœuds (les fiches « 3 nœuds » sont ignorées)
   const m = /fleur/.test(t) ? 'fleur' : /intercal|altern/.test(t) ? 'intercalaire' : null; return m ? 'mini-' + m + '-4' : null; };
-export const formeChainmail = texte => formeMini(texte) || (t => Object.keys(FORMES_CHAINMAIL).filter(k => !FORMES_CHAINMAIL[k].mini && !FORMES_CHAINMAIL[k].chaine).find(k => t.includes(k)) || null)(norm(texte));
+export const formeChainmail = texte => autreProduit(texte) ? null : formeMini(texte) || (t => Object.keys(FORMES_CHAINMAIL).filter(k => !FORMES_CHAINMAIL[k].mini && !FORMES_CHAINMAIL[k].chaine).find(k => t.includes(k)) || null)(norm(texte));
 export const MINI_DEMO = [
   { ref: '#MC-ex02', forme: 'mini-fleur-4' }, { ref: '#MC-ex04', forme: 'mini-intercalaire-4' },
 ].map(c => ({ ...c, nom: FORMES_CHAINMAIL[c.forme].nom, hex: '#b4b6ba', finition: 'chainmail', categorie: 'Breloques chainmail', famille: 'Mini chain' }));

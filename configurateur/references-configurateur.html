@@ -84,7 +84,7 @@ import {
   completerCatalogue, definirLiensFormes, catalogueChainmailDepuisBijoux, catalogueChaineDepuisBijoux, NOMS_CHAINE, completerModeleChainmail, modeleChaineSacDemo, estChaineSac, FORMES_CHAINMAIL, resoudreDefauts, couleursProposees, correspondCategorie, ordreModeles, estLettres, accrochesProposees,
   chargerLiens, enregistrerLiens, estExemple, exemplesParRef, apercuArgile, apercuChainmail, baseRef,
   appliquerLiens, relierModele, appliquerLienModele, definirLiensFixes, cleFixe, refFixe, catalogueDepuisMateriaux, perlesFixesDe, allureFixe, bijouBreloque, definirCompositions,
-} from './bead-core.js?v=17d62b5a';
+} from './bead-core.js?v=cec30b10';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './perles-config.js?v=e5e86015';
 
 const $ = s => document.querySelector(s);
@@ -302,23 +302,28 @@ const PROD = [];
   const mm = Object.fromEntries(catalogueChainmailDepuisBijoux(bijoux).map(c => [c.forme, bijoux.find(b => b.ref === c.ref)]));
   const ch = {}; for (const c of catalogueChaineDepuisBijoux(bijoux)) (ch[c.forme] ||= []).push(bijoux.find(b => b.ref === c.ref));
   definirLiensFormes(garde);
+  // miniature 3D du modèle (dossier composants/, « modele-… ») : le visuel que la fiche reliée prend dans le configurateur
+  const miniModele = (mo, motif) => { const t = norm([mo.nom, mo.slug].join(' '));
+    if (motif) { const m = norm(motif).split(/\s+/)[0]; return ['citron', 'myrtille', 'tomate'].includes(m) ? 'modele-breloque-argile-' + m : ''; }
+    return /lettre/.test(t) ? 'modele-breloque-lettre-bona' : /arete/.test(t) ? 'modele-arete-classique' : /poisson/.test(t) ? 'modele-petit-poisson-sardine' : /culture/.test(t) ? 'modele-breloque-perle-de-culture' : ''; };
   const autoDe = (mo, mode) => { const r = bijouBreloque(mo, { couleurs: {}, texte: { mode }, bijoux }); return r.id ? nomB(bijoux.find(b => b.id === r.id)) : ''; };
   for (const m0 of modelesBruts.filter(m => !m.bijZone && !estChaineSac(m))) { const mo = resoudreDefauts(m0, catalogue, fermoirs);
-    if (estLettres(mo)) [1, 2].forEach(mode => PROD.push({ cle: 'modele:' + mo.slug + ':' + mode, section: 'produits', sous: 'Breloques', titre: (mo.nom || mo.slug) + ' · ' + mode + ' mot' + (mode > 1 ? 's' : ''), autoTxt: autoDe(mo, mode) }));
-    else PROD.push({ cle: 'modele:' + mo.slug, section: 'produits', sous: 'Breloques', titre: mo.nom || mo.slug, autoTxt: autoDe(mo, 1) }); }
+    if (estLettres(mo)) [1, 2].forEach(mode => PROD.push({ cle: 'modele:' + mo.slug + ':' + mode, section: 'produits', sous: 'Breloques', titre: (mo.nom || mo.slug) + ' · ' + mode + ' mot' + (mode > 1 ? 's' : ''), autoTxt: autoDe(mo, mode), mini: miniModele(mo) }));
+    else PROD.push({ cle: 'modele:' + mo.slug, section: 'produits', sous: 'Breloques', titre: mo.nom || mo.slug, autoTxt: autoDe(mo, 1), mini: miniModele(mo) }); }
   // breloques argile (et autres modèles « une fiche par motif ») : chaque motif proposé et sa fiche produit
   for (const m0 of modelesBruts.map(completerModeleChainmail).filter(m => m.bijZone && !estChaineSac(m) && !(m.groupes || []).some(g => g.zoneForme))) { const mo = resoudreDefauts(m0, catalogue, fermoirs), z = (mo.zones || []).find(x => x.id === mo.bijZone);
     if (!z) continue;
     for (const x of couleursProposees(z, catalogue, parties)) {
       const b = bijoux.find(y => y.ref === x.ref), sous = (mo.nom || mo.slug) + ' · une fiche par motif';
-      if (estExemple(x.ref)) PROD.push({ cle: x.ref, section: 'produits', sous, titre: x.nom, d: x, autoTxt: '', motif: true });
-      else PROD.push({ cle: 'motif:' + x.ref, section: 'produits', sous, titre: x.nom, d: x, autoTxt: b ? nomB(b) : '', lecture: true, refFiche: x.ref }); } }
+      if (estExemple(x.ref)) PROD.push({ cle: x.ref, section: 'produits', sous, titre: x.nom, d: x, autoTxt: '', motif: true, mini: miniModele(mo, x.motif || x.nom) });
+      else PROD.push({ cle: 'motif:' + x.ref, section: 'produits', sous, titre: x.nom, d: x, autoTxt: b ? nomB(b) : '', lecture: true, refFiche: x.ref, mini: miniModele(mo, x.motif || x.nom) }); } }
   for (const [fo, t] of [['croix', 'Croix'], ['mini-fleur-4', 'Mini chain · Byzantine fleur'], ['mini-intercalaire-4', 'Mini chain · Byzantine alternative']])
-    PROD.push({ cle: 'forme:' + fo, section: 'produits', sous: 'Breloques chainmail', titre: t, autoTxt: nomB(mm[fo]), mini: fo === 'croix' ? 'croix-pampille' : fo === 'mini-fleur-4' ? 'mini-chaine-byzantine-fleur-pampille' : 'mini-chaine-byzantine-alternative-pampille' });
+    PROD.push({ cle: 'forme:' + fo, section: 'produits', sous: 'Breloques chainmail', titre: t, autoTxt: nomB(mm[fo]), mini: fo === 'croix' ? 'modele-breloque-chainmail-croix' : fo === 'mini-fleur-4' ? 'modele-breloque-mini-chaine-byzantine-fleur' : 'modele-breloque-mini-chaine-byzantine-alternative' });
   for (const [fo, F] of Object.entries(FORMES_CHAINMAIL).filter(([, F]) => F.compo))
     PROD.push({ cle: 'forme:' + fo, section: 'produits', sous: 'Tes compositions (⛓ Composer)', titre: F.nom + (F.chaine ? ' · chaîne' : ' · breloque'), autoTxt: '' });
   for (const fo of ['chaine-8', 'chaine-10', 'chaine-fleur', 'chaine-intercalaire'])
-    PROD.push({ cle: 'forme:' + fo, section: 'produits', sous: 'Chaînes de sac', titre: NOMS_CHAINE[fo], autoTxt: (ch[fo] || []).filter(Boolean).map(nomB).join(' / ') });
+    PROD.push({ cle: 'forme:' + fo, section: 'produits', sous: 'Chaînes de sac', titre: NOMS_CHAINE[fo], autoTxt: (ch[fo] || []).filter(Boolean).map(nomB).join(' / '),
+      mini: 'modele-chaine-de-sac-double-byzantine-' + { 'chaine-8': '8mm', 'chaine-10': '10mm', 'chaine-fleur': 'fleur', 'chaine-intercalaire': 'intercalaire' }[fo] + '-detail' });
 }
 
 for (const x of PROD) U.delete(x.cle);
@@ -340,11 +345,12 @@ function ligneHTML(x) {
   const sous = estProd ? '' : [...x.roles].join(' · ') + (x.prix.size ? ' · +' + [...x.prix].join(' / ') : '') + (x.modeles.size ? ' — ' + [...x.modeles].join(', ') : '');
   const vide = estProd ? (x.autoTxt ? 'automatique : ' + x.autoTxt : '— choisir la fiche —') : x.section === 'fixes' ? (lie ? '— automatique —' : 'automatique : ' + (x.auto || '') + ' · ' + (nomRef(x.auto) || 'exemple')) : '— à relier —';
   const peutCreer = !estProd && x.section !== 'fixes' && d && !estBijou(d);
-  const vignette = estProd ? ((lie && photoRef(lie)) || (x.refFiche && photoRef(x.refFiche)) ? `<span class="vis"><img src="${esc(photoRef(lie) || photoRef(x.refFiche))}" alt=""></span>` : x.d ? `<span class="vis" style="background:${fond(x.d)}"></span>` : x.mini ? `<span class="vis"><img src="composants/${x.mini}.jpg" alt=""></span>` : '<span class="vis">💎</span>')
+  const vignette = estProd ? (x.mini ? `<span class="vis" title="Visuel 3D"><img src="composants/${x.mini}.jpg" alt=""></span>` : x.d ? `<span class="vis" style="background:${fond(x.d)}"></span>` : '<span class="vis">💎</span>')
     : x.section === 'fixes' ? (miniFixe(x.kNom) ? `<span class="vis"><img src="composants/${miniFixe(x.kNom)}.jpg" alt=""></span>` : `<span class="vis" style="background:${allureFixe(x.kNom)?.hex || '#cfd0d4'}"></span>`) : vis(x.cle, d, x.lecture ? x.refFiche : lie);
   const cibleP = x.lecture ? x.refFiche : x.section === 'fixes' ? (lie && lie !== 'inclus' ? lie : x.auto) : lie;
   const mi = !estProd && (x.section === 'fixes' ? miniFixe(x.kNom) : miniDe(x.cle, d)), photo3d = mi && cibleP && cibleP !== 'inclus' && existe(cibleP) && !photoRef(cibleP);
-  const cible = lie && lie !== 'inclus' && existe(lie) ? `<br><span class="ref">${esc(lie)}</span> ${esc(nomRef(lie) || '')}` : '';
+  const fichePh = estProd && (photoRef(lie) || (x.refFiche && photoRef(x.refFiche)));
+  const cible = (lie && lie !== 'inclus' && existe(lie) ? `<br><span class="ref">${esc(lie)}</span> ${esc(nomRef(lie) || '')}` : '') + (fichePh ? `<br><img src="${esc(fichePh)}" alt="" style="width:34px;height:34px;object-fit:cover;border-radius:6px;margin-top:3px" title="Photo de la fiche">` : '');
   const txt = norm([titre, sous, lie, nomRef(lie), x.cle].join(' '));
   return `<div class="l" data-ok="${st.ok ? 1 : 0}" data-txt="${esc(txt)}">${vignette}
     <span class="t"><b>${esc(titre)}</b> ${!estProd && x.section !== 'fixes' ? `<span class="ref">${esc(x.cle)}</span>` : ''}<small>${esc(sous)}</small></span>
@@ -563,7 +569,8 @@ rendre();
 $('#etat').textContent = Object.keys(liens).length ? Object.keys(liens).length + ' lien(s) enregistré(s)' : '';
 $('#btEnregistrer').addEventListener('click', async () => {
   $('#btEnregistrer').disabled = true; $('#etat').textContent = 'Enregistrement…';
-  try { await enregistrerLiens(sb, liens); $('#etat').textContent = 'Liens enregistrés ✓ — le configurateur les utilise au prochain chargement'; }
+  try { await enregistrerLiens(sb, liens); $('#etat').textContent = 'Liens enregistrés ✓ — l\'aperçu client est rechargé avec ces liens';
+    try { window.parent?.postMessage({ type: 'bona-nodi:liens-maj' }, '*'); } catch {} }
   catch (e) { $('#etat').textContent = 'Erreur : ' + e.message; $('#btEnregistrer').disabled = false; }
 });
 </script>

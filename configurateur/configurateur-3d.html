@@ -464,7 +464,7 @@ import {
   correspondCategorie, texteCatalogue, ordreModeles, chargerRuptures, appliquerRuptures,
   chargerLiens, appliquerLiens, relierModele, chargerMateriauxParRefs,
   chargerFichesConfig, chargerOffres, definirLiensFormes, lienModele, appliquerLienModele, composerCompos, definirFichesConfig, ficheCfg, refsCouleurFiche, famillesFiche,
-} from './bead-core.js?v=17d62b5a';
+} from './bead-core.js?v=cec30b10';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER, PANIER_SHOPIFY } from './perles-config.js?v=e5e86015';
 
 const $ = s => document.querySelector(s);
@@ -729,7 +729,7 @@ function composActives() {
   const membres = enBundle() ? etat.breloques.map((b, i) => i).filter(i => !surChaine(etat.breloques[i], i) || estMini(etat.breloques[i]))
     : etat.parcours === 'chaine' ? auMousqueton().map(b => etat.breloques.indexOf(b)) : [];
   return etat.compos.map((c, k) => ({ k, acc: accDe(k), surChaine: !!c.surChaine && etat.parcours === 'chaine', indices: membres.filter(i => compoDe(etat.breloques[i], i) === k && !surMousqSeule(etat.breloques[i], i)) }))
-    .filter(c => c.indices.length && (c.acc || etat.parcours === 'chaine' || k === 0));
+    .filter(c => c.indices.length && (c.acc || etat.parcours === 'chaine' || c.k === 0));
 }
 // montant des achats pris en compte pour l'offre mousqueton : breloques + porte-clés, sans le mousqueton lui-même
 const achatHorsMousqueton = (items = []) => Math.round((etat.breloques.reduce((t, b) => t + (+prixDe(b) || 0), 0)
@@ -1691,8 +1691,11 @@ function ecartsStock(b, i) {
     desc(fiche.id, 0); return out; })();
   const estFermoirBreloque = x => (fermParRef[x]?.type && fermParRef[x].type !== 'anneau-ressort' && fermParRef[x].type !== 'mousqueton-pivot') || /^#FB/.test(x)
     || (rF && fermParRef[rF] && fermParRef[x]?.type === fermParRef[rF].type);
-  const ancienF = refsTout.find(estFermoirBreloque);
-  if (rF && !refsTout.some(x => x === rF || baseRef(x) === baseRef(rF))) { plus(rF, 1); if (ancienF) plus(ancienF, -1); }
+  // fermoir prévu par le modèle (option par défaut, ou accessoire posé : ex. les 2 mousquetons d'une chaîne de sac) : c'est lui que la fiche contient
+  const accs = (m.groupes || []).flatMap(g => g.accessoires || []), nbF = Math.max(1, accs.filter(a => a.bout).length);
+  const refsDefaut = [optF?.defaut, ...accs.map(a => a.ref)].filter(Boolean);
+  const ancienF = refsTout.find(x => refsDefaut.some(r => r === x || baseRef(r) === baseRef(x))) || refsTout.find(estFermoirBreloque);
+  if (rF && !refsTout.some(x => x === rF || baseRef(x) === baseRef(rF))) { plus(rF, nbF); if (ancienF) plus(ancienF, -nbF); }   // chaîne : les deux bouts changent
   const liste = o => Object.entries(o).filter(([, q]) => q).map(([ref, qty]) => ({ ref, qty, qty_unite: 'unite' }));
   return { ajout: liste(ajout), remplace: Object.entries(remplace).map(([ref, qty]) => ({ ref, qty, qty_unite: 'unite' })) };
 }
