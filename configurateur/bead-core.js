@@ -515,7 +515,10 @@ export function catalogueChaineDepuisBijoux(bijoux = []) {
   const parId = new Map(bijoux.map(b => [b.id, b]));
   // une fiche reliée à une chaîne d'origine (chaine-8, -10, fleur, intercalaire) ou à une composition ; le visuel d'origine d'une chaîne reconnue par son nom passe avant une composition
   const lie = Object.fromEntries(Object.keys(FORMES_CHAINMAIL).filter(f => FORMES_CHAINMAIL[f].chaine && lienForme(f)).sort((a, b) => (FORMES_CHAINMAIL[a].compo ? 0 : 1) - (FORMES_CHAINMAIL[b].compo ? 0 : 1)).map(f => [lienForme(f), f]));
-  return bijoux.filter(b => lie[b.ref] || !/collier|choker|chocker|ras du cou/.test(norm([b.nom, b.variante, b.collection].join(' '))))   // pas les variantes collier / choker
+  // seulement tes fiches chaîne de sac (les mêmes que l'app : Conception 3D › ⛓ Chaînes de sac) : produits, nom « chaîne / byzantine », sans mini ni croix,
+  // pas les variantes collier / choker ; une composition reliée change seulement le visuel, elle n'ajoute pas de chaîne
+  const estCh = x => { const t = norm([x?.nom, x?.variante, x?.collection].join(' ')); return !!x && !/croix/.test(t) && !/\bmini/.test(t) && (/chaine/.test(t) || /byzantin/.test(t)); };
+  return bijoux.filter(b => !b.is_mat && (estCh(b) || estCh(parId.get(b.parent_id))) && !/collier|choker|chocker|ras du cou/.test(norm([b.nom, b.variante, b.collection].join(' '))))
     .map(b => { const par = b.parent_id && parId.get(b.parent_id);
       const nomF = formeChaine([b.nom, b.variante].join(' ')) || (par && formeChaine([par.nom, par.variante, b.variante].join(' ')));
       const f = (lie[b.ref] && !(FORMES_CHAINMAIL[lie[b.ref]]?.compo && nomF) ? lie[b.ref] : null) || nomF || lie[b.ref];
@@ -775,7 +778,9 @@ export function fermoirDepuisMateriau(l) {
     // nom montré au client : la désignation seule (la variante, ex. « moyen a », sert à ta gestion)
     nomClient: String(l.designation || l.variante || l.ref).replace(/\s*\d+([.,]\d+)?\s*mm\b/i, '').trim(),
     type,
-    taille: mm ? parseFloat(mm[1].replace(',', '.')) : TAILLES_CONNUES[l.ref] ?? tailleDefaut(type, t), metal,
+    taille: mm ? parseFloat(mm[1].replace(',', '.')) : TAILLES_CONNUES[l.ref] ?? tailleDefaut(type, t), tailleLue: !!mm, metal,
+    // type vraiment reconnu d'après le nom (un « fermoir S », « fermoir magnétique »… n'a pas encore de modèle 3D : il tombe sinon sur « mousqueton »)
+    typeReconnu: bo || /breloque|mousqueton|rond|ressort|marin|spring|pivot|porte.?cl|anneau/.test(t),
     prix: l.prix != null ? parseFloat(l.prix) : null, stock: l.qty ?? null,
     enStock: l.qty == null ? true : l.qty > 0,
   };
@@ -1581,10 +1586,13 @@ function geosCreole(type, D) {
   const r = charniere ? 0.75 : 0.35, R = D / 2 - r;
   const pt = phi => new THREE.Vector3(0, R * Math.sin(phi), -R + R * Math.cos(phi));     // phi = 0 en bas
   if (charniere) {
-    const t = new THREE.TorusGeometry(R, r, 20, 72); t.rotateY(Math.PI / 2); t.translate(0, 0, -R); geos.push(t);
-    const c = new THREE.CylinderGeometry(r * 1.08, r * 1.08, r * 1.6, 20); c.rotateZ(Math.PI / 2); c.rotateY(Math.PI / 2);   // charnière : petit manchon en haut
-    c.translate(...pt(Math.PI * 0.86).toArray()); geos.push(c);
-    const b = new THREE.SphereGeometry(r * 0.5, 12, 10); b.translate(...pt(Math.PI * 0.86).add(new THREE.Vector3(r * 1.1, 0, 0)).toArray()); geos.push(b);
+    // anneau fermé à charnière (tes réf.) : le bas, visible, est épais ; la partie qui passe dans l'oreille (en haut) est un fil fin
+    const arc = (p0, p1, rr, n = 64) => { const c = new THREE.Curve(); c.getPoint = u => pt(p0 + (p1 - p0) * u); return new THREE.TubeGeometry(c, n, rr, 16, false); };
+    const fin = Math.max(0.28, r * 0.4), aA = Math.PI * 0.72, aB = Math.PI * 1.28;          // fil fin sur ≈ 100° en haut
+    geos.push(arc(aB - Math.PI * 2, aA, r, 96));                                              // corps épais
+    geos.push(arc(aA, aB, fin, 32));                                                          // fil d'oreille
+    for (const [a, k] of [[aA, 1.12], [aB, 1.0]]) { const e = new THREE.SphereGeometry(r * k, 18, 14); e.translate(...pt(a).toArray()); geos.push(e); }   // bouts arrondis : charnière d'un côté, clic de l'autre
+    const ax = new THREE.CylinderGeometry(fin * 0.9, fin * 0.9, r * 2.6, 12); ax.rotateZ(Math.PI / 2); ax.translate(...pt(aA).toArray()); geos.push(ax);  // axe de la charnière
     return geos;
   }
   const a0 = Math.PI * 1.30, a1 = Math.PI * 2.78;        // ouverte en haut (≈ 95°, comme ta photo) : boule d'un côté, tige de l'autre
@@ -1596,11 +1604,10 @@ function geosCreole(type, D) {
   const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
   const tige = new THREE.CylinderGeometry(r, r, L, 12); tige.applyQuaternion(q); tige.translate(...pT.clone().add(dir.clone().multiplyScalar(L / 2)).toArray()); geos.push(tige);
   const bout = new THREE.SphereGeometry(r, 10, 8); bout.translate(...pT.clone().add(dir.clone().multiplyScalar(L)).toArray()); geos.push(bout);
-  const pP = pT.clone().add(dir.clone().multiplyScalar(L * 0.72));
-  const disque = new THREE.CylinderGeometry(1.4, 1.4, 0.5, 20); disque.applyQuaternion(q); disque.translate(...pP.toArray()); geos.push(disque);
-  const lat = new THREE.Vector3(1, 0, 0);
-  for (const s of [-1, 1]) {                               // poussoir papillon : deux boucles de part et d'autre de la tige
-    const g = new THREE.TorusGeometry(1.1, 0.3, 10, 24); g.applyQuaternion(q); g.translate(...pP.clone().add(dir.clone().multiplyScalar(0.6)).add(lat.clone().multiplyScalar(s * 1.1)).toArray()); geos.push(g); }
+  // fermoir : poussoir bouton (petit cylindre arrondi) enfilé sur la tige, près du bout — à la place du papillon
+  const pP = pT.clone().add(dir.clone().multiplyScalar(L * 0.7));
+  const pous = new THREE.CapsuleGeometry ? new THREE.CapsuleGeometry(1.05, 1.6, 6, 18) : new THREE.CylinderGeometry(1.05, 1.05, 2.6, 18);
+  pous.applyQuaternion(q); pous.translate(...pP.toArray()); geos.push(pous);
   return geos;
 }
 function geosAccessoire(type, taille = 12) {
@@ -2165,7 +2172,11 @@ const ANCIENS_ELEMENTS = { 'double-8-3': { k: 'double', taille: 8, conn: 3 }, 'd
   'fleur': { k: 'fleur', petales: 2 }, 'noeud-8': { k: 'noeud', taille: 8 }, 'noeud-10': { k: 'noeud', taille: 10 },
   'conn-8-3': { k: 'conn', nb: 3, taille: 8 }, 'conn-8-2': { k: 'conn', nb: 2, taille: 8 }, 'conn-10-2': { k: 'conn', nb: 2, taille: 10 }, 'solo-10': { k: 'conn', nb: 1, taille: 10 } };
 export const elementChainmail = x => typeof x === 'string' ? { ...(ANCIENS_ELEMENTS[x] || { k: x }) } : { ...(x || {}) };
-export const estCorpsChainmail = x => ['double', 'fleur', 'noeud', 'forme'].includes(elementChainmail(x).k);
+export const estCorpsChainmail = x => ['double', 'fleur', 'noeud', 'forme', 'compo'].includes(elementChainmail(x).k);
+// petits anneaux 0,5 mm (solo ou double) posés comme un connecteur : perpendiculaires à l'anneau qui les précède
+const estAnneau05 = e => e.k === 'anneau05';
+// compositions enregistrées (validées ou brouillons) : servent d'éléments dans d'autres compositions
+export const COMPOS = {};
 export function nomElementChainmail(x) {
   const e = elementChainmail(x), t = (e.taille || 8) + ' mm';
   if (e.k === 'double') return ((e.n || 1) > 1 ? `${e.n * 2} nœuds · ` : '') + `Double 4×4 + connecteur (${e.conn || 3}) · ${t}`;
@@ -2175,6 +2186,8 @@ export function nomElementChainmail(x) {
   if (e.k === 'conn') return (e.nb === 1 ? 'Anneau solo' : `Connecteur (${e.nb || 2})`) + ' · ' + ((e.taille || 8) === 10 ? '10 mm' : '8 mm');
   if (e.k === 'pampille') return 'Pampille ' + (e.taille || 4) + ' mm';
   if (e.k === 'petit') return 'Petit anneau 0,5 mm';
+  if (e.k === 'anneau05') return (e.nb === 2 ? 'Double anneau' : 'Anneau') + ' 0,5 mm';
+  if (e.k === 'compo') return 'Élément · ' + (COMPOS[e.id]?.nom || 'composition');
   if (e.k === 'fermoir-10') return 'Fermoir 10 mm';
   if (e.k === 'forme') return 'Forme · ' + (FORMES_CHAINMAIL[e.f]?.nom || e.f);
   return e.k || '?';
@@ -2208,7 +2221,21 @@ export function anneauxElement(x) {
         return [-1, 1].map(k => ({ ...a, R: H.R, e: H.e, p: [+(a.p[0] + k * d * n[0] / l).toFixed(3), +(y + k * d * n[1] / l).toFixed(3), +(a.p[2] + k * d * n[2] / l).toFixed(3)] })); }); }
     return { anneaux: [...coeur, ...P], T };
   }
-  if (e.k === 'noeud') { const g = dix ? G.c10 : G.c8; return { anneaux: demi(g), T: g.T / 2 }; }
+  // nœud 4×4 seul : la moitié d'un double, accrochée au connecteur d'avant (z = 0) ; le connecteur d'après vient du motif (pas de vide entre les deux)
+  if (e.k === 'noeud') { const g = dix ? G.c10 : G.c8, T = g.T / 2; return { anneaux: demi(g).filter(a => !(Math.abs(a.p[2] - T) < 1.6 && Math.abs(a.n[0]) > 0.9)), T }; }
+  if (e.k === 'compo') {                                   // une de tes compositions (cochée « élément ») posée comme un élément
+    const c = COMPOS[e.id]; if (!c || (anneauxElement.prof || 0) > 4) return { anneaux: [], T: 0 };
+    anneauxElement.prof = (anneauxElement.prof || 0) + 1;
+    try { const A = assemblerComposition({ ...c, usage: 'chaine', bouts: 'aucun', pampille: false });
+      if (!A.length) return { anneaux: [], T: 0 };
+      const z0 = Math.min(...A.map(a => a.p[2] - a.R)), z1 = Math.max(...A.map(a => a.p[2] + a.R));
+      return { anneaux: A.map(a => ({ ...a, p: [a.p[0], a.p[1], +(a.p[2] - z0).toFixed(3)] })), T: z1 - z0 };
+    } finally { anneauxElement.prof--; }
+  }
+  if (e.k === 'anneau05') {
+    const { R, e: ep } = PETIT_ANNEAU, nb = e.nb === 2 ? 2 : 1, d = ep * 2.3;
+    return { anneaux: Array.from({ length: nb }, (_, i) => ({ p: [(i - (nb - 1) / 2) * d, 0, 0], n: [1, 0, 0], R, e: ep })), T: 0 };
+  }
   if (e.k === 'forme') {                                   // une forme déjà modélisée (croix, mini chain…) posée comme un élément
     const F = FORMES_CHAINMAIL[e.f]; if (!F?.gen) return { anneaux: [], T: 0 };
     const A = F.gen(), z0 = Math.min(...A.map(a => a.p[2] - a.R)), z1 = Math.max(...A.map(a => a.p[2] + a.R));
@@ -2251,15 +2278,18 @@ export function connecteurEntre(a, b) {
 }
 // suite réelle des éléments (début, répétitions du motif, demi-motif, fin) ; auto = connecteur ajouté entre deux corps
 export function sequenceComposition(c, { detail = false } = {}) {
-  const motif = (c.motif || []).map(elementChainmail).filter(e => e.k && !['pampille', 'petit', 'fermoir-10'].includes(e.k));
+  const ok = e => e.k && !['pampille', 'petit', 'fermoir-10'].includes(e.k);
+  const motif = (c.motif || []).map(elementChainmail).filter(ok);
   const nb = detail ? Math.min(Math.max(1, c.nb | 0), motif.length > 2 ? 1 : 2) : Math.max(1, c.nb | 0);
-  const demi = !detail && !!c.demi, fin = detail ? 'motif' : (c.fin || 'motif');
-  const brut = [];
-  if (c.debut) brut.push(elementChainmail(c.debut));
+  // début et fin : une liste d'éléments (le motif central ne se répète pas forcément jusqu'au bout) ; ancienne forme : un seul élément
+  const liste = x => (Array.isArray(x) ? x : x && typeof x === 'object' ? [x] : []).map(elementChainmail).filter(ok);
+  const debutL = liste(c.debut), finL = detail ? [] : [...liste(c.fin), ...liste(c.finEl)];
+  const demi = !detail && !!c.demi, fin = detail ? 'motif' : typeof c.fin === 'string' ? c.fin : (c.fin && typeof c.fin === 'object') ? 'element' : 'motif';
+  const brut = [...debutL.map(e => ({ ...e }))];
   for (let r = 0; r < nb; r++) motif.forEach((e, i) => { const dernier = r === nb - 1 && i === motif.length - 1;
-    if (!estCorpsChainmail(e) && dernier && fin !== 'motif' && !demi) return; brut.push({ ...e }); });
+    if (!estCorpsChainmail(e) && dernier && (fin !== 'motif' || finL[0]?.k === 'conn') && !demi) return; brut.push({ ...e }); });
   if (demi) { const e1 = motif.find(e => e.k === 'double' || e.k === 'fleur'); if (e1) brut.push({ k: 'noeud', taille: e1.k === 'fleur' ? 8 : e1.taille || 8, demi: true, fiche: null }); }
-  if (fin && fin !== 'motif' && fin !== 'aucune') brut.push(elementChainmail(fin));
+  brut.push(...finL.map(e => ({ ...e })));
   const seq = [];
   for (const e of brut) { const prec = seq[seq.length - 1];
     if (prec && estCorpsChainmail(prec) && estCorpsChainmail(e) && !e.demi) seq.push({ ...connecteurEntre(prec, e), auto: true });
@@ -2268,8 +2298,12 @@ export function sequenceComposition(c, { detail = false } = {}) {
 }
 // distance du centre d'un corps au connecteur voisin, prise sur tes gabarits (8 mm ↔ 8 mm, 8 mm ↔ 10 mm, 10 mm ↔ 10 mm)
 function demiPas(corps, joint) {
-  const { G } = gabaritsElements(), j10 = (elementChainmail(joint || {}).taille || 8) === 10, e = elementChainmail(corps);
+  const { G } = gabaritsElements(), jj = elementChainmail(joint || {}), e = elementChainmail(corps);
+  if (estAnneau05(jj)) return Math.max(PETIT_ANNEAU.R, demiPas(corps, { k: 'conn', nb: 3, taille: 8 }) - (ANNEAU_8.R - PETIT_ANNEAU.R));   // anneau 0,5 mm : le corps se rapproche
+  const j10 = (jj.taille || 8) === 10;
   if (e.k === 'forme') return anneauxElement(e).T / 2;
+  if (e.k === 'compo') return anneauxElement(e).T / 2 - (j10 ? ANNEAU_10.R : ANNEAU_8.R) * 0.55;   // l'anneau du bout passe dans le connecteur
+  if (e.k === 'noeud') { const dix = (e.taille || 8) === 10; return anneauxElement(e).T / 2 + (!dix && j10 ? (G.i8.T - G.c8.T) / 4 : 0); }
   if ((e.n || 1) > 1) { const s1 = { ...e, n: 1 }; return demiPas(s1, joint) - anneauxElement(s1).T / 2 + anneauxElement(e).T / 2; }
   if (((e.taille || 8) === 10 && e.k !== 'fleur') || (e.k === 'fleur' && (e.coeur || 8) === 10)) return j10 ? G.c10.T / 2 : G.c10.T / 2 - (ANNEAU_10.R - ANNEAU_8.R);
   return e.k === 'fleur' ? (j10 ? G.fl.T / 2 : G.fl.T / 2 - (ANNEAU_10.R - ANNEAU_8.R) * MINI_RECUL) : (j10 ? G.i8.T / 2 : G.c8.T / 2);
@@ -2277,9 +2311,21 @@ function demiPas(corps, joint) {
 export function assemblerComposition(c, { detail = false } = {}) {
   const out = [], pose = (liste, dz) => liste.forEach(a => out.push({ ...a, p: [a.p[0], a.p[1], +(a.p[2] + dz).toFixed(3)], n: [...a.n] }));
   const seq = sequenceComposition(c, { detail });
-  let z = 0, dernierJ = null, dernierR = 0, premier = true, zJ = null;
+  let z = 0, dernierJ = null, dernierR = 0, premier = true, zJ = null, ang = 0, prevNonCorps = false;
+  // de profil : l'élément tourne d'un quart de tour autour de la chaîne, par rapport à l'élément d'avant
+  const tourne = (liste, a) => (a % 180) ? liste.map(x => ({ ...x, p: [-x.p[1], x.p[0], x.p[2]], n: [-x.n[1], x.n[0], x.n[2]] })) : liste;
   seq.forEach((e, i) => {
-    if (!estCorpsChainmail(e)) { pose(anneauxElement(e).anneaux, z); dernierJ = e; dernierR = anneauxElement(e).anneaux[0]?.R || 0; premier = false; zJ = z; return; }
+    if (!estCorpsChainmail(e)) {
+      let { anneaux } = anneauxElement(e); const R1 = anneaux[0]?.R || 0;
+      if (prevNonCorps && dernierR) z += dernierR + R1 - 2.4 * (anneaux[0]?.e || 0.5);                 // deux anneaux qui se suivent : maillés l'un dans l'autre
+      if (estAnneau05(e)) {          // perpendiculaire à l'anneau qui le précède (le dernier posé, le plus bas)
+        const prec = out.length ? out.reduce((m, a) => (a.p[2] + a.R > m.p[2] + m.R ? a : m)) : null, nx = prec ? Math.abs(prec.n[0]) > 0.7 : false;
+        anneaux = anneaux.map(a => nx ? { ...a, p: [0, a.p[0], a.p[2]], n: [0, 1, 0] } : a);
+        pose(anneaux, z);
+      } else pose(tourne(anneaux, ang), z);
+      dernierJ = e; dernierR = R1; premier = false; zJ = z; prevNonCorps = true; return; }
+    prevNonCorps = false;
+    if (e.profil) ang = (ang + 90) % 180; else ang = 0;
     // élément « en suspension » : il pend sous le connecteur juste au-dessus (sans allonger la chaîne)
     if (e.suspendu && zJ != null) { const { anneaux } = anneauxElement({ ...e, suspendu: false }), zTop = Math.min(...anneaux.map(a => a.p[2] - a.R)), h = Math.max(0.5, dernierR * 0.85);
       if (c.usage === 'breloque' || c.usage === 'bo') {    // breloque (verticale) : il pend librement dans le connecteur, tourné d'un quart de tour, et la suite repart sous lui
@@ -2287,10 +2333,10 @@ export function assemblerComposition(c, { detail = false } = {}) {
         anneaux.forEach(a => out.push({ ...a, p: [+(-a.p[1]).toFixed(3), +a.p[0].toFixed(3), +(a.p[2] + z0).toFixed(3)], n: [-a.n[1], a.n[0], a.n[2]] }));
         z = Math.max(z, zB + z0); dernierJ = null; dernierR = 0; return; }
       anneaux.forEach(a => out.push({ ...a, p: [a.p[0], +(-(a.p[2] - zTop) - h).toFixed(3), +(zJ + a.p[1]).toFixed(3)], n: [a.n[0], -a.n[2], a.n[1]] })); return; }
-    if (e.demi) { const n = anneauxElement(e); pose(n.anneaux, z); z += n.T; dernierR = 0; return; }
+    if (e.demi) { const n = anneauxElement(e); pose(tourne(n.anneaux, ang), z); z += n.T; dernierR = 0; return; }
     const suivant = seq.slice(i + 1).find(x => !estCorpsChainmail(x)) || null;
     const { anneaux, T } = anneauxElement(e), dA = premier && !dernierJ ? T / 2 : demiPas(e, dernierJ || suivant), dB = demiPas(e, (seq[i + 1] && !estCorpsChainmail(seq[i + 1])) ? seq[i + 1] : dernierJ);
-    pose(anneaux, z + dA - T / 2); z += dA + dB; premier = false; dernierR = 0;
+    pose(tourne(anneaux, ang), z + dA - T / 2); z += dA + dB; premier = false; dernierR = 0;
   });
   if (c.pampille) out.push({ p: [0, 0, +(z + (dernierR || ANNEAU_8.R) + PETIT_ANNEAU.R * 0.45).toFixed(3)], n: [0, 1, 0], R: PETIT_ANNEAU.R, e: PETIT_ANNEAU.e });
   // bouts d'une chaîne en collier / choker : fermoir 10 mm (1 – 2 – 2 anneaux) d'un côté, rallonge de 6 anneaux de 10 mm de l'autre
@@ -2308,7 +2354,7 @@ export function assemblerComposition(c, { detail = false } = {}) {
 // ce qu'il faut pour fabriquer la composition : chaque élément (avec sa fiche si tu l'as reliée) et combien de fois
 export function piecesComposition(c) {
   const seq = sequenceComposition(c), m = new Map();
-  for (const e of seq) { const k = JSON.stringify([e.k, e.taille || 8, e.conn || 0, e.nb || 0, e.petales ?? '', !!e.demi, e.fiche || '', e.n || 1, e.coeur || 8, e.petale || '', e.f || '']);
+  for (const e of seq) { const k = JSON.stringify([e.k, e.taille || 8, e.conn || 0, e.nb || 0, e.petales ?? '', !!e.demi, e.fiche || '', e.n || 1, e.coeur || 8, e.petale || '', e.f || '', e.id || '']);
     const x = m.get(k) || { element: { ...e, auto: undefined }, nb: 0, auto: 0 }; x.nb++; if (e.auto) x.auto++; m.set(k, x); }
   return [...m.values()];
 }
@@ -2320,9 +2366,13 @@ export function decompteComposition(A) {
   return { t, total: A.length, L: Math.max(...ze) - Math.min(...zs) };
 }
 // les compositions enregistrées deviennent des formes du configurateur : « compo-<id> » (fiche reliée dans 🔗 Références ou par le compositeur)
-export function definirCompositions(liste = []) {
+// statut : « brouillon » = pas encore dans le configurateur (sauf { brouillons: true } : compositeur, références) ; sans statut = validée
+export const estBrouillon = c => c?.statut === 'brouillon';
+export function definirCompositions(liste = [], { brouillons = false } = {}) {
   for (const k of Object.keys(FORMES_CHAINMAIL)) if (FORMES_CHAINMAIL[k].compo) delete FORMES_CHAINMAIL[k];
-  for (const c of liste || []) { if (!c?.id || !(c.motif || []).length) continue;
+  for (const k of Object.keys(COMPOS)) delete COMPOS[k];
+  for (const c of liste || []) if (c?.id) COMPOS[c.id] = c;
+  for (const c of liste || []) { if (!c?.id || !(c.motif || []).length || (!brouillons && estBrouillon(c))) continue;
     const breloque = c.usage === 'breloque' || c.usage === 'bo';
     FORMES_CHAINMAIL['compo-' + c.id] = { nom: c.nom || 'Composition', compo: true, chaine: !breloque, mini: breloque, bouts: c.bouts || 'mousquetons', boutsF: c.boutsF || null,
       ...(breloque && c.pampille ? { pampille: 'ronde-4', pampilleK: ['#PM-ex01', 'ronde argentée 4 mm'] } : {}),
@@ -3731,8 +3781,9 @@ export function appliquerLiens(liens = {}, { catalogue, fermoirs, bijoux = [], l
         if (l) ferm.push({ ...fermoirDepuisMateriau(l), type: d.type, taille: fermoirDepuisMateriau(l).taille || d.taille });
         else if (b) ferm.push({ ...d, ref: b.ref, bij_id: b.id, nom: [b.nom, b.variante].filter(Boolean).join(' – '),   // composition (fiche bijou)
           nomClient: b.nom || d.nom, prix: b.pv != null ? +b.pv : null, bijou: true, stock: null, enStock: true });
-      } else ferm = ferm.map(f => f.ref === refVraie ? { ...f, type: d.type } : f);
-      ferm = ferm.filter(f => f.ref !== refEx);
+      } else ferm = ferm.map(f => f.ref === refVraie ? { ...f, type: d.type, taille: f.tailleLue ? f.taille : d.taille } : f);   // sans mm dans le nom : la taille de l'exemple (petit 12 / grand 18)
+      // l'exemple disparaît… sauf s'il porte la même réf. que ton vrai fermoir (#FB001 relié à #FB001) : sinon ton fermoir disparaissait avec lui
+      if (refVraie !== refEx) ferm = ferm.filter(f => f.ref !== refEx);
       continue;
     }
     let r = cat.find(c => c.ref === refVraie);
@@ -3748,7 +3799,7 @@ export function appliquerLiens(liens = {}, { catalogue, fermoirs, bijoux = [], l
     for (const k of ['double', 'perle', 'motif', 'forme']) if (d[k] !== undefined) r[k] = d[k];
     if (['argile', 'chainmail', 'petrole', 'nacre', 'hematite', 'irise-metal'].includes(d.finition)) r.finition = d.finition;
     if (d.finition === 'argile' || d.finition === 'chainmail') r.categorie = d.categorie;
-    cat = cat.filter(c => c.ref !== refEx);
+    if (refVraie !== refEx) cat = cat.filter(c => c.ref !== refEx);     // même réf. que l'exemple : on garde la tienne
   }
   return { catalogue: cat, fermoirs: ferm };
 }

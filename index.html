@@ -3456,7 +3456,6 @@ function etapesLancement(){
   const A=(ok,det)=>({auto:true, ok:!!ok, det});
   return [
     ['📸 Catalogue prêt',[
-      ['photos','Chaque création a sa photo', A(!sansPhoto, sansPhoto?sansPhoto+' sans photo':'✓'), "goTabNom('bij');switchCreatTab('bij')"],
       ['temps','Temps de fabrication noté (⏱) sur les fiches', A(!sansTemps, sansTemps?sansTemps+' sans temps':'✓'), "goTabNom('bij');switchCreatTab('bij')"],
       ['prix','Prix au moins au prix conseillé', A(!sousPrix, sousPrix?sousPrix+' sous le conseillé':'✓'), "goTabNom('c3d');switchC3dTab('g:offres')"],
       ['poids','Poids et kit d\'emballage de chaque article', A(!sansPoids&&!sansKit, [sansPoids?sansPoids+' sans poids':'',sansKit?sansKit+' kit à tester':''].filter(Boolean).join(' · ')||'✓'), "switchCfgTab('emballages')"],
@@ -3583,10 +3582,7 @@ function renderAccueil() {
     {ic:'🧩',t:'Références à compléter',nb:incompl.length,ids:incompl.map(m=>m.id),c:'lilas',go:"goTabNom('mat');switchGTab('mat');if(!MAT_A_COMPLETER)toggleACompleter()"},
     {ic:'🔎',t:'Fiches à vérifier (perles en g, laine)',nb:enG.length+laineV.length,ids:[...enG.map(x=>x.b.id+':'+x.i),...laineV.map(x=>'l:'+x.b.id+':'+x.i)],c:'rose',go:"goTabNom('mat');switchGTab('stock')",
       det:[...enG.slice(0,2).map(x=>`<div class="mis-l"><span>${escA(x.b.nom)} · ${n(x.m.qty)} g de perles</span></div>`),...laineV.slice(0,2).map(x=>`<div class="mis-l"><span>${escA(x.b.nom)} · ${n(x.m.qty)} pelotes ?</span></div>`)].join('')},
-    {ic:'🖼',t:'Fiches bijoux sans photo',nb:fichesSansPhoto.length,ids:fichesSansPhoto.map(b=>b.id),c:'creme',go:"goTabNom('bij');switchCreatTab('bij')",
-      det:fichesSansPhoto.slice(0,3).map(b=>`<div class="mis-l"><span>${escA(b.nom)} <span class="dim">${escA(b.ref||'')}</span></span><button class="btn btn-xs btn-p" onclick="event.stopPropagation();photoRapide('${b.id}')">📷</button></div>`).join('')},
-    {ic:'📷',t:'Couleurs sans photo',nb:sansPhoto.length,ids:sansPhoto.map(b=>b.id),c:'creme',go:"goTabNom('bij');switchCreatTab('bij')",
-      det:sansPhoto.slice(0,3).map(b=>`<div class="mis-l"><span>${escA(b.nom)} · ${escA(b.variante||'')}</span><button class="btn btn-xs btn-p" onclick="event.stopPropagation();photoRapide('${b.id}')">📷</button></div>`).join('')},
+    // (plus d'alerte « sans photo » : les photos produits sont gérées dans Shopify ; la photo d'une fiche ici = la miniature des factures sur mesure)
     // boutique en ligne : ce qui bloque la vente ou l'envoi
     ...(()=>{ const enL=BIJS.filter(venduEnLigne), nonR=SHOPIFY.etat?.configure?enL.filter(b=>!b.shopify_variant_id):[], sansP=EMB.kits.length?enL.filter(b=>poidsBij(b)==null):[];
       return [{ic:'🛍',t:'Créations à relier à Shopify',nb:nonR.length,ids:nonR.map(b=>b.id),c:'violet',go:"goTabNom('bij');switchCreatTab('boutique')"},
@@ -4548,8 +4544,11 @@ function renderOffres(){
   return `<div class="of-regles">🧾 <b>Règles :</b> rond <i>ou</i> mousqueton (la cliente choisit), une fois par commande · breloque lettre : une par commande, cumulable · remise sur la commande : le palier le plus haut atteint, <b>un seul</b>, cumulable avec les autres offres.</div>
   <div class="of-grille">
     ${carte('rond','🔘 Fermoir rond offert',`Offert dès ${num('rond','min',48)} breloques à ${num('rond','prixMin')} € ou plus · remise de ${num('rond','remise')} €`,'porte-clés')}
-    ${carte('mousqueton','🪝 Mousqueton offert',`Offert dès ${num('mousqueton','minBundles',48)} porte-clés montés dessus et ${num('mousqueton','minAchat')} € d'achat · remise ${num('mousqueton','remise')} € <span class="dim">(vide = offert)</span>`,'porte-clés, non cumulable avec le rond')}
+    ${carte('mousqueton','🪝 Mousqueton offert',`Offert dès ${num('mousqueton','minBundles',48)} porte-clés (n'importe lesquels) montés dessus et ${num('mousqueton','minAchat')} € de breloques (porte-clés non compris) · remise ${num('mousqueton','remise')} € <span class="dim">(vide = offert)</span>`,'porte-clés, non cumulable avec le rond')}
     ${carte('lettres','🔤 Breloque lettre offerte',`Une breloque lettre offerte dès ${num('lettres','min',48)} breloques à ${num('lettres','prixMin')} € ou plus`,'une par commande, cumulable')}
+    <div class="of-carte"><div class="of-hd"><b>🎨 Fond de l'aperçu 3D</b></div>
+      <div class="of-phrase">${[['violet','Violet, logo jaune'],['jaune','Crème, logo violet']].map(([v,l])=>`<button type="button" class="c3s ${(OFFRES_CFG?.apparence?.fond||'violet')===v?'on':''}" onclick="majOffre('apparence','fond','${v}','text')">${l}</button>`).join(' ')}</div>
+      <div class="of-pied"><span class="dim">Le fond derrière le bijou en 3D, dans le configurateur.</span></div></div>
     <div class="of-carte"><div class="of-hd"><b>💶 Remise sur la commande</b><button class="btn btn-xs btn-ghost" onclick="ajouterPalier()">＋ Palier</button></div>
       ${P.map(x=>`<div class="of-phrase of-palier ${x.active===false?'of-off':''}">Dès <input type="number" step="1" min="0" class="of-in" style="width:64px" value="${escA(x.seuil)}" onchange="majPalier('${escA(x.id)}','seuil',this.value)"> € de commande : −<input type="number" step="1" min="0" max="90" class="of-in" style="width:48px" value="${escA(x.pct)}" onchange="majPalier('${escA(x.id)}','pct',this.value)"> %
         ${inter(x.active!==false,`majPalier('${escA(x.id)}','active',${x.active===false})`)}<button class="btn btn-xs btn-ghost" title="Supprimer ce palier" onclick="majPalier('${escA(x.id)}','suppr')">✕</button></div>`).join('')||'<p class="dim">Aucun palier.</p>'}
@@ -5600,7 +5599,7 @@ function renderBij() {
             </div>
           </div>
           <div style="display:flex;gap:4px;flex-wrap:wrap">
-            ${b.is_mat?'':`<button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();photoRapide('${b.id}')" title="${b.photo?'Changer la photo':'Ajouter une photo'}${b.parent_id?' de cette couleur':''}">${b.photo?'🖼':'📷'}</button>`}
+            ${b.is_mat?'':`<button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();photoRapide('${b.id}')" title="${b.photo?'Changer la miniature':'Ajouter une miniature'}${b.parent_id?' de cette couleur':''} (sert aux factures et fiches des commandes sur mesure ; les photos de la boutique sont dans Shopify)">${b.photo?'🖼':'📷'}</button>`}
             <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();openBijModal('${b.id}')" title="Modifier la fiche">✎</button>
             <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();quickProd('${b.id}')" title="Enregistrer une production">🏭</button>
             <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();dupBij('${b.id}')" title="Dupliquer">⎘</button>
@@ -7643,7 +7642,6 @@ function controlesWix(pr, f){
     ['Méta-description (70–160 caractères)', (f.meta||'').length>=70&&(f.meta||'').length<=160],
     ['Description (150 caractères ou plus)', (f.description||'').length>=150],
     ['Texte alternatif des photos', !!f.alt],
-    ['Une photo par couleur', pr.fiches.every(x=>x.photo)],
     ['Prix sur chaque fiche', pr.fiches.every(x=>prixPiece(x)>0)],
     ['Dimensions', !!(f.dimensions||'').trim()],
     ['Relié au produit Shopify', pr.fiches.every(x=>x.shopify_variant_id)],
@@ -7687,7 +7685,7 @@ function formFicheWix(cle){
     <div class="r2">${champ('dimensions','Dimensions / poids','ex. 3 × 1,5 cm · 4 g')}${champ('prix','Prix affiché','Vient des fiches ; à vérifier dans Shopify.')}</div>
     ${champ('entretien','Entretien')}
     ${champ('url','Adresse du produit sur ta boutique','Remplie à l\'envoi. Sert aux posts et aux drops (lien direct).')}
-    <div class="dim" style="font-size:12px;margin:6px 0">Variantes : ${pr.fiches.map(x=>`${escA(pr.o.valeurs(x).join(' · '))} ${x.photo?'📷':'<span style="color:var(--red)">sans photo</span>'} ${x.shopify_variant_id?'🔗':'<span style="color:var(--orange)">non reliée</span>'}`).join(' · ')}</div>
+    <div class="dim" style="font-size:12px;margin:6px 0">Variantes : ${pr.fiches.map(x=>`${escA(pr.o.valeurs(x).join(' · '))} ${x.photo?'🖼':''} ${x.shopify_variant_id?'🔗':'<span style="color:var(--orange)">non reliée</span>'}`).join(' · ')}</div>
     <div class="mfoot"><button class="btn btn-ghost" onclick="copierFicheWix()">📋 Tout copier</button><span style="flex:1"></span>
       <button class="btn btn-ghost" onclick="closeModal('m-wix')">Fermer</button><button class="btn btn-ghost" onclick="enregistrerFicheWix('${cle}')">Enregistrer</button>
       <button class="btn btn-p" ${pr.fiches.some(x=>x.shopify_product_id)?'':'disabled title="Relie d\'abord ce produit à Shopify (onglet 🔗 Stock Shopify)"'} onclick="enregistrerFicheWix('${cle}',true)">⬆ Envoyer à Shopify</button></div>`);

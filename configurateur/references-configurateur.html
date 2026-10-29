@@ -33,6 +33,11 @@ h1 { font-size: 18px; font-family: "Fredoka", sans-serif; font-weight: 500; colo
 .st { font-size: 12px; } .st.ok { color: var(--vert); } .st.a { color: var(--rouge); font-weight: 600; } .st.au { color: var(--orange); }
 .derive { grid-column: 3 / -1; font-size: 12.5px; color: var(--texte); } .derive .p { display: inline-block; background: #f3edf5; border-radius: 8px; padding: 2px 8px; margin: 2px 4px 2px 0; }
 .ref { font: 11px ui-monospace, monospace; color: var(--doux); }
+.groupe-b { margin: 8px 0 12px; } .groupe-b h3 { font-size: 14px; margin: 6px 0; display: flex; gap: 8px; align-items: center; }
+.ligne-b { padding: 5px 8px; border-left: 3px solid #2f7a46; margin: 3px 0; font-size: 13px; background: rgba(0,0,0,.02); border-radius: 4px; }
+.ligne-b.a { border-left-color: #a3262f; } .ligne-b.att { border-left-color: #c98a12; }
+.badge { display: inline-block; padding: 1px 7px; border-radius: 8px; font-size: 11.5px; background: #eef4ef; color: #2f7a46; }
+.badge.a { background: #f7e1e3; color: #a3262f; } .badge.att { background: #fbf0d9; color: #8a5d00; }
 select, input { font: inherit; font-size: 13px; padding: 6px 8px; border: 1px solid var(--ligne); border-radius: 8px; background: #fff; width: 100%; min-width: 0; }
 button { font: inherit; border: 0; border-radius: 10px; padding: 8px 14px; background: var(--prune); color: var(--or); cursor: pointer; font-weight: 600; white-space: nowrap; }
 button.leger { background: #f2eaf3; color: var(--prune); padding: 4px 9px; font-size: 12px; }
@@ -72,6 +77,9 @@ details.groupe > summary { cursor: pointer; list-style: none; } details.groupe >
     <div class="outils" id="outils"></div>
   </div>
   <div id="sections"><p class="aide">Chargement…</p></div>
+  <details class="section" id="sec-bilan"><summary><h2>📋 Bilan : ce qui reste à modéliser</h2><span class="cpt" id="cptBilan"></span></summary>
+    <p class="expl">Toutes tes fiches produits : leur visuel 3D (modèle, forme, composition validée ou brouillon) et chaque matériau de leur composition que le 3D ne connaît pas encore (ex. un fermoir S). Une fiche « catégorie » sans composition (mini chain, argile) n'est pas à modéliser elle-même : ce sont ses variantes qui comptent.</p>
+    <div id="bilan"></div></details>
   <details class="section" id="sec-controle"><summary><h2>🔎 Contrôle par modèle</h2><span class="cpt">tout ce que chaque breloque utilise, teintes vérifiées</span></summary>
     <p class="expl">Vue de contrôle : pour chaque modèle, la fiche produite, chaque couleur par défaut, chaque perle fixe, fermoir et porte-clés, avec la référence réellement utilisée. Les liens se font plus haut.</p>
     <div id="utilises"></div></details>
@@ -83,8 +91,8 @@ import {
   listerModelesPublies, chargerCatalogueBoutique, chargerFermoirsBoutique, chargerPartiesConfigurateur, chargerBijouxBoutique,
   completerCatalogue, definirLiensFormes, catalogueChainmailDepuisBijoux, catalogueChaineDepuisBijoux, NOMS_CHAINE, completerModeleChainmail, modeleChaineSacDemo, estChaineSac, FORMES_CHAINMAIL, resoudreDefauts, couleursProposees, correspondCategorie, ordreModeles, estLettres, accrochesProposees,
   chargerLiens, enregistrerLiens, estExemple, exemplesParRef, apercuArgile, apercuChainmail, baseRef,
-  appliquerLiens, relierModele, appliquerLienModele, definirLiensFixes, cleFixe, refFixe, catalogueDepuisMateriaux, perlesFixesDe, allureFixe, bijouBreloque, definirCompositions,
-} from './bead-core.js?v=35f49ebd';
+  appliquerLiens, relierModele, appliquerLienModele, definirLiensFixes, cleFixe, refFixe, catalogueDepuisMateriaux, perlesFixesDe, allureFixe, bijouBreloque, definirCompositions, elementDepuisNom,
+} from './bead-core.js?v=7681e739';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './perles-config.js?v=e8e44d9a';
 
 const $ = s => document.querySelector(s);
@@ -400,7 +408,7 @@ let rendre = function () {
     <input id="rech" type="search" placeholder="🔍 Chercher (nom, réf.)" value="${esc(RECH)}">
     ${SECTIONS.filter(([id]) => L.some(x => x.section === id)).map(([id, t]) => { const n = L.filter(x => x.section === id && !statut(x).ok).length; return `<button class="puce ${n ? 'a' : ''}" data-aller="${id}">${t.split(' ')[0]} ${esc(t.replace(/^\S+ /, ''))}${n ? ' · ⚠' + n : ' ✓'}</button>`; }).join('')}`;
   filtrer();
-  rendreUtilises();
+  rendreUtilises(); rendreBilan();
 };
 function filtrer() {
   const q = norm(RECH);
@@ -494,6 +502,64 @@ async function creer(refEx, forcer = false) {
 /* ---------- 🧩 Matériaux utilisés : ce que le configurateur prend vraiment, liens appliqués ---------- */
 const MOTS_TEINTE = ['argent', 'dore', 'bronze', 'noir', 'blanc', 'rose', 'bleu', 'rouge', 'vert', 'jaune', 'violet', 'orange', 'marron', 'gris', 'peche', 'cuivre'];
 const teintesDe = t => norm(t).split(/[^a-z0-9]+/).map(w => MOTS_TEINTE.find(x => w.startsWith(x))).filter(Boolean);
+/* ---------- 📋 Bilan : ce qui reste à modéliser (lecture seule : rien n'est modifié) ---------- */
+let FICHES_COMPLETES = null, COMPOS_BILAN = [], BILAN_TOUT = false;
+async function rendreBilan() {
+  if (!FICHES_COMPLETES) { try { const { data } = await sb.from('bijoux').select('id,ref,nom,variante,parent_id,is_mat,no_sell,mats,collection').order('nom'); FICHES_COMPLETES = data || []; } catch { FICHES_COMPLETES = []; }
+    try { const r = await sb.from('config').select('value').eq('key', 'chainmail_compositions').maybeSingle(); let v = r.data?.value; if (typeof v === 'string') v = JSON.parse(v); COMPOS_BILAN = Array.isArray(v) ? v : []; } catch { COMPOS_BILAN = []; } }
+  const B = FICHES_COMPLETES, parId = new Map(B.map(b => [b.id, b])), parRefB = new Map(B.map(b => [b.ref, b])), enfantsDe = b => B.filter(x => x.parent_id === b.id);
+  const nomB = b => [b.nom, b.variante].filter(Boolean).join(' · ');
+  const txt = m => norm([m.designation, m.variante, m.sc].join(' '));
+  const ignore = m => /emballage|consommable|outil|\bfil\b|etiquette|sachet|pochette|boite|carte|sticker/.test(txt(m));
+  const refsLiees = new Set(Object.values(liens));
+  // fiches de base des modèles publiés (et leurs variantes = idées de couleurs)
+  const baseModele = new Map(); for (const mo of modeles) { try { const r = bijouBreloque(mo, { couleurs: {}, texte: { mode: 1 }, bijoux })?.ref; if (r) baseModele.set(r, mo.nom || mo.slug); } catch {} }
+  for (const [k, v] of Object.entries(liens)) if (k.startsWith('modele:')) { const mo = modeles.find(x => x.slug === k.split(':')[1]); baseModele.set(v, mo?.nom || k.split(':')[1]); }
+  const chaines = new Set(catalogueChaineDepuisBijoux(bijoux).map(c => c.ref)), formes = new Map(catalogueChainmailDepuisBijoux(bijoux).map(c => [c.ref, c.forme]));
+  const argile = new Set(catalogue.filter(c => c.finition === 'argile' && c.bij_id).map(c => c.bij_id));
+  const visuel = (b, prof = 0) => {
+    const kc = Object.keys(liens).find(k => k.startsWith('forme:compo-') && liens[k] === b.ref), c = kc && COMPOS_BILAN.find(x => 'compo-' + x.id === kc.slice(6));
+    if (c) return c.statut === 'brouillon' ? ['att', '📝 composition « ' + c.nom + ' » en brouillon'] : ['ok', '✓ composition « ' + c.nom + ' »'];
+    const kf = Object.keys(liens).find(k => /^(forme|modele):/.test(k) && !k.startsWith('forme:compo-') && liens[k] === b.ref); if (kf) return ['ok', '✓ ' + kf.replace(/^forme:/, 'forme ').replace(/^modele:/, 'modèle ')];
+    if (baseModele.has(b.ref)) return ['ok', '✓ modèle ' + baseModele.get(b.ref)];
+    if (chaines.has(b.ref)) return ['ok', '✓ chaîne de sac'];
+    if (formes.has(b.ref)) return ['ok', '✓ forme ' + formes.get(b.ref)];
+    if (argile.has(b.id)) return ['ok', '✓ motif argile'];
+    if (elementDepuisNom([parId.get(b.parent_id)?.nom, b.nom, b.variante].filter(Boolean).join(' '))) return ['ok', '✓ élément chainmail'];
+    const par = b.parent_id && parId.get(b.parent_id); if (par && prof < 3) { const v = visuel(par, prof + 1); if (v[0] !== 'a') return [v[0], v[1] + ' (fiche parente)']; }
+    return ['a', '✗ aucun modèle 3D'];
+  };
+  const fermRef = new Map(fermoirs.map(x => [x.ref, x]));
+  const matConnu = m => {
+    if (refsLiees.has(m.ref) || catalogue.some(c => c.ref === m.ref)) return true;
+    const f = fermRef.get(m.ref); if (f) return f.typeReconnu !== false;
+    const t = txt(m); if (/fermoir|mousqueton|ressort/.test(t)) return false;                // un fermoir hors de la liste des fermoirs : pas modélisé
+    return /\banneau|perle|rocaille|heishi|etoile|culture|lettre|pampille|ronde/.test(t) && !/boucle|oreille|crochet|dormeuse|\bclous?\b|\bpuces?\b|\bsacs?\b|cuir|cordon|chaine|chainette|bracelet|bague|tige/.test(t);
+  };
+  const manquantsTous = new Map();
+  // matériaux pas modélisés d'une fiche (et des compositions qu'elle contient, sans les compter comme « à modéliser » elles-mêmes)
+  const nonModelises = (b, prof = 0) => { const out = [], lignes = (b.mats || []).length ? b.mats : (b.parent_id && parId.get(b.parent_id)?.mats) || [];
+    for (const l of lignes) { if (l.ref === b.ref) continue; const m = mats.find(x => x.ref === l.ref), s = parRefB.get(l.ref);
+      if (m) { if (!ignore(m) && !matConnu(m)) { out.push(m.designation + (m.variante ? ' · ' + m.variante : '') + ' (' + m.ref + ')'); const x = manquantsTous.get(m.ref) || { nom: [m.designation, m.variante].filter(Boolean).join(' · '), ref: m.ref, n: 0, fiches: new Set() }; x.fiches.add(b.ref); x.n = x.fiches.size; manquantsTous.set(m.ref, x); } }
+      else if (s && prof < 4) out.push(...nonModelises(s, prof + 1)); }
+    return [...new Set(out)]; };
+  const ligneB = b => {
+    const cat = !(b.mats || []).length && enfantsDe(b).length;
+    if (cat) { const E = enfantsDe(b).map(v => visuel(v)), ok = E.filter(e => e[0] === 'ok').length; return { b, cat: true, etat: ok === E.length ? 'ok' : 'a', v: ['', `catégorie · ${ok}/${E.length} variante(s) modélisée(s)`], nm: [] }; }
+    const nm = nonModelises(b);
+    const v = visuel(b); return { b, v, nm, etat: v[0] === 'a' || nm.length ? 'a' : v[0] === 'att' ? 'att' : 'ok' };
+  };
+  const vendus = B.filter(b => !b.is_mat && !b.no_sell);
+  const L = vendus.filter(b => !b.parent_id || !parId.get(b.parent_id) || !vendus.includes(parId.get(b.parent_id)) || !(parId.get(b.parent_id).mats || []).length).map(ligneB);
+  const aFaire = L.filter(x => x.etat !== 'ok');
+  $('#cptBilan').textContent = `${aFaire.filter(x => x.etat === 'a').length} à faire · ${aFaire.filter(x => x.etat === 'att').length} en brouillon · ${L.length - aFaire.length} prêtes`;
+  const M = [...manquantsTous.values()].sort((a, b) => b.n - a.n);
+  const ligneH = x => `<div class="ligne-b ${x.etat}"><b>${esc(nomB(x.b))}</b> <span class="ref">${esc(x.b.ref || '')}</span> <span class="badge ${x.v[0]}">${esc(x.v[1])}</span>${x.nm.length ? `<div class="aide" style="margin:2px 0 0">pas modélisé : ${esc(x.nm.join(', '))}</div>` : ''}</div>`;
+  $('#bilan').innerHTML = (M.length ? `<div class="groupe-b"><h3>Matériaux à modéliser (utilisés dans tes fiches)</h3>${M.map(x => `<div class="ligne-b a"><b>${esc(x.nom)}</b> <span class="ref">${esc(x.ref)}</span> <span class="aide" style="margin:0">dans ${x.n} fiche(s)</span></div>`).join('')}</div>` : '<p class="aide">✓ Tous les matériaux de tes fiches sont connus du 3D.</p>')
+    + `<div class="groupe-b"><h3>Fiches ${BILAN_TOUT ? '(toutes)' : 'à faire'} <button type="button" class="leger" id="btBilanTout">${BILAN_TOUT ? 'Seulement à faire' : 'Tout voir (' + L.length + ')'}</button></h3>`
+    + ((BILAN_TOUT ? L : aFaire).sort((a, b) => (a.etat === 'a' ? 0 : 1) - (b.etat === 'a' ? 0 : 1) || nomB(a.b).localeCompare(nomB(b.b), 'fr')).map(ligneH).join('') || '<p class="aide">✓ Tout est modélisé.</p>') + '</div>';
+  $('#btBilanTout')?.addEventListener('click', () => { BILAN_TOUT = !BILAN_TOUT; rendreBilan(); });
+}
 function rendreUtilises() {
   definirLiensFixes(liens);
   const { catalogue: cL, fermoirs: fL } = appliquerLiens(liens, { catalogue, fermoirs, bijoux, lignesEnPlus: mats });

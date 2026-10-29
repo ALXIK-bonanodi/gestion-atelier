@@ -54,6 +54,7 @@ select, input[type=number] { font: 14px var(--f-body); padding: 6px 8px; border:
 .el img, .el .ic { width: 64px; height: 64px; object-fit: contain; border-radius: 8px; background: #fff; display: grid; place-items: center; font-size: 28px; }
 .el small { color: var(--muted); font-weight: 400; }
 .seq { display: grid; gap: 6px; }
+.mini-sel { font-size: 12px; max-width: 150px; padding: 2px 4px; }
 .seq-l { display: flex; gap: 8px; align-items: center; padding: 6px 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
 .seq-l img, .seq-l .ic { width: 34px; height: 34px; object-fit: contain; border-radius: 6px; background: #fff; display: grid; place-items: center; font-size: 18px; flex: 0 0 auto; }
 .seq-l .t { flex: 1; font-size: 13px; }
@@ -140,6 +141,11 @@ aside > *, .etape .corps > *, .seq-l, .seq-l .t { min-width: 0; }
         <button class="puce on" type="button" data-filtre="a">⚠ À modéliser</button><button class="puce" type="button" data-filtre="t">Toutes</button><button class="puce" type="button" data-filtre="c">🔎 Vérifier le classement</button>
         <input type="search" id="rechF" placeholder="🔍 nom, réf." style="flex:1;min-width:120px">
       </div>
+      <div class="ligne" style="margin:0"><label class="aide" style="margin:0">Ranger par <select id="ranger">
+        <option value="motif">motif (croix, fleur, double…)</option><option value="dossier">mes dossiers (je classe moi-même)</option>
+        <option value="type">type (composition, breloque, BO, chaîne)</option><option value="etat">état 3D (à faire, brouillon, validé)</option>
+        <option value="nom">nom A → Z</option><option value="ref">réf.</option></select></label>
+        <span class="aide" id="aideRanger" style="margin:0"></span></div>
       <div class="liste-c" id="fiches"><p class="aide">Chargement…</p></div>
     </div></details>
 
@@ -159,16 +165,20 @@ aside > *, .etape .corps > *, .seq-l, .seq-l .t { min-width: 0; }
         <label><input type="checkbox" id="boutsDeux"> aux deux bouts</label></div>
       <div class="ligne" id="ligneBO" hidden><label style="flex:1"><span id="libAttache">Attache</span> <select id="boAttache" style="width:100%"></select></label>
         <label id="lignePaire"><input type="checkbox" id="boPaire" checked> la paire (×2)</label></div>
-      <div class="sous">Début</div><div id="debut" class="seq"></div>
+      <div class="ligne" style="margin:4px 0"><button class="btn mini" type="button" id="btActualiserEl" title="Reprend le 3D actuel des fiches éléments de cette composition (si tu les as modifiées)">↻ Reprendre le 3D actuel des fiches éléments</button>
+        <button class="btn mini" type="button" id="btToutProfil" title="Chaque corps du motif tourne d'un quart de tour par rapport au précédent">⟲ Motif de profil (alterné)</button></div>
+      <div class="sous">Début <span class="aide" style="margin:0">(avant le motif : connecteurs, anneaux, autres éléments)</span></div><div id="debut" class="seq"></div>
       <div class="sous">Motif qui se répète</div>
       <div class="seq" id="seq"></div>
       <div class="ligne">
         <label>Répéter <input type="number" id="nb" min="1" max="60" step="1" value="3" style="width:70px"> fois</label>
         <label><input type="checkbox" id="demi"> + un demi-motif (1 nœud)</label>
       </div>
-      <div class="sous">Fin</div><div id="fin" class="seq"></div>
+      <div class="ligne" id="ligneLongueur"><label>Longueur visée <input type="number" id="longueur" min="0" step="0.5" style="width:80px"> cm</label><span class="aide" id="infoLongueur" style="margin:0"></span></div>
+      <div class="sous">Fin <span class="aide" style="margin:0">(après le motif)</span></div><div id="fin" class="seq"></div>
       <label><input type="checkbox" id="pampille"> + petit anneau 0,5 mm et pampille 4 mm</label>
-      <div class="sous">Ajouter un élément au motif</div>
+      <div class="sous">Ajouter un élément <span class="ligne" style="display:inline-flex;margin:0 0 0 6px;gap:8px;font-weight:400"><label><input type="radio" name="cible" value="debut"> au début</label><label><input type="radio" name="cible" value="motif" checked> au motif</label><label><input type="radio" name="cible" value="finEl"> à la fin</label></span></div>
+      <div class="palette" id="paletteMes"></div>
       <div class="palette" id="paletteFiches"></div>
       <details><summary class="aide" style="cursor:pointer">Éléments de base (sans fiche)</summary><div class="palette" id="palette" style="margin-top:8px"></div></details>
       <div class="pas-nav"><button class="btn" type="button" data-pas="1">‹ Choisir</button><button class="btn prim" type="button" data-pas="3">Enregistrer ›</button></div>
@@ -183,12 +193,14 @@ aside > *, .etape .corps > *, .seq-l, .seq-l .t { min-width: 0; }
         <label><input type="radio" name="typeFiche" value="composition"> <b>une composition</b> pour construire (réf. COMP-…, non vendue seule) : seulement le corps, sans fermoir</label>
         <label><input type="radio" name="typeFiche" value="produit"> <b>un produit complet</b> (réf. BIJ-…) : la composition + ses bouts / son fermoir / son attache</label>
       </div>
+      <div class="ligne"><label><input type="radio" name="statut" value="brouillon"> 📝 Brouillon (pas encore dans le configurateur)</label><label><input type="radio" name="statut" value="valide"> ✅ Validé</label></div>
+      <label class="aide" style="margin:0 0 6px"><input type="checkbox" id="estElement"> Utilisable comme <b>élément</b> dans tes autres compositions (palette « Mes éléments »)</label>
       <div class="ligne"><label style="flex:1">Fiche reliée <select id="ficheCible" style="width:100%"></select></label></div>
+      <p class="aide" style="margin:0">Relier une fiche lui attribue seulement ce visuel 3D : <b>sa composition n'est jamais modifiée ici</b> (tu la changes toi-même dans ✨ Création).</p>
       <div class="ligne" id="ligneVariante"><label style="flex:1">Variante de <select id="varianteDe" style="width:100%"></select></label><label>nom <input type="text" id="varianteNom" placeholder="ex. chaîne de sac" style="width:140px"></label></div>
       <div class="ligne">
         <button class="btn prim" id="btSauver" type="button">💾 Enregistrer et relier</button>
         <button class="btn" id="btCreerFiche" type="button">＋ Créer la fiche</button>
-        <button class="btn" id="btMajFiche" type="button">↻ Mettre à jour la fiche reliée</button>
       </div>
       <div class="ligne">
         <button class="btn mini" id="btImage" type="button">🖼 Miniature</button>
@@ -208,7 +220,7 @@ aside > *, .etape .corps > *, .seq-l, .seq-l .t { min-width: 0; }
 <script type="module">
 import { ScenePerles, cleFixe, fermoirDepuisMateriau, assemblerComposition, decompteComposition, definirCompositions, elementChainmail, nomElementChainmail, estCorpsChainmail,
   elementDepuisNom, piecesComposition, connecteurEntre, modeleChaineSacDemo, modeleChainmailDemo, catalogueChaineDepuisBijoux, catalogueChainmailDepuisBijoux,
-  definirLiensFormes, NOMS_CHAINE, FORMES_CHAINMAIL, CATALOGUE_DEMO, formeChaine } from './bead-core.js?v=35f49ebd';
+  definirLiensFormes, NOMS_CHAINE, FORMES_CHAINMAIL, CATALOGUE_DEMO, formeChaine, estBrouillon } from './bead-core.js?v=7681e739';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure } from './perles-config.js?v=e8e44d9a';
 
 const $ = s => document.querySelector(s);
@@ -219,15 +231,17 @@ const clone = x => JSON.parse(JSON.stringify(x));
 
 /* ---------- éléments de base (sans fiche) ---------- */
 const C = (nb, taille) => ({ k: 'conn', nb, taille }), D = (taille, conn) => ({ k: 'double', taille, conn });
-const BASE = [D(8, 3), D(8, 2), D(10, 2), { k: 'fleur', petales: 2 }, { k: 'fleur', petales: 2, coeur: 10, petale: '8x2' }, { k: 'noeud', taille: 8 }, { k: 'noeud', taille: 10 }, C(3, 8), C(2, 8), C(2, 10), C(1, 10)];
+const BASE = [D(8, 3), D(8, 2), D(10, 2), { k: 'fleur', petales: 2 }, { k: 'fleur', petales: 2, coeur: 10, petale: '8x2' }, { k: 'noeud', taille: 8 }, { k: 'noeud', taille: 10 }, C(3, 8), C(2, 8), C(2, 10), C(1, 10), { k: 'anneau05', nb: 1 }, { k: 'anneau05', nb: 2 }];
 const imgDe = x => { const e = elementChainmail(x);
   if (e.k === 'double') return e.taille === 10 ? 'double-4x4-connecteur-2-10mm' : e.conn === 2 ? 'double-4x4-connecteur-2-8mm' : 'double-4x4-connecteur-3-8mm';
   if (e.k === 'fleur') return (e.coeur || 8) === 10 ? 'mini-fleur' : 'fleur-double-petales'; if (e.k === 'noeud') return e.taille === 10 ? 'noeud-4x4-10mm' : 'noeud-4x4-8mm';
   if (e.k === 'conn') return e.nb === 1 ? 'anneau-solo-10mm' : e.nb === 3 ? 'connecteur-3-8mm' : e.taille === 10 ? 'connecteur-2-10mm' : 'connecteur-2-8mm';
   if (e.k === 'forme') return e.f === 'croix' ? 'croix-pampille' : /fleur/.test(e.f) ? 'mini-chaine-byzantine-fleur-pampille' : 'mini-chaine-byzantine-alternative-pampille';
-  if (e.k === 'pampille') return 'pampille-' + (e.taille || 4) + 'mm'; if (e.k === 'petit') return 'petit-anneau-0-5mm'; if (e.k === 'fermoir-10') return 'fermoir-10mm'; return ''; };
+  if (e.k === 'pampille') return 'pampille-' + (e.taille || 4) + 'mm'; if (e.k === 'petit' || e.k === 'anneau05') return 'petit-anneau-0-5mm'; if (e.k === 'fermoir-10') return 'fermoir-10mm'; return ''; };
 const img = (src, cls = '') => `<img class="${cls}" src="${esc(src)}" alt="" onerror="this.outerHTML='<span class=&quot;ic&quot;>⛓</span>'">`;
-const vignette = x => { const e = elementChainmail(x), b = e.fiche && ficheDe(e.fiche); return img(b?.photo || `composants/${imgDe(e)}.jpg`); };
+const vignette = (x, prof = 0) => { const e = elementChainmail(x), b = e.fiche && ficheDe(e.fiche);
+  if (!b?.photo && e.k === 'compo') { const c = mes.find(m => m.id === e.id), y = c && ((c.motif || []).find(estCorpsChainmail) || c.motif?.[0]); return y && prof < 4 ? vignette(y, prof + 1) : '<span class="ic">⛓</span>'; }
+  const n = imgDe(e); return b?.photo || n ? img(b?.photo || `composants/${n}.jpg`) : '<span class="ic">⛓</span>'; };
 function reglages(x, attr) {     // taille, connecteur, pétales, nombre d'anneaux
   const e = elementChainmail(x), sel = (cle, opts) => `<select ${attr} data-cle="${cle}">${opts.map(([v, l]) => `<option value="${v}" ${String(e[cle] ?? '') === String(v) ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
   if (e.k === 'double') return sel('taille', [[8, '8 mm'], [10, '10 mm']]) + (e.taille === 10 ? '' : sel('conn', [[3, 'connecteur (3)'], [2, 'connecteur (2)']])) + sel('n', [[1, '2 nœuds (1 double)'], [2, '4 nœuds (2 doubles)'], [3, '6 nœuds (3 doubles)']]);
@@ -235,6 +249,7 @@ function reglages(x, attr) {     // taille, connecteur, pétales, nombre d'annea
     + sel('petales', [[2, '2 pétales'], ['haut', '1 pétale haut'], ['bas', '1 pétale bas'], [0, 'sans pétale']]);
   if (e.k === 'noeud') return sel('taille', [[8, '8 mm'], [10, '10 mm']]);
   if (e.k === 'conn') return sel('nb', [[1, '1 anneau (solo)'], [2, '2 anneaux'], [3, '3 anneaux']]) + sel('taille', [[8, '8 mm'], [10, '10 mm']]);
+  if (e.k === 'anneau05') return sel('nb', [[1, 'solo'], [2, 'double']]);
   return '';
 }
 const lireReglage = (e, cle, v) => { e[cle] = cle === 'petales' ? (v === 'haut' || v === 'bas' ? v : +v) : cle === 'petale' ? (v || undefined) : +v; if (e[cle] === undefined) delete e[cle]; delete e.fiche; return e; };
@@ -248,13 +263,35 @@ const RECETTES = {
   'Mini chain fleur': { usage: 'breloque', debut: C(1, 10), motif: [{ k: 'fleur', petales: 2 }, C(2, 10)], nb: 2, fin: C(2, 8), pampille: true },
   'Mini chain alternative': { usage: 'breloque', debut: C(1, 10), motif: [D(8, 2), C(2, 10)], nb: 2, fin: 'motif', pampille: true },
 };
-const VIERGE = () => ({ nom: 'Nouvelle composition', usage: 'chaine', bouts: 'aucun', debut: null, motif: [], nb: 1, demi: false, fin: 'motif', pampille: false, id: null, fiche: null });
-const depuisRecette = (n, nom = n) => ({ ...VIERGE(), ...clone(RECETTES[n]), nom, fin: RECETTES[n].fin || 'motif' });
+const VIERGE = () => ({ nom: 'Nouvelle composition', usage: 'chaine', bouts: 'aucun', debut: [], motif: [], finEl: [], nb: 1, demi: false, fin: 'motif', pampille: false, id: null, fiche: null });
+// début / fin = des listes d'éléments (ancienne forme : un seul élément) — même rendu qu'avant
+function normer(c) {
+  if (!c) return c;
+  if (!Array.isArray(c.debut)) c.debut = c.debut && typeof c.debut === 'object' ? [c.debut] : [];
+  if (c.fin && typeof c.fin === 'object') { c.finEl = [c.fin, ...(c.finEl || [])]; c.fin = 'aucune'; }
+  if (!Array.isArray(c.finEl)) c.finEl = [];
+  if (typeof c.fin !== 'string') c.fin = 'motif';
+  return c;
+}
+const zoneListe = z => z === 'motif' ? compo.motif : z === 'debut' ? compo.debut : compo.finEl;
+const aDesElements = () => !!(compo.motif.length || compo.debut.length || compo.finEl.length);
+// longueur et paire d'après le nom de la variante (« 40 cm », « paire », « à l'unité »)
+function infoVariante(b) {
+  if (!b) return {}; const t = norm([b.variante, b.nom].filter(Boolean).join(' ')), cm = /(\d+(?:[.,]\d+)?)\s*cm\b/.exec(t);
+  return { longueur: cm ? parseFloat(cm[1].replace(',', '.')) : null, paire: /\bpaire\b/.test(t) ? true : /unite|\bseule?\b|\bsolo\b/.test(t) ? false : null };
+}
+// nombre de répétitions qui donne la longueur la plus proche
+function nbPourLongueur(cm) {
+  if (!cm || !compo.motif.length) return null; let best = null;
+  for (let n = 1; n <= 60; n++) { const L = decompteComposition(assemblerComposition({ ...compo, nb: n })).L / 10; if (!best || Math.abs(L - cm) < Math.abs(best.L - cm)) best = { n, L }; if (L > cm + 6) break; }
+  return best;
+}
+const depuisRecette = (n, nom = n) => normer({ ...VIERGE(), ...clone(RECETTES[n]), nom, fin: RECETTES[n].fin || 'motif' });
 const recetteDuNom = t => { t = norm(t);
   if (/mini/.test(t)) return /fleur/.test(t) ? 'Mini chain fleur' : 'Mini chain alternative';
   return /fleur/.test(t) ? 'Byzantine fleur' : /intercal|altern/.test(t) ? 'Byzantine alternative' : /10 ?mm|chunky/.test(t) ? 'Chunky byzantine 10 mm' : 'Double byzantine 8 mm'; };
 let compo = depuisRecette('Double byzantine 8 mm', 'Ma chaîne'); compo.nb = 3;
-try { const b = JSON.parse(localStorage.getItem('bn-compo-brouillon')); if (b && Array.isArray(b.motif)) compo = b; } catch {}
+try { const b = JSON.parse(localStorage.getItem('bn-compo-brouillon')); if (b && Array.isArray(b.motif)) compo = normer(b); } catch {}
 
 /* ---------- base ---------- */
 let sb = null, mes = [], bijoux = [], mats = [], liens = {}, REG = {}, FICHES_CFG = {}, AUTO = new Map();
@@ -280,14 +317,16 @@ for (const [k, r] of Object.entries(liens)) { const f = k.startsWith('forme:') &
 const memeElement = (a, b) => { const x = elementChainmail(a), y = elementChainmail(b);
   if (x.k === 'forme' || y.k === 'forme') return x.k === y.k && x.f === y.f;
   return x.k === y.k && (x.taille || 8) === (y.taille || 8) && (x.n || 1) === (y.n || 1) && (x.k !== 'conn' || (x.nb || 2) === (y.nb || 2)) && (x.k !== 'double' || x.taille === 10 || (x.conn || 3) === (y.conn || 3)) && (x.k !== 'fleur' || (String(x.petales ?? 2) === String(y.petales ?? 2) && (x.coeur || 8) === (y.coeur || 8) && (x.petale || '') === (y.petale || ''))); };
-const ficheElement = e => ELEMENTS_FICHES.find(x => memeElement(x.e, e))?.b || null;     // la fiche composition d'un élément (pour les connecteurs ajoutés tout seuls)
+const ficheElement = e => e.k === 'compo' ? (ficheDe(mes.find(c => c.id === e.id)?.fiche) || null) : ELEMENTS_FICHES.find(x => memeElement(x.e, e))?.b || null;
+// l'élément 3D d'une fiche élément : ta composition « élément » reliée à cette fiche, sinon celui reconnu d'après son nom
+const elDeFiche = x => { const c = mes.find(m => m.element && m.fiche === x.b.ref); return c ? { k: 'compo', id: c.id, fiche: x.b.ref } : { ...clone(x.e), fiche: x.b.ref }; };     // la fiche composition d'un élément (pour les connecteurs ajoutés tout seuls)
 // une composition enregistrée reprend le modèle 3D ACTUEL de chaque fiche élément (si tu as renommé / corrigé la fiche depuis : « 2 nœuds » → « 4 nœuds »…)
 function actualiser(c) {
   if (!c) return c; let change = false;
-  const maj = x => { if (!x || typeof x !== 'object' || !x.fiche) return x; const f = ELEMENTS_FICHES.find(y => y.b.ref === x.fiche); if (!f) return x;
-    const n = { ...clone(f.e), fiche: x.fiche, ...(x.suspendu ? { suspendu: true } : {}) };
+  const maj = x => { if (!x || typeof x !== 'object' || !x.fiche || x.k === 'compo') return x; const f = ELEMENTS_FICHES.find(y => y.b.ref === x.fiche); if (!f) return x;
+    const n = { ...elDeFiche(f), ...(x.suspendu ? { suspendu: true } : {}), ...(x.profil ? { profil: true } : {}) };
     if (JSON.stringify(n) !== JSON.stringify(x)) change = true; return n; };
-  const r = { ...c, motif: (c.motif || []).map(maj), debut: maj(c.debut), fin: maj(c.fin) };
+  normer(c); const r = { ...c, motif: c.motif.map(maj), debut: c.debut.map(maj), finEl: c.finEl.map(maj) };
   return change ? r : c;
 }
 
@@ -305,8 +344,10 @@ const refAttache = a => a.ref || (compo.usage === 'bo' ? R(a.type === 'creole-ch
   : (() => { const x = ATTACHES_BRELOQUE.find(y => y[2] === a.type && y[3] === a.taille) || ATTACHES_BRELOQUE.find(y => y[2] === a.type); const r = x && liens[x[4]]; return r && (mats.some(m => m.ref === r) || bijoux.some(b => b.ref === r)) ? r : null; })());
 let n3d = 0, suspendue = true;
 function rendre(cadrer = false) {
+  normer(compo);
   const id = 'apercu' + (++n3d), f = 'compo-' + id, breloque = estBreloque();
-  definirCompositions([{ ...compo, id, motif: compo.motif.length ? compo.motif : [{ k: 'conn', nb: 0, taille: 8 }] }]);
+  if (compo.longueurCm > 0) { const x = nbPourLongueur(compo.longueurCm); if (x) compo.nb = x.n; }        // longueur visée (variante ou saisie) → répétitions
+  definirCompositions([...mes.filter(c => c.id !== compo.id), { ...compo, id, statut: 'valide', motif: compo.motif.length ? compo.motif : [{ k: 'conn', nb: 0, taille: 8 }] }], { brouillons: true });
   scene._cacheFormes = {};
   scene.definirCatalogue([...CATALOGUE_DEMO, { ref: '#COMPO', nom: compo.nom, forme: f, finition: 'chainmail', hex: '#b4b6ba', categorie: breloque ? 'Breloques chainmail' : 'Chaînes de sac' }]);
   const m = breloque ? modeleChainmailDemo() : modeleChaineSacDemo(), z = breloque ? 'forme' : 'motif';
@@ -317,9 +358,10 @@ function rendre(cadrer = false) {
     m.options = (m.options || []).filter(o => o.type !== 'fermoir'); }
   m.zones = (m.zones || []).map(x => x.id === z ? { ...x, defaut: '#COMPO' } : x);
   scene.definirModele(m); scene.definirCouleurs({ [z]: '#COMPO' }); scene.definirOptions({});
-  if (scene.racine) scene.racine.visible = !!(compo.motif.length || compo.debut);     // motif vide : rien à l'écran (ni boule, ni anneau)
+  if (scene.racine) scene.racine.visible = aDesElements();     // motif vide : rien à l'écran (ni boule, ni anneau)
   if (cadrer) { scene.deFace?.(); scene.cadrer(1.25); }
-  const A = compo.motif.length || compo.debut ? assemblerComposition(compo) : [], d = decompteComposition(A);
+  const A = aDesElements() ? assemblerComposition(compo) : [], d = decompteComposition(A);
+  $('#infoLongueur').textContent = compo.longueurCm > 0 ? `→ ${compo.nb} répétition(s) ≈ ${(d.L / 10).toFixed(1)} cm${compo.longueurSrc ? ' (d\'après ' + compo.longueurSrc + ')' : ''}` : 'vide = d\'après le nombre de répétitions';
   $('#compte').innerHTML = Object.entries(d.t).filter(([, n]) => n).map(([k, n]) => `<span>${n} × ${k}</span>`).join('') + (compo.pampille ? '<span>1 pampille</span>' : '') + `<span>≈ ${(d.L / 10).toFixed(1)} cm</span>`;
   $('#btOrient').textContent = breloque ? '—' : suspendue ? '↔ Droite' : '⌒ Suspendue'; $('#btOrient').disabled = breloque;
   rendrePieces(d);
@@ -347,11 +389,13 @@ const REGLAGES = [['anneau8', 'Anneau 8 mm', /anneau|8 ?mm/], ['anneau10', 'Anne
 function listeAFaire() {       // [{ ref, nom, qte, sc, detail }] — ce qui sera la composition de la fiche
   const out = new Map(), ajouter = (ref, nom, qte, sc, detail, cle) => { if (!qte) return; const x = out.get(ref || nom) || { ref, nom, qte: 0, sc, detail: [], cle }; x.qte += qte; if (detail) x.detail.push(detail); out.set(ref || nom, x); };
   const anneaux = { 8: 0, 10: 0, petit: 0 };
-  for (const p of compo.motif.length || compo.debut ? piecesComposition(compo) : []) {
-    const fiche = p.element.fiche ? ficheDe(p.element.fiche) : ficheElement(p.element);
+  const soi = new Set([compo.fiche, ficheDe(compo.fiche)?.parent_id && parent(ficheDe(compo.fiche).parent_id)?.ref].filter(Boolean));   // une fiche ne se contient pas elle-même
+  for (const p of aDesElements() ? piecesComposition(compo) : []) {
+    let fiche = p.element.fiche ? ficheDe(p.element.fiche) : ficheElement(p.element); if (fiche && soi.has(fiche.ref)) fiche = null;
     if (fiche) ajouter(fiche.ref, nomFiche(fiche), p.nb, 'Bijou (composition)', p.auto ? p.auto + ' ajouté(s) entre deux corps' : '');
-    else { const A = assemblerComposition({ usage: 'chaine', debut: null, motif: [p.element], nb: 1, fin: 'motif' }).filter(a => a.R > 2.5);
-      for (const a of A) anneaux[a.R > 4 ? 10 : 8] += p.nb; }
+    else if (p.element.k === 'anneau05') anneaux.petit += p.nb * (p.element.nb === 2 ? 2 : 1);
+    else { const A = assemblerComposition({ usage: 'chaine', debut: null, motif: [p.element], nb: 1, fin: 'motif' });
+      for (const a of A) { if (a.R > 2.5) anneaux[a.R > 4 ? 10 : 8] += p.nb; else anneaux.petit += p.nb; } }
   }
   const fp = ELEMENTS_FICHES.find(x => x.e.k === 'pampille' && (x.e.taille || 4) === 4)?.b, fpetit = ELEMENTS_FICHES.find(x => x.e.k === 'petit')?.b;
   if (compo.pampille) { if (fp) ajouter(fp.ref, nomFiche(fp), 1, 'Bijou (composition)'); else { anneaux.petit += 1; ajouter(R('pampille').ref, 'Perle de la pampille 4 mm', 1, '', '', 'pampille'); } }
@@ -402,14 +446,17 @@ function menuFiche(x, attr) {
 }
 function ligneElement(x, i, zone) {
   const e = elementChainmail(x), b = e.fiche && ficheDe(e.fiche);
-  const susp = zone === 'motif' && estCorpsChainmail(e) && (i > 0 || compo.debut) ? ` <label class="aide" style="display:inline-flex;gap:4px;margin:0" title="L'élément pend sous le connecteur juste au-dessus, au lieu de continuer la chaîne"><input type="checkbox" data-susp="${i}" ${e.suspendu ? 'checked' : ''}> en suspension</label>` : '';
-  return `<div class="seq-l">${vignette(e)}<span class="t">${esc(b ? nomFiche(b) : nomElementChainmail(e))}${e.suspendu ? ' <span class="badge">suspendu</span>' : ''}<small>${b ? esc(nomElementChainmail(e)) + ' · ' : ''}${menuFiche(e, `data-fiche-el="${zone}:${i}"`)} ${reglages(e, `data-reg-el="${zone}:${i}"`)}${susp}</small></span>
-    ${zone === 'motif' ? `<button class="btn mini" type="button" data-haut="${i}" ${i ? '' : 'disabled'} title="Monter">↑</button><button class="btn mini" type="button" data-bas="${i}" ${i < compo.motif.length - 1 ? '' : 'disabled'} title="Descendre">↓</button><button class="btn mini" type="button" data-dup="${i}" title="Dupliquer">⧉</button>` : ''}
+  const susp = zone === 'motif' && estCorpsChainmail(e) && (i > 0 || compo.debut.length) ? ` <label class="aide" style="display:inline-flex;gap:4px;margin:0" title="L'élément pend sous le connecteur juste au-dessus, au lieu de continuer la chaîne"><input type="checkbox" data-susp="${i}" ${e.suspendu ? 'checked' : ''}> en suspension</label>` : '';
+  const prof = estCorpsChainmail(e) ? ` <label class="aide" style="display:inline-flex;gap:4px;margin:0" title="Tourné d'un quart de tour par rapport à l'élément d'avant"><input type="checkbox" data-profil="${zone}:${i}" ${e.profil ? 'checked' : ''}> de profil</label>` : '';
+  const n = zoneListe(zone).length;
+  return `<div class="seq-l">${vignette(e)}<span class="t">${esc(b ? nomFiche(b) : nomElementChainmail(e))}${e.suspendu ? ' <span class="badge">suspendu</span>' : ''}${e.profil ? ' <span class="badge">de profil</span>' : ''}<small>${b ? esc(nomElementChainmail(e)) + ' · ' : ''}${e.k === 'compo' ? '' : menuFiche(e, `data-fiche-el="${zone}:${i}"`)} ${reglages(e, `data-reg-el="${zone}:${i}"`)}${susp}${prof}</small></span>
+    <button class="btn mini" type="button" data-haut="${zone}:${i}" ${i ? '' : 'disabled'} title="Monter">↑</button><button class="btn mini" type="button" data-bas="${zone}:${i}" ${i < n - 1 ? '' : 'disabled'} title="Descendre">↓</button><button class="btn mini" type="button" data-dup="${zone}:${i}" title="Dupliquer">⧉</button>
     <button class="btn mini" type="button" data-suppr="${zone}:${i}" title="Retirer">✕</button></div>`;
 }
-const elDe = (zone, i) => zone === 'motif' ? compo.motif[i] : compo[zone];
-const setEl = (zone, i, v) => { if (zone === 'motif') compo.motif[i] = v; else compo[zone] = v; };
+const elDe = (zone, i) => zoneListe(zone)[i];
+const setEl = (zone, i, v) => { zoneListe(zone)[i] = v; };
 function rendreTout(cadrer = false) {
+  normer(compo);
   $('#nom').value = compo.nom || '';
   document.querySelectorAll('[name=usage]').forEach(r => r.checked = r.value === (compo.usage || 'chaine'));
   $('#ligneBouts').hidden = estBreloque(); $('#bouts').value = compo.bouts || 'aucun';
@@ -425,10 +472,14 @@ function rendreTout(cadrer = false) {
     $('#boutsRef').innerHTML = '<option value="">— choisir le fermoir —</option>' + fer.map(m => `<option value="${esc(m.ref)}" ${m.ref === sel ? 'selected' : ''}>${esc(m.ref)} · ${esc([m.designation, m.variante].filter(Boolean).join(' · '))}</option>`).join('')
       + bijoux.filter(b => b.is_mat && /fermoir|mousqueton/.test(norm(b.nom))).map(b => `<option value="${esc(b.ref)}" ${b.ref === sel ? 'selected' : ''}>${esc(b.ref)} · ${esc(nomFiche(b))}</option>`).join('');
     $('#boutsDeux').checked = !!compo.boutsF?.deux; }
-  const bout = zone => { const v = compo[zone], el = v && v !== 'motif' && v !== 'aucune';
-    return el ? ligneElement(v, 0, zone) : `<div class="ligne">${zone === 'fin' ? `<select data-mode-fin><option value="motif" ${v !== 'aucune' ? 'selected' : ''}>Le connecteur du motif</option><option value="aucune" ${v === 'aucune' ? 'selected' : ''}>Rien (finir sur le double)</option></select>` : '<span class="aide" style="margin:0">aucun</span>'}
-      <button class="btn mini" type="button" data-ajout-bout="${zone}">＋ un connecteur</button></div>`; };
-  $('#debut').innerHTML = bout('debut'); $('#fin').innerHTML = bout('fin');
+  const vide = z => `<p class="aide" style="margin:0">rien — choisis « ${z === 'debut' ? 'au début' : 'à la fin'} » puis touche un élément ci-dessous</p>`;
+  $('#debut').innerHTML = compo.debut.map((x, i) => ligneElement(x, i, 'debut')).join('') || vide('debut');
+  $('#fin').innerHTML = `<div class="ligne"><select data-mode-fin><option value="motif" ${compo.fin !== 'aucune' ? 'selected' : ''}>Le motif finit sur son connecteur</option><option value="aucune" ${compo.fin === 'aucune' ? 'selected' : ''}>Le motif finit sur le corps (sans son dernier connecteur)</option></select></div>`
+    + (compo.finEl.map((x, i) => ligneElement(x, i, 'finEl')).join('') || vide('fin'));
+  $('#longueur').value = compo.longueurCm || '';
+  document.querySelectorAll('[name=statut]').forEach(r => r.checked = r.value === (compo.statut || (compo.id && mes.some(c => c.id === compo.id) ? 'valide' : 'brouillon')));
+  $('#estElement').checked = !!compo.element;
+  rendrePaletteMes();
   $('#nb').value = compo.nb; $('#demi').checked = !!compo.demi; $('#pampille').checked = !!compo.pampille;
   $('#seq').innerHTML = compo.motif.map((x, i) => ligneElement(x, i, 'motif')).join('') || '<p class="aide">Motif vide : touche un élément ci-dessous (un double 4×4, puis son connecteur).</p>';
   $('#ficheCible').value = compo.fiche || '';
@@ -440,29 +491,39 @@ function rendreTout(cadrer = false) {
   $('#btCreerFiche').textContent = compo.type === 'composition' ? '＋ Créer la composition (' + prochaineRef('COMP') + ')' : '＋ Créer le produit (' + prochaineRef('BIJ') + ')';
   $('#badgeFiche').textContent = b ? 'fiche ' + nomFiche(b) + ' (' + b.ref + ')' : 'pas de fiche reliée';
   $('#etat1').textContent = b ? nomFiche(b) : 'aucune';
-  $('#btCreerFiche').hidden = !!b || !sb; $('#btMajFiche').hidden = !b || !!b.parent_id;
+  $('#btCreerFiche').hidden = !!b || !sb;
   rendreCompoFiche(b);
   rendre(cadrer);
 }
 $('#paletteFiches').innerHTML = ELEMENTS_FICHES.filter(x => !['pampille', 'petit', 'fermoir-10'].includes(x.e.k)).map((x, i) => `<button class="el" type="button" data-el-fiche="${esc(x.b.ref)}">${img(x.b.photo || `composants/${imgDe(x.e)}.jpg`)}<span>${esc(nomFiche(x.b))}</span><small>${esc(x.b.ref)}</small></button>`).join('')
   || `<p class="aide">${sb ? 'Aucune fiche composition reconnue (nom attendu : « Nœud 4x4 10mm », « Double 4x4 + connecteur (2) 8mm », « Connecteur (3) 8mm », « Anneau solo 10mm »…).' : 'Ouvre le compositeur depuis l\'app pour utiliser tes fiches.'}</p>`;
+function rendrePaletteMes() {
+  const L = mes.filter(c => c.element && c.id !== compo.id);
+  $('#paletteMes').innerHTML = L.length ? '<div class="aide" style="grid-column:1/-1;margin:0">Mes éléments</div>' + L.map(c => `<button class="el" type="button" data-el-compo="${esc(c.id)}">${vignette((c.motif || []).find(estCorpsChainmail) || c.motif?.[0] || {})}<span>${esc(c.nom)}</span><small>${estBrouillon(c) ? '📝 brouillon' : '✅'}</small></button>`).join('') : '';
+}
 $('#palette').innerHTML = BASE.map((e, i) => ficheElement(e) ? '' : `<button class="el" type="button" data-el="${i}">${img(`composants/${imgDe(e)}.jpg`)}<span>${esc(nomElementChainmail(e))}</span></button>`).join('');
 document.addEventListener('click', e => {
   const t = e.target.closest('button'); if (!t || t.closest('#mesCompos') || t.closest('#fiches') || t.dataset.filtre) return;
-  if (t.dataset.el) { compo.motif.push(clone(BASE[+t.dataset.el])); rendreTout(true); }
-  else if (t.dataset.elFiche) { const x = ELEMENTS_FICHES.find(y => y.b.ref === t.dataset.elFiche); compo.motif.push({ ...clone(x.e), fiche: x.b.ref }); rendreTout(true); toast('« ' + nomFiche(x.b) + ' » ajouté au motif'); }
-  else if (t.dataset.haut) { const i = +t.dataset.haut; [compo.motif[i - 1], compo.motif[i]] = [compo.motif[i], compo.motif[i - 1]]; rendreTout(); }
-  else if (t.dataset.bas) { const i = +t.dataset.bas; [compo.motif[i + 1], compo.motif[i]] = [compo.motif[i], compo.motif[i + 1]]; rendreTout(); }
-  else if (t.dataset.dup) { const i = +t.dataset.dup; compo.motif.splice(i + 1, 0, clone(elementChainmail(compo.motif[i]))); rendreTout(true); }
-  else if (t.dataset.suppr) { const [z, i] = t.dataset.suppr.split(':'); if (z === 'motif') compo.motif.splice(+i, 1); else compo[z] = z === 'debut' ? null : 'motif'; rendreTout(true); }
-  else if (t.dataset.ajoutBout) { const z = t.dataset.ajoutBout, ref = compo.motif.find(x => !estCorpsChainmail(x)); compo[z] = clone(elementChainmail(ref || C(2, 8))); rendreTout(true); }
+  const cible = () => document.querySelector('[name=cible]:checked')?.value || 'motif', mot = { debut: 'au début', motif: 'au motif', finEl: 'à la fin' };
+  const zi = v => { const [z, i] = String(v).split(':'); return [z, +i, zoneListe(z)]; };
+  if (t.dataset.el) { zoneListe(cible()).push(clone(BASE[+t.dataset.el])); rendreTout(true); }
+  else if (t.dataset.elFiche) { const x = ELEMENTS_FICHES.find(y => y.b.ref === t.dataset.elFiche); zoneListe(cible()).push(elDeFiche(x)); rendreTout(true); toast('« ' + nomFiche(x.b) + ' » ajouté ' + mot[cible()]); }
+  else if (t.dataset.elCompo) { const c = mes.find(y => y.id === t.dataset.elCompo); zoneListe(cible()).push({ k: 'compo', id: c.id, ...(c.fiche ? { fiche: c.fiche } : {}) }); rendreTout(true); toast('« ' + c.nom + ' » ajouté ' + mot[cible()]); }
+  else if (t.dataset.haut) { const [, i, L] = zi(t.dataset.haut); [L[i - 1], L[i]] = [L[i], L[i - 1]]; rendreTout(); }
+  else if (t.dataset.bas) { const [, i, L] = zi(t.dataset.bas); [L[i + 1], L[i]] = [L[i], L[i + 1]]; rendreTout(); }
+  else if (t.dataset.dup) { const [, i, L] = zi(t.dataset.dup); L.splice(i + 1, 0, clone(elementChainmail(L[i]))); rendreTout(true); }
+  else if (t.dataset.suppr) { const [, i, L] = zi(t.dataset.suppr); L.splice(i, 1); rendreTout(true); }
 });
 document.addEventListener('change', e => {
   const t = e.target;
   if (t.dataset.regEl) { const [z, i] = t.dataset.regEl.split(':'); setEl(z, +i, lireReglage(elementChainmail(elDe(z, +i)), t.dataset.cle, t.value)); rendreTout(true); }
   else if (t.dataset.ficheEl) { const [z, i] = t.dataset.ficheEl.split(':'), x = ELEMENTS_FICHES.find(y => y.b.ref === t.value);
     const sp = elementChainmail(elDe(z, +i)).suspendu ? { suspendu: true } : {};
-    setEl(z, +i, x ? { ...clone(x.e), fiche: x.b.ref, ...sp } : { ...elementChainmail(elDe(z, +i)), fiche: undefined }); rendreTout(true); if (x) toast('Élément remplacé par le modèle 3D de « ' + nomFiche(x.b) + ' »'); }
+    const pr = elementChainmail(elDe(z, +i)).profil ? { profil: true } : {};
+    setEl(z, +i, x ? { ...elDeFiche(x), ...sp, ...pr } : { ...elementChainmail(elDe(z, +i)), fiche: undefined }); rendreTout(true); if (x) toast('Élément remplacé par le modèle 3D de « ' + nomFiche(x.b) + ' »'); }
+  else if (t.dataset.profil) { const [z, i] = t.dataset.profil.split(':'), e2 = elementChainmail(elDe(z, +i)); if (t.checked) e2.profil = true; else delete e2.profil; setEl(z, +i, e2); rendreTout(true); }
+  else if (t.name === 'statut') { compo.statut = t.value; }
+  else if (t.id === 'estElement') { compo.element = t.checked; }
   else if (t.dataset.susp !== undefined) { const i = +t.dataset.susp, e2 = elementChainmail(compo.motif[i]); if (t.checked) e2.suspendu = true; else delete e2.suspendu; compo.motif[i] = e2; rendreTout(true); }
   else if (t.dataset.modeFin !== undefined) { compo.fin = t.value; rendreTout(true); }
   else if (t.name === 'usage') { compo.usage = t.value; if (t.value === 'bo') { if (!/creole/.test(compo.attache?.type || '')) compo.attache = { type: 'creole', taille: 25 }; compo.type = compo.fiche ? compo.type : 'produit'; }
@@ -482,8 +543,11 @@ document.addEventListener('change', e => { if (e.target.name === 'typeFiche') { 
     rendreTout(true); } else if (e.target.id === 'varianteDe') compo.varianteDe = e.target.value || null; });
 $('#boutsDeux').addEventListener('change', () => { majBoutsF(); rendre(true); });
 $('#nom').addEventListener('input', e => { compo.nom = e.target.value; rendre(); });
-$('#nb').addEventListener('input', e => { compo.nb = Math.max(1, Math.min(60, +e.target.value || 1)); rendre(true); });
+$('#nb').addEventListener('input', e => { compo.nb = Math.max(1, Math.min(60, +e.target.value || 1)); compo.longueurCm = null; compo.longueurSrc = null; rendreTout(true); });
 $('#demi').addEventListener('change', e => { compo.demi = e.target.checked; rendre(true); });
+$('#longueur').addEventListener('change', e => { const v = parseFloat(String(e.target.value).replace(',', '.')); compo.longueurCm = v > 0 ? v : null; compo.longueurSrc = v > 0 ? 'ta saisie' : null; rendreTout(true); });
+$('#btToutProfil').addEventListener('click', () => { compo.motif = compo.motif.map(x => { const e = elementChainmail(x); if (estCorpsChainmail(e)) e.profil = true; return e; }); rendreTout(true); toast('Chaque corps tourne d\'un quart de tour par rapport au précédent'); });
+$('#btActualiserEl').addEventListener('click', () => { const a = actualiser(compo); if (a === compo) return toast('Déjà à jour'); compo = a; rendreTout(true); toast('3D des fiches éléments repris : enregistre si ça te va'); });
 $('#pampille').addEventListener('change', e => { compo.pampille = e.target.checked; rendre(true); });
 $('#btOrient').addEventListener('click', () => { suspendue = !suspendue; rendre(true); });
 $('#btCadrer').addEventListener('click', () => { scene.deFace?.(); scene.cadrer(1.25); });
@@ -493,7 +557,7 @@ $('#btCopier').addEventListener('click', async () => {
 });
 
 /* ---------- étape 1 : la composition de la fiche reliée, pièce par pièce (modélisée ou non) ---------- */
-function lignesFiche(b) { return ((b.parent_id && !(b.mats || []).length ? parent(b.parent_id)?.mats : b.mats) || []).map(l => {
+function lignesFiche(b) { return ((b.parent_id && !(b.mats || []).length ? parent(b.parent_id)?.mats : b.mats) || []).filter(l => l.ref !== b.ref).map(l => {
   const m = mats.find(x => x.ref === l.ref), c = bijoux.find(x => x.ref === l.ref), el = c ? elementDepuisNom(texteFiche(c)) : null;
   const nom = m ? [m.designation, m.variante].filter(Boolean).join(' · ') : c ? nomFiche(c) : l.ref;
   const etat = el ? ['ok', '✓ élément 3D : ' + nomElementChainmail(el)] : m ? (ignoreMat(m) ? ['', 'pas dans le 3D (emballage, fil…)'] : matModelise(m) ? ['ok', '✓ connu du 3D'] : ['a', '✗ pas modélisé'])
@@ -572,9 +636,14 @@ $('#depuisModele').innerHTML += Object.keys(RECETTES).map(n => `<option>${esc(n)
 $('#depuisModele').addEventListener('change', e => { if (!e.target.value) return; const g = { id: compo.id, fiche: compo.fiche, nom: compo.fiche ? compo.nom : e.target.value };
   compo = { ...depuisRecette(e.target.value), ...g }; e.target.value = ''; rendreTout(true); allerPas(2); });
 $('#btVierge').addEventListener('click', () => { compo = VIERGE(); rendreTout(true); allerPas(2); toast('Composition vierge : ajoute tes éléments, puis Enregistre (tu pourras la relier à une fiche ou en créer une)'); });
-$('#depuisCompo').addEventListener('change', e => { const c = mes.find(x => x.id === e.target.value); if (c) { compo = actualiser(clone(c)); rendreTout(true); allerPas(2); } e.target.value = ''; });
+$('#depuisCompo').addEventListener('change', e => { const c = mes.find(x => x.id === e.target.value); if (c) { compo = normer(clone(c)); rendreTout(true); allerPas(2); } e.target.value = ''; });
 $('#ficheCible').addEventListener('change', e => { compo.fiche = e.target.value || null; const b = ficheDe(compo.fiche); if (b && /^(ma chaine|nouvelle composition)$/i.test(norm(compo.nom))) compo.nom = nomFiche(b); rendreTout(); });
 let FILTRE = 'a', MONTRER_CONFIG = false;
+// rangement à toi (dossiers, ordre) : config « compositeur_rangement » — tes fiches ne sont jamais modifiées pour ça
+let RANGER = (() => { try { return localStorage.getItem('bn-compo-ranger') || 'motif'; } catch { return 'motif'; } })(), RANGEMENT = { dossiers: {}, ordre: [] };
+const dossierDe = ref => RANGEMENT.dossiers?.[ref] || '';
+const rangOrdre = ref => { const i = (RANGEMENT.ordre || []).indexOf(ref); return i < 0 ? 1e6 : i; };
+async function sauverRangement() { try { sb ? await ecrireCfg('compositeur_rangement', RANGEMENT) : localStorage.setItem('bn-compo-rangement', JSON.stringify(RANGEMENT)); } catch (x) { toast('Rangement non enregistré : ' + (x.message || x)); } }
 document.addEventListener('click', e => { const b = e.target.closest('[data-filtre]'); if (!b) return; FILTRE = b.dataset.filtre;
   document.querySelectorAll('[data-filtre]').forEach(x => x.classList.toggle('on', x === b)); rendreFiches(); });
 $('#rechF').addEventListener('input', () => rendreFiches());
@@ -646,11 +715,13 @@ function suggestion(b) {                  // ce que la fiche semble être, et po
 function ligneFiche(b, s, cls = '', complet = false) {
   return `<div class="seq-l ${cls}">${b.photo ? img(b.photo) : '<span class="ic">⛓</span>'}<span class="t"><b>${esc(b.parent_id && !complet ? (b.variante || nomFiche(b)) : nomFiche(b))}</b> <span class="badge">${esc(b.ref || '')}</span>${b.is_mat ? ' <span class="badge">composition</span>' : ''}
     <small><span class="badge ${s.ok ? 'ok' : s.partiel ? 'att' : 'a'}">${s.ok ? '✓' : s.partiel ? '◐' : '⚠'} ${esc(s.txt)}</span></small></span>
+    ${RANGER === 'dossier' && cls !== 'var' ? `<select class="mini-sel" data-dossier="${esc(b.ref)}" title="Mon dossier">${['', ...new Set(Object.values(RANGEMENT.dossiers || {}).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr')).map(d => `<option value="${esc(d)}" ${dossierDe(b.ref) === d ? 'selected' : ''}>${d ? '📁 ' + esc(d) : '📁 sans dossier'}</option>`).join('')}<option value="__nouveau">＋ nouveau dossier…</option></select>
+      <button class="btn mini" type="button" data-rang="${esc(b.ref)}" data-sens="-1" title="Monter">↑</button><button class="btn mini" type="button" data-rang="${esc(b.ref)}" data-sens="1" title="Descendre">↓</button>` : ''}
     <button class="btn mini ${s.ok ? '' : 'prim'}" type="button" data-ouvrir-f="${esc(b.ref)}">${s.cat ? 'Variantes' : s.ok ? 'Ouvrir' : 'Composer'}</button></div>`;
 }
 function rendreFiches() {
   if (!sb) { $('#fiches').innerHTML = '<p class="aide">Ouvre le compositeur depuis l\'app (Conception 3D › ⛓ Composer) pour voir tes fiches.</p>'; return; }
-  definirLiensFormes(liens); definirCompositions(mes);
+  definirLiensFormes(liens); definirCompositions(mes, { brouillons: true });
   const auto = AUTO = new Map([...catalogueChaineDepuisBijoux(bijoux), ...catalogueChainmailDepuisBijoux(bijoux)].map(c => [c.ref, c.forme]));
   const q = norm($('#rechF').value), tous = bijoux.filter(b => chainmailish(b) || chainmailish(parent(b.parent_id) || { nom: '' }));
   const S = new Map(tous.map(b => [b.id, etatFiche(b, auto)]));
@@ -675,8 +746,32 @@ function rendreFiches() {
   const groupe = (titre, liste) => { const L = liste.filter(b => voit(b) || enfants(b).some(voit)); if (!L.length) return '';
     return `<div class="grp-t">Motif · ${titre}</div>` + L.sort((a, b) => (ordre(a) - ordre(b)) || nomFiche(a).localeCompare(nomFiche(b), 'fr')).map(b => ligneFiche(b, S.get(b.id), S.get(b.id).cat ? 'cat' : '', true)
       + (estCat(b) ? [] : enfants(b)).filter(v => voit(v) || FILTRE !== 'a').map(v => ligneFiche(v, S.get(v.id) || etatFiche(v, auto), 'var')).join('')).join(''); };
+  // autres rangements : par mes dossiers (ordre à la main), type, état 3D, nom, réf.
+  const etat3d = b => { const c = mes.find(x => x.fiche === b.ref || x.ficheCompo === b.ref) || S.get(b.id)?.compo; const st = S.get(b.id);
+    return !st?.ok ? (st?.partiel ? '◐ En partie modélisées' : '⚠ À modéliser') : c && estBrouillon(c) ? '📝 Brouillons' : '✅ Validées'; };
+  const typeDe = b => ['Compositions', 'Breloques', 'Boucles d\'oreilles', 'Chaînes, colliers', 'Autres'][ordre(b)];
+  const cleG = { dossier: b => dossierDe(b.ref) || 'Sans dossier', type: typeDe, etat: etat3d, nom: b => (nomFiche(b)[0] || '?').toUpperCase(), ref: b => (String(b.ref || '').match(/^[A-Za-z#]+/) || ['?'])[0] }[RANGER];
+  const tri = { dossier: (a, b) => (rangOrdre(a.ref) - rangOrdre(b.ref)) || nomFiche(a).localeCompare(nomFiche(b), 'fr'), ref: (a, b) => String(a.ref).localeCompare(String(b.ref), 'fr', { numeric: true }) }[RANGER]
+    || ((a, b) => nomFiche(a).localeCompare(nomFiche(b), 'fr'));
+  const ordreG = { etat: ['⚠ À modéliser', '◐ En partie modélisées', '📝 Brouillons', '✅ Validées'], type: ['Compositions', 'Breloques', 'Boucles d\'oreilles', 'Chaînes, colliers', 'Autres'] }[RANGER];
+  $('#aideRanger').textContent = RANGER === 'dossier' ? 'choisis le dossier de chaque fiche (📁) et son ordre (↑ ↓) : c\'est ton rangement, tes fiches ne changent pas' : '';
+  if (cleG) { const G = new Map(); for (const b of racines) { const k = cleG(b); if (!G.has(k)) G.set(k, []); G.get(k).push(b); }
+    const ks = [...G.keys()].sort((a, b) => ordreG ? ordreG.indexOf(a) - ordreG.indexOf(b) : RANGER === 'dossier' ? ((a === 'Sans dossier') - (b === 'Sans dossier')) || a.localeCompare(b, 'fr') : a.localeCompare(b, 'fr', { numeric: true }));
+    $('#fiches').innerHTML = ks.map(k => { const L = G.get(k).filter(b => voit(b) || enfants(b).some(voit)); if (!L.length) return '';
+      return `<div class="grp-t">${esc(k)} <span class="aide" style="margin:0">· ${L.length}</span></div>` + L.sort(tri).map(b => ligneFiche(b, S.get(b.id), S.get(b.id).cat ? 'cat' : '', true)
+        + (estCat(b) ? [] : enfants(b)).filter(v => voit(v) || FILTRE !== 'a').map(v => ligneFiche(v, S.get(v.id) || etatFiche(v, auto), 'var')).join('')).join(''); }).join('')
+      || `<p class="aide">${FILTRE === 'a' ? '✓ Toutes tes fiches chainmail ont un visuel 3D.' : 'Aucune fiche.'}</p>`;
+  } else
   $('#fiches').innerHTML = [...parMotif].sort((a, b) => ORDRE_M.indexOf(a[0]) - ORDRE_M.indexOf(b[0])).map(([m, l]) => groupe(m, l)).join('')
     || `<p class="aide">${FILTRE === 'a' ? '✓ Toutes tes fiches chainmail ont un visuel 3D.' : 'Aucune fiche.'}</p>`;
+  $('#fiches').querySelectorAll('[data-dossier]').forEach(sel => sel.addEventListener('change', async () => {
+    let v = sel.value; if (v === '__nouveau') { v = (prompt('Nom du dossier :') || '').trim(); if (!v) return rendreFiches(); }
+    RANGEMENT.dossiers = { ...(RANGEMENT.dossiers || {}), [sel.dataset.dossier]: v }; if (!v) delete RANGEMENT.dossiers[sel.dataset.dossier];
+    await sauverRangement(); rendreFiches(); }));
+  $('#fiches').querySelectorAll('[data-rang]').forEach(bt => bt.addEventListener('click', async () => {
+    const ref = bt.dataset.rang, d = dossierDe(ref), L = racines.filter(b => dossierDe(b.ref) === d).sort(tri).map(b => b.ref), i = L.indexOf(ref), j = i + +bt.dataset.sens;
+    if (j < 0 || j >= L.length) return; [L[i], L[j]] = [L[j], L[i]];
+    RANGEMENT.ordre = [...(RANGEMENT.ordre || []).filter(r => !L.includes(r)), ...L]; await sauverRangement(); rendreFiches(); }));
   if (masques.length) $('#fiches').insertAdjacentHTML('beforeend', `<p class="aide" style="margin-top:8px">${masques.length} fiche(s) déjà reproduite(s) par le configurateur (lots, chaînes de sac et leurs variantes, breloques reliées à leur modèle) ${MONTRER_CONFIG ? 'affichées' : 'masquées'} · <a href="#" id="voirConfig">${MONTRER_CONFIG ? 'les masquer' : 'les voir'}</a></p>`);
   $('#voirConfig')?.addEventListener('click', e => { e.preventDefault(); MONTRER_CONFIG = !MONTRER_CONFIG; rendreFiches(); });
   $('#fiches').querySelectorAll('[data-ouvrir-f]').forEach(bt => bt.addEventListener('click', () => ouvrirFiche(ficheDe(bt.dataset.ouvrirF))));
@@ -685,20 +780,23 @@ function rendreFiches() {
 function ouvrirFiche(b) {
   if (!b) return;
   const t = norm(texteFiche(b)), deja = mes.find(c => c.fiche === b.ref) || mes.find(c => c.ficheCompo === b.ref);
-  const fin = (msg) => { rendreTout(true); allerPas(2); if (msg) toast(msg); };
-  if (deja) { compo = actualiser(clone(deja)); return fin(); }
+  const fin = (msg) => { const v = infoVariante(b);
+    if (v.longueur && !compo.longueurCm) { compo.longueurCm = v.longueur; compo.longueurSrc = 'la variante « ' + (b.variante || b.nom) + ' »'; }
+    if (v.paire != null && compo.usage === 'bo') compo.paire = v.paire;
+    rendreTout(true); allerPas(2); if (msg) toast(msg); };
+  if (deja) { compo = normer(clone(deja)); return fin(); }
   if (!(b.mats || []).length && enfants(b).length) { FILTRE = 't'; document.querySelectorAll('[data-filtre]').forEach(x => x.classList.toggle('on', x.dataset.filtre === 't')); $('#rechF').value = b.nom || ''; rendreFiches();
     return toast('« ' + nomFiche(b) + ' » est une catégorie : ouvre une de ses variantes'); }
   // produit / variante fait d'une composition déjà enregistrée : on reprend la composition, avec les bouts de cette fiche
   const L = lignesFiche(b), comp = L.map(x => ficheDe(x.ref)).find(c => c && c.is_mat && mes.some(m => m.fiche === c.ref || m.ficheCompo === c.ref));
   if (comp && !b.is_mat) { const base = mes.find(m => m.ficheCompo === comp.ref) || mes.find(m => m.fiche === comp.ref), fer = L.map(x => mats.find(m => m.ref === x.ref)).filter(m => m && /fermoir|mousqueton|creole/.test(txtMat(m)));
-    compo = { ...actualiser(clone(base)), id: null, fiche: b.ref, ficheCompo: comp.ref, nom: nomFiche(b), type: 'produit',
+    compo = { ...normer(clone(base)), id: null, statut: undefined, fiche: b.ref, ficheCompo: comp.ref, nom: nomFiche(b), type: 'produit',
       bouts: fer.some(m => /mousqueton/.test(txtMat(m))) ? 'mousquetons' : fer.some(m => /fermoir/.test(txtMat(m)) && /10 ?mm/.test(txtMat(m))) ? 'fermoir-10' : fer.length ? 'autre' : 'aucun',
       boutsF: fer.length && !fer.some(m => /mousqueton/.test(txtMat(m))) ? { ref: fer[0].ref, ...fermoirDepuisMateriau(fer[0]), deux: false } : null };
     return fin('Produit = composition « ' + nomFiche(comp) + ' » + ses bouts'); }
   // un élément (« Mini fleur », « Pampille mini fleur », « Nœud 4x4 10mm »…) : un seul motif, pas une chaîne
   const el = elementDepuisNom(texteFiche(b));
-  if (el) { compo = { ...VIERGE(), nom: nomFiche(b), fiche: b.ref, usage: 'breloque', bouts: 'aucun', motif: [{ ...el }], nb: 1, pampille: /pampille/.test(t), type: b.is_mat ? 'composition' : 'produit' };
+  if (el) { compo = { ...VIERGE(), nom: nomFiche(b), fiche: b.ref, usage: 'breloque', bouts: 'aucun', motif: [{ ...el }], nb: 1, pampille: /pampille/.test(t), type: b.is_mat ? 'composition' : 'produit', element: !!b.is_mat };
     return fin(); }
   // le reste : le visuel d'après le contenu de la fiche (éléments, forme, fermoir / attache, bouts, pampille) — chaque ligne se règle dans « Contenu de la fiche »
   if (L.length) { compo = { ...VIERGE(), roles: {} }; return appliquerFiche(b); }
@@ -713,14 +811,13 @@ function rendreClassement(tous) {
     pbType: x.s.type && x.s.type !== (x.b.is_mat ? 'composition' : 'produit'), pbRef: x.b.is_mat ? !/^COMP/i.test(x.b.ref || '') : /^COMP/i.test(x.b.ref || '') }))
     .filter(x => !norm($('#rechF').value) || norm(texteFiche(x.b) + ' ' + x.b.ref).includes(norm($('#rechF').value)))
     .sort((a, b) => ((b.pbType || b.pbRef) - (a.pbType || a.pbRef)) || nomFiche(a.b).localeCompare(nomFiche(b.b), 'fr'));
-  $('#fiches').innerHTML = `<p class="aide" style="margin:0">Composition = un morceau pour construire (réf. COMP-, non vendue seule, sans fermoir). Produit = ce qui se vend, avec son fermoir ou ses bouts (réf. BIJ-). Changer le type renomme la réf. partout (fiches qui l'utilisent, liens 3D, compositions).</p>`
+  $('#fiches').innerHTML = `<p class="aide" style="margin:0">Composition = un morceau pour construire (réf. COMP-, non vendue seule, sans fermoir). Produit = ce qui se vend, avec son fermoir ou ses bouts (réf. BIJ-). Ici, c'est seulement un contrôle : pour changer le type ou la réf., fais-le toi-même dans ✨ Création (le compositeur ne modifie jamais tes fiches).</p>`
     + L.map(({ b, s, pbType, pbRef }) => `<div class="classe"><div class="ligne"><b style="flex:1">${esc(nomFiche(b))}</b><span class="badge">${esc(b.ref)}</span><span class="badge ${pbType || pbRef ? 'a' : 'ok'}">${b.is_mat ? 'composition' : 'produit'}</span></div>
       <span class="aide" style="margin:0">${esc(s.raisons.join(' · ') || 'rien qui indique le type')}${s.type ? ' → ressemble à <b>' + s.type + '</b>' : ''}${pbRef ? ' · ⚠ la réf. ne correspond pas au type' : ''}</span>
-      <div class="ligne">${b.is_mat ? `<button class="btn mini" type="button" data-classer="${esc(b.ref)}" data-vers="produit">→ Produit (BIJ-)</button>` : `<button class="btn mini" type="button" data-classer="${esc(b.ref)}" data-vers="composition">→ Composition (COMP-)</button>`}
-        ${pbRef ? `<button class="btn mini prim" type="button" data-classer="${esc(b.ref)}" data-vers="${b.is_mat ? 'composition' : 'produit'}">Renommer en ${b.is_mat ? 'COMP-' : 'BIJ-'}</button>` : ''}</div></div>`).join('');
-  $('#fiches').querySelectorAll('[data-classer]').forEach(bt => bt.addEventListener('click', () => classer(ficheDe(bt.dataset.classer), bt.dataset.vers)));
+      </div>`).join('');
 }
 async function classer(b, vers) {
+  return toast('Le compositeur ne modifie plus tes fiches : change le type ou la réf. dans ✨ Création');
   if (!b || !sb) return;
   const nouvelle = (vers === 'composition') === /^COMP/i.test(b.ref || '') ? b.ref : prochaineRef(vers === 'composition' ? 'COMP' : 'BIJ');
   const u = utiliseeDans(b);
@@ -758,7 +855,7 @@ async function relierFiche(c) {          // la fiche reliée prend cette composi
   await ecrireCfg('configurateur_liens', l); liens = l;
 }
 async function sauver() {
-  compo.nom = (compo.nom || '').trim() || 'Ma chaîne'; compo.id ||= Date.now().toString(36);
+  compo.nom = (compo.nom || '').trim() || 'Ma chaîne'; compo.statut = document.querySelector('[name=statut]:checked')?.value || compo.statut || 'brouillon'; compo.id ||= Date.now().toString(36);
   compo.manquants = listeAFaire().filter(x => !x.ref && x.cle).map(x => ({ cle: x.cle, nom: x.nom, qte: x.qte }));   // comptés : ajoutés à la fiche quand le matériau existera
   const i = mes.findIndex(c => c.id === compo.id), copie = { ...clone(compo), maj: new Date().toISOString() };
   if (i >= 0) mes[i] = copie; else mes.unshift(copie);
@@ -767,23 +864,32 @@ async function sauver() {
 }
 function rendreMes() {
   $('#depuisCompo').innerHTML = '<option value="">une de mes compositions…</option>' + mes.map(c => `<option value="${esc(c.id)}">${esc(c.nom)}</option>`).join('');
-  $('#mesCompos').innerHTML = mes.map((c, i) => { const b = ficheDe(c.fiche);
+  // rangées comme la liste des fiches (« Ranger par ») : dossier, type, état, nom
+  const cleR = c => c.fiche || 'compo:' + c.id, typeC = c => c.usage === 'bo' ? 'Boucles d\'oreilles' : c.usage === 'breloque' ? 'Breloques' : (c.bouts || 'aucun') === 'aucun' ? 'Compositions' : 'Chaînes, colliers';
+  const kG = { dossier: c => dossierDe(cleR(c)) || 'Sans dossier', type: typeC, etat: c => estBrouillon(c) ? '📝 Brouillons' : '✅ Validées', nom: c => (c.nom || '?')[0].toUpperCase() }[RANGER] || (() => '');
+  const idx = mes.map((c, i) => i).sort((a, b) => (kG(mes[a]).localeCompare(kG(mes[b]), 'fr')) || (RANGER === 'dossier' ? rangOrdre(cleR(mes[a])) - rangOrdre(cleR(mes[b])) : 0) || (mes[a].nom || '').localeCompare(mes[b].nom || '', 'fr'));
+  let gPrec = null;
+  $('#mesCompos').innerHTML = idx.map(i => { const c = mes[i], b = ficheDe(c.fiche), g = kG(c), titreG = g && g !== gPrec ? `<div class="grp-t">${esc(g)}</div>` : ''; gPrec = g;
     const prets = b ? (c.manquants || []).filter(x => x.cle !== 'bouts' && R(x.cle).ref) : [], attente = (c.manquants || []).length - prets.length;
-    return `<div class="seq-l">${b?.photo ? img(b.photo) : vignette((c.motif || []).find(estCorpsChainmail) || c.motif?.[0] || {})}<span class="t"><b>${esc(c.nom)}</b><small>${b ? 'fiche ' + esc(nomFiche(b)) + ' (' + esc(b.ref) + ')' : 'sans fiche'}${attente > 0 ? ' · ⏳ ' + attente + ' pièce(s) sans fiche matériau' : ''}</small>
-      ${prets.length ? `<button class="btn mini prim" type="button" data-ajout-manq="${i}">↻ Ajouter à la fiche : ${esc(prets.map(x => x.qte + ' × ' + x.nom).join(', '))}</button>` : ''}</span>
+    return titreG + `<div class="seq-l">${b?.photo ? img(b.photo) : vignette((c.motif || []).find(estCorpsChainmail) || c.motif?.[0] || {})}<span class="t"><b>${esc(c.nom)}</b><small>${b ? 'fiche ' + esc(nomFiche(b)) + ' (' + esc(b.ref) + ')' : 'sans fiche'}${attente > 0 ? ' · ⏳ ' + attente + ' pièce(s) sans fiche matériau' : ''}</small>
+      ${prets.length ? `<span class="aide" style="margin:0">à ajouter toi-même dans ✨ Création si besoin : ${esc(prets.map(x => x.qte + ' × ' + x.nom + ' (' + R(x.cle).ref + ')').join(', '))}</span>` : ''}</span>
+      ${RANGER === 'dossier' ? `<select class="mini-sel" data-dossier-c="${esc(cleR(c))}">${['', ...new Set(Object.values(RANGEMENT.dossiers || {}).filter(Boolean))].sort().map(d => `<option value="${esc(d)}" ${dossierDe(cleR(c)) === d ? 'selected' : ''}>${d ? '📁 ' + esc(d) : '📁 sans dossier'}</option>`).join('')}<option value="__nouveau">＋ nouveau dossier…</option></select>` : ''}
+      <button class="btn mini" type="button" data-statut="${i}" title="Brouillon : pas encore dans le configurateur">${estBrouillon(c) ? '📝 Brouillon' : '✅ Validé'}</button>
       <button class="btn mini" type="button" data-ouvrir="${i}">Ouvrir</button><button class="btn mini" type="button" data-oublier="${i}" title="Supprimer">✕</button></div>`; }).join('') || '<p class="aide">Aucune pour l\'instant.</p>';
-  $('#mesCompos').querySelectorAll('[data-ajout-manq]').forEach(bt => bt.addEventListener('click', async () => {
-    const c = mes[+bt.dataset.ajoutManq], b = ficheDe(c.fiche); if (!b || !sb) return;
-    const prets = (c.manquants || []).filter(x => x.cle !== 'bouts' && R(x.cle).ref), m = [...(b.mats || [])];
-    for (const x of prets) { const ref = R(x.cle).ref, l = m.find(y => y.ref === ref); if (l) l.qty = (+l.qty || 0) + x.qte; else m.push({ ref, qty: x.qte, qty_unite: 'native', sc: mats.find(y => y.ref === ref)?.sc || '' }); }
-    const { error } = await sb.from('bijoux').update({ mats: m }).eq('id', b.id); if (error) return toast('Mise à jour impossible : ' + error.message);
-    b.mats = m; c.manquants = (c.manquants || []).filter(x => !prets.includes(x)); try { await ecrireMes(mes); } catch {}
-    rendreMes(); toast('Ajouté à la composition de ' + nomFiche(b) + ' ✓ (le stock suit)'); }));
-  $('#mesCompos').querySelectorAll('[data-ouvrir]').forEach(b => b.addEventListener('click', () => { compo = actualiser(clone(mes[+b.dataset.ouvrir])); rendreTout(true); allerPas(2); }));
+  $('#mesCompos').querySelectorAll('[data-dossier-c]').forEach(sel => sel.addEventListener('change', async () => {
+    let v = sel.value; if (v === '__nouveau') { v = (prompt('Nom du dossier :') || '').trim(); if (!v) return rendreMes(); }
+    RANGEMENT.dossiers = { ...(RANGEMENT.dossiers || {}), [sel.dataset.dossierC]: v }; if (!v) delete RANGEMENT.dossiers[sel.dataset.dossierC];
+    await sauverRangement(); rendreMes(); rendreFiches(); }));
+  $('#mesCompos').querySelectorAll('[data-statut]').forEach(bt => bt.addEventListener('click', async () => {
+    const c = mes[+bt.dataset.statut]; c.statut = estBrouillon(c) ? 'valide' : 'brouillon'; if (compo.id === c.id) compo.statut = c.statut;
+    try { await ecrireMes(mes); } catch (x) { return toast('Non enregistré : ' + (x.message || x)); }
+    rendreMes(); rendreFiches(); rendreTout(); try { window.parent?.postMessage({ type: 'bona-nodi:liens-maj' }, '*'); } catch {}
+    toast(estBrouillon(c) ? '« ' + c.nom + ' » en brouillon : plus dans le configurateur' : '« ' + c.nom + ' » validée : visible dans le configurateur'); }));
+  $('#mesCompos').querySelectorAll('[data-ouvrir]').forEach(b => b.addEventListener('click', () => { compo = normer(clone(mes[+b.dataset.ouvrir])); rendreTout(true); allerPas(2); }));
   $('#mesCompos').querySelectorAll('[data-oublier]').forEach(b => b.addEventListener('click', async () => { const c = mes[+b.dataset.oublier]; if (!confirm(`Supprimer « ${c.nom} » ?`)) return;
     mes.splice(+b.dataset.oublier, 1); try { await ecrireMes(mes); if (c.fiche) await relierFiche({ ...c, fiche: null }); } catch (x) { toast('Suppression impossible : ' + (x.message || x)); } rendreMes(); rendreFiches(); }));
 }
-$('#btSauver').addEventListener('click', async () => { try { await sauver(); toast(compo.fiche ? 'Enregistrée : c\'est le visuel 3D de la fiche ✓' : 'Composition enregistrée ✓'); } catch (x) { toast('Enregistrement impossible : ' + (x.message || x)); } });
+$('#btSauver').addEventListener('click', async () => { try { await sauver(); toast((compo.fiche ? 'Enregistrée : c\'est le visuel 3D de la fiche' : 'Composition enregistrée') + (estBrouillon(compo) ? ' (brouillon : pas encore dans le configurateur)' : ' ✓')); } catch (x) { toast('Enregistrement impossible : ' + (x.message || x)); } });
 $('#btDupliquer').addEventListener('click', () => { compo = { ...clone(compo), id: null, fiche: null, nom: (compo.nom || 'Chaîne') + ' (copie)' }; rendreTout(); toast('Copie prête (sans fiche) : change-la, relie-la, puis 💾'); });
 function prochaineRef(pre = 'BIJ') {        // même numérotation que l'app : BIJ-001… pour un produit, COMP-001… pour une composition
   const re = new RegExp('^' + pre + '[-_ ]?0*(\\d+)$', 'i'), nums = bijoux.map(b => (re.exec(String(b.ref || '').trim()) || [])[1]).filter(Boolean).map(Number);
@@ -817,13 +923,7 @@ $('#btCreerFiche').addEventListener('click', async () => {
   rendreTout(); toast(`${type === 'composition' ? 'Composition' : 'Produit'} ${ref} créé${type === 'composition' ? 'e' : ''} (brouillon dans ✨ Création) ✓`);
   if (confirm('Utiliser la miniature comme photo de la nouvelle fiche ?')) await photoFiche(obj);
 });
-$('#btMajFiche').addEventListener('click', async () => {
-  const b = ficheDe(compo.fiche); if (!b || !sb) return;
-  const m = matsFiche(b.is_mat ? 'composition' : 'produit');
-  if (!confirm(`Remplacer la composition de « ${nomFiche(b)} » (${b.is_mat ? 'composition' : 'produit'}) par :\n${m.map(x => x.qty + ' × ' + (nomMat(x.ref) || x.ref)).join('\n')}`)) return;
-  const { error } = await sb.from('bijoux').update({ mats: m }).eq('id', b.id); if (error) return toast('Mise à jour impossible : ' + error.message);
-  b.mats = m; try { await sauver(); } catch {} toast('Composition de la fiche mise à jour ✓ (le stock suit)');
-});
+/* « Mettre à jour la fiche reliée » retiré : le compositeur ne modifie jamais la composition d'une fiche existante */
 
 function image(detail = false) {         // fond blanc, 1200 × 1200 ; détail = 1 à 2 motifs, droite
   const garde = clone(compo), gS = suspendue;
@@ -848,7 +948,8 @@ async function photoFiche(b) {
   } catch (x) { toast('Photo non enregistrée : ' + (x.message || x)); }
 }
 $('#btPhoto').addEventListener('click', () => { const b = ficheDe(compo.fiche); if (!sb || !b) return toast('Relie d\'abord une fiche (étape 1)');
-  if (confirm(`Remplacer la photo de « ${nomFiche(b)} » par la miniature complète ?`)) photoFiche(b); });
+  if (b.photo) return toast('« ' + nomFiche(b) + ' » a déjà sa photo : le compositeur n\'y touche pas (change-la dans ✨ Création ; 🖼 Miniature la télécharge)');
+  if (confirm(`Mettre la miniature comme photo de « ${nomFiche(b)} » (elle n'en a pas) ?`)) photoFiche(b); });
 
 function remplirFiches() {
   $('#ficheCible').innerHTML = '<option value="">— aucune (composition libre) —</option>' + [...bijoux].filter(b => !elementDepuisNom(texteFiche(b)))
@@ -866,9 +967,11 @@ const majPas = () => { const met = (id, t) => { if ($(id).textContent !== t) $(i
 ['#etat1', '#etat2', '#etat3'].forEach(id => new MutationObserver(majPas).observe($(id), { subtree: true, characterData: true, childList: true }));
 allerPas(1);
 remplirFiches(); rendreReglages();
-mes = await lireMes();
-{ const a = mes.map(actualiser), nbM = a.filter((c, i) => c !== mes[i]).length; if (nbM) { mes = a; try { await ecrireMes(mes); toast(nbM + ' composition(s) mise(s) à jour d\'après tes fiches éléments'); } catch {} } }
-rendreMes(); rendreFiches();
+try { const v = sb ? await lireCfg('compositeur_rangement') : JSON.parse(localStorage.getItem('bn-compo-rangement') || 'null'); if (v && typeof v === 'object') RANGEMENT = { dossiers: v.dossiers || {}, ordre: v.ordre || [] }; } catch {}
+$('#ranger').value = RANGER;
+$('#ranger').addEventListener('change', e => { RANGER = e.target.value; try { localStorage.setItem('bn-compo-ranger', RANGER); } catch {} rendreFiches(); rendreMes(); });
+mes = await lireMes();          // tes compositions restent telles que tu les as enregistrées (aucune mise à jour automatique)
+rendreMes(); rendreFiches(); rendreTout();
 rendreTout(true);
 window.__compo = { get compo() { return compo; }, set compo(v) { compo = v; }, rendre, rendreTout, image, listeAFaire };
 </script>
