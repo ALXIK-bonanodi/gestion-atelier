@@ -114,8 +114,8 @@ td.ref { font: 600 9.5pt var(--f-titre); white-space: nowrap; }
 
 <script type="module">
 import { lignesCommande, lignesCommandeBundle, construireLettres, estLettres, listerDemandes, majDemande, chargerModeleBoutique, chargerCatalogueBoutique,
-         chargerFermoirsBoutique, resoudreDefauts, modeleDemo, chargerBijouxBoutique, bijouBreloque, completerCatalogue, chargerLiens, definirLiensFormes, appliquerLienModele } from './bead-core.js?v=0d1b25af';
-import { SUPABASE_URL, SUPABASE_ANON_KEY, INFOS_ATELIER } from './perles-config.js?v=e5e86015';
+         chargerFermoirsBoutique, resoudreDefauts, modeleDemo, chargerBijouxBoutique, bijouBreloque, completerCatalogue, chargerLiens, definirLiensFormes, appliquerLienModele } from './bead-core.js?v=35f49ebd';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, INFOS_ATELIER } from './perles-config.js?v=e8e44d9a';
 const raisonConnexion = e => /invalid login/i.test(e.message) ? 'e-mail ou mot de passe incorrect'
   : /not confirmed/i.test(e.message) ? 'adresse e-mail pas encore confirmée (Supabase › Authentication › Users)'
   : e.message;
@@ -220,7 +220,7 @@ async function ouvrir(id) {
       </div>
       <div class="doc-parties">
         <div class="bloc"><h3>Client</h3><p>${c.nom ? `${esc(c.nom)}\n${esc(c.adresse)}${c.ville ? '\n' + esc(c.ville) : ''}\n${esc(c.email)}${c.telephone ? '\n' + esc(c.telephone) : ''}`
-          : 'Voir la commande Wix contenant\n« Personnalisation sur mesure ' + esc(d.numero) + ' »'}</p></div>
+          : 'Voir la commande Shopify contenant\n« Personnalisation sur mesure ' + esc(d.numero) + ' »'}</p></div>
         <div class="bloc"><h3>Commande</h3><p>Réf. demande ${esc(d.numero)}\nModèle ${esc(d.modele_slug || '')}${c.message ? '\nMessage : « ' + esc(c.message) + ' »' : ''}</p></div>
       </div>
       <table>

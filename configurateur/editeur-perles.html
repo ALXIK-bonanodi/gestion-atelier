@@ -560,11 +560,11 @@ import {
   couleursProposees, chargerCatalogueBoutique, affinerCouleursDepuisPhotos, resoudreDefauts, TAILLES_MOUSQUETON,
   FERMOIRS_DEMO, chargerFermoirsBoutique, prixConfiguration,
   genArete, PATRON_TETE_ARETE, estAccroche, modeleAreteDemo, modeleLettresDemo, modeleArgileDemo, modeleChainmailDemo, modelePerleCultureDemo, modeleChaineSacDemo, chargerModeleBoutique, listerModelesBoutique, enregistrerModeleBoutique,
-} from './bead-core.js?v=0d1b25af';
+} from './bead-core.js?v=35f49ebd';
 const raisonConnexion = e => /invalid login/i.test(e.message) ? 'e-mail ou mot de passe incorrect'
   : /not confirmed/i.test(e.message) ? 'adresse e-mail pas encore confirmée (Supabase › Authentication › Users)'
   : e.message;
-import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure } from './perles-config.js?v=e5e86015';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure } from './perles-config.js?v=e8e44d9a';
 const sb = supabaseConfigure() && window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
 /* ---------- état ---------- */

@@ -927,10 +927,10 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
     </div>
   </div>
 
-  <!-- Panel Boutique en ligne : produits Shopify (affichés sur le site Wix) reliés aux fiches, stock partagé -->
+  <!-- Panel Boutique en ligne : produits Shopify reliés aux fiches, stock partagé, fiches de référencement -->
   <div id="cpanel-drops" style="display:none;padding:12px;max-width:960px;margin:0 auto"><div id="drops-body"></div></div>
   <div id="cpanel-boutique" style="display:none;padding:12px;max-width:960px;margin:0 auto">
-    <div class="seg-bt"><button type="button" data-bv="wix" onclick="vueBoutique('wix')">📝 Fiches Wix (SEO)</button><button type="button" data-bv="shop" onclick="vueBoutique('shop')">🔗 Stock Shopify</button></div>
+    <div class="seg-bt"><button type="button" data-bv="wix" onclick="vueBoutique('wix')">📝 Fiches produits (SEO)</button><button type="button" data-bv="shop" onclick="vueBoutique('shop')">🔗 Stock Shopify</button></div>
     <div id="boutique-wix"></div>
     <div id="boutique-body" style="display:none"><div class="loading">Chargement…</div></div></div>
 
@@ -2187,6 +2187,7 @@ async function loadAll() {
       if(Array.isArray(al)) ALTERNATIVES=al;
       else if(cfg.length&&!cfg.some(c=>c.key==='configurateur_alternatives')){ ALTERNATIVES=ALTERNATIVES_DEPART.map(a=>({...a})); sbUpsertConfig('configurateur_alternatives',ALTERNATIVES); } }   // première fois : l'idée « Rose & violet »
     { const lt=lireCfg('lots'); LOTS=lt&&typeof lt==='object'&&!Array.isArray(lt)?lt:{}; }
+    { const pp=lireCfg('boutique_page_perso'); PAGE_PERSO=typeof pp==='string'?pp:''; }
     { const fw=lireCfg('fiches_wix'); FICHES_WIX=fw&&typeof fw==='object'&&!Array.isArray(fw)?fw:{}; }
     { const cn=lireCfg('clientes_notes'); CLIENTES_NOTES=cn&&typeof cn==='object'&&!Array.isArray(cn)?cn:{}; }
     { const cc=lireCfg('couts'); if(cc&&typeof cc==='object') COUTS={reglages:{...COUTS.reglages,...(cc.reglages||{})},temps:cc.temps||{}}; }
@@ -3126,12 +3127,12 @@ async function renderClientes(){
       <div class="stat grn"><div class="v">${fid.length}</div><div class="l">fidèles (2 commandes et +)</div></div>
       <div class="stat"><div class="v">${al.length}</div><div class="l">inscrites « préviens-moi »</div></div></div>
     <div class="card"><div class="card-hd"><h2>🔔 Préviens-moi (formulaire du site)</h2></div><div class="card-bd">
-      ${ALERTES?.erreur?`<div class="warn-box">Liste pas encore active : lance <b>sql-alertes-clientes.sql</b> dans Supabase, puis ajoute le formulaire dans Wix (LISEZMOI). <span class="dim">(${escA(ALERTES.erreur)})</span></div>`
+      ${ALERTES?.erreur?`<div class="warn-box">Liste pas encore active : lance <b>sql-alertes-clientes.sql</b> dans Supabase, puis ajoute la section « Préviens-moi » à ton thème Shopify (LISEZMOI). <span class="dim">(${escA(ALERTES.erreur)})</span></div>`
         :Object.keys(parSujet).length?Object.entries(parSujet).map(([s0,as])=>`<div class="cl-al"><div><b>${escA(s0)}</b> <span class="dim">${as.length} personne(s)</span></div>
           <div class="dim" style="font-size:12px">${as.slice(0,8).map(a=>escA((a.prenom?a.prenom+' · ':'')+a.email)).join(' · ')}${as.length>8?'…':''}</div>
           <div style="display:flex;gap:6px;margin-top:4px"><button class="btn btn-xs btn-ghost" onclick='copierTexte(${JSON.stringify(as.map(a=>a.email).join(", "))})'>📋 Copier les e-mails</button>
           <button class="btn btn-xs btn-red" onclick='viderAlertes(${JSON.stringify(as.map(a=>a.id))})' title="Une fois prévenues, retire-les de la liste (RGPD)">✓ Prévenues, retirer</button></div></div>`).join('')
-        :'<div class="dim">Personne pour l\'instant. Ajoute le formulaire « préviens-moi » sur tes pages Wix (LISEZMOI).</div>'}
+        :'<div class="dim">Personne pour l\'instant. Ajoute la section « Préviens-moi » à tes fiches produits Shopify (LISEZMOI).</div>'}
     </div></div>
     <div class="card"><div class="card-hd"><h2>💜 Clientes</h2></div><div class="card-bd">
       <input id="cl-q" type="search" placeholder="🔍 Chercher une cliente" value="${escA(q)}" oninput="renderClientes()" style="margin-bottom:6px">
@@ -3444,7 +3445,7 @@ let NOTES_ACCUEIL=[{id:'n1', titre:'À faire', texte:'', todo:[
   {id:'t1', t:'Remplir les fiches matériaux laine', fait:false},
   {id:'t2', t:'Gérer les matériaux des modèles sac et tapestry', fait:false}]}];
 let ACCUEIL_ORDRE=[], ACCUEIL_TRI='perso', LANCEMENT_FAIT={};
-// ── 🚀 Feuille de route du lancement (Shopify + Wix) : les étapes vérifiables se cochent toutes seules d'après tes données
+// ── 🚀 Feuille de route du lancement (boutique Shopify) : les étapes vérifiables se cochent toutes seules d'après tes données
 function etapesLancement(){
   const vend=BIJS.filter(b=>!compoPure(b)&&!b.no_sell&&!isDraft(b));
   const sansPhoto=vend.filter(b=>!b.photo&&!b.parent_id).length, sansTemps=vend.filter(b=>tempsBij(b)==null&&!b.parent_id).length;
@@ -3462,7 +3463,7 @@ function etapesLancement(){
       ['livraison','Modes de livraison et leurs tarifs', A(EMB.modes.length, EMB.modes.length?EMB.modes.length+' mode(s)':'aucun'), "switchCfgTab('emballages')"],
     ]],
     ['🛍 Shopify',[
-      ['sh-forfait','Forfait Shopify avec boutons d\'achat (Buy Button) et commandes provisoires', null, ''],
+      ['sh-forfait','Forfait Shopify et nom de domaine relié à la boutique', null, ''],
       ['sh-app','App « Bona Nodi atelier » créée et installée (Client ID / secret)', null, ''],
       ['sh-sql','SQL sql-boutique-en-ligne.sql lancé dans Supabase', null, ''],
       ['sh-fonction','Fonction Supabase « shopify » déployée avec ses secrets', A(sh, sh?'reliée à '+(SHOPIFY.etat.boutique||''):SHOPIFY.etat?'pas encore reliée':'à vérifier (onglet Boutique en ligne)'), "goTabNom('bij');switchCreatTab('boutique')"],
@@ -3470,11 +3471,11 @@ function etapesLancement(){
       ['sh-relies','Créations reliées à leur produit Shopify', A(sh&&!nonRelies, sh?(nonRelies?nonRelies+' à relier':'✓'):'après la connexion'), "goTabNom('bij');switchCreatTab('boutique')"],
       ['sh-stock','Stock envoyé à Shopify (🔄 Envoyer tout le stock)', null, "goTabNom('bij');switchCreatTab('boutique')"],
     ]],
-    ['🌐 Wix',[
-      ['wx-boutons','Boutons d\'achat Shopify intégrés aux pages produits', null, ''],
-      ['wx-config','Configurateur 3D intégré (élément HTML) et testé sur téléphone', null, ''],
-      ['wx-pages','Pages livraison, CGV, mentions légales, contact', null, ''],
-      ['wx-seo','Titres et descriptions des pages (référencement)', null, ''],
+    ['🌐 Site Shopify',[
+      ['wx-theme','Thème choisi et aux couleurs Bona Nodi (logo, polices, menu)', null, ''],
+      ['wx-config','Section « Configurateur Bona Nodi » sur la page Personnaliser, testée sur téléphone', null, ''],
+      ['wx-pages','Pages livraison, CGV, mentions légales, contact (Paramètres › Politiques)', null, ''],
+      ['wx-seo','Fiches produits complètes et envoyées (référencement)', A(enLigne.length&&!seoManque(), enLigne.length?(seoManque()?seoManque()+' à compléter':'✓'):'aucune création en ligne'), "goTabNom('bij');switchCreatTab('boutique');vueBoutique('wix')"],
     ]],
     ['✅ Tests et lancement',[
       ['t-piece','Commande test d\'une pièce prête (code promo 100 %)', null, ''],
@@ -3492,14 +3493,14 @@ function blocLancement(){
   const nb=tout.filter(fait).length, pc=Math.round(nb/tout.length*100);
   let ouvert=false; try{ ouvert=localStorage.getItem('lancement_ouvert')!=='0'; }catch(e){}
   return `<details class="card home-lancement" ${ouvert?'open':''} ontoggle="try{localStorage.setItem('lancement_ouvert',this.open?'1':'0')}catch(e){}">
-    <summary><b>🚀 Feuille de route · lancement Shopify + Wix</b> <span class="dim">${nb}/${tout.length} étapes</span>
+    <summary><b>🚀 Feuille de route · lancement de la boutique Shopify</b> <span class="dim">${nb}/${tout.length} étapes</span>
       <span class="lanc-barre"><span style="width:${pc}%"></span></span></summary>
     <div class="lanc-grille">${E.map(([titre,l])=>`<div class="lanc-phase"><div class="lanc-t">${titre} <span class="dim">${l.filter(fait).length}/${l.length}</span></div>
       ${l.map(x=>{ const [id,t,a,go]=x, ok=fait(x);
         return `<label class="lanc-l ${ok?'fait':''}">${a?`<span class="lanc-auto" title="Vérifié automatiquement d'après tes données">${ok?'✅':'⬜'}</span>`:`<input type="checkbox" ${ok?'checked':''} onchange="cocherLancement('${id}',this.checked)">`}
           <span>${t}${a?` <span class="dim">· ${escA(a.det||'')}</span>`:LANCEMENT_FAIT[id]?` <span class="dim">· ${dateCourte(LANCEMENT_FAIT[id])}</span>`:''}</span>
           ${go?`<button type="button" class="btn btn-xs btn-ghost" onclick="event.preventDefault();${go}">›</button>`:''}</label>`; }).join('')}</div>`).join('')}</div>
-    <div style="display:flex;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-top:6px"><span class="dim" style="font-size:11px">Le détail de chaque étape Shopify / Wix est dans le LISEZMOI (« Boutique en ligne : Shopify + Wix »).</span>
+    <div style="display:flex;justify-content:space-between;gap:6px;flex-wrap:wrap;margin-top:6px"><span class="dim" style="font-size:11px">Le détail de chaque étape est dans le LISEZMOI (« Boutique Shopify »).</span>
       <button class="btn btn-xs btn-ghost" onclick="cocherLancement('__masque',true)">Masquer</button></div>
   </details>`;
 }
@@ -4440,7 +4441,7 @@ function switchCreatTab(tab, numeroPerso) {
 }
 
 /* ── Personnalisations sur mesure (configurateur 3D) ──
-   Une commande Wix contenant une « Personnalisation sur mesure BN-P-… » crée ici une production
+   Une commande Shopify contenant une « Personnalisation sur mesure BN-P-… » crée ici une production
    « En cours » par breloque (fonction commander_personnalisation de sql-modeles-3d.sql),
    avec le n° de personnalisation (perso) et la note atelier (perso_note, avec les références). */
 const ouvrirPerso = numero => switchCreatTab('perso', numero);
@@ -4468,7 +4469,7 @@ function c3ToutPlier(ouvrir){ document.querySelectorAll('#c3-proposes details.c3
 const c3Vu=k=>!RUPTURES_3D.includes(k);
 const c3Inter=(on,clic,lib='')=>`<button type="button" class="c3s ${on?'on':''}" onclick="${clic}">${on?'👁 Affiché':'🚫 Masqué'}${lib?' · '+lib:''}</button>`;
 const c3Ligne=(nom,actions,{sous='',retrait=false}={})=>`<div class="c3r ${retrait?'c3r-v':''}"><span class="c3r-nom">${nom}${sous?`<span class="dim"> · ${sous}</span>`:''}</span><span class="c3r-act">${actions}</span></div>`;
-const c3Lien=(id,lot)=>`<button class="btn btn-xs btn-ghost" title="Copier le lien direct (bouton « Personnaliser » d'une fiche Wix…)" onclick="copierLienIdee('${escA(id)}'${lot?',1':''})">🔗</button>`;
+const c3Lien=(id,lot)=>`<button class="btn btn-xs btn-ghost" title="Copier le lien direct (bouton « Personnaliser » d'une fiche produit Shopify…)" onclick="copierLienIdee('${escA(id)}'${lot?',1':''})">🔗</button>`;
 const c3Filtre=t=>!C3_FILTRE||norm3(t).includes(norm3(C3_FILTRE));
 const norm3=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
 const nomFiche3=b=>[b.nom,b.variante].filter(Boolean).join(' · ')||b.ref;
@@ -4666,14 +4667,14 @@ function renderIdeesProposees(){
     ${lots.length?`<div class="c3p-l"><span class="c3p-nom">🎁 Bundles / lots <span class="dim">et leurs variantes</span></span>${lots.map(bt).join('')}</div>`:''}
     <div class="c3p-l" style="align-items:flex-start"><span class="c3p-nom">⭐ Alternatives</span><span style="display:grid;gap:4px">${ALTERNATIVES.map(a=>{ const k='idee:alt:'+a.id, on=!RUPTURES_3D.includes(k);
       return `<span style="display:flex;gap:4px;align-items:center;flex-wrap:wrap"><button type="button" class="c3p ${on?'on':''}" onclick="basculerIdee('alt:${escA(a.id)}')">${on?'👁':'🚫'} ${escA(a.nom)}</button><span class="dim" style="font-size:11px">${a.type==='bundle'?'🎁 bundle · '+(a.breloques||[]).length+' breloque(s)':escA((MODELES_3D.find(m=>m.slug===a.modele)?.nom)||a.modele)}</span>
-        <button class="btn btn-xs btn-ghost" title="Renommer" onclick="renommerAlternative('${escA(a.id)}')">✎</button><button class="btn btn-xs btn-ghost" title="Copier le lien direct (bouton « Personnaliser » d'une fiche Wix…)" onclick="copierLienIdee('alt:${escA(a.id)}'${a.type==='bundle'?',1':''})">🔗</button><button class="btn btn-xs btn-red" title="Supprimer" onclick="supprimerAlternative('${escA(a.id)}')">✕</button></span>`; }).join('')||'<span class="dim" style="font-size:12px">aucune</span>'}
+        <button class="btn btn-xs btn-ghost" title="Renommer" onclick="renommerAlternative('${escA(a.id)}')">✎</button><button class="btn btn-xs btn-ghost" title="Copier le lien direct (bouton « Personnaliser » d'une fiche produit Shopify…)" onclick="copierLienIdee('alt:${escA(a.id)}'${a.type==='bundle'?',1':''})">🔗</button><button class="btn btn-xs btn-red" title="Supprimer" onclick="supprimerAlternative('${escA(a.id)}')">✕</button></span>`; }).join('')||'<span class="dim" style="font-size:12px">aucune</span>'}
       <span class="dim" style="font-size:11px">Pour en créer une : onglet Configurateur, choisis le modèle, ses couleurs et finitions, puis « ＋ Enregistrer ces couleurs comme nouvelle idée » (ou, dans « Crée ton bundle », « ＋ Enregistrer ce bundle comme nouvelle idée »). <a href="#" onclick="event.preventDefault();rechargerAlternatives()">↻ actualiser</a></span></span></div>
     <div class="dim" style="font-size:11px;margin-top:4px">🚫 = l'idée n'apparaît plus dans la boîte 💡 du configurateur (la fiche reste reconnue si la cliente choisit ces couleurs).</div></div></details>`;
 }
 async function rechargerAlternatives(){ const {data}=await SB.from('config').select('value').eq('key','configurateur_alternatives').maybeSingle(); let v=data?.value; if(typeof v==='string'){ try{v=JSON.parse(v);}catch(e){v=null;} } if(Array.isArray(v)) ALTERNATIVES=v; renderModelesProposes(); }
 async function renommerAlternative(id){ const a=ALTERNATIVES.find(x=>x.id===id); if(!a) return; const n=prompt('Nom de l\'idée',a.nom); if(!n||!n.trim()) return; a.nom=n.trim(); await sauverAlternatives(); renderModelesProposes(); }
 async function supprimerAlternative(id){ const a=ALTERNATIVES.find(x=>x.id===id); if(!a||!confirm(`Supprimer l'idée « ${a.nom} » ?`)) return; ALTERNATIVES=ALTERNATIVES.filter(x=>x.id!==id); await sauverAlternatives(); renderModelesProposes(); }
-function copierLienIdee(id,lot){ const u=location.origin+location.pathname.replace(/[^/]*$/,'')+'configurateur/configurateur-3d.html?'+(lot?'lot=':'idee=')+encodeURIComponent(id);
+function copierLienIdee(id,lot){ const page=(PAGE_PERSO||'').trim(), u=(page||location.origin+location.pathname.replace(/[^/]*$/,'')+'configurateur/configurateur-3d.html')+(page.includes('?')?'&':'?')+(lot?'lot=':'idee=')+encodeURIComponent(id);
   (navigator.clipboard?.writeText(u)||Promise.reject()).then(()=>toast('Lien copié : '+u,'ok'),()=>prompt('Lien direct vers cette idée :',u)); }
 async function basculerIdee(id){
   const k='idee:'+id, rup=RUPTURES_3D.includes(k)?RUPTURES_3D.filter(x=>x!==k):[...RUPTURES_3D,k];
@@ -7569,7 +7570,7 @@ function stockDispo2(bijId) {
 }
 
 // ═══════════════════════════════════════════════════════
-// BOUTIQUE EN LIGNE : Shopify (vitrine Wix) relié aux fiches — un seul stock, piloté par l'app
+// BOUTIQUE EN LIGNE : Shopify relié aux fiches — un seul stock, piloté par l'app
 // Fonction Supabase « shopify » (secrets Shopify côté serveur, jamais dans l'app).
 // ═══════════════════════════════════════════════════════
 let SHOPIFY={etat:null, produits:null, erreur:null};
@@ -7606,11 +7607,12 @@ async function chargerShopify(force){
   catch(e){ SHOPIFY.erreur=e.message; SHOPIFY.etat=SHOPIFY.etat||{configure:false}; }
 }
 // ═══════════════════════════════════════════════════════
-// FICHES WIX (SEO) : tout ce qu'il faut pour créer la page produit dans Wix, produit par produit
+// FICHES PRODUITS (SEO) : nom, adresse, titre Google, description… préparés ici puis ENVOYÉS au produit Shopify (bouton ⬆)
+// (la config garde son ancien nom « fiches_wix » pour ne rien perdre de ce qui est déjà rempli)
 // config « fiches_wix » = { <clé produit>: { nom, slug, titre, meta, description, alt, motscles, dimensions, entretien, url, statut } }
 // Un produit = un modèle et ses couleurs (même regroupement que la boutique). Le stock reste piloté par l'app (Shopify).
 // ═══════════════════════════════════════════════════════
-let FICHES_WIX={};
+let FICHES_WIX={}, PAGE_PERSO='';
 function vueBoutique(v){
   try{ v=v||localStorage.getItem('vue_boutique')||'wix'; localStorage.setItem('vue_boutique',v); }catch(e){ v=v||'wix'; }
   document.querySelectorAll('.seg-bt [data-bv]').forEach(b=>b.classList.toggle('on',b.dataset.bv===v));
@@ -7644,23 +7646,26 @@ function controlesWix(pr, f){
     ['Une photo par couleur', pr.fiches.every(x=>x.photo)],
     ['Prix sur chaque fiche', pr.fiches.every(x=>prixPiece(x)>0)],
     ['Dimensions', !!(f.dimensions||'').trim()],
-    ['Bouton d\'achat Shopify relié', pr.fiches.every(x=>x.shopify_variant_id)],
-    ['Page publiée sur Wix (adresse notée)', !!(f.url||'').trim()],
+    ['Relié au produit Shopify', pr.fiches.every(x=>x.shopify_variant_id)],
+    ['Envoyé à Shopify', !!f.envoye],
   ];
 }
 function renderFichesWix(){
   const el=document.getElementById('boutique-wix'); if(!el) return;
   const prods=produitsBoutique(BIJS.filter(venduEnLigne));
   const ligne=pr=>{ const f={...propositionWix(pr),...(FICHES_WIX[pr.cle]||{})}, c=controlesWix(pr,f), ok=c.filter(x=>x[1]).length, pc=Math.round(ok/c.length*100);
-    const st=FICHES_WIX[pr.cle]?.url?'✅ publiée':FICHES_WIX[pr.cle]?'✍️ en cours':'⏳ à préparer';
+    const st=FICHES_WIX[pr.cle]?.envoye?'✅ envoyée à Shopify':FICHES_WIX[pr.cle]?'✍️ en cours':'⏳ à préparer';
     const ph=pr.fiches.find(x=>x.photo)?.photo;
     return `<div class="wx-l" onclick="formFicheWix('${pr.cle}')">${ph?`<img src="${ph}" alt="">`:'<span class="bt-ph">💎</span>'}
       <div style="flex:1;min-width:0"><b>${escA(pr.nom)}</b> <span class="dim" style="font-size:11px">${pr.fiches.length>1?pr.fiches.length+' variantes · ':''}${st}</span>
         <div class="wx-barre"><span style="width:${pc}%"></span></div><div class="dim" style="font-size:11px">${ok}/${c.length} · manque : ${escA(c.filter(x=>!x[1]).map(x=>x[0]).slice(0,3).join(', ')||'rien 🎉')}</div></div>
       <span class="btn btn-xs btn-ghost">✎ Fiche</span></div>`; };
   const nbOk=prods.filter(pr=>{ const f={...propositionWix(pr),...(FICHES_WIX[pr.cle]||{})}; return controlesWix(pr,f).every(x=>x[1]); }).length;
-  el.innerHTML=`<div class="info-box">Pour chaque produit, l'app prépare ce qu'il faut pour sa <b>page Wix</b> (référencement Google) : titre, description, adresse, textes des photos… Copie chaque champ dans Wix › page produit › <b>SEO</b>. L'app reste la référence pour le <b>stock</b> (Shopify, onglet 🔗).</div>
-    <div class="card"><div class="card-hd"><h2>📝 Fiches Wix · ${nbOk}/${prods.length} complètes</h2></div><div class="card-bd" style="padding:0 8px">${prods.map(ligne).join('')||'<div class="empty"><p>Aucune création à vendre.</p></div>'}</div></div>`;
+  el.innerHTML=`<div class="info-box">Pour chaque produit, l'app prépare sa <b>fiche Shopify</b> (référencement Google) : nom, adresse, titre et description Google, description, texte des photos. Vérifie, puis <b>⬆ Envoyer à Shopify</b> : tout est rempli dans le produit. L'app reste la référence pour le <b>stock</b> (onglet 🔗).</div>
+    <div class="card" style="margin-bottom:10px"><div class="card-bd" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><label style="font-size:13px">Adresse de ta page « Personnaliser » (configurateur)</label>
+      <input id="page-perso" style="flex:1;min-width:220px" placeholder="https://ton-domaine.fr/pages/personnaliser" value="${escA(PAGE_PERSO||'')}">
+      <button class="btn btn-xs" onclick="PAGE_PERSO=document.getElementById('page-perso').value.trim();sbUpsertConfig('boutique_page_perso',PAGE_PERSO).then(()=>toast('Adresse enregistrée : les liens 🔗 des idées pointent vers ta boutique','ok'))">Enregistrer</button></div></div>
+    <div class="card"><div class="card-hd"><h2>📝 Fiches produits · ${nbOk}/${prods.length} complètes</h2></div><div class="card-bd" style="padding:0 8px">${prods.map(ligne).join('')||'<div class="empty"><p>Aucune création à vendre.</p></div>'}</div></div>`;
 }
 function formFicheWix(cle){
   const pr=produitsBoutique(BIJS.filter(venduEnLigne)).find(x=>x.cle===cle); if(!pr) return;
@@ -7670,31 +7675,41 @@ function formFicheWix(cle){
       <button class="btn btn-xs btn-ghost" title="Copier" onclick="copierChamp('wx-${k}')">📋</button>
       <button class="btn btn-xs btn-ghost" title="Reprendre la proposition" onclick="document.getElementById('wx-${k}').value=${JSON.stringify(prop[k]||'').replace(/"/g,'&quot;')};compteursWix()">✨</button></div>${aide?`<div class="dim" style="font-size:11px">${aide}</div>`:''}</div>`;
   const c=controlesWix(pr,f);
-  modalVolante('m-wix',`<div class="modal-title">📝 Fiche Wix — ${escA(pr.nom)}</div>
+  modalVolante('m-wix',`<div class="modal-title">📝 Fiche produit Shopify — ${escA(pr.nom)}</div>
     <div class="wx-chk">${c.map(([l,ok])=>`<span class="${ok?'ok':''}">${ok?'✓':'○'} ${l}</span>`).join('')}</div>
     ${champ('nom','Nom du produit (titre de la page)')}
-    ${champ('slug','Adresse de la page (URL)','Wix › produit › SEO › « URL slug » : minuscules, tirets, sans accents.')}
+    ${champ('slug','Adresse de la page (URL)','Fin de l\'adresse du produit (…/products/<b>…</b>) : minuscules, tirets, sans accents. L\'ancienne adresse redirige vers la nouvelle.')}
     ${champ('titre','Titre SEO','Ce que Google affiche en bleu. Idéal : 50 à 60 caractères, le nom du produit au début.',0,60)}
     ${champ('meta','Méta-description','Le petit texte sous le titre dans Google. Idéal : 120 à 160 caractères, donne envie de cliquer.',3,160)}
     ${champ('description','Description du produit','Visible sur la page : matériaux, coloris, taille, entretien.',6)}
-    ${champ('alt','Texte alternatif des photos','À mettre sur chaque photo (Wix › photo › texte alternatif). Ajoute la couleur : « … – Sardine ».')}
-    ${champ('motscles','Mots-clés visés','Pour t\'inspirer dans les textes (Wix n\'utilise plus de champ mots-clés).')}
+    ${champ('alt','Texte alternatif des photos','Mis sur toutes les photos du produit à l\'envoi.')}
+    ${champ('motscles','Mots-clés visés','Envoyés comme balises (tags) du produit, séparés par des virgules.')}
     <div class="r2">${champ('dimensions','Dimensions / poids','ex. 3 × 1,5 cm · 4 g')}${champ('prix','Prix affiché','Vient des fiches ; à vérifier dans Shopify.')}</div>
     ${champ('entretien','Entretien')}
-    ${champ('url','Adresse de la page une fois publiée sur Wix','Sert aux posts et aux drops (lien direct).')}
+    ${champ('url','Adresse du produit sur ta boutique','Remplie à l\'envoi. Sert aux posts et aux drops (lien direct).')}
     <div class="dim" style="font-size:12px;margin:6px 0">Variantes : ${pr.fiches.map(x=>`${escA(pr.o.valeurs(x).join(' · '))} ${x.photo?'📷':'<span style="color:var(--red)">sans photo</span>'} ${x.shopify_variant_id?'🔗':'<span style="color:var(--orange)">non reliée</span>'}`).join(' · ')}</div>
     <div class="mfoot"><button class="btn btn-ghost" onclick="copierFicheWix()">📋 Tout copier</button><span style="flex:1"></span>
-      <button class="btn btn-ghost" onclick="closeModal('m-wix')">Fermer</button><button class="btn btn-p" onclick="enregistrerFicheWix('${cle}')">Enregistrer</button></div>`);
+      <button class="btn btn-ghost" onclick="closeModal('m-wix')">Fermer</button><button class="btn btn-ghost" onclick="enregistrerFicheWix('${cle}')">Enregistrer</button>
+      <button class="btn btn-p" ${pr.fiches.some(x=>x.shopify_product_id)?'':'disabled title="Relie d\'abord ce produit à Shopify (onglet 🔗 Stock Shopify)"'} onclick="enregistrerFicheWix('${cle}',true)">⬆ Envoyer à Shopify</button></div>`);
   compteursWix();
 }
 function compteursWix(){ document.querySelectorAll('#m-wix .wx-n').forEach(s=>{ const l=(document.getElementById('wx-'+s.dataset.k)?.value||'').length, m=+s.dataset.max;
   s.textContent=`${l}/${m}`; s.style.color=l>m?'var(--red)':l>=m*0.6?'var(--green)':'var(--orange)'; }); }
 const CHAMPS_WIX=['nom','slug','titre','meta','description','alt','motscles','dimensions','prix','entretien','url'];
 function copierFicheWix(){ copierTexte(CHAMPS_WIX.map(k=>{ const v=document.getElementById('wx-'+k)?.value||''; return v?document.querySelector(`#wx-${k}`).closest('.fg').querySelector('label').childNodes[0].textContent.trim()+' :\n'+v:''; }).filter(Boolean).join('\n\n')); }
-async function enregistrerFicheWix(cle){
-  const f={}; CHAMPS_WIX.forEach(k=>f[k]=(document.getElementById('wx-'+k)?.value||'').trim()); f.maj=new Date().toISOString();
-  FICHES_WIX[cle]=f; await sbUpsertConfig('fiches_wix', FICHES_WIX); closeModal('m-wix'); renderFichesWix(); toast('Fiche Wix enregistrée ✓','ok');
+async function enregistrerFicheWix(cle, envoyer){
+  const f={...(FICHES_WIX[cle]||{})}; CHAMPS_WIX.forEach(k=>f[k]=(document.getElementById('wx-'+k)?.value||'').trim()); f.maj=new Date().toISOString();
+  if(envoyer){
+    const pr=produitsBoutique(BIJS.filter(venduEnLigne)).find(x=>x.cle===cle), pid=pr?.fiches.find(x=>x.shopify_product_id)?.shopify_product_id;
+    try{ const r=await appelShopify('seo',{fiche:{product_id:pid,nom:f.nom,slug:f.slug,titre:f.titre,meta:f.meta,description:[f.description,f.dimensions?'Dimensions : '+f.dimensions:''].filter(Boolean).join('\n'),alt:f.alt,motscles:f.motscles}});
+      f.envoye=new Date().toISOString(); if(r?.url) f.url=r.url; if(r?.handle) f.slug=r.handle;
+      toast('Fiche envoyée à Shopify ✓'+(r?.photos?' ('+r.photos+' photo(s) avec texte alternatif)':''),'ok');
+    }catch(e){ FICHES_WIX[cle]=f; await sbUpsertConfig('fiches_wix', FICHES_WIX); toast('Enregistrée, mais pas envoyée : '+(e.message||e),'err'); return; }
+  }
+  FICHES_WIX[cle]=f; await sbUpsertConfig('fiches_wix', FICHES_WIX); closeModal('m-wix'); renderFichesWix(); if(!envoyer) toast('Fiche enregistrée ✓','ok');
 }
+// fiches de référencement pas encore complètes et envoyées (feuille de route)
+function seoManque(){ try{ return produitsBoutique(BIJS.filter(venduEnLigne)).filter(pr=>{ const f={...propositionWix(pr),...(FICHES_WIX[pr.cle]||{})}; return !controlesWix(pr,f).every(x=>x[1]); }).length; }catch(e){ return 0; } }
 async function renderBoutique(force){
   const el=document.getElementById('boutique-body'); if(!el) return;
   if(force||!SHOPIFY.etat) el.innerHTML='<div class="loading">Connexion à la boutique…</div>';
@@ -7705,7 +7720,7 @@ async function renderBoutique(force){
       <p style="font-size:13px;line-height:1.6">Une fois reliée, cet onglet :<br>• relie chaque création à son produit Shopify (ou le crée pour toi) ;<br>
       • envoie le <b>stock partagé</b> : les pièces notées « 🛒 Boutique en ligne » dans Productions, ou « toujours achetable » pour ce qui est fait à la commande ;<br>
       • reçoit les <b>commandes</b> : vente enregistrée, pièce retirée, production « en cours » pour le fait-main à la commande, fiche atelier pour le sur mesure.</p>
-      <p style="font-size:13px">Mise en place (une fois) : voir le LISEZMOI, section « Boutique en ligne : Shopify + Wix ».</p>
+      <p style="font-size:13px">Mise en place (une fois) : voir le LISEZMOI, section « Boutique Shopify ».</p>
       <button class="btn btn-ghost" onclick="renderBoutique(true)">↻ Réessayer</button></div></div>`;
     return;
   }
@@ -7818,7 +7833,7 @@ async function publierShopify(bijId){
   } catch(e){ toast('Shopify : '+e.message,'err'); }
 }
 
-// ── Fiche produit prête à copier dans la boutique en ligne (Wix) ──
+// ── Description de fiche produit pour la boutique en ligne (Shopify) ──
 function descriptionAuto(b) {
   const parSC={};
   getMatsEffectifs(b).forEach(m=>{ const mat=getMat(m.ref); if(!mat) return;
@@ -7880,7 +7895,7 @@ let PROD_TOUT_OUVERT=false;
 // DROPS : préparer une mise en ligne groupée (pièces déjà produites, pas encore en ligne)
 // config « drops » = [{ id, nom, date, heure, note, statut: 'prepa' | 'en_ligne', items: [{ prod_id, qty }], en_ligne_le }]
 // ═══════════════════════════════════════════════════════
-// ═══ 🎁 LOTS : plusieurs créations vendues ensemble sous une seule fiche (prix, photo, boutique, Wix comme une création)
+// ═══ 🎁 LOTS : plusieurs créations vendues ensemble sous une seule fiche (prix, photo, boutique Shopify comme une création)
 // config « lots » = { <id fiche lot>: [{ bij_id, qty }] }. « Assembler » N lots : production du lot (+N) et, pour chaque pièce,
 // une ligne « 🎁 utilisées dans le lot » (−N × qté) qui la retire du stock (sans toucher aux matériaux, déjà comptés).
 let LOTS={};
@@ -7894,7 +7909,7 @@ function libreBij(bijId){        // pièces finies réellement disponibles : pro
 const lotsAssemblables = lotId => Math.min(...(LOTS[lotId]||[]).map(i=>Math.floor(libreBij(i.bij_id)/Math.max(1,+i.qty||1))), 999);
 function corpsLot(b){
   const it=LOTS[b.id]||[], max=it.length?lotsAssemblables(b.id):0, cout=coutBijou(b);
-  return `<div style="padding:10px 14px"><div class="info-box">🎁 <b>Lot</b> : ces créations sont vendues ensemble sous cette fiche (prix, photo, boutique en ligne, fiche Wix). « Assembler » retire les pièces de leur stock et ajoute des lots prêts.</div>
+  return `<div style="padding:10px 14px"><div class="info-box">🎁 <b>Lot</b> : ces créations sont vendues ensemble sous cette fiche (prix, photo, boutique en ligne, fiche produit). « Assembler » retire les pièces de leur stock et ajoute des lots prêts.</div>
     <div class="drop-items">${it.map(i=>{ const c=getBij(i.bij_id); return `<span class="drop-it">${c?.photo?`<img src="${c.photo}" alt="">`:'💎'} ${escA(c?c.nom+(c.variante?' · '+c.variante:''):'?')} × ${i.qty} <span class="dim">(${c?libreBij(c.id):0} dispo)</span></span>`; }).join('')}</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px">
       <span class="dim" style="font-size:12px">Coût des pièces ${eur(cout)} · prix du lot ${b.pv?eur(b.pv):'à fixer'}${b.pv&&cout?' · marge '+Math.round((b.pv-cout)/b.pv*100)+' %':''} · <b>${max}</b> lot(s) assemblable(s) avec tes pièces disponibles</span>
@@ -8055,7 +8070,7 @@ async function mettreEnLigneDrop(id){
   renderDrops(); renderRent(); if(document.getElementById('p-home')?.classList.contains('on')) renderAccueil();
   toast(`🚀 ${nb} pièce(s) en ligne ✓`,'ok');
 }
-// 🖨 Fiche de préparation imprimable (photo, étiquette, fiche Wix, bouton Shopify, emballage)
+// 🖨 Fiche de préparation imprimable (photo, étiquette, fiche produit envoyée, relié à Shopify, emballage)
 function ficheDrop(id){
   const d=DROPS.find(x=>x.id===id); if(!d) return;
   const lignes=(d.items||[]).map(i=>{ const p=PRODS.find(x=>x.id===i.prod_id), b=getBij(p?.bij_id); return {b,q:+i.qty||0}; }).filter(x=>x.b);
@@ -8067,9 +8082,9 @@ function ficheDrop(id){
     img{width:44px;height:44px;object-fit:cover;border-radius:8px} .c{font-size:18px;text-align:center} button{margin-top:16px;padding:10px 18px;border-radius:999px;border:0;background:#3C114B;color:#FFF7C6;font-weight:700}
     @media print{button{display:none}}</style></head><body>
     <h1>🚀 ${escA(d.nom)}</h1><div class="s">${d.date?'Mise en ligne le '+new Date(d.date+'T12:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+(d.heure?' à '+d.heure:''):'Date à choisir'} · ${nbPiecesDrop(d)} pièce(s) · ≈ ${eur(tot)}${d.note?' · '+escA(d.note):''}</div>
-    <table><tr><th></th><th>Création</th><th>Réf.</th><th>Qté</th><th>Prix</th><th>Photo</th><th>Étiquette</th><th>Fiche Wix</th><th>Shopify</th><th>Emballé</th></tr>
+    <table><tr><th></th><th>Création</th><th>Réf.</th><th>Qté</th><th>Prix</th><th>Photo</th><th>Étiquette</th><th>Fiche SEO</th><th>Shopify</th><th>Emballé</th></tr>
     ${lignes.map(x=>`<tr><td>${x.b.photo?`<img src="${x.b.photo}">`:''}</td><td><b>${escA(x.b.nom)}</b>${x.b.variante?' · '+escA(x.b.variante):''}</td><td>${escA(x.b.ref||'')}</td><td>${x.q}</td><td>${eur(prixPiece(x.b))}</td>
-      <td class="c">${x.b.photo?'✓':'☐'}</td><td class="c">☐</td><td class="c">${FICHES_WIX[cle(x.b)]?.url?'✓':'☐'}</td><td class="c">${x.b.shopify_variant_id?'✓':'☐'}</td><td class="c">☐</td></tr>`).join('')}</table>
+      <td class="c">${x.b.photo?'✓':'☐'}</td><td class="c">☐</td><td class="c">${FICHES_WIX[cle(x.b)]?.envoye||FICHES_WIX[cle(x.b)]?.url?'✓':'☐'}</td><td class="c">${x.b.shopify_variant_id?'✓':'☐'}</td><td class="c">☐</td></tr>`).join('')}</table>
     <button onclick="print()">🖨 Imprimer</button></body></html>`);
   w.document.close();
 }
@@ -8148,7 +8163,7 @@ function badgesMiseEnVente(p) {
   if(horsVente(p)) return `<span class="badge bm" title="Articles déduits du stock, pièce gardée hors vente">🚫 ${escA(v.note||'Hors vente')}</span>`;
   const b=Object.entries(v.lieux).filter(([,q])=>+q>0).map(([l,q])=>`<span class="badge bgn" title="Mis en vente">${iconeLieu(l)} ${l} × ${n(q)}</span>`
     +`<button class="btn btn-xs btn-ghost" onclick="event.stopPropagation();venteDepuisProd('${p.id}','${l.replace(/'/g,"\\'")}')" title="Une pièce vendue ici : enregistre la vente et la retire de ce lieu">💶 Vendu</button>`
-    +(CANAL_DE_LIEU(l)==='wix'?`<button class="btn btn-xs btn-ghost" onclick="event.stopPropagation();ficheBoutique('${p.bij_id}')" title="Texte prêt à copier dans Wix">🛒 Fiche</button>`:'')).join(' ');
+    +(CANAL_DE_LIEU(l)==='wix'?`<button class="btn btn-xs btn-ghost" onclick="event.stopPropagation();ficheBoutique('${p.bij_id}')" title="Texte de la fiche produit (boutique en ligne)">🛒 Fiche</button>`:'')).join(' ');
   return b+(v.note?` <span class="dim" style="font-size:11px" title="${v.note.replace(/"/g,'&quot;')}">📝 ${v.note.length>40?v.note.slice(0,40)+'…':v.note}</span>`:'');
 }
 function rendreLieuxVente(p) {
@@ -8634,7 +8649,7 @@ function renderConnexions(){
   const sh=SHOPIFY.etat?.configure?`✅ Reliée à ${escA(SHOPIFY.etat.boutique||'')}`:SHOPIFY.etat?'⏳ Pas encore reliée':'— ouvre l\'onglet Boutique en ligne pour vérifier';
   el.innerHTML=`<div class="cx-l"><span style="font-size:24px">🎵</span><div class="cx-t"><b>TikTok</b><div class="dim" style="font-size:12px">${tt}</div></div><button class="btn btn-xs btn-ghost" onclick="testerTikTok()">🩺 Tester</button><button class="btn btn-xs btn-ghost" onclick="goTabNom('res');switchResTab('tiktok')">Ouvrir</button></div>
     <div id="cx-test-tt" style="font-size:12px;line-height:1.7;margin:-4px 0 6px 34px"></div>
-    <div class="cx-l"><span style="font-size:24px">🛍</span><div class="cx-t"><b>Boutique Shopify (site Wix)</b><div class="dim" style="font-size:12px">${sh}</div></div><button class="btn btn-xs btn-ghost" onclick="goTabNom('bij');switchCreatTab('boutique')">Ouvrir</button></div>
+    <div class="cx-l"><span style="font-size:24px">🛍</span><div class="cx-t"><b>Boutique Shopify</b><div class="dim" style="font-size:12px">${sh}</div></div><button class="btn btn-xs btn-ghost" onclick="goTabNom('bij');switchCreatTab('boutique')">Ouvrir</button></div>
     <div class="info-box" style="margin-top:8px">La mise en place pas à pas est dans le guide <b>GUIDE-CONNEXIONS.html</b> (dossier « bona-nodi-connexions »). Les clés TikTok et Shopify restent dans Supabase, jamais dans l'app.</div>`;
 }
 // ── Lieux de vente (utilisés dans Productions › 📍 Mise en vente)
