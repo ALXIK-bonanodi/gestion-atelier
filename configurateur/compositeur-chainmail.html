@@ -142,7 +142,7 @@ aside > *, .etape .corps > *, .seq-l, .seq-l .t { min-width: 0; }
         <input type="search" id="rechF" placeholder="🔍 nom, réf." style="flex:1;min-width:120px">
       </div>
       <div class="ligne" style="margin:0"><label class="aide" style="margin:0">Ranger par <select id="ranger">
-        <option value="motif">motif (croix, fleur, double…)</option><option value="dossier">mes dossiers (je classe moi-même)</option>
+        <option value="motif">motif (croix, fleur, double…)</option><option value="categorie">catégorie de création (collection)</option><option value="dossier">mes dossiers (je classe moi-même)</option>
         <option value="type">type (composition, breloque, BO, chaîne)</option><option value="etat">état 3D (à faire, brouillon, validé)</option>
         <option value="nom">nom A → Z</option><option value="ref">réf.</option></select></label>
         <span class="aide" id="aideRanger" style="margin:0"></span></div>
@@ -223,7 +223,7 @@ aside > *, .etape .corps > *, .seq-l, .seq-l .t { min-width: 0; }
 <script type="module">
 import { ScenePerles, cleFixe, fermoirDepuisMateriau, assemblerComposition, decompteComposition, definirCompositions, elementChainmail, nomElementChainmail, estCorpsChainmail,
   elementDepuisNom, piecesComposition, connecteurEntre, modeleChaineSacDemo, modeleChainmailDemo, catalogueChaineDepuisBijoux, catalogueChainmailDepuisBijoux,
-  definirLiensFormes, NOMS_CHAINE, FORMES_CHAINMAIL, CATALOGUE_DEMO, formeChaine, estBrouillon, pampilleIntegree } from './bead-core.js?v=e71d934f';
+  definirLiensFormes, NOMS_CHAINE, FORMES_CHAINMAIL, CATALOGUE_DEMO, formeChaine, estBrouillon, pampilleIntegree } from './bead-core.js?v=a5160576';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure } from './perles-config.js?v=e8e44d9a';
 
 const $ = s => document.querySelector(s);
@@ -318,7 +318,8 @@ const nomFiche = b => b ? [b.nom, b.variante].filter(Boolean).join(' · ') : '';
 const parent = id => bijoux.find(b => b.id === id);
 const texteFiche = b => [parent(b.parent_id)?.nom, b.nom, b.variante].filter(Boolean).join(' ');
 // tes fiches composition qui représentent un élément (« Nœud 4x4 10mm »…) : elles portent le modèle 3D de l'élément
-const ELEMENTS_FICHES = bijoux.map(b => ({ b, e: elementDepuisNom(texteFiche(b)) })).filter(x => x.e);
+// (le petit anneau de 5 mm est un matériau brut, pas une fiche : il se décompte du matériau choisi dans ⚙)
+const ELEMENTS_FICHES = bijoux.map(b => ({ b, e: elementDepuisNom(texteFiche(b)) })).filter(x => x.e && !['anneau05', 'petit'].includes(x.e.k));
 // fiches reliées à une forme déjà modélisée (croix, mini chain…) : elles s'utilisent aussi comme un élément
 for (const [k, r] of Object.entries(liens)) { const f = k.startsWith('forme:') && k.slice(6), b = f && !f.startsWith('compo-') && !FORMES_CHAINMAIL[f]?.chaine && FORMES_CHAINMAIL[f] && bijoux.find(x => x.ref === r);
   if (b && !ELEMENTS_FICHES.some(x => x.b === b)) ELEMENTS_FICHES.push({ b, e: { k: 'forme', f } }); }
@@ -383,7 +384,7 @@ const txtMat = m => norm([m.designation, m.variante, m.sc].join(' '));
 const parNom = (...re) => mats.find(m => re.every(r => r.test(txtMat(m))));
 const REG_AUTO = {
   pampille: () => liens['#PM-ex01'] ? [liens['#PM-ex01'], '🔗 Références'] : liens[cleFixe('ronde argentée 4 mm')] ? [liens[cleFixe('ronde argentée 4 mm')], '🔗 Références'] : [parNom(/ronde|boule/, /\b4 ?mm/)?.ref, 'd\'après le nom'],
-  petit: () => [parNom(/anneau/, /0[,.]5/)?.ref, 'd\'après le nom'],
+  petit: () => liens['#PA-ex01'] ? [liens['#PA-ex01'], '🔗 Références'] : [(parNom(/anneau/, /0[,.]5/) || parNom(/anneau/, /(^|[^0-9,.])5 ?mm/))?.ref, 'd\'après le nom'],
   anneau8: () => [parNom(/anneau/, /(^|[^0-9,.])8 ?mm/)?.ref, 'd\'après le nom'],
   anneau10: () => [parNom(/anneau/, /10 ?mm/)?.ref, 'd\'après le nom'],
   mousqueton: () => liens['#MP-ex01'] ? [liens['#MP-ex01'], '🔗 Références (mousqueton porte-clés)'] : [parNom(/mousqueton/, /porte|pivot|sac/)?.ref, 'd\'après le nom'],
@@ -406,7 +407,7 @@ function listeAFaire() {       // [{ ref, nom, qte, sc, detail }] — ce qui ser
     else { const A = assemblerComposition({ usage: 'chaine', debut: null, motif: [p.element], nb: 1, fin: 'motif' });
       for (const a of A) { if (a.R > 2.5) anneaux[a.R > 4 ? 10 : 8] += p.nb; else anneaux.petit += p.nb; } }
   }
-  const fp = ELEMENTS_FICHES.find(x => x.e.k === 'pampille' && (x.e.taille || 4) === 4)?.b, fpetit = ELEMENTS_FICHES.find(x => (x.e.k === 'petit' || x.e.k === 'anneau05') && (x.e.nb || 1) === 1)?.b;
+  const fp = ELEMENTS_FICHES.find(x => x.e.k === 'pampille' && (x.e.taille || 4) === 4)?.b, fpetit = null;   // petit anneau 5 mm : matériau brut
   if (compo.pampille) { if (fp) ajouter(fp.ref, nomFiche(fp), 1, 'Bijou (composition)'); else { anneaux.petit += 1; ajouter(R('pampille').ref, 'Perle de la pampille 4 mm', 1, '', '', 'pampille'); } }
   if (!estBreloque() && compo.bouts === 'fermoir-10') { const ff = ELEMENTS_FICHES.find(x => x.e.k === 'fermoir-10')?.b;
     if (ff) ajouter(ff.ref, nomFiche(ff), 1, 'Bijou (composition)'); else { anneaux[10] += 11; ajouter(R('fermoir10').ref, 'Fermoir du collier', 1, '', '', 'fermoir10'); } }
@@ -438,8 +439,9 @@ function rendrePieces(d) {
 }
 function rendreReglages() {
   const opt = (sel, re, auto) => { const tri = [...mats].sort((a, b) => (re.test(norm([b.designation, b.variante, b.sc].join(' '))) - re.test(norm([a.designation, a.variante, a.sc].join(' '))))); 
-    return `<option value="">${auto.ref ? 'automatique : ' + esc(auto.ref) + ' · ' + esc(nomMat(auto.ref)) + ' (' + esc(auto.src) + ')' : '— choisir —'}</option>` + tri.map(m => `<option value="${esc(m.ref)}" ${m.ref === sel ? 'selected' : ''}>${esc(m.ref)} · ${esc([m.designation, m.variante].filter(Boolean).join(' · '))}</option>`).join('')
-      + `<optgroup label="Compositions">${bijoux.filter(b => b.is_mat).map(b => `<option value="${esc(b.ref)}" ${b.ref === sel ? 'selected' : ''}>${esc(b.ref)} · ${esc(nomFiche(b))}</option>`).join('')}</optgroup>`; };
+    return `<option value="">${auto.ref ? 'automatique : ' + esc(auto.ref) + ' · ' + esc(nomMat(auto.ref)) + ' (' + esc(auto.src) + ')' : '— choisir —'}</option>` + (() => { const o = m => `<option value="${esc(m.ref)}" ${m.ref === sel ? 'selected' : ''}>${esc(m.ref)} · ${esc([m.designation, m.variante].filter(Boolean).join(' · '))}</option>`, sug = tri.filter(m => re.test(norm([m.designation, m.variante, m.sc].join(' '))));
+        return (sug.length ? `<optgroup label="Suggestions">${sug.map(o).join('')}</optgroup>` : '') + parCategorie(tri, m => [m.mc, m.sc].filter(Boolean).join(' › '), o); })()
+      + parCategorie(bijoux.filter(b => b.is_mat), b => 'Compositions · ' + (b.collection || 'sans collection'), b => `<option value="${esc(b.ref)}" ${b.ref === sel ? 'selected' : ''}>${esc(b.ref)} · ${esc(nomFiche(b))}</option>`); };
   $('#reglages').innerHTML = REGLAGES.map(([k, l, re]) => `<label style="display:grid;grid-template-columns:150px 1fr;gap:8px;align-items:center;font-size:13px">${l}<select data-reg-mat="${k}">${opt(REG[k], re, (() => { const g = REG[k]; REG[k] = undefined; const a = R(k); REG[k] = g; return a; })())}</select></label>`).join('')
     + '<p class="aide">Pour les pièces sans fiche composition. « automatique » = le lien fait dans 🔗 Références (pampille, mousqueton…) ou le matériau reconnu d\'après son nom ; choisis-en un autre seulement s\'il est faux.</p>';
   $('#reglages').querySelectorAll('[data-reg-mat]').forEach(s => s.addEventListener('change', async () => { REG[s.dataset.regMat] = s.value || undefined;
@@ -448,17 +450,20 @@ function rendreReglages() {
 
 /* ---------- étape 2 : début, motif, fin, palette ---------- */
 // menu « fiche » d'un élément : changer la fiche = prendre le modèle 3D de cette fiche
+// listes déroulantes rangées par catégorie : collection des créations, sous-catégorie (sc) des matériaux
+const parCategorie = (liste, cat, opt) => { const G = new Map(); for (const x of liste) { const c = cat(x) || 'Sans catégorie'; if (!G.has(c)) G.set(c, []); G.get(c).push(x); }
+  return [...G].sort((a, b) => a[0].localeCompare(b[0], 'fr')).map(([c, L]) => `<optgroup label="${esc(c)}">${L.map(opt).join('')}</optgroup>`).join(''); };
 function menuFiche(x, attr) {
   const e = elementChainmail(x), meme = ELEMENTS_FICHES.filter(f => f.e.k === e.k), autres = ELEMENTS_FICHES.filter(f => f.e.k !== e.k);
   const o = f => `<option value="${esc(f.b.ref)}" ${f.b.ref === e.fiche ? 'selected' : ''}>${esc(nomFiche(f.b))} (${esc(f.b.ref)})</option>`;
-  return `<select ${attr} title="La fiche composition de cet élément">${`<option value="">${ficheElement(e) && !e.fiche ? 'fiche : ' + esc(nomFiche(ficheElement(e))) + ' (auto)' : '— sans fiche —'}</option>`}${meme.map(o).join('')}${autres.length ? `<optgroup label="Autres éléments">${autres.map(o).join('')}</optgroup>` : ''}</select>`;
+  return `<select ${attr} title="La fiche composition de cet élément">${`<option value="">${ficheElement(e) && !e.fiche ? 'fiche : ' + esc(nomFiche(ficheElement(e))) + ' (auto)' : '— sans fiche —'}</option>`}${meme.length ? `<optgroup label="Même élément">${meme.map(o).join('')}</optgroup>` : ''}${parCategorie(autres.map(f => f), f => 'Autres · ' + (f.b.collection || 'sans collection'), o)}</select>`;
 }
 function ligneElement(x, i, zone) {
   const e = elementChainmail(x), b = e.fiche && ficheDe(e.fiche);
   const susp = zone === 'motif' && estCorpsChainmail(e) && (i > 0 || compo.debut.length) ? ` <label class="aide" style="display:inline-flex;gap:4px;margin:0" title="L'élément pend sous le connecteur juste au-dessus, au lieu de continuer la chaîne"><input type="checkbox" data-susp="${i}" ${e.suspendu ? 'checked' : ''}> en suspension</label>` : '';
-  const prof = e.k !== 'anneau05' ? ` <label class="aide" style="display:inline-flex;gap:4px;margin:0" title="Tourné d'un quart de tour par rapport à l'élément d'avant"><input type="checkbox" data-profil="${zone}:${i}" ${e.profil ? 'checked' : ''}> de profil</label>` : '';
+  const prof = true ? ` <label class="aide" style="display:inline-flex;gap:4px;margin:0" title="Tourné d'un quart de tour par rapport à l'élément d'avant"><input type="checkbox" data-profil="${zone}:${i}" ${e.profil ? 'checked' : ''}> de profil</label>` : '';
   const n = zoneListe(zone).length;
-  return `<div class="seq-l">${vignette(e)}<span class="t">${esc(b ? nomFiche(b) : nomElementChainmail(e))}${e.suspendu ? ' <span class="badge">suspendu</span>' : ''}${e.profil ? ' <span class="badge">de profil</span>' : ''}<small>${b ? esc(nomElementChainmail(e)) + ' · ' : ''}${e.k === 'compo' ? '' : menuFiche(e, `data-fiche-el="${zone}:${i}"`)} ${reglages(e, `data-reg-el="${zone}:${i}"`)}${susp}${prof}</small></span>
+  return `<div class="seq-l">${vignette(e)}<span class="t">${esc(b ? nomFiche(b) : nomElementChainmail(e))}${e.suspendu ? ' <span class="badge">suspendu</span>' : ''}${e.profil ? ' <span class="badge">de profil</span>' : ''}<small>${b ? esc(nomElementChainmail(e)) + ' · ' : ''}${e.k === 'compo' ? '' : e.k === 'anneau05' ? `<span class="aide" style="margin:0">matériau : ${esc(R('petit').ref ? R('petit').ref + ' · ' + nomMat(R('petit').ref) : 'à choisir dans ⚙ Matériaux des pièces')}</span>` : menuFiche(e, `data-fiche-el="${zone}:${i}"`)} ${reglages(e, `data-reg-el="${zone}:${i}"`)}${susp}${prof}</small></span>
     <button class="btn mini" type="button" data-haut="${zone}:${i}" ${i ? '' : 'disabled'} title="Monter">↑</button><button class="btn mini" type="button" data-bas="${zone}:${i}" ${i < n - 1 ? '' : 'disabled'} title="Descendre">↓</button><button class="btn mini" type="button" data-dup="${zone}:${i}" title="Dupliquer">⧉</button>
     <button class="btn mini" type="button" data-suppr="${zone}:${i}" title="Retirer">✕</button></div>`;
 }
@@ -475,7 +480,7 @@ function rendreTout(cadrer = false) {
     const autres = mats.filter(m => bo ? /creole|oreille|huggie/.test(txtMat(m)) : /fermoir|mousqueton|ressort|\brond\b/.test(txtMat(m)) && !/oreille/.test(txtMat(m)));
     $('#boAttache').innerHTML = (bo ? '' : `<option value="" ${!compo.attache ? 'selected' : ''}>celui du configurateur (petit fermoir, au choix de la cliente)</option><option value="aucun" ${compo.attache?.type === 'aucun' ? 'selected' : ''}>sans fermoir (composition, pampille…)</option>`)
       + `<optgroup label="Modélisés">${types.map(([v, l, t, mm]) => `<option value="${v}" ${(compo.attache || bo) && !a.ref && a.type === t && +a.taille === mm ? 'selected' : ''}>${l}</option>`).join('')}</optgroup>`
-      + (autres.length ? `<optgroup label="Tes références">${autres.map(m => `<option value="ref:${esc(m.ref)}" ${a.ref === m.ref ? 'selected' : ''}>${esc(m.ref)} · ${esc([m.designation, m.variante].filter(Boolean).join(' · '))}</option>`).join('')}</optgroup>` : '');
+      + parCategorie(autres, m => 'Tes références · ' + (m.sc || m.mc || 'matériaux'), m => `<option value="ref:${esc(m.ref)}" ${a.ref === m.ref ? 'selected' : ''}>${esc(m.ref)} · ${esc([m.designation, m.variante].filter(Boolean).join(' · '))}</option>`);
     $('#boPaire').checked = compo.paire !== false; }
   { const fer = mats.filter(m => /fermoir|mousqueton|rond|ressort|crochet/.test(txtMat(m))), sel = compo.boutsF?.ref || '';
     $('#boutsRef').innerHTML = '<option value="">— choisir le fermoir —</option>' + fer.map(m => `<option value="${esc(m.ref)}" ${m.ref === sel ? 'selected' : ''}>${esc(m.ref)} · ${esc([m.designation, m.variante].filter(Boolean).join(' · '))}</option>`).join('')
@@ -738,7 +743,7 @@ function suggestion(b) {                  // ce que la fiche semble être, et po
   return { type: comp && !prod ? 'composition' : prod && !comp ? 'produit' : null, raisons: r };
 }
 function ligneFiche(b, s, cls = '', complet = false) {
-  return `<div class="seq-l ${cls}">${b.photo ? img(b.photo) : '<span class="ic">⛓</span>'}<span class="t"><b>${esc(b.parent_id && !complet ? (b.variante || nomFiche(b)) : nomFiche(b))}</b> <span class="badge">${esc(b.ref || '')}</span>${b.is_mat ? ' <span class="badge">composition</span>' : ''}
+  return `<div class="seq-l ${cls}">${b.photo ? img(b.photo) : '<span class="ic">⛓</span>'}<span class="t"><b>${esc(b.parent_id && !complet ? (b.variante || nomFiche(b)) : nomFiche(b))}</b> <span class="badge">${esc(b.ref || '')}</span>${(b.collection || parent(b.parent_id)?.collection) && !(b.parent_id && !complet) ? ` <span class="badge" style="background:#f1eaf3">${esc(b.collection || parent(b.parent_id)?.collection)}</span>` : ''}${b.is_mat ? ' <span class="badge">composition</span>' : ''}
     <small><span class="badge ${s.ok ? 'ok' : s.partiel ? 'att' : 'a'}">${s.ok ? '✓' : s.partiel ? '◐' : '⚠'} ${esc(s.txt)}</span></small></span>
     ${RANGER === 'dossier' && cls !== 'var' ? `<select class="mini-sel" data-dossier="${esc(b.ref)}" title="Mon dossier">${['', ...new Set(Object.values(RANGEMENT.dossiers || {}).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr')).map(d => `<option value="${esc(d)}" ${dossierDe(b.ref) === d ? 'selected' : ''}>${d ? '📁 ' + esc(d) : '📁 sans dossier'}</option>`).join('')}<option value="__nouveau">＋ nouveau dossier…</option></select>
       <button class="btn mini" type="button" data-rang="${esc(b.ref)}" data-sens="-1" title="Monter">↑</button><button class="btn mini" type="button" data-rang="${esc(b.ref)}" data-sens="1" title="Descendre">↓</button>` : ''}
@@ -775,7 +780,7 @@ function rendreFiches() {
   const etat3d = b => { const c = mes.find(x => x.fiche === b.ref || x.ficheCompo === b.ref) || S.get(b.id)?.compo; const st = S.get(b.id);
     return !st?.ok ? (st?.partiel ? '◐ En partie modélisées' : '⚠ À modéliser') : c && estBrouillon(c) ? '📝 Brouillons' : '✅ Validées'; };
   const typeDe = b => ['Compositions', 'Breloques', 'Boucles d\'oreilles', 'Chaînes, colliers', 'Autres'][ordre(b)];
-  const cleG = { dossier: b => dossierDe(b.ref) || 'Sans dossier', type: typeDe, etat: etat3d, nom: b => (nomFiche(b)[0] || '?').toUpperCase(), ref: b => (String(b.ref || '').match(/^[A-Za-z#]+/) || ['?'])[0] }[RANGER];
+  const cleG = { categorie: b => b.collection || parent(b.parent_id)?.collection || 'Sans collection', dossier: b => dossierDe(b.ref) || 'Sans dossier', type: typeDe, etat: etat3d, nom: b => (nomFiche(b)[0] || '?').toUpperCase(), ref: b => (String(b.ref || '').match(/^[A-Za-z#]+/) || ['?'])[0] }[RANGER];
   const tri = { dossier: (a, b) => (rangOrdre(a.ref) - rangOrdre(b.ref)) || nomFiche(a).localeCompare(nomFiche(b), 'fr'), ref: (a, b) => String(a.ref).localeCompare(String(b.ref), 'fr', { numeric: true }) }[RANGER]
     || ((a, b) => nomFiche(a).localeCompare(nomFiche(b), 'fr'));
   const ordreG = { etat: ['⚠ À modéliser', '◐ En partie modélisées', '📝 Brouillons', '✅ Validées'], type: ['Compositions', 'Breloques', 'Boucles d\'oreilles', 'Chaînes, colliers', 'Autres'] }[RANGER];
@@ -978,7 +983,7 @@ $('#btPhoto').addEventListener('click', () => { const b = ficheDe(compo.fiche); 
 
 function remplirFiches() {
   $('#ficheCible').innerHTML = '<option value="">— aucune (composition libre) —</option>' + [...bijoux].filter(b => !elementDepuisNom(texteFiche(b)))
-    .sort((a, b) => (chainmailish(b) - chainmailish(a)) || nomFiche(a).localeCompare(nomFiche(b), 'fr')).map(b => `<option value="${esc(b.ref)}">${esc(nomFiche(b))} (${esc(b.ref)})</option>`).join('');
+    .sort((a, b) => nomFiche(a).localeCompare(nomFiche(b), 'fr')).reduce((h, b, i, L) => i ? h : parCategorie(L, x => (x.is_mat ? 'Compositions · ' : 'Créations · ') + (x.collection || parent(x.parent_id)?.collection || 'sans collection'), x => `<option value="${esc(x.ref)}">${esc(nomFiche(x))} (${esc(x.ref)})</option>`), '');
   $('#ficheCible').disabled = !sb;
 }
 $('#etatSb').textContent = sb ? 'Enregistré dans ta base : la composition reliée devient le visuel 3D de sa fiche dans le configurateur.' : 'Non connectée : compositions gardées sur cet appareil (ouvre le compositeur depuis l\'app pour tes fiches).';

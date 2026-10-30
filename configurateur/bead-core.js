@@ -573,7 +573,13 @@ export function catalogueChainmailDepuisBijoux(bijoux = []) {
   const vus = new Map();
   for (const [f, x] of [...parForme].sort((a, b) => (FORMES_CHAINMAIL[b[0]].compo ? 1 : 0) - (FORMES_CHAINMAIL[a[0]].compo ? 1 : 0))) {
     const k = x.b.id, n = norm(FORMES_CHAINMAIL[f].nom); if (vus.has(k) || vus.has('n:' + n)) { parForme.delete(f); continue; } vus.set(k, 1); vus.set('n:' + n, 1); }
-  const famille = f => { const F = FORMES_CHAINMAIL[f]; return (F.compo ? /\bmini/.test(norm(F.nom)) : F.mini) ? 'Mini chain' : 'Formes'; };
+  // « Mini chain » : les mini chaînes (intercalaire, fleur, mini fleur…) ; « Formes » : croix pampille, pampille mini fleur… (une « pampille mini fleur » n'est pas une mini chain)
+  const famille = f => { const F = FORMES_CHAINMAIL[f]; return (F.compo ? /mini ?cha/.test(norm(F.nom)) : F.mini) ? 'Mini chain' : 'Formes'; };
+  // tes compositions remplacent les formes d'origine : une composition avec une croix → plus de « Croix » seule ; une mini chain fleur / intercalaire → plus celle d'origine
+  const cps = [...parForme.keys()].filter(f => FORMES_CHAINMAIL[f].compo).map(f => ({ f, n: norm(FORMES_CHAINMAIL[f].nom), c: COMPOS[f.slice(6)] }));
+  if (cps.some(x => /croix/.test(x.n) || (x.c?.motif || []).some(e => e?.f === 'croix'))) parForme.delete('croix');
+  if (cps.some(x => /mini ?cha/.test(x.n) && /fleur/.test(x.n) && !/mini fleur/.test(x.n.replace(/mini ?cha\w*/, '')))) parForme.delete('mini-fleur-4');
+  if (cps.some(x => /mini ?cha/.test(x.n) && /intercal|altern/.test(x.n))) parForme.delete('mini-intercalaire-4');
   return [...parForme.values()].map(({ b, forme }) => ({
     ref: b.ref, bij_id: b.id, nom: FORMES_CHAINMAIL[forme].nom, hex: '#b4b6ba', finition: 'chainmail', forme,
     categorie: 'Breloques chainmail', famille: famille(forme), bijou: true, pv: b.pv ?? (b.parent_id && parId.get(b.parent_id)?.pv), enStock: true, ordre: 1e6 + 1 }));
@@ -1662,15 +1668,17 @@ function geosAccessoire(type, taille = 12) {
 /* Fermoir S, hauteur H (≈ 14 mm sur ta photo, comme le petit fermoir breloque) : fil ≈ 0,09 H, deux boucles en goutte,
    largeur ≈ 0,6 H. Plan YZ, bas de la boucle du bas à l'origine, le S monte vers -Z. */
 function geosFermoirS(H) {
-  // deux boucles en goutte de même forme (symétriques par rapport au centre), reliées par la diagonale :
-  // la boucle du haut est fermée (son bout revient contre la diagonale), celle du bas est un peu ouverte
-  const W = 0.72 * H, r = Math.max(0.28, 0.034 * H);
-  const T = [[0, 0.5], [0.15, 0.6], [0.27, 0.71], [0.33, 0.83], [0.27, 0.95], [0.1, 1.0], [-0.1, 0.99], [-0.26, 0.92], [-0.33, 0.8], [-0.29, 0.68], [-0.2, 0.6]];
+  // relevé sur ta photo : la boucle du bas (arrondie, sa jambe remonte droit jusqu'au bout ouvert) ; la boucle du haut a la même forme,
+  // tournée d'un demi-tour, sa jambe descend droit… puis revient contre la diagonale : elle est fermée
+  const W = 0.6 * H, r = Math.max(0.28, 0.034 * H);
+  const B = [[-0.23, 0.33], [-0.31, 0.21], [-0.31, 0.11], [-0.24, 0.035], [-0.04, 0.005], [0.18, 0.015], [0.33, 0.06], [0.40, 0.16], [0.38, 0.33], [0.36, 0.52], [0.43, 0.63]];
   const sym = ([y, h]) => [-y, 1 - h];
-  const P = [...T.slice(1).reverse().map(sym), ...T, [-0.06, 0.545]];       // bas (ouvert : s'arrête à la place symétrique), diagonale, haut, bout rentré
-  const c = new THREE.CatmullRomCurve3(P.map(([y, h]) => new THREE.Vector3(0, y * W, -h * H)), false, 'centripetal');
+  // boucle du haut : même forme, tournée, plus serrée (largeur × 0,62) : sa jambe passe contre la diagonale (fermée) et son bout s'écarte vers l'extérieur comme celui du bas
+  const haut = B.map(sym).reverse().map(([y, h]) => [y * 0.62, h]);
+  const P = [...haut, [0.04, 0.51], ...B];
+  const c = new THREE.CatmullRomCurve3(P.map(([y, h]) => new THREE.Vector3(0, -y * W, -h * H)), false, 'centripetal');   // -y : vu comme sur la photo
   const g = [new THREE.TubeGeometry(c, 260, r, 10, false)];
-  for (const [y, h] of [P[0], P[P.length - 1]]) { const e = new THREE.SphereGeometry(r, 10, 8); e.translate(0, y * W, -h * H); g.push(e); }
+  for (const [y, h] of [P[0], P[P.length - 1]]) { const e = new THREE.SphereGeometry(r, 10, 8); e.scale(1, 1, 0.6); e.translate(0, -y * W, -h * H); g.push(e); }
   return g;
 }
 /* Manille, hauteur H (≈ 24 mm sur ta photo à côté du mousqueton porte-clés de 34 mm) : arceau en U (fil ≈ 0,16 H, ouverture ≈ 0,54 H),
@@ -2378,7 +2386,8 @@ export function assemblerComposition(c, { detail = false } = {}) {
       if (prevNonCorps && dernierR) z += dernierR + R1 - 2.4 * (anneaux[0]?.e || 0.5);                 // deux anneaux qui se suivent : maillés l'un dans l'autre
       if (estAnneau05(e)) {          // perpendiculaire à l'anneau qui le précède (le dernier posé, le plus bas)
         const prec = out.length ? out.reduce((m, a) => (a.p[2] + a.R > m.p[2] + m.R ? a : m)) : null, nx = prec ? Math.abs(prec.n[0]) > 0.7 : false;
-        anneaux = anneaux.map(a => nx ? { ...a, p: [0, a.p[0], a.p[2]], n: [0, 1, 0] } : a);
+        const tourner = e.profil ? !nx : nx;                                   // « de profil » : un quart de tour de plus
+        anneaux = anneaux.map(a => tourner ? { ...a, p: [0, a.p[0], a.p[2]], n: [0, 1, 0] } : a);
         pose(anneaux, z);
       } else pose(tourne(anneaux, e.profil ? ang + 90 : ang), z);          // connecteur « de profil » : un quart de tour de plus
       dernierJ = e; dernierR = R1; premier = false; zJ = z; prevNonCorps = true; return; }
@@ -2764,11 +2773,13 @@ export function composerCompos({ compos, mousqueton = null, fermoirs = [], catal
   const GAP = 6;
   if (att) {
     // éventail autour du mousqueton : écart angulaire = (demi-largeurs + marge) / longueur de pendaison
-    const Lm = Math.max(20, subs.reduce((t, x) => t + x.long, 0) / K * 0.75);
-    const ang = [0]; for (let k = 1; k < K; k++) ang.push(ang[k - 1] + Math.min(0.9, ((subs[k - 1].y1 - subs[k - 1].yc) + (subs[k].yc - subs[k].y0) + GAP * 2) / Lm));
-    const mil = (ang[0] + ang[K - 1]) / 2;
-    subs.forEach((x, k) => { const th = -(ang[k] - mil), a = -th * 0.6;
-      const M = new THREE.Matrix4().makeTranslation(0, att.rayon * Math.sin(a), att.centre + att.rayon * Math.cos(a)).multiply(new THREE.Matrix4().makeRotationX(th)).multiply(new THREE.Matrix4().makeTranslation(0, -x.yc, -x.h));
+    // chaque porte-clés pend dans l'axe du rayon, sur tout le bas de l'anneau du mousqueton ; l'écart tient compte de la largeur de chaque
+    // porte-clés garni (breloques comprises) mesurée à mi-hauteur : ils ne se chevauchent pas, ni entre eux ni avec leurs breloques
+    const dist = x => att.rayon + Math.max(8, x.long * 0.45);
+    const ang = [0]; for (let k = 1; k < K; k++) ang.push(ang[k - 1] + ((subs[k - 1].y1 - subs[k - 1].yc) + (subs[k].yc - subs[k].y0) + GAP * 1.5) / ((dist(subs[k - 1]) + dist(subs[k])) / 2));
+    const mil = (ang[0] + ang[K - 1]) / 2, ouv = (ang[K - 1] - ang[0]) / 2, serre = ouv > 1.4 ? 1.4 / ouv : 1;
+    subs.forEach((x, k) => { const th = -(ang[k] - mil) * serre;
+      const M = new THREE.Matrix4().makeTranslation(0, 0, att.centre).multiply(new THREE.Matrix4().makeRotationX(th)).multiply(new THREE.Matrix4().makeTranslation(0, -x.yc, att.rayon - x.h));
       fusionner(cible, x.sub, M, j => x.c.indices[j]); });
   } else {                                                                  // porte-clés séparés : côte à côte
     const larg = subs.map(x => x.y1 - x.y0), tot = larg.reduce((t, w) => t + w, 0) + GAP * (K - 1);
@@ -3617,14 +3628,14 @@ export function composerBundle({ breloques, pieces = [], fermoirs = [], catalogu
   demiAngles.forEach((h, k) => thetas.push(k ? thetas[k - 1] + demiAngles[k - 1] + h + ECART : 0));
   const milieu = n ? (thetas[0] + thetas[n - 1]) / 2 : 0;
   const ouverture = n ? (thetas[n - 1] - thetas[0]) / 2 : 0;
-  const serre = ouverture > 1.25 ? 1.25 / ouverture : 1;   // beaucoup de breloques : l'éventail se resserre (elles se chevauchent un peu)
+  const serre = ouverture > 1.35 ? 1.35 / ouverture : 1;   // beaucoup de breloques : l'éventail se resserre (au-delà de ≈ ±75° sur le bas de l'anneau)
   const Ms = [];
   fan.forEach((i, k) => {
     // point de l'anneau (ou de l'œillet) où pend la breloque, et éventail pour qu'elles ne se chevauchent pas
-    const kk = k - (n - 1) / 2;
-    const a = n > 1 ? kk * Math.min(0.5, 1.2 / n) : 0;
-    const A = new THREE.Vector3(0, att.rayon * Math.sin(a), att.centre + att.rayon * Math.cos(a));
+    // chaque breloque pend dans l'axe du rayon, à son propre point de tout le bas de l'anneau (pas toutes au même point)
     const th = n > 1 && !(i === iMini && sur.some(Boolean)) ? -(thetas[k] - milieu) * serre : 0;
+    const a = n > 1 ? -th : 0;
+    const A = new THREE.Vector3(0, att.rayon * Math.sin(a), att.centre + att.rayon * Math.cos(a));
     const rotX = new THREE.Matrix4().makeRotationX(th);
     const local = new THREE.Vector3(0, 0, zAccs[i]).applyMatrix4(rotX);
     Ms[i] = new THREE.Matrix4().makeTranslation(A.x - local.x, A.y - local.y, A.z - local.z).multiply(rotX);

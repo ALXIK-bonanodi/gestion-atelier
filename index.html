@@ -4510,21 +4510,24 @@ function rendreC3(){
     corps=`<p class="dim c3-aide">Les modèles 3D proposés au client, dans chaque parcours (breloque seule / bundle). Un modèle se publie dans 🧊 Modèles.</p>`
       +(MODELES_3D.length?MODELES_3D.map(m=>c3Ligne(escA(m.nom||m.slug),c3Inter(vuM(m,'breloque'),`basculerModele('${escA(m.slug)}','breloque')`,'breloque seule')+c3Inter(vuM(m,'bundle'),`basculerModele('${escA(m.slug)}','bundle')`,'bundle + chaîne de sac'),{sous:m.publie?'':'non publié'})).join(''):'<p class="dim">Aucun modèle 3D enregistré (onglet 🧊 Modèles) : le configurateur montre les modèles d\'exemple.</p>')
       +(()=>{ // formes de la breloque chainmail = exactement celles du configurateur : croix, mini chains, tes compositions « breloque » (pas les chaînes, pas les BO)
-          const ficheDe=f=>{ const r=LIENS_3D['forme:'+f]; const b=r&&BIJS.find(x=>x.ref===r); return b?nomFiche3(b)+' · '+b.ref:'pas encore de fiche reliée'; };
+          const ficheDe=f=>{ const r=LIENS_3D['forme:'+f]; const b=r&&BIJS.find(x=>x.ref===r); return b?nomFiche3(b)+' · '+b.ref+(b.collection?' — '+b.collection:''):'pas encore de fiche reliée'; };
           const cps=COMPOS_3D.filter(c=>c.usage==='breloque'&&c.statut!=='brouillon');
-          const L=[...FORMES_3D.map(([f,nom])=>({k:'forme:'+f,nom,grp:/^mini/.test(f)?'Mini chain':'Formes',sous:ficheDe(f)})),...cps.map(c=>({k:'forme:compo-'+c.id,nom:c.nom,grp:/\bmini/i.test(c.nom||'')?'Mini chain':'Formes',sous:ficheDe('compo-'+c.id)}))];
+          const n3=c=>norm3(c.nom||''), estMC=c=>/mini ?cha/.test(n3(c));
+          // tes compositions remplacent les formes d'origine (comme dans le configurateur) : croix pampille → plus de « Croix » seule, etc.
+          const remplace={croix:cps.some(c=>/croix/.test(n3(c))||(c.motif||[]).some(e=>e&&e.f==='croix')),'mini-fleur-4':cps.some(c=>estMC(c)&&/fleur/.test(n3(c).replace(/mini ?cha\w*/,''))&&!/mini fleur/.test(n3(c).replace(/mini ?cha\w*/,''))),'mini-intercalaire-4':cps.some(c=>estMC(c)&&/intercal|altern/.test(n3(c)))};
+          const L=[...FORMES_3D.filter(([f])=>!remplace[f]).map(([f,nom])=>({k:'forme:'+f,nom,grp:/^mini/.test(f)?'Mini chain':'Formes',sous:ficheDe(f)})),...cps.map(c=>({k:'forme:compo-'+c.id,nom:c.nom,grp:estMC(c)?'Mini chain':'Formes',sous:ficheDe('compo-'+c.id)}))];
           return c3Liste('formes','⛓ Breloque chainmail · formes',L,{aide:'La croix, les mini chains et tes compositions « breloque » validées dans ⛓ Composer. Jamais les chaînes de sac ni les boucles d\'oreilles.'}); })()
       +`<p class="dim c3-aide">La fiche produit de chaque modèle / forme se relie dans 🔗 Références › Produits ↔ modèles 3D.</p>`;
   } else if(C3_ONGLET==='idees'){
-    const L=[...D.fam.flatMap(f=>[f.base,...f.vars].map(b=>({k:'idee:'+b.id,nom:b===f.base?(b.variante||'fiche de base'):(b.variante||b.nom||b.ref),sous:b.ref,grp:f.base.nom||f.base.ref,extra:c3Lien(b.id)}))),
+    const L=[...D.fam.flatMap(f=>[f.base,...f.vars].map(b=>({cat:b.collection||f.base.collection||'',k:'idee:'+b.id,nom:b===f.base?(b.variante||'fiche de base'):(b.variante||b.nom||b.ref),sous:b.ref,grp:f.base.nom||f.base.ref,extra:c3Lien(b.id)}))),
       ...altI.map(a=>({k:'idee:alt:'+a.id,nom:a.nom,sous:'alternative',grp:'⭐ Alternatives (créées dans le configurateur)',extra:c3Lien('alt:'+a.id)+`<button class="btn btn-xs btn-ghost" title="Renommer" onclick="renommerAlternative('${escA(a.id)}')">✎</button>`}))];
     corps=c3Liste('idees','💡 Idées de couleurs proposées',L,{aide:'Sous chaque modèle, les variantes de couleurs proposées en vignettes. Une idée retirée reste reconnue si la cliente choisit ces couleurs.'});
   } else if(C3_ONGLET==='bundles'){
-    const L=[...D.lotsBase.flatMap(b=>[b,...D.varsLot(b)].map(x=>({k:'idee:'+x.id,nom:x===b?(b.variante?'Lot · '+b.variante:'Lot de base'):'Variante · '+(x.variante||x.nom||x.ref),sous:x.ref,grp:b.nom||b.ref,extra:c3Lien(x.id,1)}))),
+    const L=[...D.lotsBase.flatMap(b=>[b,...D.varsLot(b)].map(x=>({cat:x.collection||b.collection||'',k:'idee:'+x.id,nom:x===b?(b.variante?'Lot · '+b.variante:'Lot de base'):'Variante · '+(x.variante||x.nom||x.ref),sous:x.ref,grp:b.nom||b.ref,extra:c3Lien(x.id,1)}))),
       ...altB.map(a=>({k:'idee:alt:'+a.id,nom:a.nom,sous:'créé dans le configurateur',grp:'⭐ Bundles créés dans le configurateur',extra:c3Lien('alt:'+a.id,1)+`<button class="btn btn-xs btn-ghost" title="Renommer" onclick="renommerAlternative('${escA(a.id)}')">✎</button>`}))];
     corps=c3Liste('bundles','🎁 Bundles tout prêts proposés',L,{aide:'Les porte-clés tout prêts (lots) et chacune de leurs variantes, en vignettes en haut de la page bundle.'});
   } else if(C3_ONGLET==='chaines'){
-    const L=D.chaines.flatMap(b=>[b,...D.varsCh(b)].filter(D.proposee).map(x=>({k:'idee:'+x.id,nom:x===b?'Fiche de base':(x.variante||x.nom||x.ref),sous:x.ref,grp:nomFiche3(b)})));
+    const L=D.chaines.flatMap(b=>[b,...D.varsCh(b)].filter(D.proposee).map(x=>({cat:x.collection||b.collection||'',k:'idee:'+x.id,nom:x===b?'Fiche de base':(x.variante||x.nom||x.ref),sous:x.ref,grp:nomFiche3(b)})));
     corps=c3Ligne('<b>3e parcours « Chaîne de sac »</b>',c3Inter(RUPTURES_3D.includes('activer:chaine'),'basculerChaine()'))
       +c3Liste('chaines','⛓ Chaînes de sac proposées',L,{aide:'Le motif 3D vient du nom de la fiche (8 mm, 10 mm, fleur, alternative). Les variantes collier / choker ne sont pas proposées.'});
   } else corps=renderOffres();
@@ -4536,8 +4539,8 @@ function rendreC3(){
 function c3Liste(id,titre,items,{aide='',vide='Rien d\'affiché pour l\'instant : ajoute une référence ci-dessous.'}={}){
   const vis=items.filter(x=>c3Vu(x.k)&&c3Filtre([x.nom,x.sous,x.grp].join(' '))), cach=items.filter(x=>!c3Vu(x.k));
   const groupes=[...new Set(vis.map(x=>x.grp||''))];
-  const ligne=x=>`<div class="c3l-r"><span class="nom">${escA(x.nom)}${x.sous?` <span class="dim">· ${escA(x.sous)}</span>`:''}</span>${x.extra||''}<button class="btn btn-xs btn-ghost" title="Ne plus proposer dans le configurateur" onclick="basculerCle('${escA(x.k)}')">🚫 Retirer</button></div>`;
-  const opts=[...new Set(cach.map(x=>x.grp||''))].map(g=>`<optgroup label="${escA(g||'Autres')}">${cach.filter(x=>(x.grp||'')===g).map(x=>`<option value="${escA(x.k)}">${escA(x.nom)}${x.sous?' · '+escA(x.sous):''}</option>`).join('')}</optgroup>`).join('');
+  const ligne=x=>`<div class="c3l-r"><span class="nom">${escA(x.nom)}${x.sous?` <span class="dim">· ${escA(x.sous)}</span>`:''}${x.cat?` <span class="badge" style="font-size:10px">${escA(x.cat)}</span>`:''}</span>${x.extra||''}<button class="btn btn-xs btn-ghost" title="Ne plus proposer dans le configurateur" onclick="basculerCle('${escA(x.k)}')">🚫 Retirer</button></div>`;
+  const opts=[...new Set(cach.map(x=>x.grp||''))].map(g=>`<optgroup label="${escA(g||'Autres')}">${cach.filter(x=>(x.grp||'')===g).map(x=>`<option value="${escA(x.k)}">${escA(x.nom)}${x.sous?' · '+escA(x.sous):''}${x.cat?' — '+escA(x.cat):''}</option>`).join('')}</optgroup>`).join('');
   return `<div class="c3l-sec"><h3>${titre} <span class="dim">${vis.length} affiché${vis.length>1?'s':''}${cach.length?' · '+cach.length+' masqué'+(cach.length>1?'s':''):''}</span></h3>${aide?`<p class="dim c3-aide" style="margin:0 0 4px">${aide}</p>`:''}
     ${groupes.map(g=>(g?`<div class="c3l-g">${escA(g)}</div>`:'')+vis.filter(x=>(x.grp||'')===g).map(ligne).join('')).join('')||`<p class="dim" style="font-size:12px;margin:4px 0">${vide}</p>`}
     <div class="c3l-aj">${cach.length?`<select id="aj-${id}"><option value="">＋ Afficher une référence masquée ou nouvelle…</option>${opts}</select><button class="btn btn-xs btn-p" onclick="const v=document.getElementById('aj-${id}').value;if(v)basculerCle(v)">Afficher</button>`:'<span class="dim" style="font-size:12px">Toutes les références sont affichées.</span>'}

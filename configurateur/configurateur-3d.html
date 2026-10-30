@@ -360,7 +360,10 @@ label.champ input:focus, label.champ textarea:focus { border-color: var(--prune)
 </head>
 <body>
 <main class="perso" id="page">
-  <div class="scene violet" id="scene">
+  <div class="scene" id="scene">
+    <script>/* fond choisi (gardé de la dernière visite) : appliqué tout de suite, pendant « Préparation des perles » */
+      (function () { var f = 'violet', l = 30; try { var v = JSON.parse(localStorage.getItem('bn-fond') || 'null'); if (v) { f = v.f || f; l = v.l || l; } } catch (e) {}
+        var el = document.getElementById('scene'); if (f !== 'creme') el.classList.add(f); if (+l === 100) el.classList.add('logo-plein'); })();</script>
     <div id="vue3d" aria-label="Aperçu 3D de ton bijou"></div>
     <div class="scene-charge" id="charge">Préparation des perles…</div>
     <div class="scene-aide">Fais-le tourner du bout du doigt</div>
@@ -503,7 +506,7 @@ import {
   correspondCategorie, texteCatalogue, ordreModeles, chargerRuptures, appliquerRuptures,
   chargerLiens, appliquerLiens, relierModele, chargerMateriauxParRefs,
   chargerFichesConfig, chargerOffres, definirLiensFormes, lienModele, appliquerLienModele, formeLiee, composerCompos, definirFichesConfig, ficheCfg, refsCouleurFiche, famillesFiche,
-} from './bead-core.js?v=e71d934f';
+} from './bead-core.js?v=a5160576';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER, PANIER_SHOPIFY } from './perles-config.js?v=e8e44d9a';
 
 const $ = s => document.querySelector(s);
@@ -549,6 +552,9 @@ const avecDelai = (promesse, ms = 12000) => Promise.race([promesse,
   new Promise((_, non) => setTimeout(() => non(new Error('la base ne répond pas (délai dépassé)')), ms))]);
 let alerteBase = '';
 window.__etape = 'lecture de la base (modèles, couleurs, bijoux)';
+function appliquerFond() { const ap = offresCfg?.apparence || {}, f = ({ jaune: 'creme' })[ap.fond] || ap.fond || 'violet', el = document.getElementById('scene');
+  el?.classList.remove('violet', 'vert', 'rose'); if (f !== 'creme') el?.classList.add(f); el?.classList.toggle('logo-plein', +ap.logo === 100);
+  try { localStorage.setItem('bn-fond', JSON.stringify({ f, l: +ap.logo === 100 ? 100 : 30 })); } catch {} }
 let modeles = [], catalogue = completerCatalogue(CATALOGUE_DEMO), fermoirs = FERMOIRS_DEMO, parties = null, bijoux = [], ruptures = [], liens = {}, fichesCfg = {}, offresCfg = null;
 if (sb && new URLSearchParams(location.search).has('apercu')) {
   try { const c = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); const { data } = await c.auth.getSession(); if (data?.session) sbAdmin = c; } catch { sbAdmin = null; }
@@ -562,7 +568,7 @@ if (sb) {
   ].map(x => avecDelai(x)));
   const [m, c, f, p, bj, rup, li, fc, of, cmp] = res;
   if (cmp.value?.length) definirCompositions(cmp.value);
-  if (of.value) offresCfg = of.value;
+  if (of.value) { offresCfg = of.value; appliquerFond(); }
   if (rup.value?.length) ruptures = rup.value;
   if (li.value) liens = li.value;
   if (fc.value) fichesCfg = fc.value;
@@ -727,8 +733,7 @@ const OFFRES = {
     .filter(x => x && x.active !== false && +x.seuil > 0 && +x.pct > 0).sort((a, b) => a.seuil - b.seuil),
 };
 // fond de l'aperçu 3D : violet avec le logo jaune (par défaut) ou crème avec le logo violet
-{ const ap = offresCfg?.apparence || {}, f = ({ jaune: 'creme' })[ap.fond] || ap.fond || 'violet', el = document.getElementById('scene');
-  el?.classList.remove('violet', 'vert', 'rose'); if (f !== 'creme') el?.classList.add(f); el?.classList.toggle('logo-plein', +ap.logo === 100); }
+appliquerFond();
 const palierPour = montant => [...OFFRES.paliers].reverse().find(x => montant >= x.seuil - 0.001) || null;
 const palierSuivant = montant => OFFRES.paliers.find(x => montant < x.seuil - 0.001) || null;
 const remisePalier = montant => { const p = palierPour(montant); return p ? { ...p, montant: Math.round(montant * p.pct) / 100 } : null; };
