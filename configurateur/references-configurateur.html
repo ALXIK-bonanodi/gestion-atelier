@@ -92,7 +92,7 @@ import {
   completerCatalogue, definirLiensFormes, catalogueChainmailDepuisBijoux, catalogueChaineDepuisBijoux, NOMS_CHAINE, completerModeleChainmail, modeleChaineSacDemo, estChaineSac, FORMES_CHAINMAIL, resoudreDefauts, couleursProposees, correspondCategorie, ordreModeles, estLettres, accrochesProposees,
   chargerLiens, enregistrerLiens, estExemple, exemplesParRef, apercuArgile, apercuChainmail, baseRef,
   appliquerLiens, relierModele, appliquerLienModele, definirLiensFixes, cleFixe, refFixe, catalogueDepuisMateriaux, perlesFixesDe, allureFixe, bijouBreloque, definirCompositions, elementDepuisNom,
-} from './bead-core.js?v=7681e739';
+} from './bead-core.js?v=0d637336';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './perles-config.js?v=e8e44d9a';
 
 const $ = s => document.querySelector(s);
@@ -215,7 +215,7 @@ const eur = v => (+v || 0).toFixed(2).replace('.', ',') + ' €';
 
 /* miniature 3D d'un élément (dossier composants/) : fermoirs, porte-clés, pampilles */
 const MINI_FERMOIR = f => !f ? '' : f.type === 'mousqueton' ? (f.taille >= 16 ? 'fermoir-breloque-grand-18mm' : 'fermoir-breloque-petit-12mm')
-  : f.type === 'anneau-ressort' ? (f.taille <= 12 ? 'fermoir-mini-rond-11mm' : 'fermoir-rond-15mm') : f.type === 'mousqueton-pivot' ? 'mousqueton-porte-cles' : '';
+  : f.type === 'anneau-ressort' ? (f.taille <= 12 ? 'fermoir-mini-rond-11mm' : 'fermoir-rond-15mm') : f.type === 'mousqueton-pivot' ? 'mousqueton-porte-cles' : f.type === 'fermoir-s' ? 'fermoir-s-14mm' : f.type === 'manille' ? 'manille-24mm' : '';
 const miniDe = (ref, d) => { const f = FERMOIRS_DEMO.find(x => x.ref === ref); if (f) return MINI_FERMOIR(f);
   if (d && /ronde-3|3 ?mm/.test(norm([d.perle, d.nom].join(' '))) && /pampille|metal/.test(norm([d.nom, d.categorie].join(' ')))) return 'pampille-3mm';
   if (d && /pampille|ronde-4/.test(norm([d.perle, d.nom].join(' ')))) return 'pampille-4mm';

@@ -753,11 +753,11 @@ export const FERMOIRS_DEMO = [
   { ref: '#MP-ex01', nom: 'Mousqueton porte-clés', type: 'mousqueton-pivot', taille: 34, metal: 'argent' },
 ];
 /* Rôle d'un fermoir : breloque (s'accroche au bijou) ou accroche de bundle (porte les breloques) */
-export const estAccroche = f => f && (f.type === 'anneau-ressort' || f.type === 'mousqueton-pivot' || f.type === 'anneau');
+export const estAccroche = f => f && (f.type === 'anneau-ressort' || f.type === 'mousqueton-pivot' || f.type === 'anneau' || f.type === 'manille');
 /* Tailles mesurées sur tes photos quand le libellé ne donne pas les mm */
 const TAILLES_CONNUES = { '#FB001': 12, '#FB002': 18 };
 
-const tailleDefaut = (type, t) => type === 'creole' ? 25 : type === 'creole-charniere' ? 12 : type === 'anneau-ressort' ? (/petit|mini/.test(t) ? 11 : 15)
+const tailleDefaut = (type, t) => type === 'fermoir-s' ? 14 : type === 'manille' ? 24 : type === 'creole' ? 25 : type === 'creole-charniere' ? 12 : type === 'anneau-ressort' ? (/petit|mini/.test(t) ? 11 : 15)
   : type === 'mousqueton-pivot' ? 34 : type === 'anneau' ? 25 : (/grand/.test(t) ? 18 : 12);
 /* Une ligne `materiaux` de fermoir -> { ref, nom, type, taille (mm), metal } (lu dans le libellé) */
 export function fermoirDepuisMateriau(l) {
@@ -768,6 +768,8 @@ export function fermoirDepuisMateriau(l) {
   const bo = /creole|huggie|charniere|oreille/.test(td) && !/crochet|clou|puce|dormeuse/.test(td);   // d'après la désignation seulement : une sous-catégorie « … boucles d'oreilles » ne doit pas changer tes fermoirs de breloque
   // « boucle d'oreille créole 25 mm » = créole à tige et boule ; « boucle d'oreille 12 mm » = anneau fermé (la sous-catégorie « Tiges & Boucles » ne compte pas)
   const type = bo ? (/creole|boule/.test(td) && !/charni|huggie|clic/.test(td) ? 'creole' : 'creole-charniere')
+    : /manille/.test(tn) ? 'manille'
+    : /fermoir (en )?s\b|\bcrochet s\b|\bs hook\b/.test(tn) ? 'fermoir-s'
     : /breloque/.test(t) ? 'mousqueton'
     : /rond|ressort|marin|spring/.test(t) ? 'anneau-ressort'
     : /pivot|porte.?cl|snap/.test(t) && /mousq/.test(t) ? 'mousqueton-pivot'
@@ -780,7 +782,7 @@ export function fermoirDepuisMateriau(l) {
     type,
     taille: mm ? parseFloat(mm[1].replace(',', '.')) : TAILLES_CONNUES[l.ref] ?? tailleDefaut(type, t), tailleLue: !!mm, metal,
     // type vraiment reconnu d'après le nom (un « fermoir S », « fermoir magnétique »… n'a pas encore de modèle 3D : il tombe sinon sur « mousqueton »)
-    typeReconnu: bo || /breloque|mousqueton|rond|ressort|marin|spring|pivot|porte.?cl|anneau/.test(t),
+    typeReconnu: bo || /breloque|mousqueton|rond|ressort|marin|spring|pivot|porte.?cl|anneau|manille/.test(t) || /fermoir (en )?s\b/.test(tn),
     prix: l.prix != null ? parseFloat(l.prix) : null, stock: l.qty ?? null,
     enStock: l.qty == null ? true : l.qty > 0,
   };
@@ -1602,12 +1604,15 @@ function geosCreole(type, D) {
   // tige : dans la continuité de l'arc, tout droit (tangente au bout de l'arc), elle passe dans l'oreille ; poussoir papillon vers son bout
   const pT = pt(a0), dir = new THREE.Vector3(0, -Math.cos(a0), Math.sin(a0)).normalize(), L = 10;
   const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
-  const tige = new THREE.CylinderGeometry(r, r, L, 12); tige.applyQuaternion(q); tige.translate(...pT.clone().add(dir.clone().multiplyScalar(L / 2)).toArray()); geos.push(tige);
-  const bout = new THREE.SphereGeometry(r, 10, 8); bout.translate(...pT.clone().add(dir.clone().multiplyScalar(L)).toArray()); geos.push(bout);
-  // fermoir : poussoir bouton (petit cylindre arrondi) enfilé sur la tige, près du bout — à la place du papillon
-  const pP = pT.clone().add(dir.clone().multiplyScalar(L * 0.7));
-  const pous = new THREE.CapsuleGeometry ? new THREE.CapsuleGeometry(1.05, 1.6, 6, 18) : new THREE.CylinderGeometry(1.05, 1.05, 2.6, 18);
-  pous.applyQuaternion(q); pous.translate(...pP.toArray()); geos.push(pous);
+  const rt = r * 0.7;                                       // la partie droite (dans l'oreille) est un peu plus fine que l'arc
+  const tige = new THREE.CylinderGeometry(rt, r, L, 12); tige.applyQuaternion(q); tige.translate(...pT.clone().add(dir.clone().multiplyScalar(L / 2)).toArray()); geos.push(tige);
+  const bout = new THREE.SphereGeometry(rt, 10, 8); bout.translate(...pT.clone().add(dir.clone().multiplyScalar(L)).toArray()); geos.push(bout);
+  // fermoir : poussoir papillon (comme la version d'avant) vers le bout de la tige
+  const pP = pT.clone().add(dir.clone().multiplyScalar(L * 0.72));
+  const disque = new THREE.CylinderGeometry(1.4, 1.4, 0.5, 20); disque.applyQuaternion(q); disque.translate(...pP.toArray()); geos.push(disque);
+  const lat = new THREE.Vector3(1, 0, 0);
+  for (const s of [-1, 1]) {                               // deux boucles de part et d'autre de la tige
+    const g = new THREE.TorusGeometry(1.1, 0.3, 10, 24); g.applyQuaternion(q); g.translate(...pP.clone().add(dir.clone().multiplyScalar(0.6)).add(lat.clone().multiplyScalar(s * 1.1)).toArray()); geos.push(g); }
   return geos;
 }
 function geosAccessoire(type, taille = 12) {
@@ -1633,12 +1638,46 @@ function geosAccessoire(type, taille = 12) {
   } else if (type === 'anneau-ressort') {                 // fermoir rond (comme pour le bundle) : la breloque pend à son œillet du bas
     const r = geosAnneauRessort(taille || 15), dz = -0.2 - r.attache.centre;
     for (const g of r.geos) { const c = g.clone(); c.translate(0, 0, dz); geos.push(c); }
+  } else if (type === 'fermoir-s') {                     // fermoir S (fil plié), la pièce pend à la boucle du bas
+    geos.push(...geosFermoirS(taille || 14));
+  } else if (type === 'manille') {                       // manille (porte-clés) : la breloque pend au bas de l'arceau
+    geos.push(...geosManille(taille || 24));
   } else if (type === 'anneau') {
     const R = Math.max(7.5, taille / 2);
     geos.push(new THREE.TubeGeometry(new Helice(R, -R + 0.2), 160, 0.45, 8, false));
   }
   cacheAcc.set(cle, geos);
   return geos;
+}
+/* Fermoir S, hauteur H (≈ 14 mm sur ta photo, comme le petit fermoir breloque) : fil ≈ 0,09 H, deux boucles en goutte,
+   largeur ≈ 0,6 H. Plan YZ, bas de la boucle du bas à l'origine, le S monte vers -Z. */
+function geosFermoirS(H) {
+  const ay = H / 4, ax = 0.29 * H, r = Math.max(0.3, 0.045 * H), pts = [];
+  for (let k = 0; k <= 40; k++) { const t = -0.62 * Math.PI + (1.37 * Math.PI) * k / 40; pts.push(new THREE.Vector3(0, ax * Math.sin(t), -ay + ay * Math.cos(t) - r)); }      // boucle du bas
+  for (let k = 0; k <= 40; k++) { const t = -0.75 * Math.PI + (1.37 * Math.PI) * k / 40; pts.push(new THREE.Vector3(0, ax * Math.sin(t), -3 * ay - ay * Math.cos(t) - r)); }  // boucle du haut : le fil traverse en diagonale
+  const c = new THREE.CatmullRomCurve3(pts);
+  const g = [new THREE.TubeGeometry(c, 160, r, 10, false)];
+  for (const p of [pts[0], pts[pts.length - 1]]) { const e = new THREE.SphereGeometry(r, 10, 8); e.translate(...p.toArray()); g.push(e); }
+  return g;
+}
+/* Manille, hauteur H (≈ 24 mm sur ta photo à côté du mousqueton porte-clés de 34 mm) : arceau en U (fil ≈ 0,16 H, ouverture ≈ 0,54 H),
+   deux oreilles en haut, axe vissé avec sa patte percée d'un côté. Plan YZ, bas de l'arceau à l'origine, vers -Z. */
+function geosManille(H) {
+  const r = 0.08 * H, w = 0.35 * H, hJ = 0.86 * H - r, g = [];
+  // arceau en lyre (comme ta photo) : oreilles resserrées en haut, ventre plus large, fond arrondi (point le plus bas à z = -r)
+  const P = [[-0.29, -0.86], [-0.345, -0.66], [-0.36, -0.48]];
+  for (let d = 180; d > 90; d -= 10) { const a = d * Math.PI / 180; P.push([0.36 * Math.cos(a), -0.36 + 0.36 * Math.sin(a)]); }
+  P.push([0, 0]);
+  const pts = [...P, ...P.slice(0, -1).reverse().map(([y, z]) => [-y, z])].map(([y, z]) => new THREE.Vector3(0, y * H, z * H - r));
+  g.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 120, r, 14, false));
+  const yE = 0.29 * H, zP = -0.86 * H - r;
+  for (const s of [-1, 1]) { const o = new THREE.TorusGeometry(r * 1.05, r * 0.85, 12, 24); o.rotateX(Math.PI / 2); o.translate(0, s * yE, zP); g.push(o); }   // oreilles (axe selon Y)
+  const ax = new THREE.CylinderGeometry(0.06 * H, 0.06 * H, 2 * yE + 0.12 * H, 16); ax.translate(0, 0.03 * H, zP); g.push(ax);                       // axe (selon Y)
+  const tete = new THREE.SphereGeometry(0.075 * H, 14, 10); tete.scale(0.6, 1, 1); tete.translate(0, -yE - 0.04 * H, zP); g.push(tete);
+  const bague = new THREE.TorusGeometry(0.075 * H, 0.025 * H, 8, 20); bague.rotateX(Math.PI / 2); bague.translate(0, yE + 0.09 * H, zP); g.push(bague);
+  const patte = new THREE.BoxGeometry(0.05 * H, 0.16 * H, 0.17 * H); patte.translate(0, yE + 0.2 * H, zP); g.push(patte);                          // patte percée
+  const trou = new THREE.TorusGeometry(0.035 * H, 0.012 * H, 6, 16); trou.rotateY(Math.PI / 2); trou.translate(0.026 * H, yE + 0.21 * H, zP); g.push(trou);
+  return g;
 }
 /* Fermoir rond à ressort (anneau marin), diamètre extérieur D (mm), proportions relevées sur ta photo :
    tube ≈ 0,1 D, trou ≈ 0,58 D, petits œillets ≈ 3 mm. Plan YZ, bas de l'anneau à l'origine.

@@ -220,7 +220,7 @@ aside > *, .etape .corps > *, .seq-l, .seq-l .t { min-width: 0; }
 <script type="module">
 import { ScenePerles, cleFixe, fermoirDepuisMateriau, assemblerComposition, decompteComposition, definirCompositions, elementChainmail, nomElementChainmail, estCorpsChainmail,
   elementDepuisNom, piecesComposition, connecteurEntre, modeleChaineSacDemo, modeleChainmailDemo, catalogueChaineDepuisBijoux, catalogueChainmailDepuisBijoux,
-  definirLiensFormes, NOMS_CHAINE, FORMES_CHAINMAIL, CATALOGUE_DEMO, formeChaine, estBrouillon } from './bead-core.js?v=7681e739';
+  definirLiensFormes, NOMS_CHAINE, FORMES_CHAINMAIL, CATALOGUE_DEMO, formeChaine, estBrouillon } from './bead-core.js?v=0d637336';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure } from './perles-config.js?v=e8e44d9a';
 
 const $ = s => document.querySelector(s);
@@ -336,7 +336,8 @@ const estBreloque = () => compo.usage === 'breloque' || compo.usage === 'bo';
 // attaches modélisées : boucles d'oreilles (d'après ta photo) et fermoirs de breloque ; « autre » = une réf. de ta base (son type 3D vient de son nom)
 const ATTACHES_BO = [['creole@25', 'Boucle d\'oreille créole à tige et boule 25 mm', 'creole', 25], ['creole-charniere@12', 'Boucle d\'oreille anneau fermé 12 mm', 'creole-charniere', 12]];
 const ATTACHES_BRELOQUE = [['mousqueton@12', 'Fermoir breloque petit', 'mousqueton', 12, '#FB001'], ['mousqueton@18', 'Fermoir breloque grand', 'mousqueton', 18, '#FB002'],
-  ['mousqueton-pivot@34', 'Mousqueton (porte-clés)', 'mousqueton-pivot', 34, '#MP-ex01'], ['anneau-ressort@15', 'Fermoir rond', 'anneau-ressort', 15, '#FR-ex01'], ['anneau-ressort@11', 'Fermoir mini rond', 'anneau-ressort', 11, '#FR-ex02']];
+  ['mousqueton-pivot@34', 'Mousqueton (porte-clés)', 'mousqueton-pivot', 34, '#MP-ex01'], ['anneau-ressort@15', 'Fermoir rond', 'anneau-ressort', 15, '#FR-ex01'], ['anneau-ressort@11', 'Fermoir mini rond', 'anneau-ressort', 11, '#FR-ex02'],
+  ['fermoir-s@14', 'Fermoir S', 'fermoir-s', 14, null], ['manille@24', 'Manille', 'manille', 24, null]];
 const attacheDefaut = () => compo.usage === 'bo' ? { type: 'creole', taille: 25 } : { type: 'mousqueton', taille: 12 };
 const attacheDeMat = m => { const f = fermoirDepuisMateriau(m); return { ref: m.ref, type: f.type === 'anneau' ? 'mousqueton' : f.type, taille: f.taille }; };
 // réf. de l'attache : la tienne, sinon celle reliée à l'exemple dans 🔗 Références (petit / grand fermoir, mousqueton, rond)
