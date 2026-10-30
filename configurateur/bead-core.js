@@ -1597,22 +1597,23 @@ function geosCreole(type, D) {
     const ax = new THREE.CylinderGeometry(fin * 0.9, fin * 0.9, r * 2.6, 12); ax.rotateZ(Math.PI / 2); ax.translate(...pt(aA).toArray()); geos.push(ax);  // axe de la charnière
     return geos;
   }
-  const a0 = Math.PI * 1.30, a1 = Math.PI * 2.78;        // ouverte en haut (≈ 95°, comme ta photo) : boule d'un côté, tige de l'autre
+  // comme ta photo : cercle presque complet (≈ 300°), la tige part en haut, tout droit dans le prolongement de l'arc,
+  // la boule ferme l'autre bout ≈ 60° plus loin ; la breloque pend en bas (z = 0) ; papillon tout près de l'anneau
+  const a0 = Math.PI, a1 = -Math.PI * 2 / 3;
   const courbe = new THREE.Curve(); courbe.getPoint = u => pt(a0 + (a1 - a0) * u);
-  geos.push(new THREE.TubeGeometry(courbe, 96, r, 12, false));
-  const boule = new THREE.SphereGeometry(1.0, 20, 16); boule.translate(...pt(a1).toArray()); geos.push(boule);
-  // tige : dans la continuité de l'arc, tout droit (tangente au bout de l'arc), elle passe dans l'oreille ; poussoir papillon vers son bout
-  const pT = pt(a0), dir = new THREE.Vector3(0, -Math.cos(a0), Math.sin(a0)).normalize(), L = 10;
+  geos.push(new THREE.TubeGeometry(courbe, 120, r, 12, false));
+  const boule = new THREE.SphereGeometry(Math.max(1.0, r * 2.6), 20, 16); boule.translate(...pt(a1).toArray()); geos.push(boule);
+  const pT = pt(a0), dir = new THREE.Vector3(0, -1, 0), L = Math.max(8, D * 0.45);          // tangente en haut : horizontale
   const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
-  const rt = r * 0.7;                                       // la partie droite (dans l'oreille) est un peu plus fine que l'arc
+  const rt = r * 0.7;                                       // la partie droite (dans l'oreille) est plus fine que l'arc
   const tige = new THREE.CylinderGeometry(rt, r, L, 12); tige.applyQuaternion(q); tige.translate(...pT.clone().add(dir.clone().multiplyScalar(L / 2)).toArray()); geos.push(tige);
   const bout = new THREE.SphereGeometry(rt, 10, 8); bout.translate(...pT.clone().add(dir.clone().multiplyScalar(L)).toArray()); geos.push(bout);
-  // fermoir : poussoir papillon (comme la version d'avant) vers le bout de la tige
-  const pP = pT.clone().add(dir.clone().multiplyScalar(L * 0.72));
-  const disque = new THREE.CylinderGeometry(1.4, 1.4, 0.5, 20); disque.applyQuaternion(q); disque.translate(...pP.toArray()); geos.push(disque);
-  const lat = new THREE.Vector3(1, 0, 0);
-  for (const s of [-1, 1]) {                               // deux boucles de part et d'autre de la tige
-    const g = new THREE.TorusGeometry(1.1, 0.3, 10, 24); g.applyQuaternion(q); g.translate(...pP.clone().add(dir.clone().multiplyScalar(0.6)).add(lat.clone().multiplyScalar(s * 1.1)).toArray()); geos.push(g); }
+  // poussoir papillon : plaquette et deux boucles roulées vers l'anneau, à ≈ 1/3 de la tige
+  const pP = pT.clone().add(dir.clone().multiplyScalar(L * 0.32));
+  const disque = new THREE.CylinderGeometry(1.5, 1.5, 0.45, 22); disque.applyQuaternion(q); disque.translate(...pP.toArray()); geos.push(disque);
+  for (const s of [-1, 1]) {
+    const g = new THREE.TorusGeometry(0.85, 0.32, 10, 24, Math.PI * 1.6); g.rotateZ(Math.PI * 0.7); g.rotateY(Math.PI / 2);
+    g.translate(...pP.clone().add(dir.clone().multiplyScalar(-0.75)).add(new THREE.Vector3(0, 0, s * 0.85)).toArray()); geos.push(g); }
   return geos;
 }
 function geosAccessoire(type, taille = 12) {
@@ -1652,31 +1653,36 @@ function geosAccessoire(type, taille = 12) {
 /* Fermoir S, hauteur H (≈ 14 mm sur ta photo, comme le petit fermoir breloque) : fil ≈ 0,09 H, deux boucles en goutte,
    largeur ≈ 0,6 H. Plan YZ, bas de la boucle du bas à l'origine, le S monte vers -Z. */
 function geosFermoirS(H) {
-  const ay = H / 4, ax = 0.29 * H, r = Math.max(0.3, 0.045 * H), pts = [];
-  for (let k = 0; k <= 40; k++) { const t = -0.62 * Math.PI + (1.37 * Math.PI) * k / 40; pts.push(new THREE.Vector3(0, ax * Math.sin(t), -ay + ay * Math.cos(t) - r)); }      // boucle du bas
-  for (let k = 0; k <= 40; k++) { const t = -0.75 * Math.PI + (1.37 * Math.PI) * k / 40; pts.push(new THREE.Vector3(0, ax * Math.sin(t), -3 * ay - ay * Math.cos(t) - r)); }  // boucle du haut : le fil traverse en diagonale
-  const c = new THREE.CatmullRomCurve3(pts);
-  const g = [new THREE.TubeGeometry(c, 160, r, 10, false)];
-  for (const p of [pts[0], pts[pts.length - 1]]) { const e = new THREE.SphereGeometry(r, 10, 8); e.translate(...p.toArray()); g.push(e); }
+  // d'après tes photos : deux boucles en goutte allongées (côtés presque droits, pointe vers le milieu), reliées par une diagonale droite ;
+  // le bout de la boucle du haut est rentré contre la diagonale, celui du bas reste ouvert et s'écarte un peu (là où passe la pièce)
+  const W = 0.52 * H, r = Math.max(0.28, 0.038 * H);
+  const P = [[0.05, 0.525], [0.24, 0.61], [0.40, 0.72], [0.45, 0.83], [0.36, 0.955], [0.12, 1.0], [-0.22, 0.97], [-0.40, 0.88], [-0.42, 0.76], [-0.30, 0.65], [-0.12, 0.56],
+    [0.12, 0.44], [0.30, 0.35], [0.42, 0.24], [0.40, 0.10], [0.22, 0.015], [-0.05, 0.0], [-0.30, 0.03], [-0.44, 0.12], [-0.45, 0.24], [-0.38, 0.35], [-0.30, 0.41]];
+  const c = new THREE.CatmullRomCurve3(P.map(([y, h]) => new THREE.Vector3(0, y * W, -h * H)), false, 'centripetal');
+  const g = [new THREE.TubeGeometry(c, 220, r, 10, false)];
+  for (const [y, h] of [P[0], P[P.length - 1]]) { const e = new THREE.SphereGeometry(r * 1.05, 10, 8); e.translate(0, y * W, -h * H); g.push(e); }
   return g;
 }
 /* Manille, hauteur H (≈ 24 mm sur ta photo à côté du mousqueton porte-clés de 34 mm) : arceau en U (fil ≈ 0,16 H, ouverture ≈ 0,54 H),
    deux oreilles en haut, axe vissé avec sa patte percée d'un côté. Plan YZ, bas de l'arceau à l'origine, vers -Z. */
 function geosManille(H) {
-  const r = 0.08 * H, w = 0.35 * H, hJ = 0.86 * H - r, g = [];
-  // arceau en lyre (comme ta photo) : oreilles resserrées en haut, ventre plus large, fond arrondi (point le plus bas à z = -r)
-  const P = [[-0.29, -0.86], [-0.345, -0.66], [-0.36, -0.48]];
-  for (let d = 180; d > 90; d -= 10) { const a = d * Math.PI / 180; P.push([0.36 * Math.cos(a), -0.36 + 0.36 * Math.sin(a)]); }
-  P.push([0, 0]);
-  const pts = [...P, ...P.slice(0, -1).reverse().map(([y, z]) => [-y, z])].map(([y, z]) => new THREE.Vector3(0, y * H, z * H - r));
-  g.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 120, r, 14, false));
-  const yE = 0.29 * H, zP = -0.86 * H - r;
-  for (const s of [-1, 1]) { const o = new THREE.TorusGeometry(r * 1.05, r * 0.85, 12, 24); o.rotateX(Math.PI / 2); o.translate(0, s * yE, zP); g.push(o); }   // oreilles (axe selon Y)
-  const ax = new THREE.CylinderGeometry(0.06 * H, 0.06 * H, 2 * yE + 0.12 * H, 16); ax.translate(0, 0.03 * H, zP); g.push(ax);                       // axe (selon Y)
-  const tete = new THREE.SphereGeometry(0.075 * H, 14, 10); tete.scale(0.6, 1, 1); tete.translate(0, -yE - 0.04 * H, zP); g.push(tete);
-  const bague = new THREE.TorusGeometry(0.075 * H, 0.025 * H, 8, 20); bague.rotateX(Math.PI / 2); bague.translate(0, yE + 0.09 * H, zP); g.push(bague);
-  const patte = new THREE.BoxGeometry(0.05 * H, 0.16 * H, 0.17 * H); patte.translate(0, yE + 0.2 * H, zP); g.push(patte);                          // patte percée
-  const trou = new THREE.TorusGeometry(0.035 * H, 0.012 * H, 6, 16); trou.rotateY(Math.PI / 2); trou.translate(0.026 * H, yE + 0.21 * H, zP); g.push(trou);
+  // d'après tes photos : arceau en fer à cheval (côtés presque droits, un peu bombés, fond en demi-cercle), plus haut que large,
+  // deux oreilles épaisses en haut traversées par l'axe : tête bombée d'un côté, bague + patte percée de l'autre
+  const W = H / 1.95, r = 0.095 * W, Rs = 0.74 * W, hC = r + Rs, hT = H - 0.12 * W, g = [];
+  // arceau en oméga : col resserré sous chaque oreille, puis ventre rond plus large que l'écart des oreilles
+  const cote = [[0.5, hT], [0.455, hT - 0.12 * W], [0.56, hT - 0.32 * W], [0.69, hC + 0.3 * W], [Rs / W, hC]].map(([y, h]) => [y * W, h]);
+  const pts = [], pt = (y, h) => pts.push(new THREE.Vector3(0, y, -h));
+  cote.forEach(([y, h]) => pt(-y, h));
+  for (let k = 1; k < 26; k++) { const a = Math.PI * k / 26; pt(-Rs * Math.cos(a), hC - Rs * Math.sin(a)); }
+  [...cote].reverse().forEach(([y, h]) => pt(y, h));
+  g.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, false, 'centripetal'), 160, r, 16, false));
+  const zP = -hT, yE = 0.5 * W;
+  for (const sg of [-1, 1]) { const o = new THREE.SphereGeometry(1, 22, 16); o.scale(0.2 * W, 0.11 * W, 0.2 * W); o.translate(0, sg * yE, zP); g.push(o); }   // oreilles : gros œillets ronds
+  const ax = new THREE.CylinderGeometry(0.075 * W, 0.075 * W, 2 * yE + 0.2 * W, 16); ax.translate(0, 0.08 * W, zP); g.push(ax);                          // axe (selon Y), affleurant à gauche
+  const bout = new THREE.CylinderGeometry(0.08 * W, 0.08 * W, 0.02 * W, 16); bout.translate(0, -yE - 0.11 * W, zP); g.push(bout);
+  const bague = new THREE.TorusGeometry(0.1 * W, 0.035 * W, 8, 20); bague.rotateX(Math.PI / 2); bague.translate(0, yE + 0.15 * W, zP); g.push(bague);       // rondelle
+  const patte = new THREE.BoxGeometry(0.05 * W, 0.26 * W, 0.2 * W); patte.translate(0, yE + 0.3 * W, zP); g.push(patte);                                // patte plate percée
+  const trou = new THREE.TorusGeometry(0.045 * W, 0.015 * W, 6, 16); trou.rotateY(Math.PI / 2); trou.translate(0.028 * W, yE + 0.34 * W, zP); g.push(trou);
   return g;
 }
 /* Fermoir rond à ressort (anneau marin), diamètre extérieur D (mm), proportions relevées sur ta photo :
@@ -2225,7 +2231,7 @@ export function nomElementChainmail(x) {
   if (e.k === 'conn') return (e.nb === 1 ? 'Anneau solo' : `Connecteur (${e.nb || 2})`) + ' · ' + ((e.taille || 8) === 10 ? '10 mm' : '8 mm');
   if (e.k === 'pampille') return 'Pampille ' + (e.taille || 4) + ' mm';
   if (e.k === 'petit') return 'Petit anneau 0,5 mm';
-  if (e.k === 'anneau05') return (e.nb === 2 ? 'Double anneau' : 'Anneau') + ' 0,5 mm';
+  if (e.k === 'anneau05') return (e.nb === 2 ? 'Double petit anneau' : 'Petit anneau') + ' 5 mm';
   if (e.k === 'compo') return 'Élément · ' + (COMPOS[e.id]?.nom || 'composition');
   if (e.k === 'fermoir-10') return 'Fermoir 10 mm';
   if (e.k === 'forme') return 'Forme · ' + (FORMES_CHAINMAIL[e.f]?.nom || e.f);
@@ -2297,7 +2303,7 @@ export function elementDepuisNom(texte) {
     return { k: 'double', taille: dix ? 10 : 8, conn: dix ? 2 : (/altern|intercal/.test(t) || nbP === '2') ? 2 : 3, n: Math.max(1, Math.round(nbN / 2)) };
   if (/mini[ -]?cha|croix|chaine|chaîne|collier|choker|chocker|breloque|bracelet|porte|boucle|\bbo\b|sac/.test(t)) return null;          // un produit, pas un élément
   if (/pampille/.test(t) && !/fleur|petale|noeud|double|4 ?x ?4|connecteur/.test(t)) return { k: 'pampille', taille: /\b3 ?mm\b/.test(t) ? 3 : 4 };
-  if (/petit anneau|0[,.]5 ?mm/.test(t)) return { k: 'petit' };
+  if (/petit anneau|0[,.]5 ?mm|anneau\s*(de\s*)?5\s*mm|\b5\s*mm\b.*anneau/.test(t)) return { k: 'anneau05', nb: /double|\b2 anneaux/.test(t) ? 2 : 1 };   // petit anneau de 5 mm (fil 0,5) : celui de la pampille
   if (/fermoir/.test(t) && dix) return { k: 'fermoir-10' };
   if (/fleur|petale/.test(t)) return { k: 'fleur', petales: /sans petale/.test(t) ? 0 : /1 petale|un petale/.test(t) ? 'haut' : 2, ...(/mini/.test(t) ? { coeur: 10, petale: '8x2' } : {}) };
   if (/byzant/.test(t) && !/4 ?x ?4|noeud/.test(t)) return null;                                     // « double byzantine … » = une chaîne, pas un élément
@@ -2320,13 +2326,15 @@ export function sequenceComposition(c, { detail = false } = {}) {
   const ok = e => e.k && !['pampille', 'petit', 'fermoir-10'].includes(e.k);
   const motif = (c.motif || []).map(elementChainmail).filter(ok);
   const nb = detail ? Math.min(Math.max(1, c.nb | 0), motif.length > 2 ? 1 : 2) : Math.max(1, c.nb | 0);
+  // milieu : jusqu'à 3 motifs différents, chacun répété (motif 1 = motif / nb ; motifs 2 et 3 = parties)
+  const parts = [{ m: motif, n: nb }, ...(detail ? [] : (c.parties || []).map(x => ({ m: (x.motif || []).map(elementChainmail).filter(ok), n: Math.max(1, x.nb | 0) })))].filter(x => x.m.length);
   // début et fin : une liste d'éléments (le motif central ne se répète pas forcément jusqu'au bout) ; ancienne forme : un seul élément
   const liste = x => (Array.isArray(x) ? x : x && typeof x === 'object' ? [x] : []).map(elementChainmail).filter(ok);
   const debutL = liste(c.debut), finL = detail ? [] : [...liste(c.fin), ...liste(c.finEl)];
   const demi = !detail && !!c.demi, fin = detail ? 'motif' : typeof c.fin === 'string' ? c.fin : (c.fin && typeof c.fin === 'object') ? 'element' : 'motif';
   const brut = [...debutL.map(e => ({ ...e }))];
-  for (let r = 0; r < nb; r++) motif.forEach((e, i) => { const dernier = r === nb - 1 && i === motif.length - 1;
-    if (!estCorpsChainmail(e) && dernier && (fin !== 'motif' || finL[0]?.k === 'conn') && !demi) return; brut.push({ ...e }); });
+  parts.forEach((P, pi) => { for (let r = 0; r < P.n; r++) P.m.forEach((e, i) => { const dernier = pi === parts.length - 1 && r === P.n - 1 && i === P.m.length - 1;
+    if (!estCorpsChainmail(e) && dernier && (fin !== 'motif' || finL[0]?.k === 'conn') && !demi) return; brut.push({ ...e }); }); });
   if (demi) { const e1 = motif.find(e => e.k === 'double' || e.k === 'fleur'); if (e1) brut.push({ k: 'noeud', taille: e1.k === 'fleur' ? 8 : e1.taille || 8, demi: true, fiche: null }); }
   brut.push(...finL.map(e => ({ ...e })));
   const seq = [];
@@ -2361,7 +2369,7 @@ export function assemblerComposition(c, { detail = false } = {}) {
         const prec = out.length ? out.reduce((m, a) => (a.p[2] + a.R > m.p[2] + m.R ? a : m)) : null, nx = prec ? Math.abs(prec.n[0]) > 0.7 : false;
         anneaux = anneaux.map(a => nx ? { ...a, p: [0, a.p[0], a.p[2]], n: [0, 1, 0] } : a);
         pose(anneaux, z);
-      } else pose(tourne(anneaux, ang), z);
+      } else pose(tourne(anneaux, e.profil ? ang + 90 : ang), z);          // connecteur « de profil » : un quart de tour de plus
       dernierJ = e; dernierR = R1; premier = false; zJ = z; prevNonCorps = true; return; }
     prevNonCorps = false;
     if (e.profil) ang = (ang + 90) % 180; else ang = 0;
@@ -2377,7 +2385,11 @@ export function assemblerComposition(c, { detail = false } = {}) {
     const { anneaux, T } = anneauxElement(e), dA = premier && !dernierJ ? T / 2 : demiPas(e, dernierJ || suivant), dB = demiPas(e, (seq[i + 1] && !estCorpsChainmail(seq[i + 1])) ? seq[i + 1] : dernierJ);
     pose(tourne(anneaux, ang), z + dA - T / 2); z += dA + dB; premier = false; dernierR = 0;
   });
-  if (c.pampille) out.push({ p: [0, 0, +(z + (dernierR || ANNEAU_8.R) + PETIT_ANNEAU.R * 0.45).toFixed(3)], n: [0, 1, 0], R: PETIT_ANNEAU.R, e: PETIT_ANNEAU.e });
+  if (c.pampille && out.length) {        // petit anneau de la pampille : passé dans le dernier anneau (le plus bas, sur l'axe), perpendiculaire à lui
+    const gros = out.filter(a => a.R > 2.5), zMax = Math.max(...gros.map(a => a.p[2] + a.R)), basL = gros.filter(a => a.p[2] + a.R > zMax - 0.6), bas = basL[0] || out[out.length - 1];
+    const cx = basL.reduce((t, a) => t + a.p[0], 0) / (basL.length || 1), cy = basL.reduce((t, a) => t + a.p[1], 0) / (basL.length || 1);   // au milieu des anneaux du bas (une paire passe dedans)
+    out.push({ p: [+cx.toFixed(3), +cy.toFixed(3), +(zMax - bas.e + PETIT_ANNEAU.R - PETIT_ANNEAU.e).toFixed(3)], n: Math.abs(bas.n[0]) > 0.7 ? [0, 1, 0] : [1, 0, 0], R: PETIT_ANNEAU.R, e: PETIT_ANNEAU.e });
+  }
   // bouts d'une chaîne en collier / choker : fermoir 10 mm (1 – 2 – 2 anneaux) d'un côté, rallonge de 6 anneaux de 10 mm de l'autre
   if (!detail && c.usage !== 'breloque' && c.usage !== 'bo' && c.bouts === 'fermoir-10' && out.length) {
     const { R, e } = ANNEAU_10, pas = 2 * R - 2.6 * e, z0 = Math.min(...out.map(a => a.p[2])), z1 = Math.max(...out.map(a => a.p[2]));
@@ -2398,8 +2410,8 @@ export function piecesComposition(c) {
   return [...m.values()];
 }
 export function decompteComposition(A) {
-  const t = { '10 mm': 0, '8 mm': 0, '0,5 mm': 0 };
-  for (const a of A) t[a.R > 4 ? '10 mm' : a.R > 3 ? '8 mm' : '0,5 mm']++;
+  const t = { '10 mm': 0, '8 mm': 0, '5 mm (petit)': 0 };
+  for (const a of A) t[a.R > 4 ? '10 mm' : a.R > 3 ? '8 mm' : '5 mm (petit)']++;
   if (!A.length) return { t, total: 0, L: 0 };
   const zs = A.map(a => a.p[2] - a.R - a.e), ze = A.map(a => a.p[2] + a.R + a.e);
   return { t, total: A.length, L: Math.max(...ze) - Math.min(...zs) };
@@ -2407,6 +2419,8 @@ export function decompteComposition(A) {
 // les compositions enregistrées deviennent des formes du configurateur : « compo-<id> » (fiche reliée dans 🔗 Références ou par le compositeur)
 // statut : « brouillon » = pas encore dans le configurateur (sauf { brouillons: true } : compositeur, références) ; sans statut = validée
 export const estBrouillon = c => c?.statut === 'brouillon';
+// la boule de la pampille fait partie du modèle pré-composé quand la composition finit sur une croix ou une mini chain
+export const pampilleIntegree = c => { const s = sequenceComposition(c || {}), d = s[s.length - 1]; return !!d && d.k === 'forme' && (d.f === 'croix' || !!FORMES_CHAINMAIL[d.f]?.pampille); };
 export function definirCompositions(liste = [], { brouillons = false } = {}) {
   for (const k of Object.keys(FORMES_CHAINMAIL)) if (FORMES_CHAINMAIL[k].compo) delete FORMES_CHAINMAIL[k];
   for (const k of Object.keys(COMPOS)) delete COMPOS[k];
@@ -2414,7 +2428,7 @@ export function definirCompositions(liste = [], { brouillons = false } = {}) {
   for (const c of liste || []) { if (!c?.id || !(c.motif || []).length || (!brouillons && estBrouillon(c))) continue;
     const breloque = c.usage === 'breloque' || c.usage === 'bo';
     FORMES_CHAINMAIL['compo-' + c.id] = { nom: c.nom || 'Composition', compo: true, chaine: !breloque, mini: breloque, bouts: c.bouts || 'mousquetons', boutsF: c.boutsF || null,
-      ...(breloque && c.pampille ? { pampille: 'ronde-4', pampilleK: ['#PM-ex01', 'ronde argentée 4 mm'] } : {}),
+      ...(breloque && (c.pampille || pampilleIntegree(c)) ? { pampille: 'ronde-4', pampilleK: ['#PM-ex01', 'ronde argentée 4 mm'] } : {}),
       gen: L => assemblerComposition(c, { detail: L === 'detail' || typeof L === 'number' }) };   // un nombre = un tronçon (vignette)
   }
 }

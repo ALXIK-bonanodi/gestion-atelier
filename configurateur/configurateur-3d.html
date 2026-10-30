@@ -45,10 +45,17 @@ button, input, textarea { font: inherit; color: inherit; }
   border: 1.5px solid var(--prune); overflow: hidden; }
 /* logotype en fond, à 30 % d'opacité, derrière le modèle 3D */
 .scene::before { content: ""; position: absolute; inset: 12%; background: url('./logo-fond.png') center / contain no-repeat; opacity: .3; pointer-events: none; }
-/* fond violet, logo jaune (réglable dans l'app : Conception 3D › 🏷 Offres › Fond de l'aperçu 3D) */
+/* fond de l'aperçu (app : Conception 3D › 🏷 Offres › 🎨 Fond) : crème / logo violet, violet / logo jaune, vert / logo rose, rose / logo jaune ; logo à 30 % ou 100 % */
+.scene { --op-logo: .3; }
+.scene.logo-plein { --op-logo: 1; }
+.scene::before { opacity: var(--op-logo); }
 .scene.violet { background: var(--prune); }
-.scene.violet::before { background-image: url('./logo-fond-violet.png'); opacity: .28; }
-.scene.violet .scene-aide, .scene.violet .indicatif, .scene.violet .scene-charge { color: var(--creme-fonce); }
+.scene.violet::before, .scene.rose::before { background-image: url('./logo-fond-violet.png'); }
+.scene.vert { background: #cbc67c; } .scene.vert::before { background-image: url('./logo-fond-rose.png'); }   /* tes logos : vert #cbc67c / framboise #a7365b */
+.scene.rose { background: #a7365b; }
+.scene.violet .scene-aide, .scene.violet .indicatif, .scene.violet .scene-charge,
+.scene.rose .scene-aide, .scene.rose .indicatif, .scene.rose .scene-charge { color: var(--creme-fonce); }
+.scene.vert .scene-aide, .scene.vert .indicatif { color: #6b2240; }
 #vue3d { position: absolute; inset: 0; }
 .scene-aide { position: absolute; left: 0; right: 0; bottom: 46px; text-align: center; font: 500 13px var(--f-titre); color: var(--prune-doux); pointer-events: none; }
 .bt-idees { position: absolute; top: 9%; left: 50%; transform: translateX(-50%); z-index: 3; padding: 8px 14px; border-radius: 999px; border: 1.5px solid var(--prune); background: var(--creme-clair); color: var(--prune); font: 600 14px var(--f-titre); cursor: pointer; box-shadow: 0 4px 14px #3c114b22; }
@@ -496,7 +503,7 @@ import {
   correspondCategorie, texteCatalogue, ordreModeles, chargerRuptures, appliquerRuptures,
   chargerLiens, appliquerLiens, relierModele, chargerMateriauxParRefs,
   chargerFichesConfig, chargerOffres, definirLiensFormes, lienModele, appliquerLienModele, formeLiee, composerCompos, definirFichesConfig, ficheCfg, refsCouleurFiche, famillesFiche,
-} from './bead-core.js?v=0d637336';
+} from './bead-core.js?v=53b8d8e7';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER, PANIER_SHOPIFY } from './perles-config.js?v=e8e44d9a';
 
 const $ = s => document.querySelector(s);
@@ -505,7 +512,8 @@ const euros = n => (+n || 0).toLocaleString('fr-FR', { style: 'currency', curren
 const ETOILE = `<svg class="etoile" viewBox="0 0 48 48" aria-hidden="true"><path d="M24.6 2.5c.6 6.3 1.4 11.6 3.3 15.2 3.6-1.6 7.7-2.5 12.6-2.2-3.7 2.4-7.3 4.8-9.4 7.6 3.4 2.3 7.6 4.3 12.1 5.8-5.5.6-10.3.1-14.1-1.3-.5 4.9-1.9 10-4.2 15.9-1-5.6-2.1-10.7-3.9-14.5-3.6 1.6-7.6 2.6-12.3 2.8 3.4-2.6 6.6-5 8.6-7.6-3.3-2.2-7.1-4.4-11.2-6.4 5 .1 9.6.8 13.3 2.2.6-5.2 1.9-10.9 5.2-17.5z" fill="#fff7c6" stroke="#3c114b" stroke-width="2.4" stroke-linejoin="round"/></svg>`;
 // petites icônes des porte-clés : mousqueton, rond, mini rond
 const IC_ACC = {
-  mousqueton: `<svg viewBox="0 0 48 48" aria-hidden="true" fill="none" stroke="var(--trait, #3c114b)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="24" cy="6" r="3.5"/><path d="M24 10v3"/><path d="M17 16h14v4c0 0 4 3 4 12a11 11 0 0 1-22 0c0-9 4-12 4-12z"/><path d="M22 23c-2 3-2 9 2 12"/></svg>`,
+  // comme le mousqueton porte-clés en 3D : boucle à doigt en haut, boîtier riveté, émerillon, anneau tournant
+  mousqueton: `<svg viewBox="0 0 48 48" aria-hidden="true" fill="none" stroke="var(--trait, #3c114b)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 21V9a6 6 0 0 1 12 0v12"/><path d="M18 11.5l3 2.5"/><rect x="15.5" y="21" width="17" height="7.5" rx="1.5"/><circle cx="20" cy="24.8" r="1.2"/><path d="M24 28.5v2.5"/><circle cx="24" cy="38" r="6.5"/></svg>`,
   rond: `<svg viewBox="0 0 48 48" aria-hidden="true" fill="none" stroke="var(--trait, #3c114b)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="24" cy="26" r="13"/><circle cx="24" cy="26" r="9"/><path d="M33 15l4-4M35 17l4-4"/></svg>`,
   mini: `<svg viewBox="0 0 48 48" aria-hidden="true" fill="none" stroke="var(--trait, #3c114b)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="24" cy="28" r="8"/><circle cx="24" cy="28" r="5"/><path d="M30 21l3-3M31.5 23l3-3"/></svg>`,
 };
@@ -648,6 +656,7 @@ if (new URLSearchParams(location.search).get('diag')) {
     ['Fermoirs (après regroupement des variantes de stock)', fermoirs.map(f => `${f.ref} · ${f.nom} · ${f.type} ${f.taille} mm${f.variantes ? ' · regroupe ' + f.variantes.join(', ') : ''}${f.enStock === false ? ' · ÉPUISÉ' : ''}`).join('\n') || 'AUCUN'],
     ['Choix de fermoir par modèle (avant → après tes liens)', modeles.map(m => { try { const o0 = (m.options || []).find(o => o.type === 'fermoir'), o1 = (resoudreDefauts(relierModele(m, liens), catalogue, fermoirs).options || []).find(o => o.type === 'fermoir');
       const L = o => (o?.choix || []).map(c => c.ref).join(', ') || '—'; return `${m.slug} : ${L(o0)} → ${L(o1)}${(o1?.choix?.length || 0) > 1 ? '' : '  ⚠ 1 seul choix : la ligne Finition fermoir est masquée'}`; } catch (x) { return m.slug + ' : erreur ' + x.message; } }).join('\n')],
+    ['Chaînes de sac proposées (masquées dans l\'app : retirées)', catalogue.filter(c => c.categorie === 'Chaînes de sac').map(c => `${c.ref} · ${c.nomFiche || c.nom} · ${c.forme}`).join('\n') || 'AUCUNE'],
     ['Perles étoile', catalogue.filter(c => texteCatalogue(c).includes('etoile')).map(ligne).join('\n') || 'AUCUNE'],
     ['Parties de l\'ancien configurateur (restrictions)', (parties || []).map(p => p.id + ' : ' + (p.enabled_mats?.length || 0) + ' matériaux').join('\n') || 'aucune'],
   ];
@@ -715,7 +724,8 @@ const OFFRES = {
     .filter(x => x && x.active !== false && +x.seuil > 0 && +x.pct > 0).sort((a, b) => a.seuil - b.seuil),
 };
 // fond de l'aperçu 3D : violet avec le logo jaune (par défaut) ou crème avec le logo violet
-document.getElementById('scene')?.classList.toggle('violet', (offresCfg?.apparence?.fond || 'violet') !== 'jaune');
+{ const ap = offresCfg?.apparence || {}, f = ({ jaune: 'creme' })[ap.fond] || ap.fond || 'violet', el = document.getElementById('scene');
+  el?.classList.remove('violet', 'vert', 'rose'); if (f !== 'creme') el?.classList.add(f); el?.classList.toggle('logo-plein', +ap.logo === 100); }
 const palierPour = montant => [...OFFRES.paliers].reverse().find(x => montant >= x.seuil - 0.001) || null;
 const palierSuivant = montant => OFFRES.paliers.find(x => montant < x.seuil - 0.001) || null;
 const remisePalier = montant => { const p = palierPour(montant); return p ? { ...p, montant: Math.round(montant * p.pct) / 100 } : null; };

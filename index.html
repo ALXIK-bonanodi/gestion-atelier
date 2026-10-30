@@ -4476,12 +4476,15 @@ function c3Donnees(){
   const okLot=b=>!b.is_mat&&!/chainmail|chaine|byzantin/.test(norm3([b.collection,b.nom].join(' ')));
   const pc=lots.filter(b=>!b.parent_id&&okLot(b)&&/porte.?cl/.test(norm3(b.collection)));
   const lotsBase=pc.length?pc:lots.filter(b=>!b.parent_id&&okLot(b)), varsLot=b=>lots.filter(x=>x.parent_id===b.id&&!x.is_mat);
-  const chaines=BIJS.filter(b=>estChaineBij(b)&&!b.parent_id), varsCh=b=>BIJS.filter(x=>x.parent_id===b.id&&!estColChoker(x));
-  return {fam,lotsBase,varsLot,chaines:chaines.filter(b=>!estColChoker(b)),varsCh};
+  // chaînes de sac : EXACTEMENT les fiches que le configurateur propose (produits « chaîne / byzantine » et leurs variantes, sans collier / choker, sans les compositions COMP-)
+  const proposee=b=>!!b&&!b.is_mat&&(estChaineBij(b)||estChaineBij(getBij(b.parent_id)))&&!estColChoker(b);
+  const fichesCh=BIJS.filter(proposee), racineCh=b=>b.parent_id&&getBij(b.parent_id)?getBij(b.parent_id):b;
+  const chaines=[...new Set(fichesCh.map(racineCh))], varsCh=b=>fichesCh.filter(x=>x.parent_id===b.id);
+  return {fam,lotsBase,varsLot,chaines,varsCh,proposee};
 }
 function rendreC3(){
   const D=c3Donnees(), vuM=(m,p)=>m.publie&&!RUPTURES_3D.includes(p+':'+m.slug);
-  const idsIdees=D.fam.flatMap(f=>[f.base,...f.vars]).map(b=>b.id), idsLots=D.lotsBase.flatMap(b=>[b,...D.varsLot(b)]).map(b=>b.id), idsCh=D.chaines.flatMap(b=>[b,...D.varsCh(b)]).map(b=>b.id);
+  const idsIdees=D.fam.flatMap(f=>[f.base,...f.vars]).map(b=>b.id), idsLots=D.lotsBase.flatMap(b=>[b,...D.varsLot(b)]).map(b=>b.id), idsCh=D.chaines.flatMap(b=>[b,...D.varsCh(b)]).filter(D.proposee).map(b=>b.id);
   const altB=ALTERNATIVES.filter(a=>a.type==='bundle'), altI=ALTERNATIVES.filter(a=>a.type!=='bundle');
   const compte=(ids)=>`${ids.filter(id=>c3Vu('idee:'+id)).length}/${ids.length}`;
   const onglets=[['breloques','🧸 Breloques',`${MODELES_3D.filter(m=>vuM(m,'breloque')||vuM(m,'bundle')).length}/${MODELES_3D.length}`],['idees','💡 Idées de couleurs',compte([...idsIdees,...altI.map(a=>'alt:'+a.id)])],
@@ -4513,7 +4516,8 @@ function rendreC3(){
     corps=c3Ligne('<b>3e parcours « Chaîne de sac »</b>',c3Inter(RUPTURES_3D.includes('activer:chaine'),'basculerChaine()'))
       +`<p class="dim c3-aide">Chaque chaîne et ses variantes (les variantes collier / choker ne sont pas proposées). Le motif 3D vient du nom de la fiche ou du lien dans 🔗 Références.</p>
       <div class="c3-barre">${tout(idsCh,true)}${tout(idsCh,false)}${plier}</div>`
-      +L.map(b=>c3Groupe('c:'+b.id,`${escA(nomFiche3(b))} <span class="dim">${escA(b.ref)}</span>`,[b,...D.varsCh(b)].map(x=>c3Ligne(x===b?'Fiche de base':'Variante · '+escA(x.variante||x.ref),c3Inter(c3Vu('idee:'+x.id),`basculerIdee('${escA(x.id)}')`),{sous:escA(x.ref),retrait:x!==b})).join(''))).join('');
+      +L.map(b=>c3Groupe('c:'+b.id,`${escA(nomFiche3(b))} <span class="dim">${escA(b.ref)}</span>${D.proposee(b)?'':' <span class="dim">· fiche de regroupement, pas proposée elle-même</span>'}`,[b,...D.varsCh(b)].filter(D.proposee).map(x=>c3Ligne(x===b?'Fiche de base':'Variante · '+escA(x.variante||x.ref),c3Inter(c3Vu('idee:'+x.id),`basculerIdee('${escA(x.id)}')`),{sous:escA(x.ref),retrait:x!==b})).join(''))).join('')
+      +`<p class="dim c3-aide">👁 Affiché / 🚫 Masqué agit tout de suite sur le configurateur (après ↻ de sa page).</p>`;
   } else corps=renderOffres()+`<details class="c3p-det" style="margin-top:14px"><summary><b>💶 Contrôle des prix</b> <span class="dim">· rentabilité de chaque fiche et des suppléments</span> <span class="c3p-gerer">Voir ▾</span></summary>${renderControlePrix()}</details>`;
   return `<div class="c3-onglets">${onglets.map(([k,t,n])=>`<button type="button" class="${C3_ONGLET===k?'on':''}" onclick="C3_ONGLET='${k}';renderModelesProposes()">${t}${n?` <span>${n}</span>`:''}</button>`).join('')}</div>
     ${['idees','bundles','chaines'].includes(C3_ONGLET)?`<input class="c3-filtre" placeholder="🔍 Filtrer…" value="${escA(C3_FILTRE)}" oninput="C3_FILTRE=this.value;clearTimeout(window.__c3f);window.__c3f=setTimeout(()=>{renderModelesProposes().then(()=>{const i=document.querySelector('.c3-filtre');i.focus();i.setSelectionRange(i.value.length,i.value.length);})},250)">`:''}
@@ -4547,7 +4551,10 @@ function renderOffres(){
     ${carte('mousqueton','🪝 Mousqueton offert',`Offert dès ${num('mousqueton','minBundles',48)} porte-clés (n'importe lesquels) montés dessus et ${num('mousqueton','minAchat')} € de breloques (porte-clés non compris) · remise ${num('mousqueton','remise')} € <span class="dim">(vide = offert)</span>`,'porte-clés, non cumulable avec le rond')}
     ${carte('lettres','🔤 Breloque lettre offerte',`Une breloque lettre offerte dès ${num('lettres','min',48)} breloques à ${num('lettres','prixMin')} € ou plus`,'une par commande, cumulable')}
     <div class="of-carte"><div class="of-hd"><b>🎨 Fond de l'aperçu 3D</b></div>
-      <div class="of-phrase">${[['violet','Violet, logo jaune'],['jaune','Crème, logo violet']].map(([v,l])=>`<button type="button" class="c3s ${(OFFRES_CFG?.apparence?.fond||'violet')===v?'on':''}" onclick="majOffre('apparence','fond','${v}','text')">${l}</button>`).join(' ')}</div>
+      <div class="of-phrase">${(()=>{ const ap=OFFRES_CFG?.apparence||{}, f=({jaune:'creme'})[ap.fond]||ap.fond||'violet', op=+ap.logo===100?100:30;
+        return [['creme','#fff7c6','#3c114b','Crème · logo violet'],['violet','#3c114b','#fff7c6','Violet · logo jaune'],['vert','#cbc67c','#a7365b','Vert · logo framboise'],['rose','#a7365b','#fff7c6','Framboise · logo jaune']]
+          .map(([v,bg,lg,l])=>`<button type="button" class="c3s ${f===v?'on':''}" style="display:inline-flex;gap:6px;align-items:center" onclick="majOffre('apparence','fond','${v}','text')"><span style="width:18px;height:18px;border-radius:50%;background:${bg};box-shadow:inset 0 0 0 4px ${bg},inset 0 0 0 9px ${lg};border:1px solid #0002"></span>${l}</button>`).join(' ')
+          +`<div style="margin-top:6px">Logo : ${[30,100].map(o=>`<button type="button" class="c3s ${op===o?'on':''}" onclick="majOffre('apparence','logo',${o})">${o} %</button>`).join(' ')}</div>`; })()}</div>
       <div class="of-pied"><span class="dim">Le fond derrière le bijou en 3D, dans le configurateur.</span></div></div>
     <div class="of-carte"><div class="of-hd"><b>💶 Remise sur la commande</b><button class="btn btn-xs btn-ghost" onclick="ajouterPalier()">＋ Palier</button></div>
       ${P.map(x=>`<div class="of-phrase of-palier ${x.active===false?'of-off':''}">Dès <input type="number" step="1" min="0" class="of-in" style="width:64px" value="${escA(x.seuil)}" onchange="majPalier('${escA(x.id)}','seuil',this.value)"> € de commande : −<input type="number" step="1" min="0" max="90" class="of-in" style="width:48px" value="${escA(x.pct)}" onchange="majPalier('${escA(x.id)}','pct',this.value)"> %
