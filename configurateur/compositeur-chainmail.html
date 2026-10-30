@@ -174,7 +174,7 @@ aside > *, .etape .corps > *, .seq-l, .seq-l .t { min-width: 0; }
         <label>Répéter <input type="number" id="nb" min="1" max="60" step="1" value="3" style="width:70px"> fois</label>
       </div>
       <div id="parties"></div>
-      <div class="ligne"><button class="btn mini" type="button" id="btPartie">＋ Ajouter un motif au milieu (jusqu'à 3)</button>
+      <div class="ligne"><button class="btn mini" type="button" id="btPartie">＋ Ajouter un motif au milieu</button>
         <label><input type="checkbox" id="demi"> + un demi-motif (1 nœud) à la fin du milieu</label></div>
       <div class="ligne" id="ligneLongueur"><label>Longueur visée <input type="number" id="longueur" min="0" step="0.5" style="width:80px"> cm</label><span class="aide" id="infoLongueur" style="margin:0"></span></div>
       <div class="sous">Fin <span class="aide" style="margin:0">(après le motif)</span></div><div id="fin" class="seq"></div>
@@ -223,7 +223,7 @@ aside > *, .etape .corps > *, .seq-l, .seq-l .t { min-width: 0; }
 <script type="module">
 import { ScenePerles, cleFixe, fermoirDepuisMateriau, assemblerComposition, decompteComposition, definirCompositions, elementChainmail, nomElementChainmail, estCorpsChainmail,
   elementDepuisNom, piecesComposition, connecteurEntre, modeleChaineSacDemo, modeleChainmailDemo, catalogueChaineDepuisBijoux, catalogueChainmailDepuisBijoux,
-  definirLiensFormes, NOMS_CHAINE, FORMES_CHAINMAIL, CATALOGUE_DEMO, formeChaine, estBrouillon, pampilleIntegree } from './bead-core.js?v=53b8d8e7';
+  definirLiensFormes, NOMS_CHAINE, FORMES_CHAINMAIL, CATALOGUE_DEMO, formeChaine, estBrouillon, pampilleIntegree } from './bead-core.js?v=20eda6e0';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure } from './perles-config.js?v=e8e44d9a';
 
 const $ = s => document.querySelector(s);
@@ -251,11 +251,14 @@ function reglages(x, attr) {     // taille, connecteur, pétales, nombre d'annea
   if (e.k === 'fleur') return sel('coeur', [[8, 'cœur 8 mm'], [10, 'cœur 10 mm']]) + sel('petale', [['', 'pétales : 1 anneau 10 mm'], ['8x2', 'pétales : connecteur (2) 8 mm']])
     + sel('petales', [[2, '2 pétales'], ['haut', '1 pétale haut'], ['bas', '1 pétale bas'], [0, 'sans pétale']]);
   if (e.k === 'noeud') return sel('taille', [[8, '8 mm'], [10, '10 mm']]);
-  if (e.k === 'conn') return sel('nb', [[1, '1 anneau (solo)'], [2, '2 anneaux'], [3, '3 anneaux']]) + sel('taille', [[8, '8 mm'], [10, '10 mm']]);
-  if (e.k === 'anneau05') return sel('nb', [[1, 'solo'], [2, 'double']]);
+  if (e.k === 'conn') return sel('nb', [[1, '1 anneau (solo)'], [2, '2 anneaux'], [3, '3 anneaux']]) + sel('taille', [[8, '8 mm'], [10, '10 mm'], [5, '5 mm (petit anneau)']]);
+  if (e.k === 'anneau05') return sel('nb', [[1, 'solo'], [2, 'double']]) + sel('taille', [[5, '5 mm (petit anneau)'], [8, '8 mm'], [10, '10 mm']]);
   return '';
 }
-const lireReglage = (e, cle, v) => { e[cle] = cle === 'petales' ? (v === 'haut' || v === 'bas' ? v : +v) : cle === 'petale' ? (v || undefined) : +v; if (e[cle] === undefined) delete e[cle]; delete e.fiche; return e; };
+const lireReglage = (e, cle, v) => {
+  // un connecteur peut être en petits anneaux de 5 mm (solo ou double), et inversement
+  if (cle === 'taille' && e.k === 'conn' && +v === 5) return { k: 'anneau05', nb: Math.min(2, e.nb || 1), ...(e.profil ? { profil: true } : {}) };
+  if (cle === 'taille' && e.k === 'anneau05' && +v !== 5) return { k: 'conn', nb: e.nb || 1, taille: +v, ...(e.profil ? { profil: true } : {}) }; e[cle] = cle === 'petales' ? (v === 'haut' || v === 'bas' ? v : +v) : cle === 'petale' ? (v || undefined) : +v; if (e[cle] === undefined) delete e[cle]; delete e.fiche; return e; };
 
 /* ---------- modèles existants ---------- */
 const RECETTES = {
@@ -479,12 +482,12 @@ function rendreTout(cadrer = false) {
       + bijoux.filter(b => b.is_mat && /fermoir|mousqueton/.test(norm(b.nom))).map(b => `<option value="${esc(b.ref)}" ${b.ref === sel ? 'selected' : ''}>${esc(b.ref)} · ${esc(nomFiche(b))}</option>`).join('');
     $('#boutsDeux').checked = !!compo.boutsF?.deux; }
   const vide = z => `<p class="aide" style="margin:0">rien — choisis « ${z === 'debut' ? 'au début' : 'à la fin'} » puis touche un élément ci-dessous</p>`;
-  const ajoutConn = z => `<div class="ligne" style="margin:2px 0"><button class="btn mini" type="button" data-ajout-bout="${z}">＋ un connecteur</button><button class="btn mini" type="button" data-ajout-05="${z}">＋ un petit anneau 5 mm</button></div>`;
+  const ajoutConn = z => `<div class="ligne" style="margin:2px 0"><button class="btn mini" type="button" data-ajout-bout="${z}">＋ un connecteur</button><button class="btn mini" type="button" data-ajout-petit="${z}">＋ un petit anneau 5 mm</button></div>`;
   $('#debut').innerHTML = (compo.debut.map((x, i) => ligneElement(x, i, 'debut')).join('') || vide('debut')) + ajoutConn('debut');
   $('#parties').innerHTML = compo.parties.map((P, k) => `<div class="sous">Milieu · motif ${k + 2} qui se répète <button class="btn mini" type="button" data-suppr-partie="${k}" title="Retirer ce motif">✕</button></div>
     <div class="seq">${P.motif.map((x, i) => ligneElement(x, i, 'm' + (k + 2))).join('') || `<p class="aide" style="margin:0">vide — choisis « motif ${k + 2} » puis touche un élément ci-dessous</p>`}</div>
     <div class="ligne"><label>Répéter <input type="number" min="1" max="60" step="1" value="${P.nb || 1}" data-nb-partie="${k}" style="width:70px"> fois</label></div>`).join('');
-  $('#btPartie').hidden = compo.parties.length >= 2;
+  $('#btPartie').hidden = false;
   const zonesC = [['debut', 'au début'], ['motif', 'au motif 1'], ...compo.parties.map((P, k) => ['m' + (k + 2), 'au motif ' + (k + 2)]), ['finEl', 'à la fin']];
   if (!zonesC.some(([v]) => v === CIBLE)) CIBLE = 'motif';
   $('#cibles').innerHTML = zonesC.map(([v, l]) => `<label><input type="radio" name="cible" value="${v}" ${CIBLE === v ? 'checked' : ''}> ${l}</label>`).join('');
@@ -522,9 +525,9 @@ document.addEventListener('click', e => {
   const cible = () => CIBLE, mot = { debut: 'au début', motif: 'au motif 1', m2: 'au motif 2', m3: 'au motif 3', finEl: 'à la fin' };
   if (t.dataset.ajoutBout) { const z = t.dataset.ajoutBout, ref = [...compo.motif, ...compo.parties.flatMap(p => p.motif)].find(x => !estCorpsChainmail(x) && elementChainmail(x).k === 'conn');
     zoneListe(z)[z === 'debut' ? 'unshift' : 'push'](clone(elementChainmail(ref || C(2, 8)))); return rendreTout(true); }
-  if (t.dataset.ajout05) { const z = t.dataset.ajout05; zoneListe(z)[z === 'debut' ? 'unshift' : 'push']({ k: 'anneau05', nb: 1 }); return rendreTout(true); }
+  if (t.dataset.ajoutPetit) { const z = t.dataset.ajoutPetit; zoneListe(z)[z === 'debut' ? 'unshift' : 'push']({ k: 'anneau05', nb: 1 }); return rendreTout(true); }
   if (t.dataset.supprPartie) { compo.parties.splice(+t.dataset.supprPartie, 1); return rendreTout(true); }
-  if (t.id === 'btPartie') { if (compo.parties.length < 2) compo.parties.push({ motif: [], nb: 1 }); CIBLE = 'm' + (compo.parties.length + 1); rendreTout(true); return toast('Motif ' + (compo.parties.length + 1) + ' ajouté au milieu : touche ses éléments ci-dessous'); }
+  if (t.id === 'btPartie') { compo.parties.push({ motif: [], nb: 1 }); CIBLE = 'm' + (compo.parties.length + 1); rendreTout(true); return toast('Motif ' + (compo.parties.length + 1) + ' ajouté au milieu : touche ses éléments ci-dessous'); }
   const zi = v => { const [z, i] = String(v).split(':'); return [z, +i, zoneListe(z)]; };
   if (t.dataset.el) { zoneListe(cible()).push(clone(BASE[+t.dataset.el])); rendreTout(true); }
   else if (t.dataset.elFiche) { const x = ELEMENTS_FICHES.find(y => y.b.ref === t.dataset.elFiche); zoneListe(cible()).push(elDeFiche(x)); rendreTout(true); toast('« ' + nomFiche(x.b) + ' » ajouté ' + mot[cible()]); }

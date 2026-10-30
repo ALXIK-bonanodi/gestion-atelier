@@ -369,7 +369,7 @@ export const PLANCHE_ROCAILLES = [
   // d'après tes photos des bocaux : rouge 2 framboise métallisé, rouge 3 doublé argent vif, rouge 4 irisé à reflets violets ;
   // orange 2 = orange clair lustré, orange 3 = orange-rouge doublé argent (références inversées)
   ['rouge 1', '#c8101a', 'opaque'],              ['rouge 2', '#a3122e', 'transparent-metal'],   ['rouge 3', '#cc1420', 'transparent-metal'],  ['rouge 4', '#c8182c', 'transparent-irise-violet'],
-  ['orange 1', '#ff6a00', 'opaque-fluo'],             ['orange 2', '#ff8c2e', 'lustre-metal'],       ['orange 3', '#d8480c', 'transparent-metal'],  ['marron', '#4e2a10', 'brun-reflet'],
+  ['orange 1', '#ff6a00', 'opaque-fluo'],             ['orange 2', '#ff8c2e', 'lustre-metal'],       ['orange 3', '#d8480c', 'transparent-metal'],  ['marron', '#3a1f0c', 'brun-reflet'],
   ['jaune 1', '#ffb300', 'opaque-pep'],              ['jaune 2', '#f2d21e', 'translucide'],         ['pêche 1', '#f4a07a', 'translucide-metal'],        ['pêche 2', '#ee8a66', 'opaque'],
   ['bleu 1', '#00c9be', 'opaque-vif'],               ['bleu 2', '#2fa6cc', 'transparent-metal'],    ['bleu 3', '#1a36aa', 'opaque'],              ['bleu 4', '#15246e', 'opaque'],
   ['rose 1', '#f0288f', 'opaque'],               ['rose 2', '#f04ab8', 'translucide'],          ['vert 1', '#93b02a', 'transparent-metal'],   ['vert 2', '#2f7f3a', 'transparent'],
@@ -534,7 +534,7 @@ export const MINI_DEMO = [
   { ref: '#MC-ex02', forme: 'mini-fleur-4' }, { ref: '#MC-ex04', forme: 'mini-intercalaire-4' },
 ].map(c => ({ ...c, nom: FORMES_CHAINMAIL[c.forme].nom, hex: '#b4b6ba', finition: 'chainmail', categorie: 'Breloques chainmail', famille: 'Mini chain' }));
 export const CHAINMAIL_DEMO = [
-  { ref: '#CM-ex01', nom: 'Croix', hex: '#b4b6ba', finition: 'chainmail', forme: 'croix', categorie: 'Breloques chainmail', famille: 'Croix' },
+  { ref: '#CM-ex01', nom: 'Croix', hex: '#b4b6ba', finition: 'chainmail', forme: 'croix', categorie: 'Breloques chainmail', famille: 'Formes' },
 ];
 /* Liens explicites produit ↔ forme 3D (🔗 Références › Produits) : « forme:croix » → ref de la fiche bijou */
 let LIENS_FORMES = {};
@@ -564,10 +564,19 @@ export function catalogueChainmailDepuisBijoux(bijoux = []) {
     const deja = parForme.get(forme);
     if (!deja || score(b) > score(deja.b)) parForme.set(forme, { b, forme });
   }
-  for (const f of Object.keys(FORMES_CHAINMAIL)) { const r = lienForme(f), b = r && bijoux.find(x => x.ref === r); if (b && !FORMES_CHAINMAIL[f].chaine) parForme.set(f, { b, forme: f }); }
+  // formes proposées pour la breloque chainmail : la croix, les mini chains, et tes compositions « breloque » (motifs chainmail pampille) ;
+  // jamais les chaînes de sac ni les boucles d'oreilles
+  const proposable = f => { const F = FORMES_CHAINMAIL[f]; return !!F && !F.chaine && (F.compo ? F.usage === 'breloque' : true); };
+  for (const f of [...parForme.keys()]) if (!proposable(f)) parForme.delete(f);
+  for (const f of Object.keys(FORMES_CHAINMAIL)) { const r = lienForme(f), b = r && bijoux.find(x => x.ref === r); if (b && proposable(f)) parForme.set(f, { b, forme: f }); }
+  // une fiche = une seule forme (ta composition passe avant la forme d'origine), et pas deux fois le même nom
+  const vus = new Map();
+  for (const [f, x] of [...parForme].sort((a, b) => (FORMES_CHAINMAIL[b[0]].compo ? 1 : 0) - (FORMES_CHAINMAIL[a[0]].compo ? 1 : 0))) {
+    const k = x.b.id, n = norm(FORMES_CHAINMAIL[f].nom); if (vus.has(k) || vus.has('n:' + n)) { parForme.delete(f); continue; } vus.set(k, 1); vus.set('n:' + n, 1); }
+  const famille = f => { const F = FORMES_CHAINMAIL[f]; return (F.compo ? /\bmini/.test(norm(F.nom)) : F.mini) ? 'Mini chain' : 'Formes'; };
   return [...parForme.values()].map(({ b, forme }) => ({
     ref: b.ref, bij_id: b.id, nom: FORMES_CHAINMAIL[forme].nom, hex: '#b4b6ba', finition: 'chainmail', forme,
-    categorie: 'Breloques chainmail', famille: FORMES_CHAINMAIL[forme].mini ? 'Mini chain' : 'Croix', bijou: true, pv: b.pv ?? (b.parent_id && parId.get(b.parent_id)?.pv), enStock: true, ordre: 1e6 + 1 }));
+    categorie: 'Breloques chainmail', famille: famille(forme), bijou: true, pv: b.pv ?? (b.parent_id && parId.get(b.parent_id)?.pv), enStock: true, ordre: 1e6 + 1 }));
 }
 export function completerCatalogue(catalogue, bijoux = []) {
   let base = catalogue.filter(c => !['argile', 'chainmail'].includes(c.finition) || !/-ex\d/.test(c.ref));
@@ -1101,10 +1110,10 @@ export function creerMateriau(couleur) {
       break;
     case 'brun-reflet':            // marron transparent avec reflets caramel clairs (on lit bien le brun)
       // sans transparence (elle assombrissait la perle jusqu'au noir) : brun lumineux + reflets caramel clairs bien visibles
-      Object.assign(p, { roughness: 0.1, metalness: 0.78, clearcoat: 1, clearcoatRoughness: 0.04,
-        specularColor: new THREE.Color('#d98a3a'), specularIntensity: 1,
-        emissive: c.clone().multiplyScalar(0.3), sheen: 1, sheenRoughness: 0.2, sheenColor: new THREE.Color('#d9883a'),
-        iridescence: 0.35, iridescenceIOR: 1.45, iridescenceThicknessRange: [520, 640], envMapIntensity: 1.7 });
+      // base marron foncé, reflets métalliques caramel clair
+      // base marron foncé, reflet métallique caramel clair bien contrasté : métal caramel (les zones sans reflet restent sombres) + vernis
+      Object.assign(p, { color: new THREE.Color('#7a4419'), roughness: 0.16, metalness: 1, clearcoat: 0.7, clearcoatRoughness: 0.06,
+        emissive: c.clone().multiplyScalar(0.05), envMapIntensity: 1.6, sheen: 1, sheenRoughness: 0.25, sheenColor: new THREE.Color('#ffcf8c') });
       break;
     case 'translucide-metal':      // verre teinté peu transparent avec reflet métal (pêche 1, marron) : la teinte reste lisible
       Object.assign(p, { transmission: 0.2, thickness: 1.2, ior: 1.55, roughness: 0.05, metalness: 0.74,
@@ -1653,36 +1662,37 @@ function geosAccessoire(type, taille = 12) {
 /* Fermoir S, hauteur H (≈ 14 mm sur ta photo, comme le petit fermoir breloque) : fil ≈ 0,09 H, deux boucles en goutte,
    largeur ≈ 0,6 H. Plan YZ, bas de la boucle du bas à l'origine, le S monte vers -Z. */
 function geosFermoirS(H) {
-  // d'après tes photos : deux boucles en goutte allongées (côtés presque droits, pointe vers le milieu), reliées par une diagonale droite ;
-  // le bout de la boucle du haut est rentré contre la diagonale, celui du bas reste ouvert et s'écarte un peu (là où passe la pièce)
-  const W = 0.52 * H, r = Math.max(0.28, 0.038 * H);
-  const P = [[0.05, 0.525], [0.24, 0.61], [0.40, 0.72], [0.45, 0.83], [0.36, 0.955], [0.12, 1.0], [-0.22, 0.97], [-0.40, 0.88], [-0.42, 0.76], [-0.30, 0.65], [-0.12, 0.56],
-    [0.12, 0.44], [0.30, 0.35], [0.42, 0.24], [0.40, 0.10], [0.22, 0.015], [-0.05, 0.0], [-0.30, 0.03], [-0.44, 0.12], [-0.45, 0.24], [-0.38, 0.35], [-0.30, 0.41]];
-  const c = new THREE.CatmullRomCurve3(P.map(([y, h]) => new THREE.Vector3(0, y * W, -h * H)), false, 'centripetal');
-  const g = [new THREE.TubeGeometry(c, 220, r, 10, false)];
-  for (const [y, h] of [P[0], P[P.length - 1]]) { const e = new THREE.SphereGeometry(r * 1.05, 10, 8); e.translate(0, y * W, -h * H); g.push(e); }
+  // relevé sur ta photo (fermoir tenu entre les doigts) : boucle du haut en goutte, sa jambe gauche descend tout droit jusqu'à un bout ouvert ;
+  // la diagonale part du côté droit de la boucle du haut vers le bas gauche ; boucle du bas arrondie, sa jambe droite remonte jusqu'à un bout ouvert
+  const W = 0.6 * H, r = Math.max(0.28, 0.034 * H);
+  const P = [[-0.47, 0.28], [-0.46, 0.42], [-0.45, 0.55], [-0.42, 0.78], [-0.33, 0.93], [-0.08, 0.995], [0.17, 0.96], [0.28, 0.85], [0.26, 0.70],
+    [0.04, 0.51], [-0.23, 0.33], [-0.31, 0.21], [-0.31, 0.11], [-0.24, 0.035], [-0.04, 0.005], [0.18, 0.015], [0.33, 0.06], [0.40, 0.16], [0.38, 0.33], [0.36, 0.52], [0.43, 0.63]];
+  const c = new THREE.CatmullRomCurve3(P.map(([y, h]) => new THREE.Vector3(0, -y * W, -h * H)), false, 'centripetal');   // -y : vu comme sur la photo
+  const g = [new THREE.TubeGeometry(c, 240, r, 10, false)];
+  for (const [y, h] of [P[0], P[P.length - 1]]) { const e = new THREE.SphereGeometry(r, 10, 8); e.scale(1, 1, 0.6); e.translate(0, -y * W, -h * H); g.push(e); }   // bouts coupés
   return g;
 }
 /* Manille, hauteur H (≈ 24 mm sur ta photo à côté du mousqueton porte-clés de 34 mm) : arceau en U (fil ≈ 0,16 H, ouverture ≈ 0,54 H),
    deux oreilles en haut, axe vissé avec sa patte percée d'un côté. Plan YZ, bas de l'arceau à l'origine, vers -Z. */
 function geosManille(H) {
-  // d'après tes photos : arceau en fer à cheval (côtés presque droits, un peu bombés, fond en demi-cercle), plus haut que large,
-  // deux oreilles épaisses en haut traversées par l'axe : tête bombée d'un côté, bague + patte percée de l'autre
-  const W = H / 1.95, r = 0.095 * W, Rs = 0.74 * W, hC = r + Rs, hT = H - 0.12 * W, g = [];
-  // arceau en oméga : col resserré sous chaque oreille, puis ventre rond plus large que l'écart des oreilles
-  const cote = [[0.5, hT], [0.455, hT - 0.12 * W], [0.56, hT - 0.32 * W], [0.69, hC + 0.3 * W], [Rs / W, hC]].map(([y, h]) => [y * W, h]);
-  const pts = [], pt = (y, h) => pts.push(new THREE.Vector3(0, y, -h));
-  cote.forEach(([y, h]) => pt(-y, h));
-  for (let k = 1; k < 26; k++) { const a = Math.PI * k / 26; pt(-Rs * Math.cos(a), hC - Rs * Math.sin(a)); }
-  [...cote].reverse().forEach(([y, h]) => pt(y, h));
-  g.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, false, 'centripetal'), 160, r, 16, false));
-  const zP = -hT, yE = 0.5 * W;
-  for (const sg of [-1, 1]) { const o = new THREE.SphereGeometry(1, 22, 16); o.scale(0.2 * W, 0.11 * W, 0.2 * W); o.translate(0, sg * yE, zP); g.push(o); }   // oreilles : gros œillets ronds
-  const ax = new THREE.CylinderGeometry(0.075 * W, 0.075 * W, 2 * yE + 0.2 * W, 16); ax.translate(0, 0.08 * W, zP); g.push(ax);                          // axe (selon Y), affleurant à gauche
-  const bout = new THREE.CylinderGeometry(0.08 * W, 0.08 * W, 0.02 * W, 16); bout.translate(0, -yE - 0.11 * W, zP); g.push(bout);
-  const bague = new THREE.TorusGeometry(0.1 * W, 0.035 * W, 8, 20); bague.rotateX(Math.PI / 2); bague.translate(0, yE + 0.15 * W, zP); g.push(bague);       // rondelle
-  const patte = new THREE.BoxGeometry(0.05 * W, 0.26 * W, 0.2 * W); patte.translate(0, yE + 0.3 * W, zP); g.push(patte);                                // patte plate percée
-  const trou = new THREE.TorusGeometry(0.045 * W, 0.015 * W, 6, 16); trou.rotateY(Math.PI / 2); trou.translate(0.028 * W, yE + 0.34 * W, zP); g.push(trou);
+  const r = 0.085 * H, g = [];
+  // arceau en oméga (comme ta photo) : rond et plus large que l'écart des oreilles, avec un col sous chaque oreille
+  const Rb = 0.42, ye = 0.25, zc = 0.42, zN = zc + Math.sqrt(Rb * Rb - ye * ye);   // haut du cercle rejoint aux oreilles
+  const P = [[-ye, 0.86], [-ye * 0.98, 0.80]];
+  const t0 = Math.atan2(ye, zN - zc), tl = 2 * Math.PI - 2 * t0;            // angle compté depuis le haut du cercle, on fait le tour par le bas
+  for (let k = 1; k < 32; k++) { const t = Math.abs(t0) + tl * k / 32; P.push([-Rb * Math.sin(t), zc + Rb * Math.cos(t)]); }
+  P.push([ye * 0.98, 0.80], [ye, 0.86]);
+  const pts = P.map(([y, h]) => new THREE.Vector3(0, y * H, -h * H));
+  // le bas du cercle touche z = -r : on décale tout
+  const zMin = Math.min(...pts.map(p => -p.z)); pts.forEach(p => { p.z = p.z + zMin - r; });
+  g.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 120, r, 14, false));
+  const yE = 0.25 * H, zP = pts[0].z;
+  for (const s of [-1, 1]) { const o = new THREE.TorusGeometry(r * 1.05, r * 0.85, 12, 24); o.rotateX(Math.PI / 2); o.translate(0, s * yE, zP); g.push(o); }   // oreilles (axe selon Y)
+  const ax = new THREE.CylinderGeometry(0.06 * H, 0.06 * H, 2 * yE + 0.12 * H, 16); ax.translate(0, 0.03 * H, zP); g.push(ax);                       // axe (selon Y)
+  const tete = new THREE.SphereGeometry(0.075 * H, 14, 10); tete.scale(0.6, 1, 1); tete.translate(0, -yE - 0.04 * H, zP); g.push(tete);
+  const bague = new THREE.TorusGeometry(0.075 * H, 0.025 * H, 8, 20); bague.rotateX(Math.PI / 2); bague.translate(0, yE + 0.09 * H, zP); g.push(bague);
+  const patte = new THREE.BoxGeometry(0.05 * H, 0.16 * H, 0.17 * H); patte.translate(0, yE + 0.2 * H, zP); g.push(patte);                          // patte percée
+  const trou = new THREE.TorusGeometry(0.035 * H, 0.012 * H, 6, 16); trou.rotateY(Math.PI / 2); trou.translate(0.026 * H, yE + 0.21 * H, zP); g.push(trou);
   return g;
 }
 /* Fermoir rond à ressort (anneau marin), diamètre extérieur D (mm), proportions relevées sur ta photo :
@@ -2427,7 +2437,7 @@ export function definirCompositions(liste = [], { brouillons = false } = {}) {
   for (const c of liste || []) if (c?.id) COMPOS[c.id] = c;
   for (const c of liste || []) { if (!c?.id || !(c.motif || []).length || (!brouillons && estBrouillon(c))) continue;
     const breloque = c.usage === 'breloque' || c.usage === 'bo';
-    FORMES_CHAINMAIL['compo-' + c.id] = { nom: c.nom || 'Composition', compo: true, chaine: !breloque, mini: breloque, bouts: c.bouts || 'mousquetons', boutsF: c.boutsF || null,
+    FORMES_CHAINMAIL['compo-' + c.id] = { nom: c.nom || 'Composition', compo: true, usage: c.usage || 'chaine', chaine: !breloque, mini: breloque, bouts: c.bouts || 'mousquetons', boutsF: c.boutsF || null,
       ...(breloque && (c.pampille || pampilleIntegree(c)) ? { pampille: 'ronde-4', pampilleK: ['#PM-ex01', 'ronde argentée 4 mm'] } : {}),
       gen: L => assemblerComposition(c, { detail: L === 'detail' || typeof L === 'number' }) };   // un nombre = un tronçon (vignette)
   }
@@ -3892,7 +3902,7 @@ export function modeleLettresDemo() {
     options: [
       { id: 'fermoir', type: 'fermoir', nom: 'Fermoir', defaut: '#FB001',
         choix: [{ ref: '#FB001', libelle: 'Petit', supplement: 0 }, { ref: '#FB002', libelle: 'Grand', supplement: 0 }] },
-      { id: 'etoile', type: 'perle', place: 'texte', nom: 'Perle étoile', perle: 'etoile-8', categorie: 'étoile', supplement: 0.5 },
+      { id: 'etoile', type: 'perle', place: 'texte', nom: 'Perle étoile', perle: 'etoile-8', categorie: 'étoile', supplement: 0 },   // comprise dans la fiche « 2 mots »
     ],
     groupes: [{ id: 'g-lettres', nom: 'Lettres', technique: 'lettres', type: 'lettre-7', pos: [0, 0, 0], rot: [0, 0, 0],
       accessoires: [{ ref: '#FB001', type: 'mousqueton', metal: 'argent', taille: 12, pos: [0, 0, 0], rot: [0, 0, 0] }],

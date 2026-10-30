@@ -4446,12 +4446,14 @@ const C3D_PAGES = { cfg: 'configurateur-3d.html?apercu=1', m3d: 'editeur-perles.
 // Breloques proposées aux clientes, séparément pour « breloque seule » et « bundle ».
 // Masquée dans un parcours = entrée « breloque:<slug> » / « bundle:<slug> » dans configurateur_ruptures (déjà lisible par le configurateur) ;
 // masquée partout = modèle non publié.
-let MODELES_3D=[], RUPTURES_3D=[];
+let MODELES_3D=[], RUPTURES_3D=[], COMPOS_3D=[], LIENS_3D={};
 async function renderModelesProposes(){
   const el=document.getElementById('c3-proposes'); if(!el) return;
   try{ const {data,error}=await SB.from('modeles_3d').select('slug,nom,publie').order('nom'); if(error) throw error; MODELES_3D=data||[];
     const r=await SB.from('config').select('value').eq('key','configurateur_ruptures').maybeSingle(); let v=r.data?.value;
     if(typeof v==='string'){ try{ v=JSON.parse(v); }catch(e){ v=[]; } } RUPTURES_3D=Array.isArray(v)?v.map(String):[];
+    { const lc=async k=>{ const r=await SB.from('config').select('value').eq('key',k).maybeSingle(); let w=r.data?.value; if(typeof w==='string'){ try{ w=JSON.parse(w); }catch(e){ w=null; } } return w; };
+      const cm=await lc('chainmail_compositions'); COMPOS_3D=Array.isArray(cm)?cm:[]; const li=await lc('configurateur_liens'); LIENS_3D=li&&typeof li==='object'?li:{}; }
     { const a=await SB.from('config').select('value').eq('key','configurateur_alternatives').maybeSingle(); let w=a.data?.value; if(typeof w==='string'){ try{ w=JSON.parse(w); }catch(e){ w=null; } } if(Array.isArray(w)) ALTERNATIVES=w; } }
   catch(e){ el.innerHTML=`<span class="dim">Modèles : ${escA(e.message)}</span>`; return; }
   el.innerHTML=rendreC3();
@@ -4496,7 +4498,13 @@ function rendreC3(){
   if(C3_ONGLET==='breloques'){
     corps=`<p class="dim c3-aide">Les modèles 3D proposés au client, dans chaque parcours (breloque seule / bundle). Un modèle se publie dans 🧊 Modèles.</p>`
       +(MODELES_3D.length?MODELES_3D.map(m=>c3Ligne(escA(m.nom||m.slug),c3Inter(vuM(m,'breloque'),`basculerModele('${escA(m.slug)}','breloque')`,'breloque seule')+c3Inter(vuM(m,'bundle'),`basculerModele('${escA(m.slug)}','bundle')`,'bundle + chaîne de sac'),{sous:m.publie?'':'non publié'})).join(''):'<p class="dim">Aucun modèle 3D enregistré (onglet 🧊 Modèles) : le configurateur montre les modèles d\'exemple.</p>')
-      +c3Groupe('formes','Breloque chainmail · formes',FORMES_3D.map(([f,nom])=>c3Ligne(escA(nom),c3Inter(c3Vu('forme:'+f),`basculerForme('${f}')`))).join(''))
+      +(()=>{ // formes de la breloque chainmail = exactement celles du configurateur : croix, mini chains, tes compositions « breloque » (pas les chaînes, pas les BO)
+          const ficheDe=f=>{ const r=LIENS_3D['forme:'+f]; const b=r&&BIJS.find(x=>x.ref===r); return b?nomFiche3(b)+' · '+b.ref:''; };
+          const cps=COMPOS_3D.filter(c=>c.usage==='breloque'&&c.statut!=='brouillon'&&LIENS_3D['forme:compo-'+c.id]);
+          const L=[...FORMES_3D.map(([f,nom])=>({f,nom,fam:/^mini/.test(f)?'Mini chain':'Formes'})),...cps.map(c=>({f:'compo-'+c.id,nom:c.nom,fam:/\bmini/i.test(c.nom||'')?'Mini chain':'Formes'}))];
+          const ligne=x=>c3Ligne(escA(x.nom),c3Inter(c3Vu('forme:'+x.f),`basculerForme('${escA(x.f)}')`),{sous:escA(ficheDe(x.f))});
+          return c3Groupe('formes','Breloque chainmail · formes',['Formes','Mini chain'].map(fm=>`<div class="dim" style="font-weight:700;margin:6px 0 2px">${fm}</div>`+L.filter(x=>x.fam===fm).map(ligne).join('')).join('')
+            +`<p class="dim c3-aide">Les compositions « breloque » enregistrées et validées dans ⛓ Composer apparaissent ici ; les chaînes de sac et les boucles d'oreilles n'y sont jamais proposées. Masquer leur fiche (💡 Idées / ⛓ Chaînes) les retire aussi.</p>`); })()
       +`<p class="dim c3-aide">La fiche produit de chaque modèle / forme se relie dans 🔗 Références › Produits ↔ modèles 3D.</p>`;
   } else if(C3_ONGLET==='idees'){
     const fam=D.fam.filter(f=>[f.base,...f.vars].some(b=>c3Filtre(nomFiche3(b))));
@@ -4632,7 +4640,7 @@ async function majOffre(k,c,v,type){
   await sbUpsertConfig('configurateur_offres', cfg); OFFRES_CFG=cfg; toast('Offres enregistrées ✓','ok'); renderModelesProposes(); rafraichirApercu();
 }
 // formes de la breloque chainmail (croix, mini chaînes) : affichées / masquées une par une
-const FORMES_3D=[['croix','Croix'],['mini-fleur-4','Mini chain · Byzantine fleur'],['mini-intercalaire-4','Mini chain · Byzantine alternative']];
+const FORMES_3D=[['croix','Croix'],['mini-fleur-4','Byzantine fleur'],['mini-intercalaire-4','Byzantine alternative']];
 function renderFormesProposees(){
   const bt=([f,nom])=>{ const on=!RUPTURES_3D.includes('forme:'+f); return `<button type="button" class="c3p ${on?'on':''}" onclick="basculerForme('${f}')">${on?'👁':'🚫'} ${escA(nom)}</button>`; };
   return `<div class="c3p-l" style="margin-top:8px"><span class="c3p-nom">⛓ Breloque chainmail · formes</span>${FORMES_3D.map(bt).join('')}</div>`;

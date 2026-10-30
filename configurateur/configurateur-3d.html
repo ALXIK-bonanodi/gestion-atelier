@@ -409,7 +409,7 @@ label.champ input:focus, label.champ textarea:focus { border-color: var(--prune)
       <p>Accroche ta création sur une chaîne de sac en double byzantine.</p>
       <button class="btn-second" type="button" id="btVersChaine">Ajouter une chaîne de sac</button>
     </div>
-    <details class="idees-bundle" id="ideesBundle" hidden><summary><span class="ic-etoile"></span>Voir nos idées de composition</summary><div class="idees-g" id="ideesBundleG"></div></details>
+    <div class="idees-inline" id="ideesBundle" hidden><h3><span class="ic-etoile"></span>Nos idées de composition</h3><div class="idees-g" id="ideesBundleG"></div></div>
 
     <!-- Bundle : accroche puis breloques -->
     <section class="etape" aria-labelledby="tC" id="etapeChaine" hidden>
@@ -503,7 +503,7 @@ import {
   correspondCategorie, texteCatalogue, ordreModeles, chargerRuptures, appliquerRuptures,
   chargerLiens, appliquerLiens, relierModele, chargerMateriauxParRefs,
   chargerFichesConfig, chargerOffres, definirLiensFormes, lienModele, appliquerLienModele, formeLiee, composerCompos, definirFichesConfig, ficheCfg, refsCouleurFiche, famillesFiche,
-} from './bead-core.js?v=53b8d8e7';
+} from './bead-core.js?v=20eda6e0';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER, PANIER_SHOPIFY } from './perles-config.js?v=e8e44d9a';
 
 const $ = s => document.querySelector(s);
@@ -602,7 +602,7 @@ if (modeles.some(breloqueDispo)) modeles = modeles.filter(breloqueDispo);
 // breloques proposées selon le parcours (app de gestion › Conception 3D) : « breloque:<slug> » / « bundle:<slug> » = masquée dans ce parcours
 const rupSet = new Set(ruptures);
 catalogue = catalogue.filter(c => !(c.categorie === 'Chaînes de sac' && c.bij_id && rupSet.has('idee:' + c.bij_id)));   // chaînes masquées dans l'app
-catalogue = catalogue.filter(c => !(c.finition === 'chainmail' && c.forme && rupSet.has('forme:' + c.forme)));         // formes chainmail masquées (croix, mini chaînes)
+catalogue = catalogue.filter(c => !(c.finition === 'chainmail' && c.forme && (rupSet.has('forme:' + c.forme) || (c.bij_id && rupSet.has('idee:' + c.bij_id)))));   // formes masquées dans l'app (forme ou sa fiche)         // formes chainmail masquées (croix, mini chaînes)
 const modelesDu = p => {
   if (p === 'chaine') return modeles.filter(m => estChaineSac(m) && !rupSet.has('chaine:' + m.slug));
   const tous = modeles.filter(m => !estChaineSac(m));                                   // les chaînes de sac ont leur propre parcours
@@ -611,6 +611,8 @@ const aDesEtoiles = catalogue.some(c => texteCatalogue(c).includes('etoile'));
 modeles.sort(ordreModeles);                                    // le petit poisson en premier
 modeles = modeles.map(m0 => {
   const m = resoudreDefauts(relierModele(m0, liens), catalogue, fermoirs);
+  // breloque lettre : l'étoile du milieu est comprise dans le prix de la fiche « 2 mots » (on choisit sa couleur, sans supplément)
+  if (estLettres(m)) for (const o of m.options || []) if (o.type === 'perle' && o.place === 'texte') { o.supplement = 0; (o.choix || []).forEach(c => { if (c && typeof c === 'object') c.supplement = 0; }); }
   // étoile dans la bouche proposée par défaut si le modèle publié ne la prévoit pas
   if (m.groupes?.some(g => ['poisson', 'arete'].includes(g.technique)) && aDesEtoiles && !(m.options || []).some(o => o.type === 'perle'))
     (m.options ||= []).push({ id: 'etoile', type: 'perle', nom: 'Perle étoile', perle: 'etoile-8', categorie: 'étoile', supplement: 0.5 });
@@ -1356,7 +1358,6 @@ function rendreIdees() {
 // bundle : « Voir nos idées de composition » en haut de page, replié (les vignettes ne se calculent qu'à l'ouverture)
 function rendreIdeesBundle(lots) {
   const d = $('#ideesBundle'); d.hidden = !lots.length; if (!lots.length) return;
-  if (!d.open) { $('#ideesBundleG').innerHTML = ''; return; }
   const nouv = lots.some(x => !VIGNETTES.has('p:' + x.fiche.id));
   const imgs = lots.map(x => vignette('p:' + x.fiche.id, () => {
     const acc = accroches.choix.find(c => c.id === x.accroche);
@@ -1367,11 +1368,10 @@ function rendreIdeesBundle(lots) {
   $('#ideesBundleG').innerHTML = lots.map((x, i) => carteIdee(imgs[i], x.nom, x.prix, `data-lot="${i}"`)).join('');
   $('#ideesBundleG').querySelectorAll('[data-lot]').forEach(b => b.addEventListener('click', () => {
     const x = lots[+b.dataset.lot]; etat.accroche = x.accroche; etat.compos = [{ surChaine: false }]; etat.mousq = false;
-    etat.breloques = x.breloques.map(br => ({ ...br, couleurs: { ...br.couleurs } })); etat.actif = 0; d.open = false;
+    etat.breloques = x.breloques.map(br => ({ ...br, couleurs: { ...br.couleurs } })); etat.actif = 0;
     rendre3D({ cadrer: true }); toutRendre(); }));
 }
 $('#ideesBundle .ic-etoile').innerHTML = ETOILE;
-$('#ideesBundle').addEventListener('toggle', () => { if ($('#ideesBundle').open) rendreIdees(); });
 // cartes d'idée (vignette + nom + prix)
 function carteIdee(img, nom, prix, attr) { return `<button class="idee" type="button" ${attr}>${img ? `<img src="${img}" alt="">` : '<span class="ph">✦</span>'}<b>${esc(nom)}</b><span>${prix != null && prix !== '' ? euros(prix) : ''}</span></button>`; }
 const cleVignette = (m, x) => 'b:' + m.slug + ':' + x.fiche.id + ':' + JSON.stringify(x.breloque.couleurs);
@@ -1459,7 +1459,7 @@ function rendreTexte() {
   $('#etapeTexte').hidden = !etat.parcours || !estLettres(m);
   if ($('#etapeTexte').hidden) return;
   const max = m.lettres?.max || 8, oe = optEtoileTexte(m), t = b.texte;
-  $('#modesTexte').innerHTML = [[1, 'Un mot', `${max} lettres max`], [2, 'Deux mots', `avec une étoile${oe?.supplement ? ' · +' + euros(oe.supplement) : ''}`]]
+  $('#modesTexte').innerHTML = [[1, 'Un mot', `${max} lettres max`], [2, 'Deux mots', 'avec une étoile au milieu']]
     .map(([v, l, d]) => `<button class="segment" type="button" data-mode="${v}" aria-pressed="${t.mode === v}"><b>${l}</b><span>${d}</span></button>`).join('');
   const champ = (i, ph) => `<input id="mot${i}" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" maxlength="${max}" placeholder="${ph}" value="${esc(t.mots[i] || '')}" aria-label="Mot ${i + 1}">`;
   $('#mots').className = 'mots' + (t.mode === 1 ? ' un' : '');
