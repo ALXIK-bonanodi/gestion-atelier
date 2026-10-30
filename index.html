@@ -4460,7 +4460,8 @@ const C3D_PAGES = { cfg: 'configurateur-3d.html?apercu=1', m3d: 'editeur-perles.
 let MODELES_3D=[], RUPTURES_3D=[], COMPOS_3D=[], LIENS_3D={};
 async function renderModelesProposes(){
   const el=document.getElementById('c3-proposes'); if(!el) return;
-  try{ const {data,error}=await SB.from('modeles_3d').select('slug,nom,publie').order('nom'); if(error) throw error; MODELES_3D=data||[];
+  try{ if(OFFRES_CFG===null) await chargerOffresCfg();
+    const {data,error}=await SB.from('modeles_3d').select('slug,nom,publie,donnees').order('nom'); if(error) throw error; MODELES_3D=data||[];
     const r=await SB.from('config').select('value').eq('key','configurateur_ruptures').maybeSingle(); let v=r.data?.value;
     if(typeof v==='string'){ try{ v=JSON.parse(v); }catch(e){ v=[]; } } RUPTURES_3D=Array.isArray(v)?v.map(String):[];
     { const lc=async k=>{ const r=await SB.from('config').select('value').eq('key',k).maybeSingle(); let w=r.data?.value; if(typeof w==='string'){ try{ w=JSON.parse(w); }catch(e){ w=null; } } return w; };
@@ -4508,26 +4509,26 @@ function rendreC3(){
   let corps='';
   if(C3_ONGLET==='breloques'){
     corps=`<p class="dim c3-aide">Les modèles 3D proposés au client, dans chaque parcours (breloque seule / bundle). Un modèle se publie dans 🧊 Modèles.</p>`
-      +(MODELES_3D.length?MODELES_3D.map(m=>c3Ligne(escA(m.nom||m.slug),c3Inter(vuM(m,'breloque'),`basculerModele('${escA(m.slug)}','breloque')`,'breloque seule')+c3Inter(vuM(m,'bundle'),`basculerModele('${escA(m.slug)}','bundle')`,'bundle + chaîne de sac'),{sous:m.publie?'':'non publié'})).join(''):'<p class="dim">Aucun modèle 3D enregistré (onglet 🧊 Modèles) : le configurateur montre les modèles d\'exemple.</p>')
+      +(MODELES_3D.length?MODELES_3D.map(m=>c3Ligne((nomsAff()['modele:'+m.slug]?`<b>${escA(nomsAff()['modele:'+m.slug])}</b> <span class="dim">(${escA(m.nom||m.slug)})</span>`:escA(m.nom||m.slug))+` <button class="btn btn-xs btn-ghost" title="Nom affiché aux clientes" onclick="renommerAffiche('modele:${escA(m.slug)}','${escA(String(m.nom||m.slug).replace(/'/g,'’'))}')">✎</button>`,c3Inter(vuM(m,'breloque'),`basculerModele('${escA(m.slug)}','breloque')`,'breloque seule')+c3Inter(vuM(m,'bundle'),`basculerModele('${escA(m.slug)}','bundle')`,'bundle + chaîne de sac'),{sous:m.publie?'':'non publié'})).join(''):'<p class="dim">Aucun modèle 3D enregistré (onglet 🧊 Modèles) : le configurateur montre les modèles d\'exemple.</p>')
       +(()=>{ // formes de la breloque chainmail = exactement celles du configurateur : croix, mini chains, tes compositions « breloque » (pas les chaînes, pas les BO)
           const ficheDe=f=>{ const r=LIENS_3D['forme:'+f]; const b=r&&BIJS.find(x=>x.ref===r); return b?nomFiche3(b)+' · '+b.ref+(b.collection?' — '+b.collection:''):'pas encore de fiche reliée'; };
           const cps=COMPOS_3D.filter(c=>c.usage==='breloque'&&c.statut!=='brouillon');
           const n3=c=>norm3(c.nom||''), estMC=c=>/mini ?cha/.test(n3(c));
           // tes compositions remplacent les formes d'origine (comme dans le configurateur) : croix pampille → plus de « Croix » seule, etc.
           const remplace={croix:cps.some(c=>/croix/.test(n3(c))||(c.motif||[]).some(e=>e&&e.f==='croix')),'mini-fleur-4':cps.some(c=>estMC(c)&&/fleur/.test(n3(c).replace(/mini ?cha\w*/,''))&&!/mini fleur/.test(n3(c).replace(/mini ?cha\w*/,''))),'mini-intercalaire-4':cps.some(c=>estMC(c)&&/intercal|altern/.test(n3(c)))};
-          const L=[...FORMES_3D.filter(([f])=>!remplace[f]).map(([f,nom])=>({k:'forme:'+f,nom,grp:/^mini/.test(f)?'Mini chain':'Formes',sous:ficheDe(f)})),...cps.map(c=>({k:'forme:compo-'+c.id,nom:c.nom,grp:estMC(c)?'Mini chain':'Formes',sous:ficheDe('compo-'+c.id)}))];
+          const L=[...FORMES_3D.filter(([f])=>!remplace[f]).map(([f,nom])=>({rk:LIENS_3D['forme:'+f]||'',k:'forme:'+f,nom,grp:/^mini/.test(f)?'Mini chain':'Formes',sous:ficheDe(f)})),...cps.map(c=>({rk:LIENS_3D['forme:compo-'+c.id]||'',k:'forme:compo-'+c.id,nom:c.nom,grp:estMC(c)?'Mini chain':'Formes',sous:ficheDe('compo-'+c.id)}))];
           return c3Liste('formes','⛓ Breloque chainmail · formes',L,{aide:'La croix, les mini chains et tes compositions « breloque » validées dans ⛓ Composer. Jamais les chaînes de sac ni les boucles d\'oreilles.'}); })()
       +`<p class="dim c3-aide">La fiche produit de chaque modèle / forme se relie dans 🔗 Références › Produits ↔ modèles 3D.</p>`;
   } else if(C3_ONGLET==='idees'){
-    const L=[...D.fam.flatMap(f=>[f.base,...f.vars].map(b=>({cat:b.collection||f.base.collection||'',k:'idee:'+b.id,nom:b===f.base?(b.variante||'fiche de base'):(b.variante||b.nom||b.ref),sous:b.ref,grp:f.base.nom||f.base.ref,extra:c3Lien(b.id)}))),
+    const L=[...D.fam.flatMap(f=>[f.base,...f.vars].map(b=>({rk:b.ref,cat:b.collection||f.base.collection||'',k:'idee:'+b.id,nom:b===f.base?(b.variante||'fiche de base'):(b.variante||b.nom||b.ref),sous:b.ref,grp:f.base.nom||f.base.ref,extra:c3Lien(b.id)}))),
       ...altI.map(a=>({k:'idee:alt:'+a.id,nom:a.nom,sous:'alternative',grp:'⭐ Alternatives (créées dans le configurateur)',extra:c3Lien('alt:'+a.id)+`<button class="btn btn-xs btn-ghost" title="Renommer" onclick="renommerAlternative('${escA(a.id)}')">✎</button>`}))];
     corps=c3Liste('idees','💡 Idées de couleurs proposées',L,{aide:'Sous chaque modèle, les variantes de couleurs proposées en vignettes. Une idée retirée reste reconnue si la cliente choisit ces couleurs.'});
   } else if(C3_ONGLET==='bundles'){
-    const L=[...D.lotsBase.flatMap(b=>[b,...D.varsLot(b)].map(x=>({cat:x.collection||b.collection||'',k:'idee:'+x.id,nom:x===b?(b.variante?'Lot · '+b.variante:'Lot de base'):'Variante · '+(x.variante||x.nom||x.ref),sous:x.ref,grp:b.nom||b.ref,extra:c3Lien(x.id,1)}))),
+    const L=[...D.lotsBase.flatMap(b=>[b,...D.varsLot(b)].map(x=>({rk:x.ref,cat:x.collection||b.collection||'',k:'idee:'+x.id,nom:x===b?(b.variante?'Lot · '+b.variante:'Lot de base'):'Variante · '+(x.variante||x.nom||x.ref),sous:x.ref,grp:b.nom||b.ref,extra:c3Lien(x.id,1)}))),
       ...altB.map(a=>({k:'idee:alt:'+a.id,nom:a.nom,sous:'créé dans le configurateur',grp:'⭐ Bundles créés dans le configurateur',extra:c3Lien('alt:'+a.id,1)+`<button class="btn btn-xs btn-ghost" title="Renommer" onclick="renommerAlternative('${escA(a.id)}')">✎</button>`}))];
     corps=c3Liste('bundles','🎁 Bundles tout prêts proposés',L,{aide:'Les porte-clés tout prêts (lots) et chacune de leurs variantes, en vignettes en haut de la page bundle.'});
   } else if(C3_ONGLET==='chaines'){
-    const L=D.chaines.flatMap(b=>[b,...D.varsCh(b)].filter(D.proposee).map(x=>({cat:x.collection||b.collection||'',k:'idee:'+x.id,nom:x===b?'Fiche de base':(x.variante||x.nom||x.ref),sous:x.ref,grp:nomFiche3(b)})));
+    const L=D.chaines.flatMap(b=>[b,...D.varsCh(b)].filter(D.proposee).map(x=>({rk:x.ref,cat:x.collection||b.collection||'',k:'idee:'+x.id,nom:x===b?'Fiche de base':(x.variante||x.nom||x.ref),sous:x.ref,grp:nomFiche3(b)})));
     corps=c3Ligne('<b>3e parcours « Chaîne de sac »</b>',c3Inter(RUPTURES_3D.includes('activer:chaine'),'basculerChaine()'))
       +c3Liste('chaines','⛓ Chaînes de sac proposées',L,{aide:'Le motif 3D vient du nom de la fiche (8 mm, 10 mm, fleur, alternative). Les variantes collier / choker ne sont pas proposées.'});
   } else corps=renderOffres();
@@ -4539,12 +4540,20 @@ function rendreC3(){
 function c3Liste(id,titre,items,{aide='',vide='Rien d\'affiché pour l\'instant : ajoute une référence ci-dessous.'}={}){
   const vis=items.filter(x=>c3Vu(x.k)&&c3Filtre([x.nom,x.sous,x.grp].join(' '))), cach=items.filter(x=>!c3Vu(x.k));
   const groupes=[...new Set(vis.map(x=>x.grp||''))];
-  const ligne=x=>`<div class="c3l-r"><span class="nom">${escA(x.nom)}${x.sous?` <span class="dim">· ${escA(x.sous)}</span>`:''}${x.cat?` <span class="badge" style="font-size:10px">${escA(x.cat)}</span>`:''}</span>${x.extra||''}<button class="btn btn-xs btn-ghost" title="Ne plus proposer dans le configurateur" onclick="basculerCle('${escA(x.k)}')">🚫 Retirer</button></div>`;
+  const ligne=x=>`<div class="c3l-r"><span class="nom">${x.rk&&nomsAff()[x.rk]?`<b>${escA(nomsAff()[x.rk])}</b> <span class="dim">(${escA(x.nom)})</span>`:escA(x.nom)}${x.sous?` <span class="dim">· ${escA(x.sous)}</span>`:''}${x.cat?` <span class="badge" style="font-size:10px">${escA(x.cat)}</span>`:''}</span>${x.rk?`<button class="btn btn-xs btn-ghost" title="Nom affiché aux clientes (la référence et les liens ne changent pas)" onclick="renommerAffiche('${escA(x.rk)}','${escA(String(x.nom).replace(/'/g,'’'))}')">✎</button>`:''}${x.extra||''}<button class="btn btn-xs btn-ghost" title="Ne plus proposer dans le configurateur" onclick="basculerCle('${escA(x.k)}')">🚫 Retirer</button></div>`;
   const opts=[...new Set(cach.map(x=>x.grp||''))].map(g=>`<optgroup label="${escA(g||'Autres')}">${cach.filter(x=>(x.grp||'')===g).map(x=>`<option value="${escA(x.k)}">${escA(x.nom)}${x.sous?' · '+escA(x.sous):''}${x.cat?' — '+escA(x.cat):''}</option>`).join('')}</optgroup>`).join('');
   return `<div class="c3l-sec"><h3>${titre} <span class="dim">${vis.length} affiché${vis.length>1?'s':''}${cach.length?' · '+cach.length+' masqué'+(cach.length>1?'s':''):''}</span></h3>${aide?`<p class="dim c3-aide" style="margin:0 0 4px">${aide}</p>`:''}
     ${groupes.map(g=>(g?`<div class="c3l-g">${escA(g)}</div>`:'')+vis.filter(x=>(x.grp||'')===g).map(ligne).join('')).join('')||`<p class="dim" style="font-size:12px;margin:4px 0">${vide}</p>`}
     <div class="c3l-aj">${cach.length?`<select id="aj-${id}"><option value="">＋ Afficher une référence masquée ou nouvelle…</option>${opts}</select><button class="btn btn-xs btn-p" onclick="const v=document.getElementById('aj-${id}').value;if(v)basculerCle(v)">Afficher</button>`:'<span class="dim" style="font-size:12px">Toutes les références sont affichées.</span>'}
       <button class="btn btn-xs btn-ghost" title="Relire les fiches (nouveaux produits créés ailleurs)" onclick="c3Actualiser()">↻ Actualiser les fiches</button></div></div>`;
+}
+/* ✎ noms affichés aux clientes : config « configurateur_offres ».noms = { <réf. de la fiche ou du matériau> | modele:<slug> | acc:<id du porte-clés> : nom } */
+const nomsAff=()=>OFFRES_CFG?.noms||{};
+async function renommerAffiche(cle,defaut){
+  if(OFFRES_CFG===null) await chargerOffresCfg();
+  const v=prompt('Nom affiché aux clientes (vide = nom d\'origine « '+defaut+' ») :',nomsAff()[cle]||''); if(v===null) return;
+  const noms={...nomsAff()}; if(v.trim()) noms[cle]=v.trim(); else delete noms[cle];
+  const cfg={...(OFFRES_CFG||{}),noms}; await sbUpsertConfig('configurateur_offres',cfg); OFFRES_CFG=cfg; toast(v.trim()?'Nom affiché : « '+v.trim()+' » ✓':'Nom d\'origine remis','ok'); renderModelesProposes(); rafraichirApercu();
 }
 async function basculerCle(k){
   const rup=RUPTURES_3D.includes(k)?RUPTURES_3D.filter(x=>x!==k):[...RUPTURES_3D,k];
@@ -4578,6 +4587,13 @@ function renderOffres(){
     ${carte('rond','🔘 Fermoir rond offert',`Offert dès ${num('rond','min',48)} breloques à ${num('rond','prixMin')} € ou plus · remise de ${num('rond','remise')} €`,'porte-clés')}
     ${carte('mousqueton','🪝 Mousqueton offert',`Offert dès ${num('mousqueton','minBundles',48)} porte-clés (n'importe lesquels) montés dessus et ${num('mousqueton','minAchat')} € de breloques (porte-clés non compris) · remise ${num('mousqueton','remise')} € <span class="dim">(vide = offert)</span>`,'porte-clés, non cumulable avec le rond')}
     ${carte('lettres','🔤 Breloque lettre offerte',`Une breloque lettre offerte dès ${num('lettres','min',48)} breloques à ${num('lettres','prixMin')} € ou plus`,'une par commande, cumulable')}
+    <div class="of-carte"><div class="of-hd"><b>✏️ Noms affichés aux clientes</b></div>
+      <div class="of-phrase" style="display:grid;gap:4px">${(()=>{ const acc=[], vus=new Set(); MODELES_3D.forEach(m=>(m.donnees?.options||[]).filter(o=>o.type==='accroche').forEach(o=>(o.choix||[]).forEach(c=>{ if(!vus.has(c.id)){ vus.add(c.id); acc.push(c); } })));
+        const fer=MATS.filter(m=>/fermoir|mousqueton|manille|ressort/i.test([m.designation,m.variante,m.sc].join(' ')));
+        const ligne=(cle,nom,sous)=>`<div style="display:flex;gap:6px;align-items:center"><span style="flex:1">${nomsAff()[cle]?`<b>${escA(nomsAff()[cle])}</b> <span class="dim">(${escA(nom)})</span>`:escA(nom)} <span class="dim">· ${escA(sous)}</span></span><button class="btn btn-xs btn-ghost" onclick="renommerAffiche('${escA(cle)}','${escA(String(nom).replace(/'/g,'’'))}')">✎</button></div>`;
+        return (acc.length?'<div class="dim" style="font-weight:700">Porte-clés (choix du bundle)</div>'+acc.map(c=>ligne('acc:'+c.id,c.libelle||c.id,'porte-clés')).join(''):'')
+          +(fer.length?'<div class="dim" style="font-weight:700;margin-top:4px">Fermoirs et porte-clés (matériaux)</div>'+fer.map(m=>ligne(m.ref,[m.designation,m.variante].filter(Boolean).join(' · '),m.ref)).join(''):''); })()}</div>
+      <div class="of-pied"><span class="dim">Seul le nom vu par la cliente change : la référence, le stock et les liens restent les mêmes. Les breloques, idées, bundles, chaînes et formes se renomment avec ✎ dans leur onglet.</span></div></div>
     <div class="of-carte"><div class="of-hd"><b>🎨 Fond de l'aperçu 3D</b></div>
       <div class="of-phrase">${(()=>{ const ap=OFFRES_CFG?.apparence||{}, f=({jaune:'creme'})[ap.fond]||ap.fond||'violet', op=+ap.logo===100?100:30;
         return [['creme','#fff7c6','#3c114b','Crème · logo violet'],['violet','#3c114b','#fff7c6','Violet · logo jaune'],['vert','#cbc67c','#a7365b','Vert · logo framboise'],['rose','#a7365b','#fff7c6','Framboise · logo jaune']]

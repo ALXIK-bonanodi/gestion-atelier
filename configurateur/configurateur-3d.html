@@ -506,7 +506,7 @@ import {
   correspondCategorie, texteCatalogue, ordreModeles, chargerRuptures, appliquerRuptures,
   chargerLiens, appliquerLiens, relierModele, chargerMateriauxParRefs,
   chargerFichesConfig, chargerOffres, definirLiensFormes, lienModele, appliquerLienModele, formeLiee, composerCompos, definirFichesConfig, ficheCfg, refsCouleurFiche, famillesFiche,
-} from './bead-core.js?v=a5160576';
+} from './bead-core.js?v=d2bac14c';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER, PANIER_SHOPIFY } from './perles-config.js?v=e8e44d9a';
 
 const $ = s => document.querySelector(s);
@@ -595,6 +595,11 @@ if (sb) {
   }
 }
 definirLiensFixes(liens);
+/* noms affichés aux clientes (app › Conception 3D : ✎ sur chaque ligne) : seul le nom change, jamais la référence ni le lien */
+const NOMS = (offresCfg?.noms && typeof offresCfg.noms === 'object') ? offresCfg.noms : {};
+const nomAffiche = (cle, defaut) => (NOMS[cle] && String(NOMS[cle]).trim()) || defaut;
+catalogue = catalogue.map(c => NOMS[c.ref] ? { ...c, nom: NOMS[c.ref], nomOrigine: c.nom } : c);
+fermoirs = fermoirs.map(f => NOMS[f.ref] ? { ...f, nomClient: NOMS[f.ref], nom: NOMS[f.ref] } : f);
 if (!modeles.length) modeles = [modeleDemo(), modeleAreteDemo(), modeleLettresDemo(), modeleArgileDemo(), modeleChainmailDemo(), modelePerleCultureDemo()];
 // 3e parcours « Chaîne de sac » : allumé dans l'app (Conception 3D) ; modèle d'exemple tant que tu n'en as pas publié
 const CHAINE_ACTIVE = ruptures.includes('activer:chaine');
@@ -617,6 +622,8 @@ const aDesEtoiles = catalogue.some(c => texteCatalogue(c).includes('etoile'));
 modeles.sort(ordreModeles);                                    // le petit poisson en premier
 modeles = modeles.map(m0 => {
   const m = resoudreDefauts(relierModele(m0, liens), catalogue, fermoirs);
+  if (NOMS['modele:' + m.slug]) m.nom = NOMS['modele:' + m.slug];
+  for (const o of m.options || []) if (o.type === 'accroche') (o.choix || []).forEach(c => { if (NOMS['acc:' + c.id]) c.libelle = NOMS['acc:' + c.id]; });
   // breloque lettre : l'étoile du milieu est comprise dans le prix de la fiche « 2 mots » (on choisit sa couleur, sans supplément)
   if (estLettres(m)) for (const o of m.options || []) if (o.type === 'perle' && o.place === 'texte') { o.supplement = 0; (o.choix || []).forEach(c => { if (c && typeof c === 'object') c.supplement = 0; }); }
   // étoile dans la bouche proposée par défaut si le modèle publié ne la prévoit pas
@@ -953,7 +960,7 @@ function choisirParcours(p, garder = false) {
   $('#page').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 document.querySelectorAll('[data-parcours]').forEach(b => b.addEventListener('click', () => choisirParcours(b.dataset.parcours)));
-$('#btParcours').addEventListener('click', () => { etat.parcours = null; etat.breloques = [brel()]; etat.actif = 0; etat.accroche = null; rendre3D({ cadrer: true }); toutRendre(); });
+$('#btParcours').addEventListener('click', () => { etat.parcours = null; etat.breloques = [brel()]; etat.actif = 0; etat.accroche = null; etat.compos = [{ surChaine: false }]; etat.mousq = false; delete etat.breloques[0].compo; rendre3D({ cadrer: true }); toutRendre(); });
 $('#btVersBundle').addEventListener('click', () => choisirParcours('bundle'));
 $('#btVersChaine').addEventListener('click', () => choisirParcours('chaine', true));
 $('#btAltBundle').addEventListener('click', () => enregistrerAlternative(true));
@@ -1228,7 +1235,7 @@ function calculerIdees(m) {
     const z = (m.zones || []).find(x => x.id === m.bijZone);
     return z ? couleursProposees(z, catalogue, parties).filter(c => c.enStock !== false && bijoux.some(b => b.ref === c.ref)).map(c => {
       const f = bijoux.find(b => b.ref === c.ref);
-      return { fiche: f, nom: [f.nom, f.variante].filter(Boolean).join(' · '), prix: f.pv != null && f.pv !== '' ? +f.pv : null,
+      return { fiche: f, nom: nomAffiche(f.ref, [f.nom, f.variante].filter(Boolean).join(' · ')), prix: f.pv != null && f.pv !== '' ? +f.pv : null,
         breloque: { ...nouvelleBreloque(m.slug), couleurs: validerConfiguration(m, catalogue, { ...nouvelleBreloque(m.slug).couleurs, [m.bijZone]: c.ref }, parties) } };
     }) : [];
   }
@@ -1237,7 +1244,7 @@ function calculerIdees(m) {
   return [...famillesFiche(row, bijoux).map(f => {                                    // fiches bijoux et compositions
     const c = couleursDeFiche(m, row, f); if (!c) return null;
     if (f.id !== row.id && memeCouleurs(c, classique)) return null;                // variante qu'on ne sait pas encore dessiner
-    return { fiche: f, nom: f.variante || (f.id === row.id ? 'Classique' : f.nom), prix: f.pv != null && f.pv !== '' ? +f.pv : (row.pv != null ? +row.pv : null),
+    return { fiche: f, nom: nomAffiche(f.ref, f.variante || (f.id === row.id ? 'Classique' : f.nom)), prix: f.pv != null && f.pv !== '' ? +f.pv : (row.pv != null ? +row.pv : null),
       breloque: { ...nouvelleBreloque(m.slug), couleurs: c } };
   }).filter(Boolean), ...alternativesDe(m, row)];
 }
@@ -1290,7 +1297,7 @@ function ideesBundle() {
   const pc = bijoux.filter(b => okLot(b) && /porte.?cl/i.test(normNom(colDe(b))));
   return (pc.length ? pc : bijoux.filter(okLot)).map(f => {
     const cfg = ficheCfg(f.id), refs = cfg.refs || [], par = f.parent_id && parId.get(f.parent_id);
-    const nom = par ? [par.nom, f.variante].filter(Boolean).join(' · ') : (f.nom || f.variante || f.ref);   // une variante de lot : « Mix'n Match · rose »
+    const nom = nomAffiche(f.ref, par ? [par.nom, f.variante].filter(Boolean).join(' · ') : (f.nom || f.variante || f.ref));   // une variante de lot : « Mix'n Match · rose » (ou le nom affiché choisi)
     const aRef = r => refs.includes(r) || refs.some(x => baseRef(x) === baseRef(r));
     const acc = accroches.choix.filter(c => c.pieces.length && c.pieces.every(aRef)).sort((a, b) => b.pieces.length - a.pieces.length)[0] || accroches.choix[0];
     const brs = [], sans = [];
@@ -1699,7 +1706,9 @@ function restaurer(c) {
   });
   etat.parcours = c.parcours === 'bundle' || etat.breloques.length > 1 || c.accroche ? 'bundle' : 'breloque';
   etat.accroche = c.accroche?.id && accroches?.choix.some(x => x.id === c.accroche.id) ? c.accroche.id : (etat.parcours === 'bundle' ? (choixOffre() || accroches?.choix[0])?.id || null : null);
-  etat.compos = Array.isArray(c.compos) && c.compos.length ? c.compos.map((x, k) => ({ ...(k ? { accroche: x.accroche } : {}), surChaine: !!x.surChaine })) : [{ surChaine: false }];
+  // plusieurs porte-clés repris seulement si la composition enregistrée les avait montés « sur un mousqueton » ; sinon on repart d'un seul porte-clés
+  etat.compos = c.mousqueton && Array.isArray(c.compos) && c.compos.length ? c.compos.map((x, k) => ({ ...(k ? { accroche: x.accroche } : {}), surChaine: !!x.surChaine })) : [{ surChaine: !!c.compos?.[0]?.surChaine }];
+  if (!c.mousqueton) etat.breloques.forEach(b => { delete b.compo; });
   etat.mousq = !!c.mousqueton; etat.offreChoix = c.offreChoix || null;
   etat.actif = Math.min(c.actif || 0, etat.breloques.length - 1);
   rendre3D({ cadrer: true }); toutRendre();
@@ -1915,7 +1924,7 @@ async function reprendre(cle) {
 }
 function recommencer() {
   try { localStorage.removeItem('bn-perso-brouillon'); } catch {}
-  etat.parcours = null; etat.breloques = [breloqueOuverture(modeles[0].slug)]; etat.actif = 0; etat.accroche = null;
+  etat.parcours = null; etat.breloques = [breloqueOuverture(modeles[0].slug)]; etat.actif = 0; etat.accroche = null; etat.compos = [{ surChaine: false }]; etat.mousq = false; etat.offreChoix = null;
   $('#reprise').hidden = true; rendre3D({ cadrer: true }); toutRendre();
 }
 

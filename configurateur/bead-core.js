@@ -1674,8 +1674,10 @@ function geosFermoirS(H) {
   const B = [[-0.23, 0.33], [-0.31, 0.21], [-0.31, 0.11], [-0.24, 0.035], [-0.04, 0.005], [0.18, 0.015], [0.33, 0.06], [0.40, 0.16], [0.38, 0.33], [0.36, 0.52], [0.43, 0.63]];
   const sym = ([y, h]) => [-y, 1 - h];
   // boucle du haut : même forme, tournée, plus serrée (largeur × 0,62) : sa jambe passe contre la diagonale (fermée) et son bout s'écarte vers l'extérieur comme celui du bas
-  const haut = B.map(sym).reverse().map(([y, h]) => [y * 0.62, h]);
-  const P = [...haut, [0.04, 0.51], ...B];
+  // boucle du haut : exactement la boucle du bas tournée d'un demi-tour (même taille, symétrique) ; seule sa jambe revient
+  // contre la diagonale pour fermer, et son petit bout ressort vers l'extérieur
+  const haut = B.map(sym).reverse();                                     // [bout, jambe…, haut de la boucle…, départ de la diagonale]
+  const P = [[-0.31, 0.37], [-0.21, 0.44], [-0.31, 0.53], ...haut.slice(2), [0.04, 0.51], ...B];
   const c = new THREE.CatmullRomCurve3(P.map(([y, h]) => new THREE.Vector3(0, -y * W, -h * H)), false, 'centripetal');   // -y : vu comme sur la photo
   const g = [new THREE.TubeGeometry(c, 260, r, 10, false)];
   for (const [y, h] of [P[0], P[P.length - 1]]) { const e = new THREE.SphereGeometry(r, 10, 8); e.scale(1, 1, 0.6); e.translate(0, -y * W, -h * H); g.push(e); }
