@@ -503,7 +503,7 @@ import {
   correspondCategorie, texteCatalogue, ordreModeles, chargerRuptures, appliquerRuptures,
   chargerLiens, appliquerLiens, relierModele, chargerMateriauxParRefs,
   chargerFichesConfig, chargerOffres, definirLiensFormes, lienModele, appliquerLienModele, formeLiee, composerCompos, definirFichesConfig, ficheCfg, refsCouleurFiche, famillesFiche,
-} from './bead-core.js?v=20eda6e0';
+} from './bead-core.js?v=e71d934f';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER, PANIER_SHOPIFY } from './perles-config.js?v=e8e44d9a';
 
 const $ = s => document.querySelector(s);
@@ -602,7 +602,7 @@ if (modeles.some(breloqueDispo)) modeles = modeles.filter(breloqueDispo);
 // breloques proposées selon le parcours (app de gestion › Conception 3D) : « breloque:<slug> » / « bundle:<slug> » = masquée dans ce parcours
 const rupSet = new Set(ruptures);
 catalogue = catalogue.filter(c => !(c.categorie === 'Chaînes de sac' && c.bij_id && rupSet.has('idee:' + c.bij_id)));   // chaînes masquées dans l'app
-catalogue = catalogue.filter(c => !(c.finition === 'chainmail' && c.forme && (rupSet.has('forme:' + c.forme) || (c.bij_id && rupSet.has('idee:' + c.bij_id)))));   // formes masquées dans l'app (forme ou sa fiche)         // formes chainmail masquées (croix, mini chaînes)
+catalogue = catalogue.filter(c => !(c.finition === 'chainmail' && c.forme && rupSet.has('forme:' + c.forme)));   // formes masquées dans l'app (🧸 Breloques › formes)         // formes chainmail masquées (croix, mini chaînes)
 const modelesDu = p => {
   if (p === 'chaine') return modeles.filter(m => estChaineSac(m) && !rupSet.has('chaine:' + m.slug));
   const tous = modeles.filter(m => !estChaineSac(m));                                   // les chaînes de sac ont leur propre parcours
@@ -658,6 +658,7 @@ if (new URLSearchParams(location.search).get('diag')) {
     ['Fermoirs (après regroupement des variantes de stock)', fermoirs.map(f => `${f.ref} · ${f.nom} · ${f.type} ${f.taille} mm${f.variantes ? ' · regroupe ' + f.variantes.join(', ') : ''}${f.enStock === false ? ' · ÉPUISÉ' : ''}`).join('\n') || 'AUCUN'],
     ['Choix de fermoir par modèle (avant → après tes liens)', modeles.map(m => { try { const o0 = (m.options || []).find(o => o.type === 'fermoir'), o1 = (resoudreDefauts(relierModele(m, liens), catalogue, fermoirs).options || []).find(o => o.type === 'fermoir');
       const L = o => (o?.choix || []).map(c => c.ref).join(', ') || '—'; return `${m.slug} : ${L(o0)} → ${L(o1)}${(o1?.choix?.length || 0) > 1 ? '' : '  ⚠ 1 seul choix : la ligne Finition fermoir est masquée'}`; } catch (x) { return m.slug + ' : erreur ' + x.message; } }).join('\n')],
+    ['Formes de la breloque chainmail', catalogue.filter(c => c.finition === 'chainmail' && c.forme && c.categorie !== 'Chaînes de sac').map(c => `${c.famille || ''} · ${c.nom} · ${c.ref} · ${c.forme}`).join('\n') || 'AUCUNE'],
     ['Chaînes de sac proposées (masquées dans l\'app : retirées)', catalogue.filter(c => c.categorie === 'Chaînes de sac').map(c => `${c.ref} · ${c.nomFiche || c.nom} · ${c.forme}`).join('\n') || 'AUCUNE'],
     ['Perles étoile', catalogue.filter(c => texteCatalogue(c).includes('etoile')).map(ligne).join('\n') || 'AUCUNE'],
     ['Parties de l\'ancien configurateur (restrictions)', (parties || []).map(p => p.id + ' : ' + (p.enabled_mats?.length || 0) + ' matériaux').join('\n') || 'aucune'],

@@ -1662,14 +1662,15 @@ function geosAccessoire(type, taille = 12) {
 /* Fermoir S, hauteur H (≈ 14 mm sur ta photo, comme le petit fermoir breloque) : fil ≈ 0,09 H, deux boucles en goutte,
    largeur ≈ 0,6 H. Plan YZ, bas de la boucle du bas à l'origine, le S monte vers -Z. */
 function geosFermoirS(H) {
-  // relevé sur ta photo (fermoir tenu entre les doigts) : boucle du haut en goutte, sa jambe gauche descend tout droit jusqu'à un bout ouvert ;
-  // la diagonale part du côté droit de la boucle du haut vers le bas gauche ; boucle du bas arrondie, sa jambe droite remonte jusqu'à un bout ouvert
-  const W = 0.6 * H, r = Math.max(0.28, 0.034 * H);
-  const P = [[-0.47, 0.28], [-0.46, 0.42], [-0.45, 0.55], [-0.42, 0.78], [-0.33, 0.93], [-0.08, 0.995], [0.17, 0.96], [0.28, 0.85], [0.26, 0.70],
-    [0.04, 0.51], [-0.23, 0.33], [-0.31, 0.21], [-0.31, 0.11], [-0.24, 0.035], [-0.04, 0.005], [0.18, 0.015], [0.33, 0.06], [0.40, 0.16], [0.38, 0.33], [0.36, 0.52], [0.43, 0.63]];
-  const c = new THREE.CatmullRomCurve3(P.map(([y, h]) => new THREE.Vector3(0, -y * W, -h * H)), false, 'centripetal');   // -y : vu comme sur la photo
-  const g = [new THREE.TubeGeometry(c, 240, r, 10, false)];
-  for (const [y, h] of [P[0], P[P.length - 1]]) { const e = new THREE.SphereGeometry(r, 10, 8); e.scale(1, 1, 0.6); e.translate(0, -y * W, -h * H); g.push(e); }   // bouts coupés
+  // deux boucles en goutte de même forme (symétriques par rapport au centre), reliées par la diagonale :
+  // la boucle du haut est fermée (son bout revient contre la diagonale), celle du bas est un peu ouverte
+  const W = 0.72 * H, r = Math.max(0.28, 0.034 * H);
+  const T = [[0, 0.5], [0.15, 0.6], [0.27, 0.71], [0.33, 0.83], [0.27, 0.95], [0.1, 1.0], [-0.1, 0.99], [-0.26, 0.92], [-0.33, 0.8], [-0.29, 0.68], [-0.2, 0.6]];
+  const sym = ([y, h]) => [-y, 1 - h];
+  const P = [...T.slice(1).reverse().map(sym), ...T, [-0.06, 0.545]];       // bas (ouvert : s'arrête à la place symétrique), diagonale, haut, bout rentré
+  const c = new THREE.CatmullRomCurve3(P.map(([y, h]) => new THREE.Vector3(0, y * W, -h * H)), false, 'centripetal');
+  const g = [new THREE.TubeGeometry(c, 260, r, 10, false)];
+  for (const [y, h] of [P[0], P[P.length - 1]]) { const e = new THREE.SphereGeometry(r, 10, 8); e.translate(0, y * W, -h * H); g.push(e); }
   return g;
 }
 /* Manille, hauteur H (≈ 24 mm sur ta photo à côté du mousqueton porte-clés de 34 mm) : arceau en U (fil ≈ 0,16 H, ouverture ≈ 0,54 H),

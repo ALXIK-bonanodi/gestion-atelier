@@ -548,6 +548,17 @@ body.selection-active #gpanel-mat{padding-bottom:150px!important}
 .c3-zone>div.vu{display:flex;flex-direction:column}
 .c3-zone iframe{flex:1;width:100%;min-height:0;border:0;display:block;background:#fff}
 .c3-gest{overflow-y:auto;padding:14px 16px 30px;background:var(--bg)}
+.c3l-sec{background:#fff;border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin:0 0 10px}
+.c3l-sec h3{margin:0 0 6px;font-size:13px;color:var(--purple);display:flex;gap:8px;align-items:center}
+.c3l-sec h3 .dim{font-weight:400}
+.c3l-g{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin:8px 0 3px}
+.c3l-r{display:flex;gap:8px;align-items:center;padding:5px 6px;border-radius:8px}
+.c3l-r:hover{background:var(--bg)}
+.c3l-r .nom{flex:1;min-width:0;font-size:13px}
+.c3l-r .nom .dim{font-size:11px}
+.c3l-aj{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)}
+.c3l-aj select{flex:1;min-width:200px}
+#c3-ctrl{overflow-y:auto;max-height:45%;padding:0 12px;background:var(--bg);border-bottom:1px solid var(--border)}
 .c3-gest-hd h2{font-family:var(--serif);font-weight:500;font-size:20px;color:var(--purple);margin:0 0 2px}
 .c3-gest-hd p{font-size:12px;color:var(--muted);margin:0 0 10px}
 .c3-sim{border-left:1px solid var(--border);background:#fff}
@@ -834,7 +845,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
       <button type="button" data-c3="g:idees" onclick="switchC3dTab('g:idees')">💡 Idées de couleurs <span class="n"></span></button>
       <button type="button" data-c3="g:bundles" onclick="switchC3dTab('g:bundles')">🎁 Bundles <span class="n"></span></button>
       <button type="button" data-c3="g:chaines" onclick="switchC3dTab('g:chaines')">⛓ Chaînes de sac <span class="n"></span></button>
-      <button type="button" data-c3="g:offres" onclick="switchC3dTab('g:offres')">🏷 Offres et prix</button>
+      <button type="button" data-c3="g:offres" onclick="switchC3dTab('g:offres')">🏷 Offres</button>
       <button type="button" data-c3="ref" onclick="switchC3dTab('ref')">🔗 Références</button>
       <button type="button" data-c3="rup" onclick="switchC3dTab('rup')">📦 Ruptures</button>
       <div class="c3-nav-pied">
@@ -851,7 +862,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
       </div>
       <div id="c3panel-m3d"><iframe id="c3frame-m3d" title="Modèles 3D"></iframe></div>
       <div id="c3panel-cmp"><iframe id="c3frame-cmp" title="Composer une chaîne chainmail"></iframe></div>
-      <div id="c3panel-ref"><iframe id="c3frame-ref" title="Références du configurateur"></iframe></div>
+      <div id="c3panel-ref"><div id="c3-ctrl"></div><iframe id="c3frame-ref" title="Références du configurateur"></iframe></div>
       <div id="c3panel-rup"><iframe id="c3frame-rup" title="Ruptures du configurateur"></iframe></div>
     </section>
   </div>
@@ -4499,38 +4510,44 @@ function rendreC3(){
     corps=`<p class="dim c3-aide">Les modèles 3D proposés au client, dans chaque parcours (breloque seule / bundle). Un modèle se publie dans 🧊 Modèles.</p>`
       +(MODELES_3D.length?MODELES_3D.map(m=>c3Ligne(escA(m.nom||m.slug),c3Inter(vuM(m,'breloque'),`basculerModele('${escA(m.slug)}','breloque')`,'breloque seule')+c3Inter(vuM(m,'bundle'),`basculerModele('${escA(m.slug)}','bundle')`,'bundle + chaîne de sac'),{sous:m.publie?'':'non publié'})).join(''):'<p class="dim">Aucun modèle 3D enregistré (onglet 🧊 Modèles) : le configurateur montre les modèles d\'exemple.</p>')
       +(()=>{ // formes de la breloque chainmail = exactement celles du configurateur : croix, mini chains, tes compositions « breloque » (pas les chaînes, pas les BO)
-          const ficheDe=f=>{ const r=LIENS_3D['forme:'+f]; const b=r&&BIJS.find(x=>x.ref===r); return b?nomFiche3(b)+' · '+b.ref:''; };
-          const cps=COMPOS_3D.filter(c=>c.usage==='breloque'&&c.statut!=='brouillon'&&LIENS_3D['forme:compo-'+c.id]);
-          const L=[...FORMES_3D.map(([f,nom])=>({f,nom,fam:/^mini/.test(f)?'Mini chain':'Formes'})),...cps.map(c=>({f:'compo-'+c.id,nom:c.nom,fam:/\bmini/i.test(c.nom||'')?'Mini chain':'Formes'}))];
-          const ligne=x=>c3Ligne(escA(x.nom),c3Inter(c3Vu('forme:'+x.f),`basculerForme('${escA(x.f)}')`),{sous:escA(ficheDe(x.f))});
-          return c3Groupe('formes','Breloque chainmail · formes',['Formes','Mini chain'].map(fm=>`<div class="dim" style="font-weight:700;margin:6px 0 2px">${fm}</div>`+L.filter(x=>x.fam===fm).map(ligne).join('')).join('')
-            +`<p class="dim c3-aide">Les compositions « breloque » enregistrées et validées dans ⛓ Composer apparaissent ici ; les chaînes de sac et les boucles d'oreilles n'y sont jamais proposées. Masquer leur fiche (💡 Idées / ⛓ Chaînes) les retire aussi.</p>`); })()
+          const ficheDe=f=>{ const r=LIENS_3D['forme:'+f]; const b=r&&BIJS.find(x=>x.ref===r); return b?nomFiche3(b)+' · '+b.ref:'pas encore de fiche reliée'; };
+          const cps=COMPOS_3D.filter(c=>c.usage==='breloque'&&c.statut!=='brouillon');
+          const L=[...FORMES_3D.map(([f,nom])=>({k:'forme:'+f,nom,grp:/^mini/.test(f)?'Mini chain':'Formes',sous:ficheDe(f)})),...cps.map(c=>({k:'forme:compo-'+c.id,nom:c.nom,grp:/\bmini/i.test(c.nom||'')?'Mini chain':'Formes',sous:ficheDe('compo-'+c.id)}))];
+          return c3Liste('formes','⛓ Breloque chainmail · formes',L,{aide:'La croix, les mini chains et tes compositions « breloque » validées dans ⛓ Composer. Jamais les chaînes de sac ni les boucles d\'oreilles.'}); })()
       +`<p class="dim c3-aide">La fiche produit de chaque modèle / forme se relie dans 🔗 Références › Produits ↔ modèles 3D.</p>`;
   } else if(C3_ONGLET==='idees'){
-    const fam=D.fam.filter(f=>[f.base,...f.vars].some(b=>c3Filtre(nomFiche3(b))));
-    corps=`<p class="dim c3-aide">Les variantes de couleurs proposées sous chaque modèle (boîte 💡). Masquée = n'est plus proposée, mais la fiche reste reconnue si la cliente choisit ces couleurs.</p>
-      <div class="c3-barre">${tout(idsIdees,true)}${tout(idsIdees,false)}${plier}</div>`
-      +fam.map(f=>c3Groupe('i:'+f.base.id,escA(f.base.nom||f.base.ref)+` <span class="dim">${[f.base,...f.vars].filter(b=>c3Vu('idee:'+b.id)).length}/${f.vars.length+1}</span>`,[f.base,...f.vars].map(b=>c3Ligne(escA(b.variante||b.nom||b.ref),c3Inter(c3Vu('idee:'+b.id),`basculerIdee('${escA(b.id)}')`)+c3Lien(b.id),{sous:escA(b.ref),retrait:!!b.parent_id})).join(''))).join('')
-      +c3Groupe('alt-i','⭐ Alternatives (créées dans le configurateur)',(altI.map(a=>c3Ligne(escA(a.nom),c3Inter(c3Vu('idee:alt:'+a.id),`basculerIdee('alt:${escA(a.id)}')`)+c3Lien('alt:'+a.id)+`<button class="btn btn-xs btn-ghost" title="Renommer" onclick="renommerAlternative('${escA(a.id)}')">✎</button><button class="btn btn-xs btn-red" title="Supprimer" onclick="supprimerAlternative('${escA(a.id)}')">✕</button>`,{sous:escA((MODELES_3D.find(m=>m.slug===a.modele)?.nom)||a.modele||'')})).join('')||'<p class="dim">aucune</p>'));
+    const L=[...D.fam.flatMap(f=>[f.base,...f.vars].map(b=>({k:'idee:'+b.id,nom:b===f.base?(b.variante||'fiche de base'):(b.variante||b.nom||b.ref),sous:b.ref,grp:f.base.nom||f.base.ref,extra:c3Lien(b.id)}))),
+      ...altI.map(a=>({k:'idee:alt:'+a.id,nom:a.nom,sous:'alternative',grp:'⭐ Alternatives (créées dans le configurateur)',extra:c3Lien('alt:'+a.id)+`<button class="btn btn-xs btn-ghost" title="Renommer" onclick="renommerAlternative('${escA(a.id)}')">✎</button>`}))];
+    corps=c3Liste('idees','💡 Idées de couleurs proposées',L,{aide:'Sous chaque modèle, les variantes de couleurs proposées en vignettes. Une idée retirée reste reconnue si la cliente choisit ces couleurs.'});
   } else if(C3_ONGLET==='bundles'){
-    const L=D.lotsBase.filter(b=>[b,...D.varsLot(b)].some(x=>c3Filtre(nomFiche3(x))));
-    corps=`<p class="dim c3-aide">Les porte-clés tout prêts (lots) et <b>chacune de leurs variantes, réglables séparément</b> : tu peux afficher une variante sans le lot de base.</p>
-      <div class="c3-barre">${tout(idsLots,true)}${tout(idsLots,false)}${plier}</div>`
-      +L.map(b=>c3Groupe('b:'+b.id,escA(b.nom||b.ref),c3Ligne('Lot de base'+(b.variante?' · '+escA(b.variante):''),c3Inter(c3Vu('idee:'+b.id),`basculerIdee('${escA(b.id)}')`)+c3Lien(b.id,1),{sous:escA(b.ref)})
-        +D.varsLot(b).map(v=>c3Ligne('Variante · '+escA(v.variante||v.nom||v.ref),c3Inter(c3Vu('idee:'+v.id),`basculerIdee('${escA(v.id)}')`)+c3Lien(v.id,1),{sous:escA(v.ref),retrait:true})).join(''))).join('')
-      +c3Groupe('alt-b','⭐ Bundles créés dans le configurateur',(altB.map(a=>c3Ligne(escA(a.nom),c3Inter(c3Vu('idee:alt:'+a.id),`basculerIdee('alt:${escA(a.id)}')`)+c3Lien('alt:'+a.id,1)+`<button class="btn btn-xs btn-ghost" title="Renommer" onclick="renommerAlternative('${escA(a.id)}')">✎</button><button class="btn btn-xs btn-red" title="Supprimer" onclick="supprimerAlternative('${escA(a.id)}')">✕</button>`,{sous:(a.breloques||[]).length+' breloque(s)'})).join('')||'<p class="dim">aucun</p>'));
+    const L=[...D.lotsBase.flatMap(b=>[b,...D.varsLot(b)].map(x=>({k:'idee:'+x.id,nom:x===b?(b.variante?'Lot · '+b.variante:'Lot de base'):'Variante · '+(x.variante||x.nom||x.ref),sous:x.ref,grp:b.nom||b.ref,extra:c3Lien(x.id,1)}))),
+      ...altB.map(a=>({k:'idee:alt:'+a.id,nom:a.nom,sous:'créé dans le configurateur',grp:'⭐ Bundles créés dans le configurateur',extra:c3Lien('alt:'+a.id,1)+`<button class="btn btn-xs btn-ghost" title="Renommer" onclick="renommerAlternative('${escA(a.id)}')">✎</button>`}))];
+    corps=c3Liste('bundles','🎁 Bundles tout prêts proposés',L,{aide:'Les porte-clés tout prêts (lots) et chacune de leurs variantes, en vignettes en haut de la page bundle.'});
   } else if(C3_ONGLET==='chaines'){
-    const L=D.chaines.filter(b=>[b,...D.varsCh(b)].some(x=>c3Filtre(nomFiche3(x))));
+    const L=D.chaines.flatMap(b=>[b,...D.varsCh(b)].filter(D.proposee).map(x=>({k:'idee:'+x.id,nom:x===b?'Fiche de base':(x.variante||x.nom||x.ref),sous:x.ref,grp:nomFiche3(b)})));
     corps=c3Ligne('<b>3e parcours « Chaîne de sac »</b>',c3Inter(RUPTURES_3D.includes('activer:chaine'),'basculerChaine()'))
-      +`<p class="dim c3-aide">Chaque chaîne et ses variantes (les variantes collier / choker ne sont pas proposées). Le motif 3D vient du nom de la fiche ou du lien dans 🔗 Références.</p>
-      <div class="c3-barre">${tout(idsCh,true)}${tout(idsCh,false)}${plier}</div>`
-      +L.map(b=>c3Groupe('c:'+b.id,`${escA(nomFiche3(b))} <span class="dim">${escA(b.ref)}</span>${D.proposee(b)?'':' <span class="dim">· fiche de regroupement, pas proposée elle-même</span>'}`,[b,...D.varsCh(b)].filter(D.proposee).map(x=>c3Ligne(x===b?'Fiche de base':'Variante · '+escA(x.variante||x.ref),c3Inter(c3Vu('idee:'+x.id),`basculerIdee('${escA(x.id)}')`),{sous:escA(x.ref),retrait:x!==b})).join(''))).join('')
-      +`<p class="dim c3-aide">👁 Affiché / 🚫 Masqué agit tout de suite sur le configurateur (après ↻ de sa page).</p>`;
-  } else corps=renderOffres()+`<details class="c3p-det" style="margin-top:14px"><summary><b>💶 Contrôle des prix</b> <span class="dim">· rentabilité de chaque fiche et des suppléments</span> <span class="c3p-gerer">Voir ▾</span></summary>${renderControlePrix()}</details>`;
+      +c3Liste('chaines','⛓ Chaînes de sac proposées',L,{aide:'Le motif 3D vient du nom de la fiche (8 mm, 10 mm, fleur, alternative). Les variantes collier / choker ne sont pas proposées.'});
+  } else corps=renderOffres();
   return `<div class="c3-onglets">${onglets.map(([k,t,n])=>`<button type="button" class="${C3_ONGLET===k?'on':''}" onclick="C3_ONGLET='${k}';renderModelesProposes()">${t}${n?` <span>${n}</span>`:''}</button>`).join('')}</div>
     ${['idees','bundles','chaines'].includes(C3_ONGLET)?`<input class="c3-filtre" placeholder="🔍 Filtrer…" value="${escA(C3_FILTRE)}" oninput="C3_FILTRE=this.value;clearTimeout(window.__c3f);window.__c3f=setTimeout(()=>{renderModelesProposes().then(()=>{const i=document.querySelector('.c3-filtre');i.focus();i.setSelectionRange(i.value.length,i.value.length);})},250)">`:''}
     <div class="c3-corps">${corps}</div>`;
 }
+/* listes de gestion : seulement ce qui est affiché ; ce qui est masqué (ou nouveau) s'ajoute par « ＋ Afficher » */
+function c3Liste(id,titre,items,{aide='',vide='Rien d\'affiché pour l\'instant : ajoute une référence ci-dessous.'}={}){
+  const vis=items.filter(x=>c3Vu(x.k)&&c3Filtre([x.nom,x.sous,x.grp].join(' '))), cach=items.filter(x=>!c3Vu(x.k));
+  const groupes=[...new Set(vis.map(x=>x.grp||''))];
+  const ligne=x=>`<div class="c3l-r"><span class="nom">${escA(x.nom)}${x.sous?` <span class="dim">· ${escA(x.sous)}</span>`:''}</span>${x.extra||''}<button class="btn btn-xs btn-ghost" title="Ne plus proposer dans le configurateur" onclick="basculerCle('${escA(x.k)}')">🚫 Retirer</button></div>`;
+  const opts=[...new Set(cach.map(x=>x.grp||''))].map(g=>`<optgroup label="${escA(g||'Autres')}">${cach.filter(x=>(x.grp||'')===g).map(x=>`<option value="${escA(x.k)}">${escA(x.nom)}${x.sous?' · '+escA(x.sous):''}</option>`).join('')}</optgroup>`).join('');
+  return `<div class="c3l-sec"><h3>${titre} <span class="dim">${vis.length} affiché${vis.length>1?'s':''}${cach.length?' · '+cach.length+' masqué'+(cach.length>1?'s':''):''}</span></h3>${aide?`<p class="dim c3-aide" style="margin:0 0 4px">${aide}</p>`:''}
+    ${groupes.map(g=>(g?`<div class="c3l-g">${escA(g)}</div>`:'')+vis.filter(x=>(x.grp||'')===g).map(ligne).join('')).join('')||`<p class="dim" style="font-size:12px;margin:4px 0">${vide}</p>`}
+    <div class="c3l-aj">${cach.length?`<select id="aj-${id}"><option value="">＋ Afficher une référence masquée ou nouvelle…</option>${opts}</select><button class="btn btn-xs btn-p" onclick="const v=document.getElementById('aj-${id}').value;if(v)basculerCle(v)">Afficher</button>`:'<span class="dim" style="font-size:12px">Toutes les références sont affichées.</span>'}
+      <button class="btn btn-xs btn-ghost" title="Relire les fiches (nouveaux produits créés ailleurs)" onclick="c3Actualiser()">↻ Actualiser les fiches</button></div></div>`;
+}
+async function basculerCle(k){
+  const rup=RUPTURES_3D.includes(k)?RUPTURES_3D.filter(x=>x!==k):[...RUPTURES_3D,k];
+  await sbUpsertConfig('configurateur_ruptures', rup); RUPTURES_3D=rup; toast(rup.includes(k)?'Retiré du configurateur':'Affiché dans le configurateur','ok'); await renderModelesProposes(); rafraichirApercu();
+}
+async function c3Actualiser(){ try{ const {data}=await SB.from('bijoux').select('*'); if(data) BIJS=data; }catch(e){} await renderModelesProposes(); toast('Fiches relues ✓','ok'); }
 async function c3Tous(ids,on){
   const cles=ids.map(id=>'idee:'+id); let rup=RUPTURES_3D.filter(k=>!cles.includes(k)); if(!on) rup=[...rup,...cles];
   await sbUpsertConfig('configurateur_ruptures', rup); RUPTURES_3D=rup; toast(on?'Tout affiché':'Tout masqué','ok'); renderModelesProposes(); rafraichirApercu();
@@ -4710,13 +4727,14 @@ async function basculerModele(slug, parcours){
 }
 const C3_GEST = { breloques:['🧸 Breloques','Affiché / Masqué : l\'aperçu client à droite se recharge après chaque changement.'],
   idees:['💡 Idées de couleurs','L\'aperçu client à droite se recharge après chaque changement.'], bundles:['🎁 Bundles tout prêts','L\'aperçu client à droite se recharge après chaque changement.'],
-  chaines:['⛓ Chaînes de sac','L\'aperçu client à droite se recharge après chaque changement.'], offres:['🏷 Offres et prix','Les offres du configurateur et le contrôle des prix (rentabilité de chaque fiche).'] };
+  chaines:['⛓ Chaînes de sac','L\'aperçu client à droite se recharge après chaque changement.'], offres:['🏷 Offres','Les offres du configurateur, les remises par paliers et le fond de l\'aperçu. Le contrôle des prix est dans 🔗 Références.'] };
 let C3_VUE = (()=>{ try{ return localStorage.getItem('c3_vue')||'g:breloques'; }catch(e){ return 'g:breloques'; } })();
 function switchC3dTab(tab, recharger) {
   if(tab==='cfg' || (!C3D_PAGES[tab] && !String(tab).startsWith('g:'))) tab='g:breloques';   // l'aperçu client est affiché à côté de la gestion
   if(tab==='m3d'||tab==='cmp'||tab==='ref'||tab==='rup'||tab==='cfg'||tab.startsWith('g:')) C3_VUE=tab;
   try{ localStorage.setItem('c3_vue', tab); }catch(e){}
   const gest = tab.startsWith('g:'), voir = gest ? ['gest','cfg'] : [tab];
+  if(tab==='ref'){ const c=document.getElementById('c3-ctrl'); if(c) c.innerHTML=`<details class="c3p-det" style="margin:8px 0"><summary><b>💶 Contrôle des prix</b> <span class="dim">· rentabilité de chaque fiche, des suppléments et des offres</span> <span class="c3p-gerer">Voir ▾</span></summary><div id="c3-ctrl-corps">${renderControlePrix()}</div></details>`; }
   if(gest){ C3_ONGLET=tab.slice(2); const [t,a]=C3_GEST[C3_ONGLET]||['','']; document.getElementById('c3-gest-hd').innerHTML=`<h2>${t}</h2><p>${a}</p>`; renderModelesProposes(); }
   document.getElementById('c3-zone').classList.toggle('avec-sim', gest);
   ['gest',...Object.keys(C3D_PAGES)].forEach(t => document.getElementById('c3panel-'+t).classList.toggle('vu', voir.includes(t)));
