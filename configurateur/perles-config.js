@@ -12,6 +12,11 @@ export const supabaseConfigure = () =>
    SHOPIFY (fonction Supabase « shopify »). false = le configurateur propose seulement d'enregistrer. */
 export const PANIER_SHOPIFY = true;
 
+/* Typographie Erotica (Adobe Fonts) des titres de page : colle ici l'adresse CSS de ton projet web Adobe Fonts
+   (fonts.adobe.com › Mes projets web › ton projet › « Intégrer » : l'adresse en https://use.typekit.net/xxxxxxx.css).
+   Ajoute dans ce projet le domaine alxik-bonanodi.github.io (et ton domaine Shopify). Vide = police de secours. */
+export const ADOBE_FONTS_KIT = 'https://use.typekit.net/lpe6xed.css';   // projet « erotica-big » / « erotica-inline »
+
 /* Informations imprimées sur le bon de commande / la facture.
    À compléter : les mentions légales d'une facture dépendent de ton statut. */
 export const INFOS_ATELIER = {

@@ -7,7 +7,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pinyon+Script&family=Fredoka:wght@400;500;600&family=Figtree:ital,wght@0,400;0,600;1,400&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pinyon+Script&family=Syne:wght@700;800&family=Josefin+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap">
 <style>
 /* Mise en page : poisson 3D à gauche, 3 étapes à droite (empilés sur téléphone).
    Pensé pour un cadre intégré dans la boutique Shopify : rien de fixé à l'écran, pas de défilement capturé.
@@ -21,9 +21,11 @@
   --ligne: rgba(60, 17, 75, 0.18);
   --ligne-forte: rgba(60, 17, 75, 0.45);
   --erreur: #a3262f;
-  --f-script: 'Pinyon Script', 'Snell Roundhand', cursive;
-  --f-titre: 'Fredoka', 'Nunito', system-ui, sans-serif;
-  --f-texte: 'Figtree', system-ui, -apple-system, sans-serif;
+  /* charte : titres de page en Erotica (Adobe Fonts, kit dans perles-config.js), titres numérotés en Syne ExtraBold, textes en Josefin Sans */
+  --f-script: 'erotica-big', 'erotica', 'Pinyon Script', 'Snell Roundhand', cursive;
+  --f-num: 'Syne', 'Josefin Sans', system-ui, sans-serif;
+  --f-titre: 'Josefin Sans', system-ui, sans-serif;
+  --f-texte: 'Josefin Sans', system-ui, -apple-system, sans-serif;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
@@ -81,14 +83,15 @@ button, input, textarea { font: inherit; color: inherit; }
 /* ---- en-tête ---- */
 .entete { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: center; }
 .entete img { width: 64px; height: 64px; }
-.entete h1 { margin: 0; font: 400 clamp(2.1rem, 4.6vw, 2.9rem)/1.05 var(--f-script); text-wrap: balance; }
+.entete h1 { margin: 0; font: 400 clamp(2.1rem, 4.6vw, 2.9rem)/1.05 var(--f-script); text-wrap: balance; color: var(--prune);
+  -webkit-text-stroke: .6px currentColor; paint-order: stroke fill; }   /* contour : Erotica un peu plus grasse */
 .entete p { margin: 2px 0 0; color: var(--prune-doux); font-size: 15px; }
 
 .panneau { display: grid; gap: 26px; min-width: 0; }
 .etape { display: grid; gap: 14px; }
-.etape > h2 { display: flex; align-items: center; gap: 10px; margin: 0; font: 600 1.15rem/1.2 var(--f-titre); letter-spacing: .01em; }
+.etape > h2 { display: flex; align-items: center; gap: 10px; margin: 0; font: 800 1.15rem/1.2 var(--f-num); letter-spacing: .01em; color: var(--prune); }
 .etape > h2 .num { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
-  border: 1.5px solid var(--prune); font: 600 13px var(--f-titre); flex: none; }
+  border: 1.5px solid var(--prune); font: 800 13px var(--f-num); flex: none; }
 
 /* ---- parties ---- */
 .parties { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -159,7 +162,7 @@ label.champ input:focus, label.champ textarea:focus { border-color: var(--prune)
 .btn-envoi:disabled { opacity: .55; cursor: wait; }
 .erreur { color: var(--erreur); font-size: 14px; margin: 0; }
 .merci { border-radius: 18px; border: 1.5px solid var(--prune); background: var(--creme-clair); padding: 22px; display: grid; gap: 10px; text-align: center; justify-items: center; }
-.merci h3 { margin: 0; font: 400 2.2rem/1 var(--f-script); }
+.merci h3 { margin: 0; font: 400 2.2rem/1 var(--f-script); -webkit-text-stroke: .5px currentColor; paint-order: stroke fill; }
 .merci .numero { font: 600 1.2rem var(--f-titre); letter-spacing: .04em; padding: 6px 14px; border-radius: 999px; border: 1.5px dashed var(--prune); }
 .merci p { margin: 0; color: var(--prune-doux); max-width: 44ch; }
 
@@ -265,7 +268,7 @@ label.champ input:focus, label.champ textarea:focus { border-color: var(--prune)
 .carte-parcours { display: grid; gap: 8px; align-content: start; text-align: left; padding: 18px; border-radius: 22px; cursor: pointer;
   border: 1.5px solid var(--prune); background: var(--creme-clair); transition: transform .15s, background .15s; }
 .carte-parcours:hover { transform: translateY(-2px); background: #fff3b0; }
-.carte-parcours .n { font: 400 2.4rem/1 var(--f-script); }
+.carte-parcours .n { font: 800 2rem/1 var(--f-num); color: var(--prune); }
 .carte-parcours b { font: 600 18px var(--f-titre); }
 .carte-parcours span { font-size: 14px; color: var(--prune-doux); }
 .carte-parcours svg { width: 54px; height: 54px; }
@@ -507,7 +510,9 @@ import {
   chargerLiens, appliquerLiens, relierModele, chargerMateriauxParRefs,
   chargerFichesConfig, chargerOffres, definirLiensFormes, lienModele, appliquerLienModele, formeLiee, composerCompos, definirFichesConfig, ficheCfg, refsCouleurFiche, famillesFiche,
 } from './bead-core.js?v=d2bac14c';
-import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER, PANIER_SHOPIFY } from './perles-config.js?v=e8e44d9a';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER, PANIER_SHOPIFY, ADOBE_FONTS_KIT } from './perles-config.js?v=b2c9a685';
+// Erotica (Adobe Fonts) : chargée depuis ton kit si son adresse est renseignée dans perles-config.js
+if (ADOBE_FONTS_KIT) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = ADOBE_FONTS_KIT; document.head.appendChild(l); }
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
