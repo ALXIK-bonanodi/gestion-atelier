@@ -7627,7 +7627,7 @@ function stockDispo2(bijId) {
 let SHOPIFY={etat:null, produits:null, erreur:null};
 const MODES_VENTE={stock:'📦 Pièces prêtes',commande:'🔨 Fabriqué à la commande',surmesure:'🎨 Sur mesure (configurateur)'};
 async function appelShopify(action, donnees={}) {
-  const { data, error } = await SB.functions.invoke('shopify', { body: { action, ...donnees } });
+  const { data, error } = await SB.functions.invoke('swift-action', { body: { action, ...donnees } });
   if (error) throw await erreurFonction('shopify', error);
   if (data?.erreur) throw new Error(data.erreur);
   return data;

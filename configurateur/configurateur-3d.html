@@ -1843,7 +1843,7 @@ $('#btEnregistrer').addEventListener('click', async () => {
 /* Paiement Shopify dès que la boutique est reliée (fonction « shopify » déployée et ses secrets renseignés) ;
    avant, le bouton enregistre seulement la personnalisation (n° BN-P-… et lien de reprise). */
 var shopifyPret = false;                 // var : lue aussi par les offres avant cette ligne
-if (PANIER_SHOPIFY && sb) avecDelai(fetch(SUPABASE_URL + '/functions/v1/shopify', { method: 'POST',
+if (PANIER_SHOPIFY && sb) avecDelai(fetch(SUPABASE_URL + '/functions/v1/swift-action', { method: 'POST',
   headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY }, body: JSON.stringify({ action: 'paiement-dispo' }) }), 8000)
   .then(r => r.ok ? r.json() : null).then(d => { shopifyPret = !!d?.shopify; rendrePanier(); }).catch(() => { shopifyPret = false; });
 function ecrirePanier(l) { try { localStorage.setItem('bn-panier', JSON.stringify(l)); } catch {} }
@@ -1871,7 +1871,7 @@ function rendrePanier() {
     erreur(''); const onglet = DANS_BOUTIQUE ? null : window.open('', '_blank');   // seul (hors boutique) : un onglet ouvert pendant le clic, pas bloqué
     try {
       const l2 = panierLocal();
-      const r = await avecDelai(fetch(SUPABASE_URL + '/functions/v1/shopify', { method: 'POST',
+      const r = await avecDelai(fetch(SUPABASE_URL + '/functions/v1/swift-action', { method: 'POST',
         headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY },
         body: JSON.stringify({ action: 'perso-panier', numero: l2[0].numero, cle: l2[0].cle, persos: l2.map(x => ({ numero: x.numero, cle: x.cle, lien: lienReprise(x.cle) })) }) }), 15000);
       const d = await r.json();
