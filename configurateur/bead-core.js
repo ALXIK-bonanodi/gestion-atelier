@@ -2292,7 +2292,7 @@ export function anneauxElement(x) {
   if (e.k === 'compo') {                                   // une de tes compositions (cochée « élément ») posée comme un élément
     const c = COMPOS[e.id]; if (!c || (anneauxElement.prof || 0) > 4) return { anneaux: [], T: 0 };
     anneauxElement.prof = (anneauxElement.prof || 0) + 1;
-    try { const A = assemblerComposition({ ...c, usage: 'chaine', bouts: 'aucun', pampille: false });
+    try { const A = assemblerComposition({ ...c, usage: 'chaine', bouts: 'aucun', pampille: false, _rogne: e.rogne || null });
       if (!A.length) return { anneaux: [], T: 0 };
       const z0 = Math.min(...A.map(a => a.p[2] - a.R)), z1 = Math.max(...A.map(a => a.p[2] + a.R));
       return { anneaux: A.map(a => ({ ...a, p: [a.p[0], a.p[1], +(a.p[2] - z0).toFixed(3)] })), T: z1 - z0 };
@@ -2336,8 +2336,15 @@ export function elementDepuisNom(texte) {
 }
 // connecteur qu'on met entre deux corps posés l'un après l'autre, d'après tes chaînes : fleur et 10 mm → (2) 10 mm,
 // double (2) 8 mm → anneau solo 10 mm (alternative), double (3) 8 mm → connecteur (3) 8 mm
+// le corps qui se trouve au bout d'un élément composition (le premier, ou le dernier si fin) : c'est lui qui touche le voisin
+function corpsDuBout(e, fin = false, prof = 0) {
+  const x = elementChainmail(e); if (x.k !== 'compo' || prof > 4) return x;
+  const c = COMPOS[x.id]; if (!c) return x;
+  const s = sequenceComposition({ ...c, usage: 'chaine' }).filter(estCorpsChainmail), y = fin ? s[s.length - 1] : s[0];
+  return y ? corpsDuBout(y, fin, prof + 1) : x;
+}
 export function connecteurEntre(a, b) {
-  const x = elementChainmail(a), y = elementChainmail(b);
+  const x = corpsDuBout(a, true), y = corpsDuBout(b, false);
   if ([x, y].some(e => e.k === 'fleur') || [x, y].every(e => (e.taille || 8) === 10)) return { k: 'conn', nb: 2, taille: 10 };
   if ([x, y].some(e => e.k === 'double' && (e.conn || 3) === 2 && (e.taille || 8) === 8)) return { k: 'conn', nb: 1, taille: 10 };
   return { k: 'conn', nb: 3, taille: 8 };
@@ -2358,19 +2365,45 @@ export function sequenceComposition(c, { detail = false } = {}) {
     if (!estCorpsChainmail(e) && dernier && (fin !== 'motif' || finL[0]?.k === 'conn') && !demi) return; brut.push({ ...e }); }); });
   if (demi) { const e1 = motif.find(e => e.k === 'double' || e.k === 'fleur'); if (e1) brut.push({ k: 'noeud', taille: e1.k === 'fleur' ? 8 : e1.taille || 8, demi: true, fiche: null }); }
   brut.push(...finL.map(e => ({ ...e })));
+  // une de tes compositions posée comme élément garde ses propres anneaux du bout : s'il y en a un (connecteur, anneau 5 mm…),
+  // c'est lui qui relie l'élément à son voisin (pas de connecteur ajouté en plus, pas d'anneau compté deux fois)
+  const brut2 = [];
+  for (const e of brut) {
+    const c2 = e.k === 'compo' && !e.suspendu && !e.rogne && (sequenceComposition.prof || 0) < 4 ? COMPOS[e.id] : null;
+    if (c2) {
+      sequenceComposition.prof = (sequenceComposition.prof || 0) + 1;
+      let s2; try { s2 = sequenceComposition({ ...c2, usage: 'chaine' }); } finally { sequenceComposition.prof--; }
+      const d0 = s2.length > 1 && !estCorpsChainmail(s2[0]) ? s2[0] : null, d1 = s2.length > 1 && !estCorpsChainmail(s2[s2.length - 1]) ? s2[s2.length - 1] : null;
+      if ((d0 || d1) && s2.some(estCorpsChainmail)) {
+        if (d0) brut2.push({ ...d0, auto: false, deCompo: true });
+        brut2.push({ ...e, rogne: [!!d0, !!d1] });
+        if (d1) brut2.push({ ...d1, auto: false, deCompo: true });
+        continue;
+      }
+    }
+    brut2.push(e);
+  }
   const seq = [];
-  for (const e of brut) { const prec = seq[seq.length - 1];
+  for (const e of brut2) { const prec = seq[seq.length - 1];
     if (prec && estCorpsChainmail(prec) && estCorpsChainmail(e) && !e.demi) seq.push({ ...connecteurEntre(prec, e), auto: true });
     seq.push(e); }
   return seq;
 }
 // distance du centre d'un corps au connecteur voisin, prise sur tes gabarits (8 mm ↔ 8 mm, 8 mm ↔ 10 mm, 10 mm ↔ 10 mm)
-function demiPas(corps, joint) {
+function demiPas(corps, joint, fin = false) {
   const { G } = gabaritsElements(), jj = elementChainmail(joint || {}), e = elementChainmail(corps);
-  if (estAnneau05(jj)) return Math.max(PETIT_ANNEAU.R, demiPas(corps, { k: 'conn', nb: 3, taille: 8 }) - (ANNEAU_8.R - PETIT_ANNEAU.R));   // anneau 0,5 mm : le corps se rapproche
+  if (estAnneau05(jj)) return Math.max(PETIT_ANNEAU.R, demiPas(corps, { k: 'conn', nb: 3, taille: 8 }, fin) - (ANNEAU_8.R - PETIT_ANNEAU.R));   // anneau 0,5 mm : le corps se rapproche
   const j10 = (jj.taille || 8) === 10;
   if (e.k === 'forme') return anneauxElement(e).T / 2;
-  if (e.k === 'compo') return anneauxElement(e).T / 2 - (j10 ? ANNEAU_10.R : ANNEAU_8.R) * 0.55;   // l'anneau du bout passe dans le connecteur
+  if (e.k === 'compo') {
+    // le connecteur se place comme pour le corps du bout de la composition (même écart que dans tes chaînes)
+    const b = corpsDuBout(e, fin), n = anneauxElement(e);
+    if (b.k !== 'compo' && estCorpsChainmail(b) && n.anneaux.length) {
+      const nb = anneauxElement(b); if (nb.anneaux.length) {
+        const bord = fin ? Math.max(...nb.anneaux.map(a => a.p[2] + a.R)) - nb.T / 2 : nb.T / 2 - Math.min(...nb.anneaux.map(a => a.p[2] - a.R));
+        return n.T / 2 - bord + demiPas(b, joint, fin); } }
+    return n.T / 2 - (j10 ? ANNEAU_10.R : ANNEAU_8.R) * 0.55;   // l'anneau du bout passe dans le connecteur
+  }
   if (e.k === 'noeud') { const dix = (e.taille || 8) === 10; return anneauxElement(e).T / 2 + (!dix && j10 ? (G.i8.T - G.c8.T) / 4 : 0); }
   if ((e.n || 1) > 1) { const s1 = { ...e, n: 1 }; return demiPas(s1, joint) - anneauxElement(s1).T / 2 + anneauxElement(e).T / 2; }
   if (((e.taille || 8) === 10 && e.k !== 'fleur') || (e.k === 'fleur' && (e.coeur || 8) === 10)) return j10 ? G.c10.T / 2 : G.c10.T / 2 - (ANNEAU_10.R - ANNEAU_8.R);
@@ -2379,6 +2412,10 @@ function demiPas(corps, joint) {
 export function assemblerComposition(c, { detail = false } = {}) {
   const out = [], pose = (liste, dz) => liste.forEach(a => out.push({ ...a, p: [a.p[0], a.p[1], +(a.p[2] + dz).toFixed(3)], n: [...a.n] }));
   const seq = sequenceComposition(c, { detail });
+  if (c._rogne) {                       // élément composition dont les anneaux du bout sont déjà posés à côté de lui
+    if (c._rogne[0] && seq.length && !estCorpsChainmail(seq[0])) seq.shift();
+    if (c._rogne[1] && seq.length && !estCorpsChainmail(seq[seq.length - 1])) seq.pop();
+  }
   let z = 0, dernierJ = null, dernierR = 0, premier = true, zJ = null, ang = 0, prevNonCorps = false;
   // de profil : l'élément tourne d'un quart de tour autour de la chaîne, par rapport à l'élément d'avant
   const tourne = (liste, a) => (a % 180) ? liste.map(x => ({ ...x, p: [-x.p[1], x.p[0], x.p[2]], n: [-x.n[1], x.n[0], x.n[2]] })) : liste;
@@ -2404,7 +2441,7 @@ export function assemblerComposition(c, { detail = false } = {}) {
       anneaux.forEach(a => out.push({ ...a, p: [a.p[0], +(-(a.p[2] - zTop) - h).toFixed(3), +(zJ + a.p[1]).toFixed(3)], n: [a.n[0], -a.n[2], a.n[1]] })); return; }
     if (e.demi) { const n = anneauxElement(e); pose(tourne(n.anneaux, ang), z); z += n.T; dernierR = 0; return; }
     const suivant = seq.slice(i + 1).find(x => !estCorpsChainmail(x)) || null;
-    const { anneaux, T } = anneauxElement(e), dA = premier && !dernierJ ? T / 2 : demiPas(e, dernierJ || suivant), dB = demiPas(e, (seq[i + 1] && !estCorpsChainmail(seq[i + 1])) ? seq[i + 1] : dernierJ);
+    const { anneaux, T } = anneauxElement(e), dA = premier && !dernierJ ? T / 2 : demiPas(e, dernierJ || suivant), dB = demiPas(e, (seq[i + 1] && !estCorpsChainmail(seq[i + 1])) ? seq[i + 1] : dernierJ, true);
     pose(tourne(anneaux, ang), z + dA - T / 2); z += dA + dB; premier = false; dernierR = 0;
   });
   if (c.pampille && out.length) {        // petit anneau de la pampille : passé dans le dernier anneau (le plus bas, sur l'axe), perpendiculaire à lui
@@ -2427,7 +2464,8 @@ export function assemblerComposition(c, { detail = false } = {}) {
 // ce qu'il faut pour fabriquer la composition : chaque élément (avec sa fiche si tu l'as reliée) et combien de fois
 export function piecesComposition(c) {
   const seq = sequenceComposition(c), m = new Map();
-  for (const e of seq) { const k = JSON.stringify([e.k, e.taille || 8, e.conn || 0, e.nb || 0, e.petales ?? '', !!e.demi, e.fiche || '', e.n || 1, e.coeur || 8, e.petale || '', e.f || '', e.id || '']);
+  for (const e of seq) { if (e.deCompo) continue;         // anneau du bout d'un élément composition : déjà compté dans sa fiche
+    const k = JSON.stringify([e.k, e.taille || 8, e.conn || 0, e.nb || 0, e.petales ?? '', !!e.demi, e.fiche || '', e.n || 1, e.coeur || 8, e.petale || '', e.f || '', e.id || '']);
     const x = m.get(k) || { element: { ...e, auto: undefined }, nb: 0, auto: 0 }; x.nb++; if (e.auto) x.auto++; m.set(k, x); }
   return [...m.values()];
 }

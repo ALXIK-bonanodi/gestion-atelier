@@ -73,7 +73,7 @@ button, input, textarea { font: inherit; color: inherit; }
 .idee span { color: var(--prune-doux); font-size: 12px; }
 .idee:hover { border-color: var(--prune); }
 .idees-inline { display: grid; gap: 6px; margin: 4px 0 14px; }
-.idees-inline h3 { margin: 0; font: 600 14px var(--f-titre); color: var(--prune); }
+.idees-inline h3 { margin: 0; font: 800 15px var(--f-num); color: var(--prune); }
 .idees-inline .idees-g { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 6px; scroll-snap-type: x proximity; }
 .idees-inline .idee { flex: 0 0 92px; scroll-snap-align: start; box-shadow: none; }
 .idee.choisie { background: #fff2a8; border-width: 2.5px; }
@@ -83,7 +83,8 @@ button, input, textarea { font: inherit; color: inherit; }
 /* ---- en-tête ---- */
 .entete { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: center; }
 .entete img { width: 64px; height: 64px; }
-.entete h1 { margin: 0; font: 400 clamp(2.1rem, 4.6vw, 2.9rem)/1.05 var(--f-script); text-wrap: balance; color: var(--prune);
+.entete { padding-top: 14px; }
+.entete h1 { margin: 0; padding-top: .18em; font: 400 clamp(2.1rem, 4.6vw, 2.9rem)/1.15 var(--f-script); text-wrap: balance; color: var(--prune);
   -webkit-text-stroke: .6px currentColor; paint-order: stroke fill; }   /* contour : Erotica un peu plus grasse */
 .entete p { margin: 2px 0 0; color: var(--prune-doux); font-size: 15px; }
 
@@ -251,9 +252,9 @@ label.champ input:focus, label.champ textarea:focus { border-color: var(--prune)
 .lien-reprise code { font: 12px ui-monospace, Menlo, monospace; word-break: break-all; color: var(--prune); }
 .mes-perso { display: grid; gap: 6px; }
 .panier-perso { display: grid; gap: 6px; padding: 12px; border: 1.5px solid var(--ligne-forte); border-radius: 14px; margin-top: 10px; }
-.panier-perso h3 { margin: 0; font: 600 15px var(--f-titre); color: var(--prune); }
+.panier-perso h3 { margin: 0; font: 800 15px var(--f-num); color: var(--prune); }
 .panier-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.mes-perso h3 { margin: 0; font: 600 15px var(--f-titre); }
+.mes-perso h3 { margin: 0; font: 800 15px var(--f-num); color: var(--prune); }
 .mes-perso .ligne-perso { display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 8px 12px; border-radius: 12px; border: 1px solid var(--ligne); background: var(--creme-clair); font-size: 14px; }
 .mes-perso .ligne-perso span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .segment:disabled { opacity: .4; cursor: not-allowed; text-decoration: line-through; }
@@ -269,7 +270,7 @@ label.champ input:focus, label.champ textarea:focus { border-color: var(--prune)
   border: 1.5px solid var(--prune); background: var(--creme-clair); transition: transform .15s, background .15s; }
 .carte-parcours:hover { transform: translateY(-2px); background: #fff3b0; }
 .carte-parcours .n { font: 800 2rem/1 var(--f-num); color: var(--prune); }
-.carte-parcours b { font: 600 18px var(--f-titre); }
+.carte-parcours b { font: 800 18px/1.25 var(--f-num); color: var(--prune); }
 .carte-parcours span { font-size: 14px; color: var(--prune-doux); }
 .carte-parcours svg { width: 54px; height: 54px; }
 .fil-ariane { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; font: 500 14px var(--f-titre); color: var(--prune-doux); }
@@ -319,6 +320,12 @@ label.champ input:focus, label.champ textarea:focus { border-color: var(--prune)
 /* Ordinateur : l'aperçu 3D reste visible pendant qu'on fait défiler les choix */
 @media (min-width: 821px) {
   .scene { position: sticky; top: 16px; max-height: calc(100vh - 32px); }
+}
+
+/* Dans la boutique : le cadre prend toute la hauteur du contenu, seule la page Shopify défile ; l'aperçu suit le défilement (voir suivreScene) */
+html.integre, html.integre body { overflow: hidden; }
+@media (min-width: 821px) {
+  html.integre .scene { position: relative; top: auto; max-height: calc(var(--vh-hote, 100vh) - 32px); will-change: transform; }
 }
 
 @media (max-width: 820px) {
@@ -509,7 +516,7 @@ import {
   correspondCategorie, texteCatalogue, ordreModeles, chargerRuptures, appliquerRuptures,
   chargerLiens, appliquerLiens, relierModele, chargerMateriauxParRefs,
   chargerFichesConfig, chargerOffres, definirLiensFormes, lienModele, appliquerLienModele, formeLiee, composerCompos, definirFichesConfig, ficheCfg, refsCouleurFiche, famillesFiche,
-} from './bead-core.js?v=d2bac14c';
+} from './bead-core.js?v=15feb465';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER, PANIER_SHOPIFY, ADOBE_FONTS_KIT } from './perles-config.js?v=b2c9a685';
 // Erotica (Adobe Fonts) : chargée depuis ton kit si son adresse est renseignée dans perles-config.js
 if (ADOBE_FONTS_KIT) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = ADOBE_FONTS_KIT; document.head.appendChild(l); }
@@ -952,7 +959,7 @@ function choisirParcours(p, garder = false) {
     const brs = garder ? etat.breloques.filter(b => !estChaineSac(modeleDe(b.slug))) : [];
     const acc = garder && etat.parcours === 'bundle' ? etat.accroche : null;          // bundle : son porte-clés est gardé
     etat.parcours = p; etat.breloques = [breloqueOuverture(modelesDu('chaine')[0].slug), ...brs]; etat.actif = brs.length ? 1 : 0; etat.accroche = acc;
-    rendre3D({ cadrer: true }); toutRendre(); $('#page').scrollIntoView({ behavior: 'smooth', block: 'start' }); return;
+    rendre3D({ cadrer: true }); toutRendre(); defiler($('#page'), { behavior: 'smooth', block: 'start' }); return;
   }
   if (etat.parcours === 'chaine') { etat.breloques = etat.breloques.slice(1); if (!etat.breloques.length) etat.breloques = [breloqueOuverture(modelesDu(p)[0].slug)]; etat.actif = 0; }
   etat.parcours = p;
@@ -962,7 +969,7 @@ function choisirParcours(p, garder = false) {
     if (!etat.accroche) etat.accroche = (choixOffre() || accroches?.choix[0])?.id || null;
   } else { etat.breloques = [brel()]; etat.actif = 0; etat.accroche = null; }
   rendre3D({ cadrer: true }); toutRendre();
-  $('#page').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  defiler($('#page'), { behavior: 'smooth', block: 'start' });
 }
 document.querySelectorAll('[data-parcours]').forEach(b => b.addEventListener('click', () => choisirParcours(b.dataset.parcours)));
 $('#btParcours').addEventListener('click', () => { etat.parcours = null; etat.breloques = [brel()]; etat.actif = 0; etat.accroche = null; etat.compos = [{ surChaine: false }]; etat.mousq = false; delete etat.breloques[0].compo; rendre3D({ cadrer: true }); toutRendre(); });
@@ -1125,7 +1132,7 @@ function rendreListeBreloques() {
     : n >= max ? `Ton porte-clés est complet (${max} breloques).`
     : (max === Infinity ? 'Ajoute autant de breloques que tu veux. ' : `Jusqu'à ${max} breloques. `) + 'Touche une breloque pour la personnaliser.';
   $('#listeBreloques').querySelectorAll('[data-i]').forEach(el => {
-    const choisir = () => { etat.actif = +el.dataset.i; toutRendre(); $('#edition').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+    const choisir = () => { etat.actif = +el.dataset.i; toutRendre(); defiler($('#edition'), { behavior: 'smooth', block: 'start' }); };
     el.addEventListener('click', e => { if (!e.target.closest('[data-suppr]')) choisir(); });
     el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choisir(); } });
   });
@@ -1143,7 +1150,7 @@ function rendreListeBreloques() {
   $('#ajouts').querySelectorAll('[data-ajout]').forEach(x => x.addEventListener('click', () => {
     etat.breloques.push(breloqueOuverture(x.dataset.ajout)); etat.actif = etat.breloques.length - 1;
     rendre3D({ cadrer: true }); toutRendre();
-    $('#edition').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    defiler($('#edition'), { behavior: 'smooth', block: 'start' });
   }));
 }
 
@@ -1649,6 +1656,22 @@ function toutRendre() {
 /* ---------- note « Personnalisation sur mesure », enregistrement, paiement Shopify ---------- */
 // intégré dans ta boutique Shopify (section « Configurateur Bona Nodi » du thème) ; ?apercu : affiché dans l'app de gestion
 const DANS_BOUTIQUE = window.parent !== window && !new URLSearchParams(location.search).has('apercu');
+// intégré : la section Shopify envoie sa position pendant que la page défile (une seule barre de défilement, celle de la boutique)
+const integre = { actif: false, haut: 0, vh: 0 };
+function defiler(el, opts = {}) {
+  if (!el) return;
+  if (!integre.actif) return el.scrollIntoView(opts);
+  const r = el.getBoundingClientRect();               // c'est la page de la boutique qui défile jusqu'à l'endroit voulu
+  window.parent.postMessage({ type: 'bona-nodi:defiler', y: Math.round(r.top), h: Math.round(r.height), bloc: opts.block || 'start' }, '*');
+}
+function suivreScene() {
+  const sc = $('#scene'), p = $('#page'); if (!integre.actif || !sc || !p) return;
+  document.documentElement.style.setProperty('--vh-hote', Math.max(320, integre.vh) + 'px');
+  if (!matchMedia('(min-width: 821px)').matches) { sc.style.transform = ''; return; }
+  const y0 = sc.offsetTop, bas = p.offsetTop + p.offsetHeight - (parseFloat(getComputedStyle(p).paddingBottom) || 0);
+  const d = Math.max(0, Math.min(bas - sc.offsetHeight - y0, -integre.haut + 16 - y0));
+  sc.style.transform = d > 0.5 ? `translateY(${Math.round(d)}px)` : '';
+}
 let pageBoutique = null;                             // adresse de la page Shopify qui l'affiche (envoyée par la section)
 function entreesNote() {
   return {
@@ -1727,13 +1750,13 @@ function sauverBrouillon() { if (etat.parcours) ecrireLocal('bn-perso-brouillon'
 async function enregistrer() {
   if (valide) return valide;
   const iTexte = etat.breloques.findIndex(b => estLettres(modeleDe(b.slug)) && verifierTexte(b.texte, modeleDe(b.slug).lettres?.max || 8).erreur);
-  if (iTexte >= 0) { etat.actif = iTexte; toutRendre(); $('#etapeTexte').scrollIntoView({ behavior: 'smooth' }); throw new Error('texte'); }
+  if (iTexte >= 0) { etat.actif = iTexte; toutRendre(); defiler($('#etapeTexte'), { behavior: 'smooth' }); throw new Error('texte'); }
   // une couleur choisie (ou de départ) en rupture : on la montre et on demande d'en changer
   for (const [i, b] of etat.breloques.entries()) {
     const ep = couleursEpuisees(modeleDe(b.slug), catalogue, b.couleurs);
     if (ep.length) {
       etat.actif = i; const m = modeleDe(b.slug), z = (m.zones || []).find(x => x.id === ep[0].zone);
-      b.actif = z?.groupe || z?.id || b.actif; toutRendre(); $('#palette').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      b.actif = z?.groupe || z?.id || b.actif; toutRendre(); defiler($('#palette'), { behavior: 'smooth', block: 'center' });
       const e = new Error('rupture'); e.detail = `${ep.map(x => x.nom + ' (' + x.zoneNom + ')').join(', ')} : en rupture de stock, choisis une autre couleur.`; throw e;
     }
   }
@@ -1828,7 +1851,7 @@ function rendreMesPerso() {
     <div class="ligne-perso"><span>${esc(x.numero)} · ${esc(x.resume)} · ${euros(x.total)}</span><button class="btn-second" type="button" data-reprendre="${i}">Reprendre</button></div>`).join('');
   $('#mesPerso').querySelectorAll('[data-reprendre]').forEach(b => b.addEventListener('click', () => {
     const x = lireLocal('bn-perso-enregistrees', [])[+b.dataset.reprendre];
-    if (x && restaurer(x.choix)) $('#page').scrollIntoView({ behavior: 'smooth' });
+    if (x && restaurer(x.choix)) defiler($('#page'), { behavior: 'smooth' });
   }));
 }
 const erreur = msg => { $('#erreur').textContent = msg; $('#erreur').hidden = !msg; };
@@ -1866,7 +1889,7 @@ function rendrePanier() {
     <div class="panier-actions"><button class="btn-envoi" type="button" id="btPayer">Payer · ${euros(tot)}</button>
       <button class="btn-second" type="button" id="btAutre">Créer une autre personnalisation</button></div>`;
   el.querySelectorAll('[data-retirer-panier]').forEach(b => b.addEventListener('click', () => { if (b.dataset.retirerPanier === dansPanier) dansPanier = null; ecrirePanier(panierLocal().filter(x => x.numero !== b.dataset.retirerPanier)); rendrePanier(); toutRendre(); }));
-  $('#btAutre').addEventListener('click', () => { valide = null; dansPanier = null; recommencer(); $('#page').scrollIntoView({ behavior: 'smooth' }); });
+  $('#btAutre').addEventListener('click', () => { valide = null; dansPanier = null; recommencer(); defiler($('#page'), { behavior: 'smooth' }); });
   $('#btPayer').addEventListener('click', async () => {
     erreur(''); const onglet = DANS_BOUTIQUE ? null : window.open('', '_blank');   // seul (hors boutique) : un onglet ouvert pendant le clic, pas bloqué
     try {
@@ -1908,6 +1931,11 @@ window.addEventListener('message', async e => {
   if (d.type === 'bona-nodi:ajoute' && valide && d.numero === valide.numero) {
     clearTimeout(enregistrer.t); $('#merci').dataset.ok = '1';
     afficherEnregistree('C\'est dans ton panier !', 'Ta note de personnalisation suit ta commande et reste visible dans ton compte.');
+  }
+  if (d.type === 'bona-nodi:defilement') {
+    integre.haut = +d.haut || 0; integre.vh = +d.vh || 0;
+    if (!integre.actif) { integre.actif = true; document.documentElement.classList.add('integre'); envoyerHauteur(true); }
+    suivreScene(); return;
   }
   if (d.type === 'bona-nodi:page') {
     pageBoutique = d.url || null;
@@ -1963,7 +1991,13 @@ if (!(clePerso && await reprendre(clePerso)) && !params.get('parcours') && !para
 }
 if (DANS_BOUTIQUE) window.parent.postMessage({ type: 'bona-nodi:pret' }, '*');   // la section Shopify répond avec l'adresse de sa page
 // hauteur du contenu → la section Shopify ajuste le cadre (pas de double barre de défilement)
-if (DANS_BOUTIQUE && 'ResizeObserver' in window) { let h0 = 0; new ResizeObserver(() => { const h = Math.ceil(document.documentElement.scrollHeight); if (Math.abs(h - h0) > 4) { h0 = h; window.parent.postMessage({ type: 'bona-nodi:hauteur', h }, '*'); } }).observe(document.body); }
+let hauteurEnvoyee = 0;
+function envoyerHauteur(forcer = false) {
+  if (!DANS_BOUTIQUE) return;
+  const p = $('#page'), h = integre.actif && p ? Math.ceil(p.offsetTop + p.offsetHeight) : Math.ceil(document.documentElement.scrollHeight);
+  if (forcer || Math.abs(h - hauteurEnvoyee) > 4) { hauteurEnvoyee = h; window.parent.postMessage({ type: 'bona-nodi:hauteur', h }, '*'); }
+}
+if (DANS_BOUTIQUE && 'ResizeObserver' in window) new ResizeObserver(() => { envoyerHauteur(); suivreScene(); }).observe($('#page'));
 // Diagnostic des idées et des petites perles fixes (?diag=1) : copiable, à m'envoyer si quelque chose ne colle pas
 if (new URLSearchParams(location.search).get('diag')) {
   const nomRef = r => { const c = parRef[r] || fermParRef[r]; return r + (c ? ' = ' + c.nom + (c.designation ? ' · ' + c.designation : '') + (c.hex ? ' ' + c.hex : '') + (c.finition ? ' ' + c.finition : '') : ' = INTROUVABLE'); };

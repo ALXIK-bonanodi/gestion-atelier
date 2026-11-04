@@ -211,6 +211,7 @@ aside > *, .etape .corps > *, .seq-l, .seq-l .t { min-width: 0; }
         <button class="btn mini" id="btPhoto" type="button">📸 Photo de la fiche</button>
         <button class="btn mini" id="btDupliquer" type="button">⧉ Dupliquer</button>
         <button class="btn mini" id="btCopier" type="button">📋 Copier la liste</button>
+        <button class="btn mini" id="btDiag" type="button" title="Copie cette composition (et les éléments qu'elle utilise) pour me l'envoyer si le 3D ne colle pas">🩺 Copier pour Claude</button>
       </div>
       <p class="aide" id="etatSb"></p>
       <details><summary class="sous" style="cursor:pointer">Tes compositions enregistrées</summary><div class="liste-c" id="mesCompos" style="margin-top:6px"></div></details>
@@ -221,9 +222,9 @@ aside > *, .etape .corps > *, .seq-l, .seq-l .t { min-width: 0; }
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { ScenePerles, cleFixe, fermoirDepuisMateriau, assemblerComposition, decompteComposition, definirCompositions, elementChainmail, nomElementChainmail, estCorpsChainmail,
+import { ScenePerles, cleFixe, fermoirDepuisMateriau, assemblerComposition, decompteComposition, definirCompositions, elementChainmail, nomElementChainmail, estCorpsChainmail, sequenceComposition,
   elementDepuisNom, piecesComposition, connecteurEntre, modeleChaineSacDemo, modeleChainmailDemo, catalogueChaineDepuisBijoux, catalogueChainmailDepuisBijoux,
-  definirLiensFormes, NOMS_CHAINE, FORMES_CHAINMAIL, CATALOGUE_DEMO, formeChaine, estBrouillon, pampilleIntegree } from './bead-core.js?v=d2bac14c';
+  definirLiensFormes, NOMS_CHAINE, FORMES_CHAINMAIL, CATALOGUE_DEMO, formeChaine, estBrouillon, pampilleIntegree } from './bead-core.js?v=15feb465';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure } from './perles-config.js?v=b2c9a685';
 
 const $ = s => document.querySelector(s);
@@ -581,6 +582,15 @@ $('#btActualiserEl').addEventListener('click', () => { const a = actualiser(comp
 $('#pampille').addEventListener('change', e => { compo.pampille = e.target.checked; rendre(true); });
 $('#btOrient').addEventListener('click', () => { suspendue = !suspendue; rendre(true); });
 $('#btCadrer').addEventListener('click', () => { scene.deFace?.(); scene.cadrer(1.25); });
+$('#btDiag').addEventListener('click', async () => {
+  // la composition + toutes celles qu'elle utilise comme élément (et leurs propres éléments)
+  const vus = new Map(), ajouter = c => { if (!c || vus.has(c.id)) return; vus.set(c.id, c);
+    JSON.stringify(c).replace(/"k":"compo","id":"([^"]+)"/g, (_, id) => (ajouter(mes.find(m => m.id === id)), '')); };
+  ajouter(compo);
+  const seq = sequenceComposition(compo).map(e => nomElementChainmail(e) + (e.auto ? ' (ajouté seul)' : '') + (e.deCompo ? ' (bout de l\'élément)' : '')).join(' → ');
+  const txt = 'DIAGNOSTIC COMPOSEUR — ' + (compo.nom || '') + '\nSuite 3D : ' + seq + '\n\n' + JSON.stringify([...vus.values()], null, 1);
+  try { await navigator.clipboard.writeText(txt); toast('Copié : colle-le moi avec une capture'); } catch { prompt('Copie ce texte :', txt); }
+});
 $('#btCopier').addEventListener('click', async () => {
   const txt = compo.nom + '\n' + listeAFaire().map(x => `${x.qte} × ${x.ref ? (nomMat(x.ref) || x.nom) + ' (' + x.ref + ')' : x.nom}`).join('\n');
   try { await navigator.clipboard.writeText(txt); toast('Liste copiée'); } catch { prompt('Liste :', txt); }
