@@ -7632,7 +7632,8 @@ async function appelShopify(action, donnees={}) {
   if (data?.erreur) throw new Error(data.erreur);
   return data;
 }
-const venduEnLigne = b => !b.is_mat && !b.no_sell;
+// Vendable en ligne = même règle que le reste de l'app : un matériau qui a un prix de vente (breloque vendue seule, ex. petits poissons) compte aussi
+const venduEnLigne = b => !compoPure(b) && !b.no_sell;
 const modeVente = b => b.mode_vente || 'stock';
 // Quantité proposée en ligne : pièces prêtes notées « Boutique en ligne » (Productions › 📍 Mise en vente)
 const stockEnLigne = b => PRODS.filter(p=>p.bij_id===b.id&&(!p.statut||p.statut==='produit')).reduce((t,p)=>t+(+lireMiseEnVente(p).lieux['Boutique en ligne']||0),0);
