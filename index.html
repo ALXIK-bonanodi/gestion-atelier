@@ -568,7 +568,11 @@ body.selection-active #gpanel-mat{padding-bottom:150px!important}
   #p-c3d.on{height:auto}
   .c3-app{grid-template-columns:minmax(0,1fr);height:auto}
   .c3-nav{flex-direction:row;overflow-x:auto;padding:6px;border-right:0;position:sticky;top:0;z-index:5}
-  .c3-nav-t,.c3-nav-pied{display:none}
+  .c3-nav-t{display:none}
+  /* téléphone : le lien vers le configurateur (nouvelle page) reste au bout de la barre d'onglets */
+  .c3-nav-pied{display:flex;margin:0;padding:0 6px;flex:0 0 auto;align-items:center}
+  .c3-nav-pied a{white-space:nowrap;color:var(--gold);font-size:13px;font-weight:700}
+  .c3-nav-pied a+a{display:none}
   .c3-nav button{width:auto;white-space:nowrap;flex:0 0 auto}
   .c3-zone>div.vu{height:calc(100dvh - 200px)}
   .c3-gest{height:auto!important}
@@ -849,7 +853,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
       <button type="button" data-c3="ref" onclick="switchC3dTab('ref')">🔗 Références</button>
       <button type="button" data-c3="rup" onclick="switchC3dTab('rup')">📦 Ruptures</button>
       <div class="c3-nav-pied">
-        <a href="configurateur/configurateur-3d.html" target="_blank">↗ Ouvrir le configurateur (page client)</a>
+        <a href="configurateur/configurateur-3d.html" target="_blank" rel="noopener">↗ Ouvrir le configurateur</a>
         <a href="configurateur/configurateur-3d.html?diag=1" target="_blank">🔎 Diagnostic</a>
       </div>
     </nav>
@@ -857,6 +861,7 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
       <div id="c3panel-gest" class="c3-gest"><div class="c3-gest-hd" id="c3-gest-hd"></div><div id="c3-proposes" class="c3-proposes"></div></div>
       <div id="c3panel-cfg" class="c3-sim">
         <div class="c3-sim-hd"><span>👁 Aperçu client <span class="dim">(comme sur le site)</span></span><span style="flex:1"></span>
+          <a class="btn btn-xs btn-ghost" href="configurateur/configurateur-3d.html" target="_blank" rel="noopener">↗ Nouvelle page</a>
           <button class="btn btn-xs btn-ghost" onclick="rafraichirApercu(true)">↻ Recharger</button></div>
         <iframe id="c3frame-cfg" title="Configurateur 3D"></iframe>
       </div>

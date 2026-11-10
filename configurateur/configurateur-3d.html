@@ -322,20 +322,43 @@ label.champ input:focus, label.champ textarea:focus { border-color: var(--prune)
   .scene { position: sticky; top: 16px; max-height: calc(100vh - 32px); }
 }
 
-/* Dans la boutique : le cadre prend toute la hauteur du contenu, seule la page Shopify défile ; l'aperçu suit le défilement (voir suivreScene) */
-html.integre, html.integre body { overflow: hidden; }
-@media (min-width: 821px) {
-  html.integre .scene { position: relative; top: auto; max-height: calc(var(--vh-hote, 100vh) - 32px); will-change: transform; }
-}
-
 @media (max-width: 820px) {
   .perso { grid-template-columns: 1fr; gap: 22px; padding-top: 14px; }
-  .scene { aspect-ratio: 1 / 1; max-width: 460px; justify-self: center; }
+  /* téléphone : l'aperçu reste en haut de l'écran pendant qu'on fait les choix (on voit toujours ce qu'on a choisi) */
+  .scene { position: sticky; top: 0; z-index: 6; aspect-ratio: auto; width: 100%; max-width: 560px; justify-self: center;
+    height: min(40vh, 92vw); min-height: 230px; border-radius: 0 0 28px 28px; border-top: 0; box-shadow: 0 10px 18px -12px #3c114b55; }
+  .scene::before { inset: 8%; }
+  .scene .bt-idees { top: 10px; padding: 6px 12px; font-size: 13px; }
+  .scene .idees { top: 52px; max-height: calc(100% - 64px); }
+  .scene-aide { bottom: 30px; font-size: 12px; }
+  .indicatif { bottom: 6px; font-size: 10px; }
+  .etape, #edition, #palette, #etapeTexte { scroll-margin-top: calc(min(40vh, 92vw) + 12px); }
   .panneau { order: -1; display: contents; }
   .entete { order: -2; }
   .scene { order: -1; }
 }
 @media (max-width: 480px) { .champs { grid-template-columns: 1fr; } }
+
+/* Dans la boutique : le configurateur occupe tout le cadre comme une page à lui, sans défilement de page ;
+   l'aperçu reste en place et seule la colonne des choix défile (fine barre, rien ne déborde sur la page Shopify) */
+html.integre, html.integre body { height: 100%; overflow: hidden; }
+html.integre .perso { height: 100%; max-width: 1180px; padding-block: 32px; padding-inline: 28px; gap: 40px;
+  grid-template-rows: minmax(0, 1fr); align-items: stretch; }
+html.integre .scene { position: relative; top: auto; align-self: center; justify-self: center;
+  height: 100%; max-height: 100%; width: auto; max-width: 100%; aspect-ratio: 4 / 5; }
+html.integre .panneau { min-height: 0; overflow-y: auto; overscroll-behavior: contain; align-content: start;
+  padding: 2px 12px 32px 4px; scrollbar-width: thin; scrollbar-color: #3c114b40 transparent; }
+html.integre .panneau::-webkit-scrollbar { width: 6px; }
+html.integre .panneau::-webkit-scrollbar-thumb { background: #3c114b40; border-radius: 6px; }
+html.integre .etape, html.integre #edition, html.integre #palette, html.integre #etapeTexte { scroll-margin-top: 12px; }
+@media (max-width: 820px) {
+  /* téléphone : l'aperçu en haut, les choix défilent dessous */
+  html.integre .perso { display: flex; flex-direction: column; gap: 14px; padding: 12px 14px 0; }
+  html.integre .scene { flex: none; order: 0; height: min(40vh, 92vw); min-height: 220px; width: 100%; max-width: 560px; aspect-ratio: auto;
+    border-radius: 28px; border-top: 1.5px solid var(--prune); box-shadow: none; }
+  html.integre .panneau { display: grid; order: 0; flex: 1; padding: 0 4px 28px; }
+  html.integre .entete { order: 0; }
+}
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 .palier { margin: 6px 0 0; font-size: 13px; color: var(--prune-doux, #7e6a85); } .palier.ok { color: #2f7a46; font-weight: 600; }
 </style>
@@ -1656,21 +1679,19 @@ function toutRendre() {
 /* ---------- note « Personnalisation sur mesure », enregistrement, paiement Shopify ---------- */
 // intégré dans ta boutique Shopify (section « Configurateur Bona Nodi » du thème) ; ?apercu : affiché dans l'app de gestion
 const DANS_BOUTIQUE = window.parent !== window && !new URLSearchParams(location.search).has('apercu');
-// intégré : la section Shopify envoie sa position pendant que la page défile (une seule barre de défilement, celle de la boutique)
-const integre = { actif: false, haut: 0, vh: 0 };
+// intégré : le cadre a la hauteur de l'écran, le défilement se fait dedans (barre masquée), l'aperçu reste fixe nativement
+if (DANS_BOUTIQUE) document.documentElement.classList.add('integre');
 function defiler(el, opts = {}) {
   if (!el) return;
-  if (!integre.actif) return el.scrollIntoView(opts);
-  const r = el.getBoundingClientRect();               // c'est la page de la boutique qui défile jusqu'à l'endroit voulu
-  window.parent.postMessage({ type: 'bona-nodi:defiler', y: Math.round(r.top), h: Math.round(r.height), bloc: opts.block || 'start' }, '*');
-}
-function suivreScene() {
-  const sc = $('#scene'), p = $('#page'); if (!integre.actif || !sc || !p) return;
-  document.documentElement.style.setProperty('--vh-hote', Math.max(320, integre.vh) + 'px');
-  if (!matchMedia('(min-width: 821px)').matches) { sc.style.transform = ''; return; }
-  const y0 = sc.offsetTop, bas = p.offsetTop + p.offsetHeight - (parseFloat(getComputedStyle(p).paddingBottom) || 0);
-  const d = Math.max(0, Math.min(bas - sc.offsetHeight - y0, -integre.haut + 16 - y0));
-  sc.style.transform = d > 0.5 ? `translateY(${Math.round(d)}px)` : '';
+  const pn = document.querySelector('.panneau');
+  // dans la boutique : seule la colonne des choix défile (scrollIntoView ferait aussi bouger la page Shopify)
+  if (!DANS_BOUTIQUE || !pn || getComputedStyle(pn).overflowY !== 'auto') return el.scrollIntoView(opts);
+  if (!pn.contains(el)) { if (el.contains(pn)) pn.scrollTo({ top: 0, behavior: opts.behavior || 'auto' }); return; }   // « haut de page » = haut des choix
+  const r = el.getBoundingClientRect(), rp = pn.getBoundingClientRect();
+  let top = pn.scrollTop + r.top - rp.top - 12;
+  if (opts.block === 'center') top = pn.scrollTop + r.top - rp.top - (rp.height - r.height) / 2;
+  else if (opts.block === 'nearest') { if (r.top >= rp.top && r.bottom <= rp.bottom) return; if (r.bottom > rp.bottom) top = pn.scrollTop + r.bottom - rp.bottom + 12; }
+  pn.scrollTo({ top: Math.max(0, top), behavior: opts.behavior || 'auto' });
 }
 let pageBoutique = null;                             // adresse de la page Shopify qui l'affiche (envoyée par la section)
 function entreesNote() {
@@ -1932,11 +1953,6 @@ window.addEventListener('message', async e => {
     clearTimeout(enregistrer.t); $('#merci').dataset.ok = '1';
     afficherEnregistree('C\'est dans ton panier !', 'Ta note de personnalisation suit ta commande et reste visible dans ton compte.');
   }
-  if (d.type === 'bona-nodi:defilement') {
-    integre.haut = +d.haut || 0; integre.vh = +d.vh || 0;
-    if (!integre.actif) { integre.actif = true; document.documentElement.classList.add('integre'); envoyerHauteur(true); }
-    suivreScene(); return;
-  }
   if (d.type === 'bona-nodi:page') {
     pageBoutique = d.url || null;
     if (d.perso) await reprendre(d.perso);
@@ -1992,12 +2008,12 @@ if (!(clePerso && await reprendre(clePerso)) && !params.get('parcours') && !para
 if (DANS_BOUTIQUE) window.parent.postMessage({ type: 'bona-nodi:pret' }, '*');   // la section Shopify répond avec l'adresse de sa page
 // hauteur du contenu → la section Shopify ajuste le cadre (pas de double barre de défilement)
 let hauteurEnvoyee = 0;
-function envoyerHauteur(forcer = false) {
+function envoyerHauteur() {               // hauteur du contenu : la section l'utilise quand il est plus court que l'écran (accueil)
   if (!DANS_BOUTIQUE) return;
-  const p = $('#page'), h = integre.actif && p ? Math.ceil(p.offsetTop + p.offsetHeight) : Math.ceil(document.documentElement.scrollHeight);
-  if (forcer || Math.abs(h - hauteurEnvoyee) > 4) { hauteurEnvoyee = h; window.parent.postMessage({ type: 'bona-nodi:hauteur', h }, '*'); }
+  const p = $('#page'), h = p ? Math.ceil(p.offsetTop + p.offsetHeight) : 0;
+  if (h && Math.abs(h - hauteurEnvoyee) > 4) { hauteurEnvoyee = h; window.parent.postMessage({ type: 'bona-nodi:hauteur', h }, '*'); }
 }
-if (DANS_BOUTIQUE && 'ResizeObserver' in window) new ResizeObserver(() => { envoyerHauteur(); suivreScene(); }).observe($('#page'));
+if (DANS_BOUTIQUE && 'ResizeObserver' in window) new ResizeObserver(envoyerHauteur).observe($('#page'));
 // Diagnostic des idées et des petites perles fixes (?diag=1) : copiable, à m'envoyer si quelque chose ne colle pas
 if (new URLSearchParams(location.search).get('diag')) {
   const nomRef = r => { const c = parRef[r] || fermParRef[r]; return r + (c ? ' = ' + c.nom + (c.designation ? ' · ' + c.designation : '') + (c.hex ? ' ' + c.hex : '') + (c.finition ? ' ' + c.finition : '') : ' = INTROUVABLE'); };
