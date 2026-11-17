@@ -342,7 +342,7 @@ label.champ input:focus, label.champ textarea:focus { border-color: var(--prune)
 /* Dans la boutique : le configurateur occupe tout le cadre comme une page à lui, sans défilement de page ;
    l'aperçu reste en place et seule la colonne des choix défile (fine barre, rien ne déborde sur la page Shopify) */
 html.integre, html.integre body { height: 100%; overflow: hidden; }
-html.integre .perso { height: 100%; max-width: 1180px; padding-block: 32px; padding-inline: 28px; gap: 40px;
+html.integre .perso { height: 100%; max-width: 1240px; padding-block: 18px; padding-inline: 24px; gap: 36px;
   grid-template-rows: minmax(0, 1fr); align-items: stretch; }
 html.integre .scene { position: relative; top: auto; align-self: center; justify-self: center;
   height: 100%; max-height: 100%; width: auto; max-width: 100%; aspect-ratio: 4 / 5; }
@@ -353,8 +353,8 @@ html.integre .panneau::-webkit-scrollbar-thumb { background: #3c114b40; border-r
 html.integre .etape, html.integre #edition, html.integre #palette, html.integre #etapeTexte { scroll-margin-top: 12px; }
 @media (max-width: 820px) {
   /* téléphone : l'aperçu en haut, les choix défilent dessous */
-  html.integre .perso { display: flex; flex-direction: column; gap: 14px; padding: 12px 14px 0; }
-  html.integre .scene { flex: none; order: 0; height: min(40vh, 92vw); min-height: 220px; width: 100%; max-width: 560px; aspect-ratio: auto;
+  html.integre .perso { display: flex; flex-direction: column; gap: 12px; padding: 10px 12px 0; }
+  html.integre .scene { flex: none; order: 0; height: min(38vh, 92vw); min-height: 220px; width: 100%; max-width: 560px; aspect-ratio: auto;
     border-radius: 28px; border-top: 1.5px solid var(--prune); box-shadow: none; }
   html.integre .panneau { display: grid; order: 0; flex: 1; padding: 0 4px 28px; }
   html.integre .entete { order: 0; }
