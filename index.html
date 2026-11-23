@@ -12,6 +12,9 @@
 <title>Bona Nodi · Atelier</title>
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Atelier">
 <meta name="theme-color" content="#3C114B">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -690,6 +693,15 @@ body.selection-active #gpanel-mat{padding-bottom:150px!important}
 .toast.ok{background:#1F6B45;color:#fff}.toast.err{background:var(--red);color:#fff}
 .stat{border-top:3px solid var(--purpleP)}
 ::selection{background:var(--gold);color:var(--purple)}
+
+/* App installée (PWA) : invitation à l'installer, discrète */
+.pwa-inviter{position:fixed;right:12px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:700;display:none;align-items:center;gap:8px;
+  background:var(--purple);color:var(--gold);border-radius:16px;padding:9px 10px 9px 14px;font-size:13px;box-shadow:0 8px 24px #3c114b55;max-width:min(360px,calc(100vw - 24px))}
+.pwa-inviter.on{display:flex}
+.pwa-inviter button{border:0;border-radius:10px;padding:6px 10px;font:inherit;font-weight:700;cursor:pointer}
+.pwa-inviter .pwa-ok{background:var(--gold);color:var(--purple)}
+.pwa-inviter .pwa-non{background:transparent;color:var(--gold);opacity:.8;padding:6px}
+@media (max-width:900px){.pwa-inviter{bottom:calc(78px + env(safe-area-inset-bottom))}}
 </style>
 </head>
 <body>
@@ -700,10 +712,11 @@ body.selection-active #gpanel-mat{padding-bottom:150px!important}
     <div style="text-align:center;margin-bottom:6px"><img src="logo-app.png" alt="Bona Nodi" style="width:84px;height:84px"></div>
     <div class="setup-title" style="text-align:center">Atelier Bona Nodi</div>
     <div class="setup-sub">
-      Connecte-toi avec ton e-mail et ton mot de passe.<br>
-      URL et clé anon : Supabase → <b>Settings → API</b> (mémorisées après la première fois).
+      Connecte-toi avec ton e-mail et ton mot de passe.
     </div>
-    <div class="fg"><label>URL du projet Supabase</label>
+    <!-- l'adresse du projet et la clé publique sont déjà dans l'app : à changer seulement si tu changes de projet Supabase -->
+    <details id="cfg-avance" style="margin-bottom:10px;order:9"><summary style="font-size:12px;color:var(--muted);cursor:pointer">Réglages avancés (projet Supabase)</summary>
+    <div class="fg" style="margin-top:8px"><label>URL du projet Supabase</label>
       <input id="cfg-url" placeholder="https://XXXXXX.supabase.co" type="url"
              autocomplete="url" onkeydown="if(event.key==='Enter')document.getElementById('cfg-key').focus()">
     </div>
@@ -711,6 +724,7 @@ body.selection-active #gpanel-mat{padding-bottom:150px!important}
       <input id="cfg-key" placeholder="eyJhbGci…" type="text"
              autocomplete="off" onkeydown="if(event.key==='Enter')document.getElementById('cfg-email').focus()">
     </div>
+    </details>
     <!-- Connexion sécurisée : ton compte Supabase (la clé anon seule ne donne plus accès aux données) -->
     <div class="fg"><label>E-mail</label>
       <input id="cfg-email" type="email" autocomplete="username" placeholder="ton e-mail"
@@ -1250,6 +1264,17 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
         <div class="fg" style="margin:0"><label>Clé anon publique</label><input id="s-key" type="text"></div>
       </div>
       <button class="btn btn-p btn-sm" onclick="saveSettings()">Reconnecter</button>
+    </div>
+  </div>
+
+  <!-- Ce qu'un inconnu peut voir avec la clé publique (sans ton compte) -->
+  <div class="card" data-cs="connexions">
+    <div class="card-hd"><h2>🔒 Ce qui est public</h2></div>
+    <div class="card-bd">
+      <p style="font-size:13px;color:var(--muted);margin:0 0 10px">Teste la base comme le ferait n'importe qui avec la clé publique (sans ton e-mail ni ton mot de passe) : chaque table doit être 🔒.
+        En dessous : exactement ce que le configurateur envoie aux clientes.</p>
+      <button class="btn btn-p btn-sm" onclick="verifierPublic()">🔍 Vérifier maintenant</button>
+      <div id="pub-res" style="margin-top:12px;font-size:13px"></div>
     </div>
   </div>
 
@@ -1961,6 +1986,10 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
 let SB = null;
 const SBURL_KEY = 'atl_sb_url';
 const SBKEY_KEY = 'atl_sb_key';
+// Projet Supabase de l'atelier : adresse et clé PUBLIQUE (la même que dans le configurateur, faite pour être visible).
+// Elle ne donne accès à rien sans ton e-mail et ton mot de passe (sécurisation RLS) : seule la connexion à ton compte compte.
+const SB_URL_DEFAUT = 'https://twtstslwhvrhmjfcfvvu.supabase.co';
+const SB_KEY_DEFAUT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR3dHN0c2x3aHZyaG1qZmNmdnZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTQ1MzcsImV4cCI6MjA5MDQ3MDUzN30.11Ejag3jxcBtx9unK33dnaCjSIJDu0FszLeyYw91zgE';
 
 function dbg(msg) {
   const el = document.getElementById('debug-log');
@@ -1971,14 +2000,14 @@ function dbg(msg) {
 }
 
 async function connect() {
-  const url = document.getElementById('cfg-url').value.trim();
-  const key = document.getElementById('cfg-key').value.trim();
+  const url = document.getElementById('cfg-url').value.trim() || SB_URL_DEFAUT;
+  const key = document.getElementById('cfg-key').value.trim() || SB_KEY_DEFAUT;
   const btn = document.getElementById('btn-connect');
   const errEl = document.getElementById('setup-error');
   const dbgEl = document.getElementById('debug-log');
   if(dbgEl) { dbgEl.textContent=''; dbgEl.style.display='block'; }
 
-  if (!url || !key) { showSetupError('URL et clé anon obligatoires'); return; }
+  if (!url || !key) { showSetupError('Adresse du projet Supabase manquante (Réglages avancés)'); return; }
 
   const cleanUrl = url.replace(/\/$/, '');
   dbg('URL: ' + cleanUrl.substring(0,50));
@@ -2014,8 +2043,8 @@ async function connect() {
     if (error && !error.message.includes('does not exist') && !error.message.includes('relation')) throw error;
     dbg('Connexion réussie ✓');
     if (document.getElementById('cfg-remember').checked) {
-      localStorage.setItem(SBURL_KEY, cleanUrl);
-      localStorage.setItem(SBKEY_KEY, key);
+      if (cleanUrl !== SB_URL_DEFAUT || key !== SB_KEY_DEFAUT) { localStorage.setItem(SBURL_KEY, cleanUrl); localStorage.setItem(SBKEY_KEY, key); }
+      else { localStorage.removeItem(SBURL_KEY); localStorage.removeItem(SBKEY_KEY); }
     }
     errEl.style.display = 'none';
     document.getElementById('setup-screen').style.display = 'none';
@@ -2072,6 +2101,44 @@ function resetCredentials() {
   document.getElementById('btn-connect').disabled = false;
   document.getElementById('setup-screen').style.display = 'flex';
   toast('Identifiants effacés','ok');
+}
+
+// 🔒 Ce qui est public : un client SANS session (comme un inconnu) essaie de lire chaque table
+const TABLES_CONNUES = ['alertes_clientes','bijoux','boutique_settings','charges','commandes','config','demandes_perso','depenses','fournisseurs',
+  'materiaux','modeles_3d','productions','securite_sauvegarde','tiktok_historique','tiktok_jetons','tiktok_manuel','tiktok_videos','ventes','couleurs_perles'];
+async function verifierPublic() {
+  const out = document.getElementById('pub-res'), e = x => String(x ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  out.innerHTML = '⏳ Test en cours…';
+  const url = localStorage.getItem(SBURL_KEY) || SB_URL_DEFAUT, key = localStorage.getItem(SBKEY_KEY) || SB_KEY_DEFAUT;
+  const anon = supabase.createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: 'bn-test-public' } });
+  let tables = [...TABLES_CONNUES];
+  try { const r = await fetch(url + '/rest/v1/', { headers: { apikey: key, Authorization: 'Bearer ' + key } });
+    if (r.ok) { const d = await r.json(); tables = [...new Set([...tables, ...Object.keys(d.definitions || {})])]; } } catch {}
+  tables.sort();
+  const lignes = await Promise.all(tables.map(async t => {
+    try { const { data, error, count } = await anon.from(t).select('*', { count: 'exact' }).limit(1);
+      if (error) return /does not exist|schema cache|not found/i.test(error.message) ? null : { t, ok: true, txt: 'privée' };
+      const n = count ?? (data || []).length;
+      if (!n) return { t, ok: true, txt: 'rien de visible' };
+      return { t, ok: false, txt: n + ' ligne' + (n > 1 ? 's' : '') + ' lisible' + (n > 1 ? 's' : '') + ' · colonnes : ' + Object.keys(data[0] || {}).join(', ') };
+    } catch (x) { return { t, ok: true, txt: 'privée' }; }
+  }));
+  const l = lignes.filter(Boolean), pub = l.filter(x => !x.ok);
+  let html = `<div style="font-weight:700;margin-bottom:6px">${pub.length ? '⚠️ ' + pub.length + ' table' + (pub.length > 1 ? 's' : '') + ' lisible' + (pub.length > 1 ? 's' : '') + ' par tout le monde' : '✅ Aucune table lisible sans ton compte'}</div>`
+    + l.map(x => `<div style="padding:3px 0;border-bottom:1px dashed var(--border)">${x.ok ? '🔒' : '⚠️'} <b>${e(x.t)}</b> — ${e(x.txt)}</div>`).join('');
+  // photos des matériaux : la liste du dossier est-elle visible ?
+  try { const { data } = await anon.storage.from('materiaux-images').list('', { limit: 3 });
+    html += `<div style="padding:3px 0">${data?.length ? '⚠️ <b>Photos des matériaux</b> — la liste des fichiers est visible' : '🔒 <b>Photos des matériaux</b> — liste non visible (une photo s\'ouvre seulement avec son adresse exacte)'}</div>`; } catch {}
+  // ce que le configurateur envoie aux clientes (fonction « catalogue »)
+  try { const r = await fetch(url + '/functions/v1/swift-action', { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: key, Authorization: 'Bearer ' + key }, body: JSON.stringify({ action: 'catalogue' }) });
+    const d = r.ok ? await r.json() : null, t = d?.tables;
+    html += t ? `<div style="margin-top:12px;font-weight:700">🛍 Ce que le configurateur envoie aux clientes</div>
+      <div>• ${t.bijoux.length} fiches bijoux : réf., nom, variante, prix de vente (pas les fiches « ne pas vendre »)</div>
+      <div>• ${t.materiaux.length} matériaux du configurateur : réf., nom, couleur, disponible oui/non (pas les quantités, ni prix d'achat, ni fournisseurs)</div>
+      <div>• ${t.modeles_3d.length} modèles 3D publiés · réglages : ${t.config.map(c => e(c.key)).concat(t.boutique_settings.map(c => e(c.key))).join(', ')}</div>`
+      : `<div style="margin-top:12px">⚠️ La fonction « catalogue » ne répond pas : redéploie la fonction Supabase avec le dernier index.ts.</div>`;
+  } catch {}
+  out.innerHTML = html;
 }
 
 function setSyncing() { const d=document.getElementById('sync-dot'); d.className='sync-dot syncing'; }
@@ -8811,10 +8878,12 @@ function applyHdrConfig() {
 // INIT -- Auto-connect if credentials saved
 // ═══════════════════════════════════════════════════════
 (async function init() {
-  const url=localStorage.getItem(SBURL_KEY), key=localStorage.getItem(SBKEY_KEY);
+  if(location.search.includes('reset')) { localStorage.removeItem(SBURL_KEY); localStorage.removeItem(SBKEY_KEY); }
+  // adresse et clé publique : celles mémorisées (si tu as changé de projet), sinon celles de l'atelier
+  const url=localStorage.getItem(SBURL_KEY)||SB_URL_DEFAUT, key=localStorage.getItem(SBKEY_KEY)||SB_KEY_DEFAUT;
   if(url&&key) {
-    document.getElementById('cfg-url').value=url;
-    document.getElementById('cfg-key').value=key;
+    document.getElementById('cfg-url').value=localStorage.getItem(SBURL_KEY)||'';
+    document.getElementById('cfg-key').value=localStorage.getItem(SBKEY_KEY)||'';
     // session déjà ouverte : on n'affiche pas l'écran de connexion pendant la vérification (pas de flash)
     document.getElementById('setup-screen').style.display='none';
     try {
@@ -8838,11 +8907,35 @@ function applyHdrConfig() {
       document.getElementById('setup-screen').style.display = 'flex';
     }
   }
-  // Allow ?reset in URL to clear credentials
-  if(location.search.includes('reset')) {
-    localStorage.removeItem(SBURL_KEY); localStorage.removeItem(SBKEY_KEY);
-  }
   document.querySelectorAll('input[type=date]').forEach(el=>{if(!el.value)el.value=today();});
+})();
+</script>
+<div class="pwa-inviter" id="pwaInviter" role="dialog" aria-label="Installer l'app">
+  <span id="pwaTexte">Installer l'app Atelier sur cet appareil ?</span>
+  <button class="pwa-ok" id="pwaOk" type="button">Installer</button>
+  <button class="pwa-non" id="pwaNon" type="button" aria-label="Plus tard">✕</button>
+</div>
+<script>
+// App installée (PWA) : plein écran comme une app, icône sur l'écran d'accueil, s'ouvre même sans connexion
+(() => {
+  if ('serviceWorker' in navigator && window.isSecureContext) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  const installee = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  if (installee) return;
+  const boite = document.getElementById('pwaInviter'), lu = k => { try { return localStorage.getItem(k); } catch { return null; } };
+  const ecrit = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+  if (lu('pwa-plus-tard') && Date.now() - +lu('pwa-plus-tard') < 14 * 864e5) return;          // redemande au bout de 2 semaines
+  document.getElementById('pwaNon').onclick = () => { boite.classList.remove('on'); ecrit('pwa-plus-tard', Date.now()); };
+  let demande = null;
+  addEventListener('beforeinstallprompt', e => { e.preventDefault(); demande = e; boite.classList.add('on'); });   // Android, Chrome, Edge
+  document.getElementById('pwaOk').onclick = async () => {
+    if (!demande) { boite.classList.remove('on'); ecrit('pwa-plus-tard', Date.now()); return; }
+    demande.prompt(); await demande.userChoice.catch(() => {}); demande = null; boite.classList.remove('on');
+  };
+  addEventListener('appinstalled', () => boite.classList.remove('on'));
+  // iPhone / iPad (Safari) : pas de bouton possible, on explique le geste une fois
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (ios) { document.getElementById('pwaTexte').innerHTML = 'Pour l\'avoir en plein écran : <b>Partager</b> ⬆︎ puis <b>Sur l\'écran d\'accueil</b>';
+    document.getElementById('pwaOk').textContent = 'OK'; setTimeout(() => boite.classList.add('on'), 2500); }
 })();
 </script>
 </body>
