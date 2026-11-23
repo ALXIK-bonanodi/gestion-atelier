@@ -539,7 +539,8 @@ import {
   correspondCategorie, texteCatalogue, ordreModeles, chargerRuptures, appliquerRuptures,
   chargerLiens, appliquerLiens, relierModele, chargerMateriauxParRefs,
   chargerFichesConfig, chargerOffres, definirLiensFormes, lienModele, appliquerLienModele, formeLiee, composerCompos, definirFichesConfig, ficheCfg, refsCouleurFiche, famillesFiche,
-} from './bead-core.js?v=15feb465';
+  clientCatalogue,
+} from './bead-core.js?v=a8061116';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, supabaseConfigure, INFOS_ATELIER, PANIER_SHOPIFY, ADOBE_FONTS_KIT } from './perles-config.js?v=b2c9a685';
 // Erotica (Adobe Fonts) : chargée depuis ton kit si son adresse est renseignée dans perles-config.js
 if (ADOBE_FONTS_KIT) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = ADOBE_FONTS_KIT; document.head.appendChild(l); }
@@ -578,10 +579,12 @@ const ICONES = {
 window.__etape = 'connexion à la base';
 // dans l'app de gestion (?apercu) et connectée : peut enregistrer des alternatives
 let sbAdmin = null;
-const sb = supabaseConfigure() && window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+const sbBase = supabaseConfigure() && window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false,
           storageKey: 'bn-configurateur-public', lock: async (_nom, _delai, fn) => fn() },
 }) : null;
+// les tables sont privées : les lectures passent par le catalogue préparé par la fonction Supabase (seulement ce qui s'affiche)
+const sb = sbBase ? clientCatalogue(sbBase, SUPABASE_URL + '/functions/v1/swift-action', SUPABASE_ANON_KEY) : null;
 // garde-fou : une requête qui ne répond pas au bout de 12 s est abandonnée (données d'exemple à la place)
 const avecDelai = (promesse, ms = 12000) => Promise.race([promesse,
   new Promise((_, non) => setTimeout(() => non(new Error('la base ne répond pas (délai dépassé)')), ms))]);

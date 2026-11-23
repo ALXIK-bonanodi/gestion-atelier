@@ -71,9 +71,10 @@ $('#f').addEventListener('submit', async e => {
   const sujet = document.querySelector('[name=sujet]:checked').value;
   $('#bt').disabled = true; msg.className = 'msg'; msg.textContent = 'Envoi…';
   try {
-    const r = await fetch(SUPABASE_URL + '/rest/v1/alertes_clientes', { method: 'POST',
-      headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-      body: JSON.stringify({ email, prenom: $('#prenom').value.trim() || null, sujet, produit: sujet === 'produit' ? produit : null, consentement: true, page: document.referrer.slice(0, 200) || null }) });
+    // la table des inscriptions est privée : la fonction Supabase l'enregistre côté serveur
+    const r = await fetch(SUPABASE_URL + '/functions/v1/swift-action', { method: 'POST',
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'alerte', email, prenom: $('#prenom').value.trim() || null, sujet, produit: sujet === 'produit' ? produit : null, consentement: true, page: document.referrer.slice(0, 200) || null }) });
     if (!r.ok) throw new Error(r.status);
     $('#carte').innerHTML = `<div class="merci"><div class="e">✦</div><h1>C'est noté${$('#prenom').value.trim() ? ', ' + $('#prenom').value.trim().replace(/[<>&]/g, '') : ''} !</h1><p class="s">Tu recevras un e-mail ${sujet === 'produit' ? 'dès que « ' + produit.replace(/[<>&]/g, '') + ' » revient' : 'le jour du prochain drop'}.</p></div>`;
   } catch (err) {

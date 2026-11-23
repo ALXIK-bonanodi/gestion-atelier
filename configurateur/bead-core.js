@@ -654,6 +654,56 @@ export function apercuChainmail(forme) {
    modele.bij_ref   : ref exacte (#BIJ-001), sinon modele.bijNom : texte cherché (« croix »)
    Le prix vient du pv de la fiche ; sans pv, du prix du modèle.
    -------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+   LECTURE PUBLIQUE PAR LE CATALOGUE
+   Les tables ne sont plus lisibles avec la clé publique. Le configurateur reçoit d'un coup, de la fonction
+   Supabase (action « catalogue »), seulement ce qu'il affiche ; ce client répond à ses lectures habituelles
+   (from().select().eq().in().or().order().maybeSingle()) à partir de ce catalogue.
+   Le reste (rpc, enregistrements, tables absentes du catalogue) passe au vrai client.
+   Si la fonction ne répond pas (pas encore redéployée), les lectures vont directement aux tables comme avant.
+   -------------------------------------------------------------------------- */
+export function clientCatalogue(sbVrai, urlFonction, cle) {
+  let promesse = null;
+  const charger = () => promesse || (promesse = fetch(urlFonction, { method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: cle, Authorization: 'Bearer ' + cle }, body: JSON.stringify({ action: 'catalogue' }) })
+    .then(r => r.ok ? r.json() : null).then(d => d?.tables || null).catch(() => null));
+  const motif = v => new RegExp('^' + String(v).replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/%/g, '.*').replace(/_/g, '.') + '$', 'i');
+  const testeur = (col, op, val) => {
+    if (op === 'ilike' || op === 'like') { const re = motif(val); return r => re.test(String(r[col] ?? '')); }
+    if (op === 'eq') return r => String(r[col]) === String(val);
+    if (op === 'in') { const l = String(val).replace(/^\(|\)$/g, '').split(','); return r => l.includes(String(r[col])); }
+    return () => true;
+  };
+  function requete(table) {
+    const ops = [];
+    const q = {};
+    for (const m of ['select', 'eq', 'in', 'or', 'order', 'limit', 'maybeSingle', 'single', 'ilike', 'neq'])
+      q[m] = (...a) => { ops.push([m, a]); return q; };
+    for (const m of ['insert', 'update', 'upsert', 'delete']) q[m] = (...a) => sbVrai.from(table)[m](...a);   // écriture : vrai client
+    const rejouer = () => ops.reduce((x, [m, a]) => x[m](...a), sbVrai.from(table));
+    q.then = (ok, non) => charger().then(tables => {
+      if (!tables || !Array.isArray(tables[table])) return rejouer();
+      let rows = tables[table].slice(), un = null, cols = null;
+      for (const [m, a] of ops) {
+        if (m === 'select') cols = String(a[0] || '*').trim();
+        else if (m === 'eq') rows = rows.filter(testeur(a[0], 'eq', a[1]));
+        else if (m === 'neq') rows = rows.filter(r => String(r[a[0]]) !== String(a[1]));
+        else if (m === 'ilike') rows = rows.filter(testeur(a[0], 'ilike', a[1]));
+        else if (m === 'in') { const l = (a[1] || []).map(String); rows = rows.filter(r => l.includes(String(r[a[0]]))); }
+        else if (m === 'or') { const ts = String(a[0]).split(',').map(x => { const [c, o, ...v] = x.split('.'); return testeur(c, o, v.join('.')); }); rows = rows.filter(r => ts.some(t => t(r))); }
+        else if (m === 'order') { const k = a[0], asc = a[1]?.ascending !== false; rows.sort((u, v) => (u[k] > v[k] ? 1 : u[k] < v[k] ? -1 : 0) * (asc ? 1 : -1)); }
+        else if (m === 'limit') rows = rows.slice(0, a[0]);
+        else if (m === 'maybeSingle' || m === 'single') un = m;
+      }
+      if (cols && cols !== '*') { const ks = cols.split(',').map(x => x.trim()).filter(Boolean); rows = rows.map(r => Object.fromEntries(ks.filter(k => k in r).map(k => [k, r[k]]))); }
+      if (un) return { data: rows[0] ?? null, error: un === 'single' && !rows.length ? { message: 'aucune ligne' } : null };
+      return { data: rows, error: null };
+    }).then(ok, non);
+    return q;
+  }
+  return { from: requete, rpc: (...a) => sbVrai.rpc(...a), auth: sbVrai.auth, storage: sbVrai.storage, functions: sbVrai.functions, catalogue: charger };
+}
+
 export async function chargerBijouxBoutique(sb) {
   // colonnes autorisées à la clé publique ; parent_id + variante_overrides (sql-variantes-configurateur.sql) pour trouver la bonne couleur
   let { data, error } = await sb.from('bijoux').select('id,ref,nom,variante,pv,is_mat,parent_id,variante_overrides');
