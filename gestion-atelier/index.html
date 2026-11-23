@@ -712,10 +712,11 @@ body.selection-active #gpanel-mat{padding-bottom:150px!important}
     <div style="text-align:center;margin-bottom:6px"><img src="logo-app.png" alt="Bona Nodi" style="width:84px;height:84px"></div>
     <div class="setup-title" style="text-align:center">Atelier Bona Nodi</div>
     <div class="setup-sub">
-      Connecte-toi avec ton e-mail et ton mot de passe.<br>
-      URL et clé anon : Supabase → <b>Settings → API</b> (mémorisées après la première fois).
+      Connecte-toi avec ton e-mail et ton mot de passe.
     </div>
-    <div class="fg"><label>URL du projet Supabase</label>
+    <!-- l'adresse du projet et la clé publique sont déjà dans l'app : à changer seulement si tu changes de projet Supabase -->
+    <details id="cfg-avance" style="margin-bottom:10px;order:9"><summary style="font-size:12px;color:var(--muted);cursor:pointer">Réglages avancés (projet Supabase)</summary>
+    <div class="fg" style="margin-top:8px"><label>URL du projet Supabase</label>
       <input id="cfg-url" placeholder="https://XXXXXX.supabase.co" type="url"
              autocomplete="url" onkeydown="if(event.key==='Enter')document.getElementById('cfg-key').focus()">
     </div>
@@ -723,6 +724,7 @@ body.selection-active #gpanel-mat{padding-bottom:150px!important}
       <input id="cfg-key" placeholder="eyJhbGci…" type="text"
              autocomplete="off" onkeydown="if(event.key==='Enter')document.getElementById('cfg-email').focus()">
     </div>
+    </details>
     <!-- Connexion sécurisée : ton compte Supabase (la clé anon seule ne donne plus accès aux données) -->
     <div class="fg"><label>E-mail</label>
       <input id="cfg-email" type="email" autocomplete="username" placeholder="ton e-mail"
@@ -1973,6 +1975,10 @@ try { if (localStorage.getItem('atl_sb_url') && localStorage.getItem('atl_sb_key
 let SB = null;
 const SBURL_KEY = 'atl_sb_url';
 const SBKEY_KEY = 'atl_sb_key';
+// Projet Supabase de l'atelier : adresse et clé PUBLIQUE (la même que dans le configurateur, faite pour être visible).
+// Elle ne donne accès à rien sans ton e-mail et ton mot de passe (sécurisation RLS) : seule la connexion à ton compte compte.
+const SB_URL_DEFAUT = 'https://twtstslwhvrhmjfcfvvu.supabase.co';
+const SB_KEY_DEFAUT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR3dHN0c2x3aHZyaG1qZmNmdnZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4OTQ1MzcsImV4cCI6MjA5MDQ3MDUzN30.11Ejag3jxcBtx9unK33dnaCjSIJDu0FszLeyYw91zgE';
 
 function dbg(msg) {
   const el = document.getElementById('debug-log');
@@ -1983,14 +1989,14 @@ function dbg(msg) {
 }
 
 async function connect() {
-  const url = document.getElementById('cfg-url').value.trim();
-  const key = document.getElementById('cfg-key').value.trim();
+  const url = document.getElementById('cfg-url').value.trim() || SB_URL_DEFAUT;
+  const key = document.getElementById('cfg-key').value.trim() || SB_KEY_DEFAUT;
   const btn = document.getElementById('btn-connect');
   const errEl = document.getElementById('setup-error');
   const dbgEl = document.getElementById('debug-log');
   if(dbgEl) { dbgEl.textContent=''; dbgEl.style.display='block'; }
 
-  if (!url || !key) { showSetupError('URL et clé anon obligatoires'); return; }
+  if (!url || !key) { showSetupError('Adresse du projet Supabase manquante (Réglages avancés)'); return; }
 
   const cleanUrl = url.replace(/\/$/, '');
   dbg('URL: ' + cleanUrl.substring(0,50));
@@ -2026,8 +2032,8 @@ async function connect() {
     if (error && !error.message.includes('does not exist') && !error.message.includes('relation')) throw error;
     dbg('Connexion réussie ✓');
     if (document.getElementById('cfg-remember').checked) {
-      localStorage.setItem(SBURL_KEY, cleanUrl);
-      localStorage.setItem(SBKEY_KEY, key);
+      if (cleanUrl !== SB_URL_DEFAUT || key !== SB_KEY_DEFAUT) { localStorage.setItem(SBURL_KEY, cleanUrl); localStorage.setItem(SBKEY_KEY, key); }
+      else { localStorage.removeItem(SBURL_KEY); localStorage.removeItem(SBKEY_KEY); }
     }
     errEl.style.display = 'none';
     document.getElementById('setup-screen').style.display = 'none';
@@ -8823,10 +8829,12 @@ function applyHdrConfig() {
 // INIT -- Auto-connect if credentials saved
 // ═══════════════════════════════════════════════════════
 (async function init() {
-  const url=localStorage.getItem(SBURL_KEY), key=localStorage.getItem(SBKEY_KEY);
+  if(location.search.includes('reset')) { localStorage.removeItem(SBURL_KEY); localStorage.removeItem(SBKEY_KEY); }
+  // adresse et clé publique : celles mémorisées (si tu as changé de projet), sinon celles de l'atelier
+  const url=localStorage.getItem(SBURL_KEY)||SB_URL_DEFAUT, key=localStorage.getItem(SBKEY_KEY)||SB_KEY_DEFAUT;
   if(url&&key) {
-    document.getElementById('cfg-url').value=url;
-    document.getElementById('cfg-key').value=key;
+    document.getElementById('cfg-url').value=localStorage.getItem(SBURL_KEY)||'';
+    document.getElementById('cfg-key').value=localStorage.getItem(SBKEY_KEY)||'';
     // session déjà ouverte : on n'affiche pas l'écran de connexion pendant la vérification (pas de flash)
     document.getElementById('setup-screen').style.display='none';
     try {
@@ -8849,10 +8857,6 @@ function applyHdrConfig() {
       showSetupError('Connexion automatique échouée -- vérifiez vos identifiants ou la connexion réseau.');
       document.getElementById('setup-screen').style.display = 'flex';
     }
-  }
-  // Allow ?reset in URL to clear credentials
-  if(location.search.includes('reset')) {
-    localStorage.removeItem(SBURL_KEY); localStorage.removeItem(SBKEY_KEY);
   }
   document.querySelectorAll('input[type=date]').forEach(el=>{if(!el.value)el.value=today();});
 })();
